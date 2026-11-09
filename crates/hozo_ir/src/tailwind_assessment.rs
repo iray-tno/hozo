@@ -5,7 +5,11 @@ use crate::{OrderCandidateDescriptor, OrderRuleDescriptor, OrderRuleShape, Style
 
 /// Interaction facts and the boolean ARIA facts already delivered by Native
 /// owners. This is predicate equivalence, not a variant precedence table.
-const ARIA_FACT_COUNT: usize = 6;
+/// Every state Tailwind names for `aria-…:` is here: each is one attribute
+/// selector of one class weight, and Native resolves each through the same
+/// guard (`accessibilityState`, or a pattern slot's own fact), so ranking
+/// one changes which write wins, never how its guard is delivered.
+const ARIA_FACT_COUNT: usize = 10;
 pub(crate) const OWNER_PREDICATE_COUNT: usize = 5 + 2 * ARIA_FACT_COUNT;
 
 pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
@@ -16,6 +20,10 @@ pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
         "selected" => 8,
         "invalid" => 9,
         "disabled" => 10,
+        "hidden" => 11,
+        "pressed" => 12,
+        "readonly" => 13,
+        "required" => 14,
         _ => return None,
     })
 }
@@ -62,6 +70,19 @@ pub struct AssessedTailwindRule<'a> {
     /// Multiplicity of independently delivered interaction/ARIA predicates.
     /// Guard equivalence only; precedence still comes from the rule.
     pub owner: [u16; OWNER_PREDICATE_COUNT],
+    /// The declarations reach the element's children through
+    /// `:where(& > :not(:last-child))`, not the element itself.
+    pub child_scope: bool,
+}
+
+/// Tailwind's `space-*` selector. It is all inside `:where()`, the class
+/// too, so it weighs nothing.
+pub(crate) const CHILD_SCOPE: &str = ":where(& > :not(:last-child))";
+
+/// Writes that land on the element's children, owned only by a
+/// [`CHILD_SCOPE`] rule and never by the element's own.
+pub(crate) fn child_scoped(write: &StyleProperty) -> bool {
+    matches!(write, StyleProperty::SpaceX(_) | StyleProperty::SpaceY(_))
 }
 
 /// Match Tailwind's escaped root literally, not a substring of another
@@ -108,10 +129,23 @@ pub fn assess_tailwind_rule<'a>(
         media: Vec::new(),
         selectors: Vec::new(),
         owner: [0; OWNER_PREDICATE_COUNT],
+        child_scope: false,
     };
     assess_body(nodes, &mut result)?;
     if result.properties.is_empty() {
         return Err(RuleAssessmentError::Empty);
+    }
+    if result.child_scope {
+        // A state or selector variant moves inside the `:where()` too
+        // (`hover:space-y-4` is `:where(.x:hover > …)`) and weighs nothing,
+        // unlike the same variant on the element. Only queries are read.
+        if result.specificity != [0, 1, 0]
+            || !result.selectors.is_empty()
+            || result.owner.iter().any(|count| *count != 0)
+        {
+            return Err(RuleAssessmentError::Selector);
+        }
+        result.specificity = [0, 0, 0];
     }
     Ok(result)
 }
@@ -331,6 +365,13 @@ fn compound_selector_weight(selector: &str) -> Option<u32> {
     (plain && value.is_none_or(quoted)).then_some(1)
 }
 
+/// The pseudo-elements whose rule is read as a condition on the element.
+/// Only `::placeholder`: Native carries it as `TextInput`'s
+/// `placeholderTextColor`, which takes the last colour written, so the
+/// ranked winner is the one it sees. Others need their own delivery proof
+/// (`::backdrop` becomes a Native slot's unconditional style).
+const PSEUDO_ELEMENTS: [&str; 1] = ["&::placeholder"];
+
 fn assess_body<'a>(
     nodes: &'a [OrderRuleShape],
     result: &mut AssessedTailwindRule<'a>,
@@ -367,11 +408,22 @@ fn assess_body<'a>(
             OrderRuleShape::Rule { selector, nodes } => {
                 // Functional/list/relational/pseudo-element selectors require
                 // real assessment, never a colon count or boolean count.
-                if let Some(owner) = owner_selector(selector) {
+                if selector == CHILD_SCOPE {
+                    if std::mem::replace(&mut result.child_scope, true) {
+                        return Err(RuleAssessmentError::Selector);
+                    }
+                } else if result.child_scope {
+                    // Nothing is read inside the children's scope.
+                    return Err(RuleAssessmentError::Selector);
+                } else if let Some(owner) = owner_selector(selector) {
                     result.owner[owner] = result.owner[owner]
                         .checked_add(1)
                         .ok_or(RuleAssessmentError::Selector)?;
                     result.specificity[1] += 1;
+                } else if PSEUDO_ELEMENTS.contains(&selector.as_str()) {
+                    // A pseudo-element weighs one type, not one class.
+                    result.selectors.push(selector);
+                    result.specificity[2] += 1;
                 } else {
                     let weight =
                         element_selector_weight(selector).ok_or(RuleAssessmentError::Selector)?;
@@ -644,8 +696,25 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
             | crate::Display::None
             | crate::Display::Contents
             | crate::Display::Block
-            | crate::Display::InlineFlex,
+            | crate::Display::InlineFlex
+            // Grid goes to the Native grid wrapper, which reads the last
+            // unconditional display, so the ranked winner is the one it
+            // sees. The other keywords are refused on Native as before;
+            // on Web each is one `display` declaration.
+            | crate::Display::Grid
+            | crate::Display::Css(_),
         ) => "display",
+        // One declaration each. Native's grid solver reads the last write
+        // of each, and combines a shorthand with a longhand edge by key, as
+        // Tailwind's order (`grid-column` before `grid-column-start`) does.
+        GridTemplateColumns(_) => "grid-template-columns",
+        GridTemplateRows(_) => "grid-template-rows",
+        GridColumn(_) => "grid-column",
+        GridColumnStart(_) => "grid-column-start",
+        GridColumnEnd(_) => "grid-column-end",
+        GridRow(_) => "grid-row",
+        GridRowStart(_) => "grid-row-start",
+        GridRowEnd(_) => "grid-row-end",
         // One CSS property and, where Native has it, one Native key each.
         InsetTop(_) => "top",
         InsetRight(_) => "right",
@@ -689,7 +758,11 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         OutlineColor(_) => "outline-color",
         OutlineOffset(length) if absolute(length) => "outline-offset",
         Position(
-            crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
+            crate::Position::Relative
+            | crate::Position::Absolute
+            | crate::Position::Static
+            // `fixed` and `sticky` are refused on Native as before.
+            | crate::Position::Css(_),
         ) => "position",
         // `auto`, `clip` and the axes have no Native key and are refused
         // there, as a cursor Native lacks is; on Web they still cascade in
@@ -747,6 +820,27 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         Keyword("pointer-events", "auto" | "none") => "pointer-events",
         Keyword("user-select", "auto" | "text" | "none" | "all") => "user-select",
         Keyword("vertical-align", "auto" | "top" | "bottom" | "middle") => "vertical-align",
+        // Native has no resize handle: `none` writes nothing there and the
+        // others are refused, whichever wins, as before.
+        Keyword("resize", "none" | "both" | "horizontal" | "vertical") => "resize",
+        // `cursorColor` on a Native `TextInput`, which takes the last light
+        // and dark colour; refused elsewhere. `accent-*` is refused on
+        // Native whatever wins.
+        CaretColor(_) => "caret-color",
+        // `color` on `::placeholder`, which ranking asks for as a selector
+        // (`scalar_write_priority`), never on the element itself. Native's
+        // `placeholderTextColor` takes the last colour per scheme.
+        PlaceholderColor(_) => "color",
+        // One `animation` declaration. Native runs the last one under each
+        // condition as a hook; a project's own `animate-<name>` and the
+        // `animation-*` longhands are not read yet.
+        Animation(_) => "animation",
+        AccentColor(_) => "accent-color",
+        // On the children, through [`CHILD_SCOPE`]; see `child_scoped`.
+        // Each backend joins the parent's last gap behind a child's own
+        // margin, so ranking only decides which gap that is.
+        SpaceX(_) => "margin-inline-start",
+        SpaceY(_) => "margin-block-start",
         // One declaration and, where Native has it, one key each. A cursor
         // Native lacks is refused there, as an unsupported display is.
         Cursor(_) => "cursor",
@@ -839,6 +933,11 @@ pub fn assess_tailwind_write<'a>(
             // cherry-pick a unique-looking owner from the assessed remainder.
             Err(reason) => return TailwindWriteOwnership::Unknown(reason.reason()),
         };
+        // A child-scoped write is owned only by a child-scoped rule, and an
+        // element write never by one.
+        if assessment.child_scope != child_scoped(write) {
+            continue;
+        }
         if register_bound(assessment.properties.iter().copied(), write) {
             return TailwindWriteOwnership::Unknown("register-bound-property");
         }
@@ -1028,8 +1127,6 @@ mod tests {
             StyleProperty::Keyword("font-style", "oblique"),
             StyleProperty::AlignContent(crate::Justify::Baseline),
             StyleProperty::JustifyContent(crate::Justify::Stretch),
-            StyleProperty::Display(crate::Display::Grid),
-            StyleProperty::Position(crate::Position::Css("fixed")),
             StyleProperty::TextDecorationLine("overline"),
             StyleProperty::UserSelect("contain"),
             StyleProperty::Keyword("vertical-align", "baseline"),
@@ -1338,7 +1435,8 @@ mod tests {
     #[test]
     fn boolean_aria_assessment_matches_actual_independent_owner_facts_not_class_names() {
         for state in [
-            "busy", "checked", "expanded", "selected", "invalid", "disabled",
+            "busy", "checked", "expanded", "selected", "invalid", "disabled", "hidden", "pressed",
+            "readonly", "required",
         ] {
             let mut snapshot = portable_tailwind_snapshot();
             let candidate = snapshot
@@ -1381,7 +1479,8 @@ mod tests {
     #[test]
     fn negated_aria_requires_exact_original_polarity_and_multiplicity() {
         for state in [
-            "busy", "checked", "expanded", "selected", "invalid", "disabled",
+            "busy", "checked", "expanded", "selected", "invalid", "disabled", "hidden", "pressed",
+            "readonly", "required",
         ] {
             let mut snapshot = portable_tailwind_snapshot();
             let candidate = snapshot
@@ -1427,7 +1526,7 @@ mod tests {
             "&:not(*[aria-selected=\"true\" i])",
             "&:not(*[aria-selected=\"true\"]) > *",
             "&:not(*[aria-selected=\"true\"], *[aria-checked=\"true\"])",
-            "&:not(*[aria-hidden=\"true\"])",
+            "&:not(*[aria-current=\"true\"])",
         ] {
             let mut candidate = fixture("p-2");
             let OrderRuleShape::Rule { nodes, .. } = &mut candidate.rules[0].shape else {
@@ -1455,9 +1554,9 @@ mod tests {
             "&[aria-selected=\"true\" i]",
             "&:not([aria-selected=\"true\"])",
             "&[aria-selected=\"true\"] > *",
-            "&[aria-pressed=\"true\"]",
-            "&[aria-hidden=\"true\"]",
             "&[aria-disabled=\"false\"]",
+            "&[aria-pressed=\"mixed\"]",
+            "&[aria-current=\"true\"]",
         ] {
             let mut candidate = fixture("p-2");
             let OrderRuleShape::Rule { nodes, .. } = &mut candidate.rules[0].shape else {
@@ -1569,12 +1668,12 @@ mod tests {
             assert_eq!(assessed.specificity, [0, weight, 0], "{name}");
             assert_eq!(assessed.media.len(), media, "{name}");
         }
-        for name in [
-            "placeholder:text-red-500",
-            "[&:where(:hover)]:p-2",
-            "[&>span]:p-2",
-            "not-hover:p-2",
-        ] {
+        // A pseudo-element weighs one type.
+        let candidate = fixture("placeholder:text-red-500");
+        let assessed =
+            assess_tailwind_rule("placeholder:text-red-500", &candidate.rules[0]).unwrap();
+        assert_eq!(assessed.specificity, [0, 1, 1]);
+        for name in ["[&:where(:hover)]:p-2", "[&>span]:p-2", "not-hover:p-2"] {
             let candidate = fixture(name);
             assert!(!candidate.rules.is_empty());
             assert!(

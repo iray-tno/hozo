@@ -394,12 +394,14 @@ pub(super) fn build_style_entries(
             .into_iter()
             .partition(|property| matches!(property, StyleProperty::Animation(_)));
         // `animate-none` asks for no hook: it turns an animation off
-        // rather than being one.
-        let animation_hook = animation_props.iter().find_map(|property| match property {
-            StyleProperty::Animation(hozo_ir::Animation::None) => None,
-            StyleProperty::Animation(name) => Some(RuntimeHook::Animation(*name)),
+        // rather than being one. The last one under this condition wins, as
+        // the later `animation` declaration does in CSS.
+        let animation_hook = match animation_props.last() {
+            Some(StyleProperty::Animation(name)) if *name != hozo_ir::Animation::None => {
+                Some(RuntimeHook::Animation(*name))
+            }
             _ => None,
-        });
+        };
         let animation = animation_hook.as_ref().map(RuntimeHook::binding);
         if let Some(hook) = animation_hook {
             runtime.hooks.push(hook);

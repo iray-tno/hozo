@@ -531,11 +531,22 @@ pub(super) fn placeholder_value(
     theme: &Theme,
     runtime: &mut RuntimeNeeds,
 ) -> Option<String> {
+    scheme_colour_value(declarations, theme, runtime, placeholder_colour)
+}
+
+/// One colour prop per scheme: the last light colour, and the last dark one
+/// over it. A paired token follows the scheme the rest of the field does.
+fn scheme_colour_value(
+    declarations: &[StyleDeclaration],
+    theme: &Theme,
+    runtime: &mut RuntimeNeeds,
+    pick: fn(&StyleDeclaration) -> Option<(&hozo_ir::Color, bool)>,
+) -> Option<String> {
     let dark_theme = theme.dark();
     let mut light = None;
     let mut dark = None;
     for declaration in declarations {
-        let Some((colour, dark_only)) = placeholder_colour(declaration) else {
+        let Some((colour, dark_only)) = pick(declaration) else {
             continue;
         };
         if dark_only {
@@ -576,13 +587,30 @@ pub(super) fn placeholder_only_reason(property: &StyleProperty) -> Option<String
 }
 
 /// `caret-*` as React Native carries it: `cursorColor` on TextInput.
-pub(super) fn caret_props(node: &Node, theme: &Theme) -> Option<Vec<(&'static str, String)>> {
-    let colour = node.style.iter().find_map(|d| match &d.property {
-        StyleProperty::CaretColor(c) => Some(c),
+/// `caret-*` and `dark:caret-*`, as `cursorColor` carries them. Any other
+/// condition is not wired and is diagnosed, never applied unconditionally.
+pub(super) fn caret_colour(declaration: &StyleDeclaration) -> Option<(&hozo_ir::Color, bool)> {
+    match (&declaration.property, &declaration.condition) {
+        (StyleProperty::CaretColor(c), Condition::Always) => Some((c, false)),
+        (StyleProperty::CaretColor(c), Condition::Dark) => Some((c, true)),
         _ => None,
-    })?;
-    (node.primitive == Primitive::TextInput)
-        .then(|| vec![("cursorColor", style::placeholder_color(colour, theme))])
+    }
+}
+
+/// The last colour wins, as in CSS: the declarations are already in the
+/// order the cascade gives them.
+pub(super) fn caret_props(
+    node: &Node,
+    theme: &Theme,
+    runtime: &mut RuntimeNeeds,
+) -> Option<Vec<(&'static str, String)>> {
+    if node.primitive != Primitive::TextInput
+        || !node.style.iter().any(|d| caret_colour(d).is_some())
+    {
+        return None;
+    }
+    scheme_colour_value(&node.style, theme, runtime, caret_colour)
+        .map(|value| vec![("cursorColor", value)])
 }
 
 pub(super) fn caret_only_reason() -> String {

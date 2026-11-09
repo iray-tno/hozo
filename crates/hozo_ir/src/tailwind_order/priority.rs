@@ -117,6 +117,11 @@ impl TailwindOrderContext {
             actual[index] = actual[index].checked_add(1)?;
             Some(())
         }
+        // `placeholder-*` is an unconditional write whose rule is on
+        // `::placeholder`: the same selector `placeholder:` asks for.
+        if matches!(property, StyleProperty::PlaceholderColor(_)) {
+            queries.push(Query::Selector(Cow::Borrowed("&::placeholder")));
+        }
         collect(condition, &mut actual, &mut queries)?;
         if priority.owner != actual || !same_queries(&rule.shape, &queries) {
             return None;
@@ -284,6 +289,9 @@ impl<'c> Query<'c> {
             Condition::FormState(state) => suffix(state.selector()),
             Condition::Control(state) => suffix(state.selector()),
             Condition::DataAttribute(attribute) => suffix(attribute),
+            Condition::PseudoElement(crate::PseudoElement::Placeholder) => {
+                selector("&::placeholder")
+            }
             _ => return None,
         })
     }
@@ -383,8 +391,11 @@ fn same_queries(shape: &crate::OrderRuleShape, queries: &[Query<'_>]) -> bool {
     loop {
         let (wrapper, nodes) = match node {
             crate::OrderRuleShape::Rule { selector, nodes } => {
+                // The children's scope is a target, not a condition: a write
+                // reaches it only through ownership (`child_scoped`).
                 let skip = std::mem::take(&mut root)
-                    || crate::tailwind_assessment::owner_selector(selector).is_some();
+                    || crate::tailwind_assessment::owner_selector(selector).is_some()
+                    || selector == crate::tailwind_assessment::CHILD_SCOPE;
                 ((!skip).then_some(Wrapper::Selector(selector)), nodes)
             }
             crate::OrderRuleShape::AtRule {

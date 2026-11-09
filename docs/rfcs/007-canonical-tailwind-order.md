@@ -423,6 +423,24 @@ per utility root and per variant, for a compile with no project CSS; see
 Every compile without an ordered project context now uses them, so
 Tailwind's order is the default everywhere; see
 [built-in default](../measurements/tailwind-builtin-order-default.md).
+Policy v37 adds grid display, tracks and placement, the remaining display
+keywords, and `fixed`/`sticky`; see
+[grid and position evidence](../measurements/tailwind-grid-position-order.md).
+Policy v38 assesses every boolean ARIA state Tailwind names, adding
+`pressed`, `hidden`, `readonly` and `required`; see
+[ARIA state evidence](../measurements/tailwind-aria-state-order.md).
+Policy v39 reads `placeholder:` as a condition on the element, a
+pseudo-element weighing one type, and adds `resize-*`; see
+[placeholder evidence](../measurements/tailwind-placeholder-order.md).
+Policy v40 ranks `space-x-*`/`space-y-*` among themselves, as writes on
+the children owned only by Tailwind's children-scoped rule; see
+[space evidence](../measurements/tailwind-space-order.md).
+Policy v41 adds `caret-*` and `accent-*`, and Native's `cursorColor` takes
+the last caret colour per scheme; see
+[caret and accent evidence](../measurements/tailwind-caret-accent-order.md).
+Policy v42 adds `animate-*` and the `placeholder-*` colour utility, and
+Native runs the last animation under a condition; see
+[animation and placeholder colour evidence](../measurements/tailwind-animation-placeholder-colour-order.md).
 
 ## 1. Restart, not another family-specific patch
 

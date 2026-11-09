@@ -33,7 +33,9 @@ Reading it:
 
 - `not-generated` is the measurement's own limit: `bg-brand` is an example's
   private token, absent from the measured CSS. With Tailwind's theme alone,
-  `@hozo/ui`'s tokens were also not-generated and the share was 69%.
+  `@hozo/ui`'s tokens were also not-generated and the share was 69%. The
+  script now adds the colour names of the examples' own `@theme` blocks too
+  (see the progress table).
 - The rest are real barriers, and the top ones are the next graduation
   candidates: `transition-colors` (several declarations), `font-mono` (font
   family), a theme shadow token, and `aria-pressed:`/`placeholder:`
@@ -88,7 +90,14 @@ here.
 | [Transitions and font families](tailwind-transition-font-family-order.md) | 268 / 320 (83.8%) | `transition-colors`, `font-mono` |
 | [Guarded classes](tailwind-guarded-class-order.md) | 283 / 320 (88.4%) | `cx(base, size === 'sm' && 'px-3')` |
 | [Theme shadow tokens](tailwind-theme-shadow.md) | 288 / 320 (90%) | `shadow-hozo-surface` |
+| [Grid and position](tailwind-grid-position-order.md) | 292 / 320 (91.3%) | `grid`, `fixed`, `row-span-2` |
+| [ARIA states](tailwind-aria-state-order.md) | 296 / 320 (92.5%) | `aria-pressed:` |
+| [Placeholder and resize](tailwind-placeholder-order.md) | 300 / 320 (93.8%) | `placeholder:`, `resize-none` |
+| [Space](tailwind-space-order.md) | 308 / 320 (96.3%) | `space-y-*` |
+| [Caret and accent](tailwind-caret-accent-order.md) | 309 / 320 (96.6%) | `accent-emerald-600` |
+| The examples' `@theme` colours in the measured CSS | 315 / 320 (98.4%) | `bg-brand` (measurement, not code) |
+| [Animations and placeholder colours](tailwind-animation-placeholder-colour-order.md) | 318 / 320 (99.4%) | `animate-pulse`, `placeholder-slate-400` |
 
-What remains, in order: `aria-pressed:` and `placeholder:` (selectors that
-need owner-fact or Native prop evidence), `space-y-*` (child-scoped), and a
-few single cases (`grid`, `fixed`, `row-span-2`, `pt-[env(...)]`).
+What remains: `backdrop:` (Native moves it to a dialog slot's unconditional
+style, which needs its own proof) and `pt-[env(...)]` (an arbitrary
+passthrough value).
