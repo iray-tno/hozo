@@ -58,3 +58,20 @@ test('the unguarded p-4 is emitted after the guarded p-2, so it wins when both a
     array,
   )
 })
+
+// Ranking a ternary can put one branch's classes on both sides of the other
+// branch's (`text-[20px]`, then the other branch, then `text-red-500`). Native
+// named each style object by its condition, so the second visit replaced the
+// first in the StyleSheet and the 20px was lost.
+test('a ranked input that revisits a guard keeps both style objects on Native', async () => {
+  const names = ['text-blue-500', 'text-[24px]', 'text-red-500', 'text-[20px]']
+  const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const final = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
+  const source = `import { Text } from '@hozo/core'
+export const A = ({ alternate }: { alternate: boolean }) => <Text className={alternate ? 'text-blue-500 text-[24px]' : 'text-red-500 text-[20px]'}>a</Text>`
+  const styles = createCompiler().prepareNativeModule(source).emit(final).components[0]!.styles
+  const entries = [...styles.matchAll(/^\s+(\w+): \{/gm)].map((match) => match[1])
+  assert.equal(new Set(entries).size, entries.length, styles)
+  assert.match(styles, /fontSize: 20\b/)
+  assert.match(styles, /color: '#fb2c36'/)
+})
