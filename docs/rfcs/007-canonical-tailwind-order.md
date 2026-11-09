@@ -446,6 +446,9 @@ What is left is counted per domain by the
 Policy v43 adds the logical sizes, `origin-*` and the truncation writes,
 and Native's truncation reads the last of each; see
 [logical size and truncation evidence](../measurements/tailwind-logical-size-truncation-order.md).
+Policy v44 adds block-logical spacing, divider widths and colours and the
+reverse flags, leaving domain 2 with no gap; see
+[block spacing and divider evidence](../measurements/tailwind-block-spacing-divide-order.md).
 
 ## 1. Restart, not another family-specific patch
 
