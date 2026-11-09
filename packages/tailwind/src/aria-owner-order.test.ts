@@ -123,7 +123,7 @@ test('canonical disabled ordering survives actual static/dynamic action and dest
   const cache = openCandidateCache()
   cache.scanFile('disabled-order.ts', JSON.stringify(names.join(' ')), 0)
   const plan = cache.renderNativeModulePlan(context)
-  assert.match(plan.fingerprint!, /^scalar-order-v31:/)
+  assert.match(plan.fingerprint!, /^scalar-order-v32:/)
   assert.ok(plan.entries.every((entry) => entry.groups.every((group) => group.orderable)))
   const resolve = runInNewContext(
     `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,

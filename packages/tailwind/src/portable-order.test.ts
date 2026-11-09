@@ -81,6 +81,15 @@ test('real compile evidence maps expanded writes to original rules without chang
       assert.deepEqual(write.specificity, [0, weight, 0], name)
     }
   }
+  // `text-lg/6` is a size with its line height, mapped to the rule that
+  // declares both. It was once parsed as the colour `lg` at 6% and could
+  // not be mapped at all.
+  assert.deepEqual(
+    new Set(
+      forCandidate('text-lg/6').flatMap((block) => block.writes.map((write) => write.cssProperty)),
+    ),
+    new Set(['font-size', 'line-height']),
+  )
   assert.deepEqual(
     new Set(
       forCandidate('size-4').flatMap((block) => block.writes.map((write) => write.cssProperty)),
@@ -93,10 +102,7 @@ test('real compile evidence maps expanded writes to original rules without chang
     ),
     'authored JS guard must not increase CSS specificity',
   )
-  for (const [name, reason] of [
-    ['p-3', 'uncollected'],
-    ['text-lg/6', 'unmapped-property'],
-  ]) {
+  for (const [name, reason] of [['p-3', 'uncollected']]) {
     assert.ok(forCandidate(name!).length > 0, name)
     assert.ok(
       forCandidate(name!)

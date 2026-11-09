@@ -400,6 +400,9 @@ order, is indexed in [known gaps](../measurements/tailwind-known-gaps.md).
 Policy v31 adds ratio leading and em tracking; Native still sizes the winner
 against the font size after ordering; see
 [relative text evidence](../measurements/tailwind-relative-text-order.md).
+Policy v32 follows a parse fix: `text-lg/7` is a size with a fallback line
+height, not a colour; see
+[text slash evidence](../measurements/tailwind-text-slash-order.md).
 
 ## 1. Restart, not another family-specific patch
 

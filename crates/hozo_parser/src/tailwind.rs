@@ -3711,6 +3711,34 @@ fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
     if let Some(props) = expand_border_width(token) {
         return props;
     }
+    // `text-lg/7`, `text-lg/tight`, `text-lg/[3rem]`: a size with its own
+    // line height. Read as a colour it was `lg` at 7%. Tailwind writes that
+    // line height as a plain `line-height`, not through `--tw-leading`, so it
+    // has a text size's provenance: a later `text-sm` replaces it and any
+    // `leading-*` beats it. A ratio is sized against this utility's own font
+    // size, which is the size it applies to.
+    if let Some((name, modifier)) = token.split_once('/') {
+        if let Some((size, _)) = parse_font_size(name) {
+            if let [(hozo_ir::Condition::Always, props)] =
+                expand_class(&format!("leading-{modifier}")).as_slice()
+            {
+                let line_height = match props.as_slice() {
+                    [StyleProperty::LineHeight(LineHeight::Length(length))] => Some(length.clone()),
+                    [StyleProperty::LineHeight(LineHeight::Ratio(ratio))] => match size {
+                        Length::Px(px) => Some(Length::Px(px * ratio)),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let Some(line_height) = line_height {
+                    return vec![
+                        StyleProperty::FontSize(size),
+                        StyleProperty::LineHeight(LineHeight::FontDefault(line_height)),
+                    ];
+                }
+            }
+        }
+    }
     if let Some((size, line_height)) = parse_font_size(token) {
         // This is a fallback, not an explicit leading. Preserve that fact
         // through condition grouping so responsive font sizes cannot erase
