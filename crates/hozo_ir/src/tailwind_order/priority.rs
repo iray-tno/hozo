@@ -117,6 +117,11 @@ impl TailwindOrderContext {
             actual[index] = actual[index].checked_add(1)?;
             Some(())
         }
+        // `placeholder-*` is an unconditional write whose rule is on
+        // `::placeholder`: the same selector `placeholder:` asks for.
+        if matches!(property, StyleProperty::PlaceholderColor(_)) {
+            queries.push(Query::Selector(Cow::Borrowed("&::placeholder")));
+        }
         collect(condition, &mut actual, &mut queries)?;
         if priority.owner != actual || !same_queries(&rule.shape, &queries) {
             return None;

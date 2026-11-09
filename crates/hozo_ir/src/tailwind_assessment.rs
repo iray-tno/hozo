@@ -827,6 +827,14 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // and dark colour; refused elsewhere. `accent-*` is refused on
         // Native whatever wins.
         CaretColor(_) => "caret-color",
+        // `color` on `::placeholder`, which ranking asks for as a selector
+        // (`scalar_write_priority`), never on the element itself. Native's
+        // `placeholderTextColor` takes the last colour per scheme.
+        PlaceholderColor(_) => "color",
+        // One `animation` declaration. Native runs the last one under each
+        // condition as a hook; a project's own `animate-<name>` and the
+        // `animation-*` longhands are not read yet.
+        Animation(_) => "animation",
         AccentColor(_) => "accent-color",
         // On the children, through [`CHILD_SCOPE`]; see `child_scoped`.
         // Each backend joins the parent's last gap behind a child's own

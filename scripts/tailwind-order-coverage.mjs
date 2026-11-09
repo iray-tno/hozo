@@ -44,9 +44,24 @@ for (const file of files) {
     names.add(candidate)
 }
 // Tailwind's own theme plus @hozo/ui's tokens, which most of the corpus is
-// written against. An example's private tokens (`bg-brand`) stay
-// not-generated here; that is this measurement's limit, not a barrier.
-const css = `@import "tailwindcss/theme.css" layer(theme); ${readFileSync(path.join(root, 'packages/ui/src/theme.css'), 'utf8')} @tailwind utilities;`
+// written against, plus the colour names the examples' own `@theme` blocks
+// add (`bg-brand`). Only the names matter here: a descriptor never reads a
+// value, so the first spelling of each name is enough.
+const exampleColors = new Map()
+for (const example of readdirSync(path.join(root, 'examples'))) {
+  for (const entry of ['global.css', 'src/theme.css']) {
+    const file = path.join(root, 'examples', example, entry)
+    let text
+    try {
+      text = readFileSync(file, 'utf8')
+    } catch {
+      continue
+    }
+    for (const [declaration, name] of text.matchAll(/(--color-[\w-]+)\s*:[^;]+;/g))
+      if (!exampleColors.has(name)) exampleColors.set(name, declaration)
+  }
+}
+const css = `@import "tailwindcss/theme.css" layer(theme); ${readFileSync(path.join(root, 'packages/ui/src/theme.css'), 'utf8')} @theme { ${[...exampleColors.values()].join(' ')} } @tailwind utilities;`
 const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), [...names])
 compiler.setTailwindOrder(JSON.stringify(prepared.snapshot))
 

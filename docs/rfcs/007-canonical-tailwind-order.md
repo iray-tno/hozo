@@ -438,6 +438,9 @@ the children owned only by Tailwind's children-scoped rule; see
 Policy v41 adds `caret-*` and `accent-*`, and Native's `cursorColor` takes
 the last caret colour per scheme; see
 [caret and accent evidence](../measurements/tailwind-caret-accent-order.md).
+Policy v42 adds `animate-*` and the `placeholder-*` colour utility, and
+Native runs the last animation under a condition; see
+[animation and placeholder colour evidence](../measurements/tailwind-animation-placeholder-colour-order.md).
 
 ## 1. Restart, not another family-specific patch
 
