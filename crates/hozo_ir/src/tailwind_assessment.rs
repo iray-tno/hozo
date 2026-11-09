@@ -595,6 +595,13 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
             "line-height"
         }
         LetterSpacing(crate::LetterSpacing::Px(length)) if absolute(length) => "letter-spacing",
+        // Relative metrics are one declaration each too. Native turns them
+        // into pixels against the font size after ordering
+        // (`fold_font_relative`), so ranking decides which leading or
+        // tracking wins and the fold then sizes the winner exactly as it
+        // sized the authored-last one before.
+        LineHeight(crate::LineHeight::Ratio(_)) => "line-height",
+        LetterSpacing(crate::LetterSpacing::Em(_)) => "letter-spacing",
         Width(_) => "width",
         Height(_) => "height",
         MinWidth(_) => "min-width",
@@ -898,6 +905,14 @@ mod tests {
             (StyleProperty::ObjectFit("cover"), "object-fit"),
             (StyleProperty::MixBlendMode("multiply"), "mix-blend-mode"),
             (
+                StyleProperty::LineHeight(crate::LineHeight::Ratio(1.25)),
+                "line-height",
+            ),
+            (
+                StyleProperty::LetterSpacing(crate::LetterSpacing::Em(crate::Em(0.025))),
+                "letter-spacing",
+            ),
+            (
                 StyleProperty::Columns(crate::ColumnCount::Count(2)),
                 "columns",
             ),
@@ -982,7 +997,6 @@ mod tests {
             assert!(!covers("unrelated", &write));
         }
         for write in [
-            StyleProperty::LineHeight(crate::LineHeight::Ratio(1.25)),
             StyleProperty::LetterSpacing(crate::LetterSpacing::Px(Length::Unit(
                 1.0,
                 crate::LengthUnit::Em,
