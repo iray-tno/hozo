@@ -441,6 +441,20 @@ the last caret colour per scheme; see
 Policy v42 adds `animate-*` and the `placeholder-*` colour utility, and
 Native runs the last animation under a condition; see
 [animation and placeholder colour evidence](../measurements/tailwind-animation-placeholder-colour-order.md).
+What is left is counted per domain by the
+[inventory](../measurements/tailwind-order-inventory.md).
+Policy v43 adds the logical sizes, `origin-*` and the truncation writes,
+and Native's truncation reads the last of each; see
+[logical size and truncation evidence](../measurements/tailwind-logical-size-truncation-order.md).
+Policy v44 adds block-logical spacing, divider widths and colours and the
+reverse flags, leaving domain 2 with no gap; see
+[block spacing and divider evidence](../measurements/tailwind-block-spacing-divide-order.md).
+Policy v45 reads the `not-*` forms of interaction states, element
+selectors and media queries; see
+[negated variant evidence](../measurements/tailwind-negated-variant-order.md).
+Policy v46 adds `line-clamp-*`, now emitted where the plan puts it, and
+`@container`; see
+[line clamp and container evidence](../measurements/tailwind-line-clamp-container-order.md).
 
 ## 1. Restart, not another family-specific patch
 

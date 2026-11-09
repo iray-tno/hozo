@@ -139,9 +139,10 @@ export function C() { return <Chip defaultSelected className={cx('p-2 hover:opac
   assert.match(output, /hozoStyle=\{\(\(__hozoClassSlot0Value0, __hozoClassSlot0Value1\) =>/)
   assert.match(
     output,
-    /hozoStyles\.hozo_r0_0, __hozoBp_md && hozoStyles\.hozo_r0_0_md, hozoClasses\(__hozoClassSlot0Value0, __hozoClassSlot0State\), hozoClasses\(__hozoClassSlot0Value1, __hozoClassSlot0State\), hovered &&/,
+    // The state styles follow in Tailwind's variant order, `not-focus:`
+    // before `hover:`, now that the whole static input is ranked.
+    /hozoStyles\.hozo_r0_0, __hozoBp_md && hozoStyles\.hozo_r0_0_md, hozoClasses\(__hozoClassSlot0Value0, __hozoClassSlot0State\), hozoClasses\(__hozoClassSlot0Value1, __hozoClassSlot0State\), !\(focused\) && hozoStyles\.hozo_r0_0_notfocus, hovered &&/,
   )
-  assert.match(output, /!\(focused\) && hozoStyles\.hozo_r0_0_notfocus/)
   assert.match(output, /style=\{\[hozoAuthoredStyle\(extra\)\]\}/)
   assert.match(output, /import \{ hozoClasses \} from '.*candidates\.native\.js'/)
   assert.doesNotMatch(output, /className=|HozoPressable|HozoText/)

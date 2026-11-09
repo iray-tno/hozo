@@ -10,7 +10,19 @@ use crate::{OrderCandidateDescriptor, OrderRuleDescriptor, OrderRuleShape, Style
 /// guard (`accessibilityState`, or a pattern slot's own fact), so ranking
 /// one changes which write wins, never how its guard is delivered.
 const ARIA_FACT_COUNT: usize = 10;
-pub(crate) const OWNER_PREDICATE_COUNT: usize = 5 + 2 * ARIA_FACT_COUNT;
+/// After the ARIA facts and their negations, the negated interaction facts
+/// (`not-focus:` is `&:not(*:focus)`), in the same order as the positive.
+const NEGATED_INTERACTION: usize = 5 + 2 * ARIA_FACT_COUNT;
+pub(crate) const OWNER_PREDICATE_COUNT: usize = NEGATED_INTERACTION + 5;
+
+/// `not-focus:`, `not-focus-visible:`, `not-active:` and `not-disabled:`.
+/// `not-hover:` is two rules in Tailwind (the selector and a capability
+/// query) and so never reaches here.
+pub(crate) fn negated_interaction_index(interaction: usize) -> Option<usize> {
+    (1..5)
+        .contains(&interaction)
+        .then_some(NEGATED_INTERACTION + interaction)
+}
 
 pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
     Some(match state {
@@ -82,7 +94,16 @@ pub(crate) const CHILD_SCOPE: &str = ":where(& > :not(:last-child))";
 /// Writes that land on the element's children, owned only by a
 /// [`CHILD_SCOPE`] rule and never by the element's own.
 pub(crate) fn child_scoped(write: &StyleProperty) -> bool {
-    matches!(write, StyleProperty::SpaceX(_) | StyleProperty::SpaceY(_))
+    matches!(
+        write,
+        StyleProperty::SpaceX(_)
+            | StyleProperty::SpaceY(_)
+            | StyleProperty::SpaceReverse(_)
+            | StyleProperty::DivideX(_)
+            | StyleProperty::DivideY(_)
+            | StyleProperty::DivideColor(_)
+            | StyleProperty::DivideReverse(_)
+    )
 }
 
 /// Match Tailwind's escaped root literally, not a substring of another
@@ -242,6 +263,10 @@ pub(crate) fn owner_selector(selector: &str) -> Option<usize> {
         "&:focus-visible" => Some(2),
         "&:active" => Some(3),
         "&:disabled" => Some(4),
+        "&:not(*:focus)" => negated_interaction_index(1),
+        "&:not(*:focus-visible)" => negated_interaction_index(2),
+        "&:not(*:active)" => negated_interaction_index(3),
+        "&:not(*:disabled)" => negated_interaction_index(4),
         _ => selector
             .strip_prefix("&[aria-")
             .and_then(|tail| tail.strip_suffix("=\"true\"]"))
@@ -298,6 +323,14 @@ pub(crate) fn element_selector_weight(selector: &str) -> Option<u32> {
         .and_then(|rest| rest.strip_suffix(") &"))
     {
         return inner(rest).map(|_| 0);
+    }
+    // `not-<x>:` is `&:not(*<x>)`, which weighs what its argument does:
+    // one for `*:empty`, none for `*:where(:dir(ltr), …)`.
+    if let Some(rest) = selector
+        .strip_prefix("&:not(*")
+        .and_then(|rest| rest.strip_suffix(')'))
+    {
+        return compound_selector_weight(&format!("&{rest}"));
     }
     compound_selector_weight(selector)
 }
@@ -835,12 +868,53 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // condition as a hook; a project's own `animate-<name>` and the
         // `animation-*` longhands are not read yet.
         Animation(_) => "animation",
+        // The logical sizes, one declaration each. Native writes them as the
+        // physical key (`inline-*` is `width`), the same key `w-*` writes,
+        // so ranking decides which one lands last, as CSS's logical property
+        // group does.
+        InlineSize(_) => "inline-size",
+        BlockSize(_) => "block-size",
+        MinInlineSize(_) => "min-inline-size",
+        MinBlockSize(_) => "min-block-size",
+        MaxInlineSize(_) => "max-inline-size",
+        MaxBlockSize(_) => "max-block-size",
+        TransformOrigin(_) => "transform-origin",
+        // Native carries these as `numberOfLines`/`ellipsizeMode` on Text,
+        // reading the last of each (`truncation_props`). A line clamp's rule
+        // also declares `overflow` and `display`; Web emits all four where
+        // the clamp is in the plan's order, so a later `flex` still wins.
+        WhiteSpace(_) => "white-space",
+        TextOverflow(_) => "text-overflow",
+        LineClamp(_) => "-webkit-line-clamp",
+        // `@container` and `@container/<name>`: a query container for its
+        // descendants' `@<size>:` variants, one declaration each.
+        Keyword("container-type", "inline-size" | "size" | "normal") => "container-type",
+        ContainerName(_) => "container-name",
         AccentColor(_) => "accent-color",
         // On the children, through [`CHILD_SCOPE`]; see `child_scoped`.
         // Each backend joins the parent's last gap behind a child's own
         // margin, so ranking only decides which gap that is.
         SpaceX(_) => "margin-inline-start",
         SpaceY(_) => "margin-block-start",
+        // Each reverse flag is its register; a gap's rule also declares it,
+        // as 0, but a gap write owns its margin, not the flag.
+        SpaceReverse(crate::Axis::X) => "--tw-space-x-reverse",
+        SpaceReverse(crate::Axis::Y) => "--tw-space-y-reverse",
+        DivideReverse(crate::Axis::X) => "--tw-divide-x-reverse",
+        DivideReverse(crate::Axis::Y) => "--tw-divide-y-reverse",
+        // A divider's width and colour on the children. Its style
+        // (`divide-dashed`) stays out: it sets `--tw-border-style`, which
+        // every divider width reads, while Hozo writes the literal style.
+        DivideX(_) => "border-inline-start-width",
+        DivideY(_) => "border-top-width",
+        DivideColor(_) => "border-color",
+        // Tailwind 4.3's block-logical spacing, one declaration each. Native
+        // writes the physical key (`paddingTop`), the one `pt-*` writes, so
+        // ranking decides which lands last, as the logical group does in CSS.
+        PaddingBlockStart(_) => "padding-block-start",
+        PaddingBlockEnd(_) => "padding-block-end",
+        MarginBlockStart(_) => "margin-block-start",
+        MarginBlockEnd(_) => "margin-block-end",
         // One declaration and, where Native has it, one key each. A cursor
         // Native lacks is refused there, as an unsupported display is.
         Cursor(_) => "cursor",

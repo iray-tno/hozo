@@ -2,7 +2,7 @@
 //! CSS cascade or permission to reorder authored expressions/unknown writes.
 use super::TailwindOrderContext;
 use crate::tailwind_assessment::{
-    aria_owner_index, negated_aria_owner_index, OWNER_PREDICATE_COUNT,
+    aria_owner_index, negated_aria_owner_index, negated_interaction_index, OWNER_PREDICATE_COUNT,
 };
 use crate::{
     assess_tailwind_rule, assess_tailwind_write, scalar_tailwind_property, Condition, Environment,
@@ -104,6 +104,10 @@ impl TailwindOrderContext {
                 Condition::Aria(state) => aria_owner_index(state)?,
                 Condition::Not(inner) => match inner.as_ref() {
                     Condition::Aria(state) => negated_aria_owner_index(state)?,
+                    Condition::Focus => negated_interaction_index(1)?,
+                    Condition::FocusVisible => negated_interaction_index(2)?,
+                    Condition::Pressed => negated_interaction_index(3)?,
+                    Condition::Disabled => negated_interaction_index(4)?,
                     _ => return None,
                 },
                 Condition::All(parts) if !parts.is_empty() => {
@@ -234,6 +238,8 @@ enum Query<'c> {
     /// A condition on the element itself, as Tailwind writes the nested
     /// selector. Compared as text; its weight was read at assessment.
     Selector(Cow<'c, str>),
+    /// `not-sm:`, `not-dark:`: Tailwind's `@media not <query>`.
+    Not(Box<Query<'c>>),
 }
 
 impl<'c> Query<'c> {
@@ -289,6 +295,18 @@ impl<'c> Query<'c> {
             Condition::FormState(state) => suffix(state.selector()),
             Condition::Control(state) => suffix(state.selector()),
             Condition::DataAttribute(attribute) => suffix(attribute),
+            // `not-<x>:` around a selector is `&:not(*<x>)`, around a media
+            // query `@media not <query>`. Anything else is unassessed.
+            Condition::Not(inner) => match Self::of(inner)? {
+                Self::Selector(text) => {
+                    Self::Selector(Cow::Owned(format!("&:not(*{})", text.strip_prefix('&')?)))
+                }
+                query @ (Self::Exact("@media", _)
+                | Self::Width {
+                    container: false, ..
+                }) => Self::Not(Box::new(query)),
+                _ => return None,
+            },
             Condition::PseudoElement(crate::PseudoElement::Placeholder) => {
                 selector("&::placeholder")
             }
@@ -345,6 +363,12 @@ impl<'c> Query<'c> {
             (_, Wrapper::AtRule(name, params)) => (name, params),
         };
         match self {
+            Self::Not(inner) => {
+                name == "@media"
+                    && params
+                        .strip_prefix("not ")
+                        .is_some_and(|rest| inner.matches(Wrapper::AtRule(name, rest)))
+            }
             Self::Exact(expected, query) => name == *expected && params == *query,
             Self::Width {
                 container,

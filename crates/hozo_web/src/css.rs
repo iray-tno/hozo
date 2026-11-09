@@ -3007,9 +3007,6 @@ fn render_shape(
     let (keyword_pair_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) = rest
         .into_iter()
         .partition(|p| matches!(p, StyleProperty::KeywordPair(..)));
-    let (line_clamp_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) = rest
-        .into_iter()
-        .partition(|p| matches!(p, StyleProperty::LineClamp(_)));
     let (user_select_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) = rest
         .into_iter()
         .partition(|p| matches!(p, StyleProperty::UserSelect(_)));
@@ -3037,7 +3034,6 @@ fn render_shape(
         || !scrollbar_props.is_empty()
         || !translate_props.is_empty()
         || !keyword_pair_props.is_empty()
-        || !line_clamp_props.is_empty()
         || !user_select_props.is_empty()
         || !filter_props.is_empty()
         || !scale_props.is_empty()
@@ -3054,6 +3050,18 @@ fn render_shape(
             body.push_str("  content: var(--hozo-content);\n");
         }
         for prop in own_props {
+            // A line clamp's four declarations go where the clamp is, so a
+            // `display` or `overflow` written after it in the plan's order
+            // still wins, as in Tailwind (`line-clamp-2 flex` is `flex`).
+            if let StyleProperty::LineClamp(lines) = prop {
+                for (name, value) in line_clamp_declarations(lines.as_ref()) {
+                    body.push_str(&format!(
+                        "  {name}: {value};
+"
+                    ));
+                }
+                continue;
+            }
             if let StyleProperty::FirstThatWorks(candidates) = prop {
                 // StyleX's first argument has the highest preference. CSS
                 // chooses the last declaration it understands, so the
@@ -3147,16 +3155,6 @@ fn render_shape(
                     "  {p2}: {v2};
 "
                 ));
-            }
-        }
-        for prop in &line_clamp_props {
-            if let StyleProperty::LineClamp(lines) = prop {
-                for (name, value) in line_clamp_declarations(lines.as_ref()) {
-                    body.push_str(&format!(
-                        "  {name}: {value};
-"
-                    ));
-                }
             }
         }
         // Safari still needs the prefix for user-select, and Tailwind emits
