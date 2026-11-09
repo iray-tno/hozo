@@ -337,9 +337,13 @@ pub(crate) fn element_selector_weight(selector: &str) -> Option<u32> {
 
 /// The element's own compound, without a relation: a relation never nests.
 fn compound_selector_weight(selector: &str) -> Option<u32> {
-    const WEIGHTLESS: [&str; 2] = [
+    // `*:` and `**:` move the class inside `:is()`, which weighs what the
+    // class does, so they add nothing to it.
+    const WEIGHTLESS: [&str; 4] = [
         "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)",
         "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)",
+        ":is(& > *)",
+        ":is(& *)",
     ];
     const ONE: [&str; 2] = [
         "&:is([open], :popover-open, :open)",
@@ -472,7 +476,11 @@ fn assess_body<'a>(
                 name,
                 params,
                 nodes,
-            } if matches!(name.as_str(), "@media" | "@container" | "@supports") => {
+            } if matches!(
+                name.as_str(),
+                "@media" | "@container" | "@supports" | "@starting-style"
+            ) =>
+            {
                 result.media.push((name, params));
                 assess_body(nodes, result)?;
             }

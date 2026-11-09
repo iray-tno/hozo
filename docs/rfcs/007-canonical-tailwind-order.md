@@ -457,6 +457,8 @@ Policy v46 adds `line-clamp-*`, now emitted where the plan puts it, and
 [line clamp and container evidence](../measurements/tailwind-line-clamp-container-order.md).
 Policy v47 adds `drop-shadow-*` and its colours, each owning its own
 register; see [drop shadow evidence](../measurements/tailwind-drop-shadow-order.md).
+Policy v48 reads `*:`, `**:` and `starting:`; see
+[subtree and starting-style evidence](../measurements/tailwind-subtree-starting-order.md).
 
 ## 1. Restart, not another family-specific patch
 

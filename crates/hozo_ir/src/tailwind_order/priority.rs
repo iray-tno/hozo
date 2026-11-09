@@ -295,6 +295,9 @@ impl<'c> Query<'c> {
             Condition::FormState(state) => suffix(state.selector()),
             Condition::Control(state) => suffix(state.selector()),
             Condition::DataAttribute(attribute) => suffix(attribute),
+            Condition::Subtree { direct: true } => selector(":is(& > *)"),
+            Condition::Subtree { direct: false } => selector(":is(& *)"),
+            Condition::StartingStyle => Self::Exact("@starting-style", ""),
             // `not-<x>:` around a selector is `&:not(*<x>)`, around a media
             // query `@media not <query>`. Anything else is unassessed.
             Condition::Not(inner) => match Self::of(inner)? {
