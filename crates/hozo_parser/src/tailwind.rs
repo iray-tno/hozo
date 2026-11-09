@@ -1086,7 +1086,7 @@ fn expand_outline(token: &str) -> Option<Vec<StyleProperty>> {
     if rest.is_empty() {
         // Bare `outline` is 1px solid.
         return Some(vec![
-            StyleProperty::OutlineStyle(BorderStyle::Solid),
+            StyleProperty::OutlineStyle(BorderStyle::Default),
             StyleProperty::OutlineWidth(Length::Px(1.0)),
         ]);
     }
@@ -1118,7 +1118,7 @@ fn expand_outline(token: &str) -> Option<Vec<StyleProperty>> {
     }
     if let Ok(px) = suffix.parse::<f64>() {
         return Some(vec![
-            StyleProperty::OutlineStyle(BorderStyle::Solid),
+            StyleProperty::OutlineStyle(BorderStyle::Default),
             StyleProperty::OutlineWidth(Length::Px(px)),
         ]);
     }

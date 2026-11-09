@@ -2984,6 +2984,7 @@ fn render_shape(
                         | StyleProperty::BorderBottomStyle(BorderStyle::Default)
                         | StyleProperty::BorderLeftStyle(BorderStyle::Default)
                         | StyleProperty::BorderLogicalStyle(_, BorderStyle::Default)
+                        | StyleProperty::OutlineStyle(BorderStyle::Default)
                 )
         });
     let props = props.as_slice();

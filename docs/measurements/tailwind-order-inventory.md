@@ -71,3 +71,4 @@ a row.
 | [Drop shadows](tailwind-drop-shadow-order.md) | 0 | 0 | 44 | 1 | 4 |
 | [Subtree and starting style](tailwind-subtree-starting-order.md) | 0 | 0 | 44 | 1 | 1 |
 | [Border styles](tailwind-border-style-order.md) | 0 | 0 | 40 | 1 | 1 |
+| [Outline styles](tailwind-border-style-order.md#outline-styles) | 0 | 0 | 37 | 1 | 1 |

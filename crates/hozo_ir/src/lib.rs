@@ -5826,13 +5826,12 @@ impl StyleProperty {
             | StyleProperty::BorderRightStyle(style)
             | StyleProperty::BorderBottomStyle(style)
             | StyleProperty::BorderLeftStyle(style)
-            | StyleProperty::BorderLogicalStyle(_, style) => {
-                Some(if *style == BorderStyle::Default {
-                    Origin::Default
-                } else {
-                    Origin::Written
-                })
-            }
+            | StyleProperty::BorderLogicalStyle(_, style)
+            | StyleProperty::OutlineStyle(style) => Some(if *style == BorderStyle::Default {
+                Origin::Default
+            } else {
+                Origin::Written
+            }),
             _ => None,
         }
     }

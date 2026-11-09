@@ -52,3 +52,27 @@ authored order (`register-bound-property`).
   tells it from a written style.
 - Inventory, domain 3: **40 gaps** (from 44). Repository coverage unchanged
   at 318/320.
+
+## Outline styles
+
+Policy **scalar-order-v50**. An outline width reads `--tw-outline-style`
+the same way, so the same change applies: `outline` and `outline-<n>`
+imply `BorderStyle::Default`, emitted at zero specificity on Web and
+nothing on Native, whose `outlineStyle` defaults to solid
+(`BaseViewProps`' `outlineStyle{OutlineStyle::Solid}`). With no style
+left register-bound, the `register_bound` check and its
+`register-bound-property` barrier are gone. `outline-none` stays out: on
+Native it is `outlineWidth: 0`, a width key.
+
+- **Chromium, real Tailwind as the oracle**: 5 inputs (a style beside a
+  width, beside `focus:outline-2`, `focus:outline-dotted outline-4`, two
+  styles beside `outline`, a style conflict beside `md:outline-2` and a
+  padding conflict) in both orders, 500/1000px, LTR/RTL, light/dark,
+  focused and not, reading the outline style and width and padding:
+  **160 of 160 agree**; authored order disagreed in 32.
+- `outline-style-order.test.ts`: the 5 inputs give identical Web CSS and
+  Native output in both orders; Native writes no `'solid'` for
+  `outline-dashed focus:outline-2`. `outline-order.test.ts` now expects
+  `outline-dashed` to rank and `outline-none` not to. Tests that used
+  `outline-dashed` as a still-barrier example use `divide-dashed`.
+- Inventory, domain 3: **37 gaps** (from 40).

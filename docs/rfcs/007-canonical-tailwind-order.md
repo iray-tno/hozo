@@ -463,6 +463,8 @@ Policy v49 ranks written border styles: a width's implied `solid` is now
 `BorderStyle::Default`, zero specificity on Web and nothing on Native, so
 it never beats a written style; see
 [border style evidence](../measurements/tailwind-border-style-order.md).
+Policy v50 does the same for outline styles and removes the register-bound
+barrier; see [the same page](../measurements/tailwind-border-style-order.md#outline-styles).
 
 ## 1. Restart, not another family-specific patch
 

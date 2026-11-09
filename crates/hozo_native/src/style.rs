@@ -843,6 +843,10 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         StyleProperty::OutlineStyle(BorderStyle::None) => {
             vec![("outlineWidth", "0".to_string())]
         }
+        // A width's implied `solid` is React Native's own default
+        // (`BaseViewProps`' `outlineStyle{OutlineStyle::Solid}`), and writing
+        // it would override a written style earlier in the array.
+        StyleProperty::OutlineStyle(BorderStyle::Default) => Vec::new(),
         StyleProperty::OutlineStyle(s) => vec![("outlineStyle", border_style_literal(s))],
         StyleProperty::OutlineColor(c) => vec![("outlineColor", resolve_color(c))],
         StyleProperty::OutlineOffset(l) => vec![("outlineOffset", number(l, theme))],
