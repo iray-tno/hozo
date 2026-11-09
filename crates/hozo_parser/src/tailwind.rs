@@ -1915,7 +1915,7 @@ fn parse_logical_border(token: &str) -> Option<Vec<StyleProperty>> {
     };
     Some(vec![
         StyleProperty::BorderLogicalWidth(edge, width),
-        StyleProperty::BorderLogicalStyle(edge, BorderStyle::Solid),
+        StyleProperty::BorderLogicalStyle(edge, BorderStyle::Default),
     ])
 }
 
@@ -3754,9 +3754,10 @@ fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
 
 /// `border`, `border-<n>`, `border-{t,r,b,l}`, `border-{t,r,b,l}-<n>`.
 ///
-/// Every border-width utility also emits `BorderStyle::Solid`, mirroring
-/// Tailwind (which pairs each width with a style declaration) -- without
-/// it CSS's default `border-style: none` means the width renders nothing.
+/// Every border-width utility also emits `BorderStyle::Default`, mirroring
+/// Tailwind (which pairs each width with a style read from a register) --
+/// without it CSS's default `border-style: none` means the width renders
+/// nothing. A written style (`border-dashed`) beats it wherever it applies.
 ///
 /// Ordered after the color check would be ambiguous (`border-2` vs
 /// `border-red-500`), so width parsing is tried first and only falls
@@ -3789,19 +3790,19 @@ fn expand_border_width(token: &str) -> Option<Vec<StyleProperty>> {
     Some(match side {
         Some("t") => vec![
             StyleProperty::BorderTopWidth(width),
-            StyleProperty::BorderTopStyle(BorderStyle::Solid),
+            StyleProperty::BorderTopStyle(BorderStyle::Default),
         ],
         Some("r") => vec![
             StyleProperty::BorderRightWidth(width),
-            StyleProperty::BorderRightStyle(BorderStyle::Solid),
+            StyleProperty::BorderRightStyle(BorderStyle::Default),
         ],
         Some("b") => vec![
             StyleProperty::BorderBottomWidth(width),
-            StyleProperty::BorderBottomStyle(BorderStyle::Solid),
+            StyleProperty::BorderBottomStyle(BorderStyle::Default),
         ],
         Some("l") => vec![
             StyleProperty::BorderLeftWidth(width),
-            StyleProperty::BorderLeftStyle(BorderStyle::Solid),
+            StyleProperty::BorderLeftStyle(BorderStyle::Default),
         ],
         _ => all_sides_border(width),
     })
@@ -3813,10 +3814,10 @@ fn all_sides_border(width: Length) -> Vec<StyleProperty> {
         StyleProperty::BorderRightWidth(width.clone()),
         StyleProperty::BorderBottomWidth(width.clone()),
         StyleProperty::BorderLeftWidth(width),
-        StyleProperty::BorderTopStyle(BorderStyle::Solid),
-        StyleProperty::BorderRightStyle(BorderStyle::Solid),
-        StyleProperty::BorderBottomStyle(BorderStyle::Solid),
-        StyleProperty::BorderLeftStyle(BorderStyle::Solid),
+        StyleProperty::BorderTopStyle(BorderStyle::Default),
+        StyleProperty::BorderRightStyle(BorderStyle::Default),
+        StyleProperty::BorderBottomStyle(BorderStyle::Default),
+        StyleProperty::BorderLeftStyle(BorderStyle::Default),
     ]
 }
 

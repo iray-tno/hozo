@@ -624,24 +624,23 @@ pub(crate) fn border_edge_properties(write: &StyleProperty) -> Option<[&'static 
 /// The style register a style write competes with, if any.
 pub(crate) fn style_register(write: &StyleProperty) -> Option<&'static str> {
     use StyleProperty::*;
+    // Border styles are not here: a width's implied style is
+    // `BorderStyle::Default`, which no order or condition lets beat a
+    // written one, so a written border style ranks like any other write.
     match write {
-        BorderTopStyle(_)
-        | BorderRightStyle(_)
-        | BorderBottomStyle(_)
-        | BorderLeftStyle(_)
-        | BorderLogicalStyle(..) => Some("--tw-border-style"),
         OutlineStyle(_) => Some("--tw-outline-style"),
         _ => None,
     }
 }
 
-/// A border or outline style written by a rule that also sets that style's
-/// register (`--tw-border-style`, `--tw-outline-style`). Wherever such a
-/// style utility applies, every width utility's style reads the register and
-/// agrees with it, whatever the two rules' order. Hozo's width utilities
-/// write a literal `solid` instead, which ranking would let override the
-/// style utility (`border-dashed md:border-2`), so these writes stay
-/// unranked and keep their input in authored order.
+/// An outline style written by a rule that also sets that style's register
+/// (`--tw-outline-style`). Wherever such a style utility applies, every
+/// outline width's style reads the register and agrees with it, whatever the
+/// two rules' order. Hozo's outline widths write a literal `solid` instead,
+/// which ranking would let override the style utility
+/// (`outline-dashed md:outline-2`), so these writes stay unranked and keep
+/// their input in authored order. Border widths no longer do; see
+/// `BorderStyle::Default`.
 pub(crate) fn register_bound<'p>(
     mut properties: impl Iterator<Item = &'p str>,
     write: &StyleProperty,
@@ -1282,7 +1281,7 @@ mod tests {
     }
 
     #[test]
-    fn border_widths_and_their_style_rank_but_a_style_register_does_not() {
+    fn border_widths_and_written_styles_rank() {
         use crate::{BorderStyle, Edge};
         let px = Length::Px(2.0);
         let solid = BorderStyle::Solid;
@@ -1328,17 +1327,23 @@ mod tests {
         assert!(!crate::scalar_tailwind_property(
             &StyleProperty::BorderTopWidth(em)
         ));
-        // `border-2` declares the style it reads; `border-dashed` sets the
-        // register every width's style reads.
+        // `border-dashed` sets the register every width's style reads, but a
+        // width's own style is `BorderStyle::Default`, which never beats a
+        // written one, so the written style ranks like any other write.
         let style = StyleProperty::BorderTopStyle(solid);
         assert!(!register_bound(
             ["border-style", "border-width"].into_iter(),
             &style
         ));
-        assert!(register_bound(
+        assert!(!register_bound(
             ["--tw-border-style", "border-style"].into_iter(),
             &style
         ));
+        assert_eq!(style.origin(), Some(crate::Origin::Written));
+        assert_eq!(
+            StyleProperty::BorderTopStyle(BorderStyle::Default).origin(),
+            Some(crate::Origin::Default)
+        );
         assert!(!register_bound(
             ["--tw-border-style", "border-style"].into_iter(),
             &StyleProperty::BorderTopWidth(px)

@@ -3256,7 +3256,7 @@ impl StyleProperty {
             // every edge with unless told otherwise, so that one asks for
             // nothing and is not refused: it was failing the build for
             // `border-s-2`, whose width Native had already lowered.
-            StyleProperty::BorderLogicalStyle(_, BorderStyle::Solid) => None,
+            StyleProperty::BorderLogicalStyle(_, BorderStyle::Solid | BorderStyle::Default) => None,
             StyleProperty::BorderLogicalStyle(_, _) => Some(
                 "logical or side-specific border styles: React Native has one `borderStyle` for all four edges"
                     .to_string(),
@@ -3542,6 +3542,13 @@ pub enum BorderStyle {
     Double,
     Hidden,
     None,
+    /// The `solid` a border width utility implies (`border-2`), as
+    /// Tailwind's width rules read it from `--tw-border-style`: it applies
+    /// only where no written style does, whatever the order or condition.
+    /// Web emits it at zero specificity; Native writes nothing, since React
+    /// Native's own default is `solid`. It loses to a written style in
+    /// `dedupe_last_wins` (`Origin::Default`).
+    Default,
 }
 
 /// Corner radius. `Full` ("pill shape", Tailwind's `rounded-full`) is its
@@ -5815,6 +5822,17 @@ impl StyleProperty {
             | StyleProperty::TransitionTimingFunction(_, origin) => Some(*origin),
             StyleProperty::LineHeight(LineHeight::FontDefault(_)) => Some(Origin::Default),
             StyleProperty::LineHeight(_) => Some(Origin::Written),
+            StyleProperty::BorderTopStyle(style)
+            | StyleProperty::BorderRightStyle(style)
+            | StyleProperty::BorderBottomStyle(style)
+            | StyleProperty::BorderLeftStyle(style)
+            | StyleProperty::BorderLogicalStyle(_, style) => {
+                Some(if *style == BorderStyle::Default {
+                    Origin::Default
+                } else {
+                    Origin::Written
+                })
+            }
             _ => None,
         }
     }

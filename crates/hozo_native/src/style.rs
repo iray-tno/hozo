@@ -99,7 +99,9 @@ fn justify_literal(justify: &Justify) -> String {
 
 fn border_style_literal(style: &BorderStyle) -> String {
     match style {
-        BorderStyle::Solid => "'solid'",
+        // A width's implied style is written nowhere (see the per-side arm
+        // below); here it is only for completeness.
+        BorderStyle::Solid | BorderStyle::Default => "'solid'",
         BorderStyle::Dashed => "'dashed'",
         BorderStyle::Dotted => "'dotted'",
         // Refused upstream by `unsupported_on_native`; nothing valid to emit.
@@ -700,6 +702,13 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // RN defaults every border width to 0, so a style on a side with
         // no width renders nothing (whereas CSS would fall back to
         // `medium` and draw it).
+        // A width's implied `solid` is React Native's own default, and
+        // writing it would override a written style earlier in the array,
+        // which Tailwind's register never does.
+        StyleProperty::BorderTopStyle(BorderStyle::Default)
+        | StyleProperty::BorderRightStyle(BorderStyle::Default)
+        | StyleProperty::BorderBottomStyle(BorderStyle::Default)
+        | StyleProperty::BorderLeftStyle(BorderStyle::Default) => Vec::new(),
         StyleProperty::BorderTopStyle(s)
         | StyleProperty::BorderRightStyle(s)
         | StyleProperty::BorderBottomStyle(s)

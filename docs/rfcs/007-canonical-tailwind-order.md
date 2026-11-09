@@ -459,6 +459,10 @@ Policy v47 adds `drop-shadow-*` and its colours, each owning its own
 register; see [drop shadow evidence](../measurements/tailwind-drop-shadow-order.md).
 Policy v48 reads `*:`, `**:` and `starting:`; see
 [subtree and starting-style evidence](../measurements/tailwind-subtree-starting-order.md).
+Policy v49 ranks written border styles: a width's implied `solid` is now
+`BorderStyle::Default`, zero specificity on Web and nothing on Native, so
+it never beats a written style; see
+[border style evidence](../measurements/tailwind-border-style-order.md).
 
 ## 1. Restart, not another family-specific patch
 

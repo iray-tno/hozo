@@ -200,7 +200,7 @@ fn border_width_always_carries_a_style_so_it_actually_renders() {
     // CSS defaults border-style to none, so a width with no style
     // renders nothing -- Tailwind pairs them for the same reason.
     let (_, props) = expand_utility("border");
-    assert!(props.contains(&StyleProperty::BorderTopStyle(BorderStyle::Solid)));
+    assert!(props.contains(&StyleProperty::BorderTopStyle(BorderStyle::Default)));
     assert!(props.contains(&StyleProperty::BorderTopWidth(Length::Px(1.0))));
     assert_eq!(props.len(), 8); // 4 widths + 4 styles
 
@@ -1315,7 +1315,7 @@ fn per_side_border_colors_reach_the_right_side() {
         expand_utility("border-b-4").1,
         vec![
             StyleProperty::BorderBottomWidth(Length::Px(4.0)),
-            StyleProperty::BorderBottomStyle(BorderStyle::Solid),
+            StyleProperty::BorderBottomStyle(BorderStyle::Default),
         ]
     );
 }
@@ -1417,14 +1417,14 @@ fn per_side_border_scopes_its_style_to_that_side() {
         expand_utility("border-t").1,
         vec![
             StyleProperty::BorderTopWidth(Length::Px(1.0)),
-            StyleProperty::BorderTopStyle(BorderStyle::Solid)
+            StyleProperty::BorderTopStyle(BorderStyle::Default)
         ]
     );
     assert_eq!(
         expand_utility("border-b-4").1,
         vec![
             StyleProperty::BorderBottomWidth(Length::Px(4.0)),
-            StyleProperty::BorderBottomStyle(BorderStyle::Solid)
+            StyleProperty::BorderBottomStyle(BorderStyle::Default)
         ]
     );
 }

@@ -160,7 +160,7 @@ fn overflow_keyword(overflow: &Overflow) -> &'static str {
 
 fn border_style_keyword(style: &BorderStyle) -> &'static str {
     match style {
-        BorderStyle::Solid => "solid",
+        BorderStyle::Solid | BorderStyle::Default => "solid",
         BorderStyle::Dashed => "dashed",
         BorderStyle::Dotted => "dotted",
         BorderStyle::Double => "double",
@@ -2970,6 +2970,24 @@ fn render_shape(
 ) -> String {
     let target = fill_selector(&selector, class_name);
 
+    // A width's implied `solid` goes in its own rule at zero specificity, so
+    // any written style that applies beats it, whatever the order or
+    // condition -- as Tailwind's widths read `--tw-border-style`. A
+    // pseudo-element cannot sit inside `:where()`; there it stays inline.
+    let (default_styles, props): (Vec<StyleProperty>, Vec<StyleProperty>) =
+        props.iter().cloned().partition(|p| {
+            !target.contains("::")
+                && matches!(
+                    p,
+                    StyleProperty::BorderTopStyle(BorderStyle::Default)
+                        | StyleProperty::BorderRightStyle(BorderStyle::Default)
+                        | StyleProperty::BorderBottomStyle(BorderStyle::Default)
+                        | StyleProperty::BorderLeftStyle(BorderStyle::Default)
+                        | StyleProperty::BorderLogicalStyle(_, BorderStyle::Default)
+                )
+        });
+    let props = props.as_slice();
+
     // Some utilities target something other than the element itself, so
     // they become their own rule with a different selector rather than a
     // declaration here. `space-*`/`divide-*` reach the children;
@@ -3182,6 +3200,14 @@ fn render_shape(
             body.push_str(&format!("  border-spacing: {value};\n"));
         }
         rules.push(format!("{target} {{\n{body}}}"));
+    }
+    if !default_styles.is_empty() {
+        let mut body = String::new();
+        for prop in &default_styles {
+            let (name, value) = property_and_value(prop, theme);
+            body.push_str(&format!("  {name}: {value};\n"));
+        }
+        rules.push(format!(":where({target}) {{\n{body}}}"));
     }
     if !child_props.is_empty() {
         let mut body = String::new();

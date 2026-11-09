@@ -70,3 +70,4 @@ a row.
 | [Line clamps and containers](tailwind-line-clamp-container-order.md) | 0 | 0 | 341 | 1 | 4 |
 | [Drop shadows](tailwind-drop-shadow-order.md) | 0 | 0 | 44 | 1 | 4 |
 | [Subtree and starting style](tailwind-subtree-starting-order.md) | 0 | 0 | 44 | 1 | 1 |
+| [Border styles](tailwind-border-style-order.md) | 0 | 0 | 40 | 1 | 1 |
