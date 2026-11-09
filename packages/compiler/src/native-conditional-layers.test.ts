@@ -58,3 +58,15 @@ test('a condition overriding the same function still wins', () => {
   assert.equal(style(false).filter, 'blur(8px)')
   assert.equal(style(true).filter, 'blur(16px)')
 })
+
+test('a conditional gradient constructor keeps the base stops, and a conditional stop the base constructor', () => {
+  const direction = compiled('md:bg-linear-to-b bg-linear-to-r from-red-500')
+  assert.match(String(direction(false).backgroundImage), /^linear-gradient\(to right/)
+  assert.match(String(direction(true).backgroundImage), /^linear-gradient\(to bottom/)
+  assert.match(String(direction(true).backgroundImage), /oklch|#|rgb/)
+  const stop = compiled('md:from-blue-500 bg-linear-to-r from-red-500')
+  assert.match(String(stop(true).backgroundImage), /^linear-gradient\(to right/)
+  assert.notEqual(stop(true).backgroundImage, stop(false).backgroundImage)
+  const none = compiled('md:bg-none bg-linear-to-r from-red-500')
+  assert.equal(none(true).backgroundImage, 'none')
+})

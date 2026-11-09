@@ -12,8 +12,7 @@ State at main `4a9dd648`, policy `scalar-order-v30`.
 
 | Gap | Where | Found in |
 | --- | --- | --- |
-| Two conditions that both touch `filter` or `boxShadow` and are active together lose each other's part (`md:blur-sm hover:sepia grayscale`, hovered at md). Each conditional style carries the base; the later one replaces the earlier. Needs a runtime composer like `hozoTransformStyles`. | Native | [native-conditional-filter-shadow](native-conditional-filter-shadow.md) |
-| Gradients under different conditions are not composed: a conditional constructor or stop replaces the whole `backgroundImage`. | Native | [conditional-gradient-stops](conditional-gradient-stops.md) |
+| Two conditions that both touch `filter`, `boxShadow` or `backgroundImage` and are active together lose each other's part (`md:blur-sm hover:sepia grayscale`, hovered at md). Each conditional style carries the base; the later one replaces the earlier. Needs a runtime composer like `hozoTransformStyles`. | Native | [native-conditional-filter-shadow](native-conditional-filter-shadow.md) |
 | A runtime class string goes through the candidate sheet, one rule per utility with a literal declaration, so `translate-*`, `scale-*`, filters, shadows and gradients on different utilities replace each other instead of composing. | Web, runtime classes | [conditional-transform-axes](conditional-transform-axes.md) |
 | Shadow colours serialise as the theme's `oklch(…)`; Tailwind's go through `color-mix(in oklab, …)` and compute to `oklab(…)`. Same colour, different string (`shadow-lg shadow-red-500`: 0 of 8 observations agree). | Web | [conditional-shadow-layers](conditional-shadow-layers.md) |
 | The literal `backdrop-filter` chain puts `opacity` last; Tailwind reads it before `saturate`. Only the register form (conditions split) uses Tailwind's place. | Web | [conditional-filter-functions](conditional-filter-functions.md) |
