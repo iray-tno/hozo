@@ -32,7 +32,6 @@ reason, not an oversight.
 | --- | --- | --- |
 | `filter-none`, `backdrop-filter-none` | They write the shared declaration itself, against every function rule's register chain. The transform resets rank since [transform-form-order](tailwind-transform-form-order.md). | [tailwind-filter-order](tailwind-filter-order.md) |
 | `drop-shadow-none` | Writes `--tw-drop-shadow` itself, which every size and colour rule also sets. | [drop-shadow-order](tailwind-drop-shadow-order.md) |
-| Divider style utilities (`divide-dashed`) | They set `--tw-border-style`, read by every divider width; Hozo writes the divider width's style as a literal on the children. Border and outline styles rank since [border-style-order](tailwind-border-style-order.md). | [tailwind-border-width-order](tailwind-border-width-order.md), [tailwind-outline-order](tailwind-outline-order.md) |
 | Arbitrary relative lengths (`leading-[1em]`, `tracking-[1em]`) | An em length is not a ratio; static folding does not resolve it. | [tailwind-relative-text-order](tailwind-relative-text-order.md) |
 | Arbitrary passthrough classes (`columns-[10rem]`, `cursor-[…]`, `text-[150%]`, `text-[length:…]`) | A generic write with an owned name is not modelled (`columns-[10rem] columns-3`: 4 of 8 disagree). | [tailwind-columns-underline-offset-order](tailwind-columns-underline-offset-order.md) |
 | `via-none` beside a conditional gradient | Takes the middle stop out of the list through `--tw-gradient-via-stops: initial`. | [conditional-gradient-stops](conditional-gradient-stops.md) |

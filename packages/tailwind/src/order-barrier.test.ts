@@ -9,14 +9,14 @@ import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 const css = '@import "tailwindcss/theme.css" layer(theme); @tailwind utilities;'
 
 test('each captured block reports the barrier that keeps its input in authored order', async () => {
-  const names = ['p-4', 'p-2', 'divide-dashed', 'md:p-1', 'via-none', 'hover:space-y-2']
+  const names = ['p-4', 'p-2', 'columns-[10rem]', 'md:p-1', 'cursor-[grab]', 'hover:space-y-2']
   const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const compiler = createCompiler()
   compiler.setTailwindOrder(JSON.stringify(prepared.snapshot))
   const source = `import {View} from '@hozo/core';export const A=()=> <>
     <View className="p-4 p-2"/>
-    <View className="p-4 divide-dashed"/>
-    <View className="md:p-1 via-none"/>
+    <View className="p-4 columns-[10rem]"/>
+    <View className="md:p-1 cursor-[grab]"/>
     <View className="p-2 hover:space-y-2"/>
     <View className="p-2 nope-not-a-class"/>
   </>`
@@ -35,11 +35,11 @@ test('each captured block reports the barrier that keeps its input in authored o
     ],
     [
       ['p-4', null],
-      ['divide-dashed', 'unmapped-property'],
+      ['columns-[10rem]', 'unmapped-property'],
     ],
     [
       ['md:p-1', null],
-      ['via-none', 'unmapped-property'],
+      ['cursor-[grab]', 'unmapped-property'],
     ],
     [
       ['p-2', null],
@@ -49,7 +49,7 @@ test('each captured block reports the barrier that keeps its input in authored o
 })
 
 test('an input with no barrier is exactly an input the plan reorders', async () => {
-  const names = ['p-4', 'p-2', 'divide-dashed']
+  const names = ['p-4', 'p-2', 'columns-[10rem]']
   const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const final = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
   const compiler = createCompiler()
@@ -61,5 +61,5 @@ test('an input with no barrier is exactly an input the plan reorders', async () 
       .emit(final)[0]!.css
   // No barrier: both orders agree. A barrier: authored order decides.
   assert.equal(web('p-4 p-2'), web('p-2 p-4'))
-  assert.notEqual(web('p-4 p-2 divide-dashed'), web('p-2 p-4 divide-dashed'))
+  assert.notEqual(web('p-4 p-2 columns-[10rem]'), web('p-2 p-4 columns-[10rem]'))
 })

@@ -127,6 +127,7 @@ pub(crate) fn child_scoped(write: &StyleProperty) -> bool {
             | StyleProperty::DivideX(_)
             | StyleProperty::DivideY(_)
             | StyleProperty::DivideColor(_)
+            | StyleProperty::DivideStyle(_)
             | StyleProperty::DivideReverse(_)
     )
 }
@@ -918,12 +919,15 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         SpaceReverse(crate::Axis::Y) => "--tw-space-y-reverse",
         DivideReverse(crate::Axis::X) => "--tw-divide-x-reverse",
         DivideReverse(crate::Axis::Y) => "--tw-divide-y-reverse",
-        // A divider's width and colour on the children. Its style
-        // (`divide-dashed`) stays out: it sets `--tw-border-style`, which
-        // every divider width reads, while Hozo writes the literal style.
+        // A divider's width, colour and style on the children. Its style
+        // (`divide-dashed`) sets `--tw-border-style`, which every divider
+        // width reads; a width's own implied style is written beneath every
+        // written one (the base layer on Web, nothing on Native), so the
+        // written style ranks like the others.
         DivideX(_) => "border-inline-start-width",
         DivideY(_) => "border-top-width",
         DivideColor(_) => "border-color",
+        DivideStyle(_) => "border-style",
         // Tailwind 4.3's block-logical spacing, one declaration each. Native
         // writes the physical key (`paddingTop`), the one `pt-*` writes, so
         // ranking decides which lands last, as the logical group does in CSS.

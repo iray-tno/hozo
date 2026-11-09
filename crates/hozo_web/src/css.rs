@@ -3286,6 +3286,12 @@ fn render_shape(
         // `:where()` keeps the specificity at zero, matching Tailwind, so
         // a child's own utilities still win over the parent's spacing.
         rules.push(format!(":where({target} > :not(:last-child)) {{\n{body}}}"));
+        let defaults = divider_default_styles(&child_props);
+        if !defaults.is_empty() {
+            rules.push(format!(
+                "@layer base {{\n  :where({target} > :not(:last-child)) {{\n{defaults}  }}\n}}"
+            ));
+        }
     }
     if !placeholder_props.is_empty() {
         let mut body = String::new();
@@ -3310,6 +3316,26 @@ fn render_shape(
         .fold(rules.join("\n\n"), |rule, prelude| {
             format!("{prelude} {{\n{}\n}}", indent_block(&rule))
         })
+}
+
+/// The `solid` a divider width implies, which Tailwind reads from
+/// `--tw-border-style`: it applies only where no written style does, the
+/// divider's own (`divide-dashed`, also at zero specificity) or the child's.
+/// So it goes in the base layer, which every unlayered rule beats whatever
+/// its order or condition.
+fn divider_default_styles(props: &[&&StyleProperty]) -> String {
+    let mut body = String::new();
+    for prop in props {
+        let names: &[&str] = match ***prop {
+            StyleProperty::DivideX(_) => &["border-inline-style"],
+            StyleProperty::DivideY(_) => &["border-top-style", "border-bottom-style"],
+            _ => continue,
+        };
+        for name in names {
+            body.push_str(&format!("    {name}: solid;\n"));
+        }
+    }
+    body
 }
 
 /// Two spaces in front of every non-empty line. A CSS string cannot hold a
@@ -3406,22 +3432,19 @@ fn space_declarations(
         // Tailwind writes both edges, zeroing the leading one, so that
         // `divide-x-reverse` can flip which edge carries the border without
         // a different rule. Matching that shape keeps the output identical.
+        // A divider's style is not here: Tailwind's reads
+        // `--tw-border-style`, so a written style beats it wherever it
+        // applies; see `divider_default_styles`.
         StyleProperty::DivideX(l) => {
             let (start, end) = split(Axis::X, l);
             vec![
-                ("border-inline-style", "solid".to_string()),
                 ("border-inline-start-width", start),
                 ("border-inline-end-width", end),
             ]
         }
         StyleProperty::DivideY(l) => {
             let (start, end) = split(Axis::Y, l);
-            vec![
-                ("border-bottom-style", "solid".to_string()),
-                ("border-top-style", "solid".to_string()),
-                ("border-top-width", start),
-                ("border-bottom-width", end),
-            ]
+            vec![("border-top-width", start), ("border-bottom-width", end)]
         }
         // The flip itself writes nothing: it is read by the width above,
         // which is the only thing that knows how big the gap is.

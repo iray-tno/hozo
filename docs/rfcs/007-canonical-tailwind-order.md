@@ -472,6 +472,9 @@ Policy v52 ranks the transform resets and forms (`translate-none`,
 `transform`/`-gpu`) as writes of the shared declaration, read by position
 against the axes; see
 [transform form evidence](../measurements/tailwind-transform-form-order.md).
+Policy v53 ranks divider styles; a divider width's implied style moves to
+the base layer on Web; see
+[the border style page](../measurements/tailwind-border-style-order.md#divider-styles).
 
 ## 1. Restart, not another family-specific patch
 

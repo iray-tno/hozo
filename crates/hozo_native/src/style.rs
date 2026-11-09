@@ -341,10 +341,11 @@ pub fn child_property_and_value(
             let (start, end) = split(Axis::Y, l);
             vec![("marginTop", start), ("marginBottom", end)]
         }
+        // A divider width's implied `solid` is React Native's default, and
+        // writing it would override a written divider style.
         StyleProperty::DivideX(l) => {
             let (start, end) = split(Axis::X, l);
             vec![
-                ("borderStyle", "'solid'".to_string()),
                 // RN spells the logical border widths `borderStartWidth`/
                 // `borderEndWidth`; it has no `borderInline*Width`, unlike
                 // the margins just above, which do take the CSS logical
@@ -355,11 +356,7 @@ pub fn child_property_and_value(
         }
         StyleProperty::DivideY(l) => {
             let (start, end) = split(Axis::Y, l);
-            vec![
-                ("borderStyle", "'solid'".to_string()),
-                ("borderTopWidth", start),
-                ("borderBottomWidth", end),
-            ]
+            vec![("borderTopWidth", start), ("borderBottomWidth", end)]
         }
         StyleProperty::DivideColor(c) => vec![("borderColor", resolve_color(c))],
         StyleProperty::DivideStyle(s) => vec![("borderStyle", border_style_literal(s))],

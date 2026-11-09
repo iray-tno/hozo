@@ -105,11 +105,11 @@ test('relative text metrics, border style and transform neighbors still preserve
   for (const neighbor of [
     'tracking-[1em]',
     'leading-[1em]',
-    'divide-dashed',
-    'via-none',
+    'columns-[10rem]',
+    'cursor-[grab]',
     'overline',
     'align-baseline',
-    'drop-shadow-none',
+    'bg-[url(x.png)]',
   ]) {
     const classes = `p-4 p-2 ${neighbor}`
     const names = classes.split(' ')
