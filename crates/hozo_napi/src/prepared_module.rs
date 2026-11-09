@@ -102,6 +102,13 @@ pub fn prepare_builtin_tailwind_context(
 /// Whether every write Hozo parses for each class is in the ranked domain.
 /// Measurement only: a class with any other write is a barrier whatever its
 /// descriptor says, so coverage is counted over the ones that are not.
+/// Turns the ordering outside the shared plan off or on, process-wide.
+/// Measurement only (`scripts/tailwind-order-old-path.mjs`).
+#[napi]
+pub fn set_legacy_ordering_for_measurement(enabled: bool) {
+    hozo_ir::set_legacy_ordering(enabled);
+}
+
 /// For each class, the first reason React Native refuses one of the writes
 /// Hozo parses for it, or nothing when every write lowers (or none parses).
 /// Measurement only (`scripts/tailwind-order-inventory.mjs`): it separates a

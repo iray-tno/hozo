@@ -23,9 +23,9 @@ pub use static_imports::{inspect_static_module_imports, StaticModuleImports};
 mod prepared_module;
 pub use prepared_module::{
     prepare_authored_tailwind_context, prepare_builtin_tailwind_context,
-    prepare_final_tailwind_context, prepare_tailwind_context, tailwind_classes_native_refusal,
-    tailwind_classes_rankable, PreparedNativeModule, PreparedTailwindContext, PreparedWebModule,
-    PreparedWebOptions,
+    prepare_final_tailwind_context, prepare_tailwind_context, set_legacy_ordering_for_measurement,
+    tailwind_classes_native_refusal, tailwind_classes_rankable, PreparedNativeModule,
+    PreparedTailwindContext, PreparedWebModule, PreparedWebOptions,
 };
 
 #[napi(object)]
