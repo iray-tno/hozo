@@ -962,6 +962,14 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // `filter`/`backdrop-filter`. `filter-none` writes the declaration
         // itself, and a drop shadow pairs its register with a colour and a
         // size register, so both stay barriers.
+        // A drop shadow is two registers in Tailwind: the size rule sets
+        // `--tw-drop-shadow-size` (which reads the colour) and the colour
+        // rule `--tw-drop-shadow-color`; each owns its own. `drop-shadow-none`
+        // writes `--tw-drop-shadow` itself and stays a barrier.
+        Filter(crate::FilterFunction::DropShadow, value) if !value.is_empty() => {
+            "--tw-drop-shadow-size"
+        }
+        DropShadowColor(_) => "--tw-drop-shadow-color",
         Filter(function, _) => filter_register(*function, false)?,
         BackdropFilter(function, _) => filter_register(*function, true)?,
         // Shadows and rings are five layers in one `box-shadow`, and each
@@ -1473,7 +1481,7 @@ mod tests {
     }
 
     #[test]
-    fn each_filter_function_owns_its_register_and_none_or_drop_shadow_does_not() {
+    fn each_filter_function_owns_its_register_and_none_or_drop_shadow_none_does_not() {
         use crate::FilterFunction;
         for (write, register) in [
             (
@@ -1484,6 +1492,10 @@ mod tests {
                 StyleProperty::BackdropFilter(FilterFunction::Opacity, "opacity(50%)".into()),
                 "--tw-backdrop-opacity",
             ),
+            (
+                StyleProperty::Filter(FilterFunction::DropShadow, "drop-shadow(0 0 1px)".into()),
+                "--tw-drop-shadow-size",
+            ),
         ] {
             assert!(crate::scalar_tailwind_property(&write), "{write:?}");
             assert!(covers(register, &write), "{write:?}");
@@ -1492,7 +1504,7 @@ mod tests {
         }
         for write in [
             StyleProperty::Filter(FilterFunction::None, "none".into()),
-            StyleProperty::Filter(FilterFunction::DropShadow, "drop-shadow(0 0 1px)".into()),
+            StyleProperty::Filter(FilterFunction::DropShadow, String::new()),
         ] {
             assert!(!crate::scalar_tailwind_property(&write), "{write:?}");
         }

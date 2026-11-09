@@ -109,7 +109,7 @@ test('relative text metrics, border style and transform neighbors still preserve
     'translate-none',
     'overline',
     'align-baseline',
-    'drop-shadow-md',
+    'drop-shadow-none',
   ]) {
     const classes = `p-4 p-2 ${neighbor}`
     const names = classes.split(' ')
