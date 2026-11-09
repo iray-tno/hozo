@@ -411,6 +411,9 @@ outside it with what it still serves, is measured in
 Policy v34 adds transitions and font families, the largest barrier the
 coverage script found; see
 [transition and font family evidence](../measurements/tailwind-transition-font-family-order.md).
+Policy v35 ranks classes behind JS guards as present-or-absent, not as
+selectors, and Native keeps them in the plan's order among unconditional
+styles; see [guarded class evidence](../measurements/tailwind-guarded-class-order.md).
 
 ## 1. Restart, not another family-specific patch
 

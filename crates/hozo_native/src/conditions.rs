@@ -838,7 +838,18 @@ pub(super) fn build_style_entries(
             )),
             Condition::Expr(expr) => {
                 let guard = render_condition_expr(source, expr);
-                conditional.extend(guarded(&format!("({guard}) && ")));
+                // A JS guard decides whether its classes are present, and
+                // weighs nothing on Web (`:where()`). In a ranked input the
+                // plan has already placed it among the unconditional writes,
+                // as Tailwind's order places the class, so it stays there:
+                // `cx('p-4', on && 'p-2')` keeps 16px when `on` holds. An
+                // unranked input keeps the old base-then-guards layout.
+                let parts = guarded(&format!("({guard}) && "));
+                if canonical_input {
+                    base_parts.extend(parts);
+                } else {
+                    conditional.extend(parts);
+                }
             }
             // Refused rather than shelved. React Native has no selector
             // engine at all -- not a missing feature but a different

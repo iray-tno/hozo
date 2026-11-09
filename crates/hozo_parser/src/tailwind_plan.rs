@@ -308,10 +308,22 @@ mod tests {
         let Child::Node(old_guarded) = before[0].node.children.last().unwrap() else {
             panic!()
         };
-        assert_eq!(
-            guarded, old_guarded,
-            "captured JS guards are a complete-input barrier"
-        );
+        // A captured guard is evaluated once, at its original position, in
+        // a separate predicate array; reordering the declarations it guards
+        // cannot move or repeat that evaluation. So the input is ranked like
+        // any other -- `p-4` ends last, as Tailwind's order has it -- and
+        // every declaration, captured expression included, is kept as it was.
+        assert_eq!(last_name(&guarded.style), "p-4");
+        assert!(guarded
+            .style
+            .iter()
+            .all(|decl| matches!(decl.source, StyleSource::TailwindOrdered { .. })));
+        assert_eq!(guarded.style.len(), old_guarded.style.len());
+        for old in &old_guarded.style {
+            assert!(guarded.style.iter().any(|new| new.property == old.property
+                && new.condition == old.condition
+                && new.source.utility() == old.source.utility()));
+        }
     }
 
     #[test]
