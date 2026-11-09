@@ -32,10 +32,8 @@ reason, not an oversight.
 
 | Barrier | Why | Found in |
 | --- | --- | --- |
-| `filter-none`, `backdrop-filter-none` | They write the shared declaration itself, against every function rule's register chain. The transform resets rank since [transform-form-order](tailwind-transform-form-order.md). | [tailwind-filter-order](tailwind-filter-order.md) |
-| `drop-shadow-none` | Writes `--tw-drop-shadow` itself, which every size and colour rule also sets. | [drop-shadow-order](tailwind-drop-shadow-order.md) |
+| `filter-none`, `backdrop-filter-none` (Tailwind 3 names Hozo still reads; not Tailwind 4 classes) | They write the shared declaration itself, against every function rule's register chain. The transform resets rank since [transform-form-order](tailwind-transform-form-order.md). | [tailwind-filter-order](tailwind-filter-order.md) |
 | Arbitrary relative lengths (`leading-[1em]`, `tracking-[1em]`) | An em length is not a ratio; static folding does not resolve it. | [tailwind-relative-text-order](tailwind-relative-text-order.md) |
 | Arbitrary passthrough classes (`columns-[10rem]`, `cursor-[…]`, `text-[150%]`, `text-[length:…]`) | A generic write with an owned name is not modelled (`columns-[10rem] columns-3`: 4 of 8 disagree). | [tailwind-columns-underline-offset-order](tailwind-columns-underline-offset-order.md) |
-| `via-none` beside a conditional gradient | Takes the middle stop out of the list through `--tw-gradient-via-stops: initial`. | [conditional-gradient-stops](conditional-gradient-stops.md) |
 | `line-clamp-*`, `object-position`, masks, text shadows | Several declarations, or a Web-only keyword table, or registers not yet modelled. | [tailwind-columns-underline-offset-order](tailwind-columns-underline-offset-order.md) |
 | Named and nested relations, custom dark selectors, pseudo-elements, arbitrary selectors | Weights not read from a closed set of shapes. | [tailwind-relation-order](tailwind-relation-order.md), [tailwind-selector-order](tailwind-selector-order.md) |

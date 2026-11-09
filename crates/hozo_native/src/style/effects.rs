@@ -456,6 +456,9 @@ pub(crate) fn filter_entry(
         StyleProperty::DropShadowColor(c) if !c.is_initial() => Some(resolve_theme_color(c, theme)),
         _ => None,
     });
+    let drop_none = props.iter().any(|p| {
+        matches!(p, StyleProperty::Filter(FilterFunction::DropShadow, value) if value.is_empty())
+    });
     for prop in props {
         let StyleProperty::Filter(function, value) = prop else {
             continue;
@@ -463,8 +466,16 @@ pub(crate) fn filter_entry(
         if *function == FilterFunction::None {
             return Some(("filter", "'none'".to_string()));
         }
+        // Tailwind's fixed order is size, then `drop-shadow-none`, then
+        // colour, and a colour rule rebuilds the shadow from the size
+        // register. So a colour keeps the size's shadow, `none` without one
+        // turns it off, and `none` itself draws nothing.
         let value = if *function == FilterFunction::DropShadow {
-            repaint_shadow(value, drop_shadow_color.as_deref())
+            if value.is_empty() || (drop_none && drop_shadow_color.is_none()) {
+                String::new()
+            } else {
+                repaint_shadow(value, drop_shadow_color.as_deref())
+            }
         } else {
             value.clone()
         };

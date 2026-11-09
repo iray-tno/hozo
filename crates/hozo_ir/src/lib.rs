@@ -5866,6 +5866,13 @@ impl StyleProperty {
             StyleProperty::MaskSlotArgument(slot, _) => *slot as u32,
             StyleProperty::GradientStopColor(stop, _)
             | StyleProperty::GradientStopPosition(stop, _) => *stop as u32,
+            // `drop-shadow-none` is its own write, not a size: Tailwind sorts
+            // it between the sizes and the colours, and a colour rebuilds the
+            // shadow from the size register even after it. Keeping both lets
+            // the backends do the same (`filter_value`, `filter_entry`).
+            StyleProperty::Filter(FilterFunction::DropShadow, value) if value.is_empty() => {
+                u32::MAX
+            }
             StyleProperty::Filter(function, _) | StyleProperty::BackdropFilter(function, _) => {
                 *function as u32
             }

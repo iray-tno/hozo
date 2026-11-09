@@ -1033,6 +1033,10 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         Filter(crate::FilterFunction::DropShadow, value) if !value.is_empty() => {
             "--tw-drop-shadow-size"
         }
+        // `drop-shadow-none` writes the shadow itself; Tailwind sorts it
+        // after every size and colour rule, and Hozo keeps the last drop
+        // shadow write, so it turns the shadow off as the register does.
+        Filter(crate::FilterFunction::DropShadow, _) => "--tw-drop-shadow",
         DropShadowColor(_) => "--tw-drop-shadow-color",
         Filter(function, _) => filter_register(*function, false)?,
         BackdropFilter(function, _) => filter_register(*function, true)?,
@@ -1058,6 +1062,12 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // every colour rule also declares.
         Gradient(..) | BackgroundImageNone | BackgroundImage(_) => "background-image",
         GradientStopColor(crate::GradientStop::From, _) => "--tw-gradient-from",
+        // `via-none` takes the middle stop back out through
+        // `--tw-gradient-via-stops: initial`; Tailwind sorts it before every
+        // `via-<colour>`, which Hozo's last-wins keeps.
+        GradientStopColor(crate::GradientStop::Via, crate::Color::Keyword("initial")) => {
+            "--tw-gradient-via-stops"
+        }
         GradientStopColor(crate::GradientStop::Via, _) => "--tw-gradient-via",
         GradientStopColor(crate::GradientStop::To, _) => "--tw-gradient-to",
         GradientStopPosition(crate::GradientStop::From, _) => "--tw-gradient-from-position",
@@ -1565,7 +1575,7 @@ mod tests {
     }
 
     #[test]
-    fn each_filter_function_owns_its_register_and_none_or_drop_shadow_none_does_not() {
+    fn each_filter_function_owns_its_register_and_filter_none_does_not() {
         use crate::FilterFunction;
         for (write, register) in [
             (
@@ -1586,12 +1596,14 @@ mod tests {
             assert!(!covers("filter", &write), "{write:?}");
             assert!(!covers("backdrop-filter", &write), "{write:?}");
         }
-        for write in [
-            StyleProperty::Filter(FilterFunction::None, "none".into()),
-            StyleProperty::Filter(FilterFunction::DropShadow, String::new()),
-        ] {
-            assert!(!crate::scalar_tailwind_property(&write), "{write:?}");
-        }
+        // `drop-shadow-none` owns the shadow register itself.
+        let none = StyleProperty::Filter(FilterFunction::DropShadow, String::new());
+        assert!(crate::scalar_tailwind_property(&none));
+        assert!(covers("--tw-drop-shadow", &none));
+        assert!(!crate::scalar_tailwind_property(&StyleProperty::Filter(
+            FilterFunction::None,
+            "none".into()
+        )));
     }
 
     fn fixture(name: &str) -> OrderCandidateDescriptor {

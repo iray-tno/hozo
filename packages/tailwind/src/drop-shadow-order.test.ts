@@ -47,14 +47,14 @@ test('drop shadows and their colours settle in Tailwind order, whichever is writ
     if (old[0] !== old[1]) differs++
   }
   assert.ok(differs >= 3, `authored order differed in ${differs}`)
-  // `drop-shadow-none` writes the shadow register itself and keeps
-  // authored order.
+  // `drop-shadow-none` ranks too (drop-shadow-none-via-none-order.test.ts).
   for (const classes of [
     'drop-shadow-none drop-shadow-md p-4 p-2',
     'drop-shadow-md drop-shadow-none p-2 p-4',
   ])
-    assert.equal(
+    assert.match(
       compiler.prepareWebModule(source(classes)).emit(final)[0]!.css,
-      compiler.prepareWebModule(source(classes)).emit(authored)[0]!.css,
+      /padding-top: 16px/,
+      classes,
     )
 })

@@ -503,6 +503,10 @@ fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Opti
         })
         .flatten()
         .filter(|color| !color.is_initial());
+    let drop_none = !backdrop
+        && props.iter().any(|p| {
+            matches!(p, StyleProperty::Filter(FilterFunction::DropShadow, value) if value.is_empty())
+        });
     for prop in props {
         let (function, value) = match (prop, backdrop) {
             (StyleProperty::Filter(f, v), false) | (StyleProperty::BackdropFilter(f, v), true) => {
@@ -514,8 +518,16 @@ fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Opti
         if function == FilterFunction::None {
             return Some("none".to_string());
         }
+        // Tailwind's fixed order is size, then `drop-shadow-none`, then
+        // colour, and a colour rule rebuilds the shadow from the size
+        // register. So a colour keeps the size's shadow, `none` without one
+        // turns it off, and `none` itself draws nothing.
         let value = if function == FilterFunction::DropShadow {
-            repaint_shadow(value, drop_shadow_color, theme)
+            if value.is_empty() || (drop_none && drop_shadow_color.is_none()) {
+                String::new()
+            } else {
+                repaint_shadow(value, drop_shadow_color, theme)
+            }
         } else {
             value.to_string()
         };
@@ -530,10 +542,15 @@ fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Opti
         .map(|(_, v)| v.as_str())
         .filter(|v| !v.is_empty())
         .collect();
-    // Every slot cleared still leaves a declaration -- Tailwind emits
-    // `filter: ` with an empty value, which is what an all-`-none` chain
-    // resolves to.
-    Some(chain.join(" "))
+    // Every slot cleared still leaves a declaration. Tailwind's is a chain
+    // of empty registers, which computes to `none`; a literal empty value
+    // would be an invalid declaration and leave an earlier filter standing
+    // (`md:drop-shadow-none drop-shadow-lg` at md).
+    Some(if chain.is_empty() {
+        "none".to_string()
+    } else {
+        chain.join(" ")
+    })
 }
 
 fn is_gradient(prop: &StyleProperty) -> bool {
@@ -675,7 +692,8 @@ pub fn register_split_gradients(
     let blocked = groups.iter().any(|(_, props)| {
         props.iter().any(|p| {
             matches!(p, StyleProperty::BackgroundImage(_))
-                || matches!(p, StyleProperty::GradientStopColor(_, c) if c.is_initial())
+                || matches!(p, StyleProperty::GradientStopColor(stop, c)
+                    if c.is_initial() && *stop != GradientStop::Via)
         }) || props
             .iter()
             .filter(|p| {
@@ -731,6 +749,14 @@ pub fn register_split_gradients(
                             kind.css()
                         ),
                     ));
+                }
+                // `via-none`: Tailwind's `--tw-gradient-via-stops: initial`,
+                // which sends every `--tw-gradient-stops` that reads it back
+                // to the from/to fallback.
+                StyleProperty::GradientStopColor(GradientStop::Via, color)
+                    if color.is_initial() =>
+                {
+                    rewritten.push(set("gradient-via-stops", "initial".to_string()));
                 }
                 StyleProperty::GradientStopColor(stop, color) => {
                     let name = match stop {
