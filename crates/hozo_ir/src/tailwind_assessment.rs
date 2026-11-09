@@ -974,6 +974,17 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         RotateZ(_) => "--tw-rotate-z",
         SkewX(_) => "--tw-skew-x",
         SkewY(_) => "--tw-skew-y",
+        // Every axis rule also writes the shared declaration (`translate`,
+        // `scale`, `transform`) in its own form; the last such rule decides
+        // the form. Hozo's axis writes own their registers, and these own
+        // the declaration: a reset turns it off, `scale-3d` (and the z form
+        // of `scale-z-*`) adds the third component, `transform`/`-cpu`/
+        // `-gpu` write the chain. Each backend reads the last of them
+        // against the last axis write, which ranking puts in Tailwind's order.
+        TranslateNone => "translate",
+        ScaleNone | Scale3d => "scale",
+        RotateNone => "rotate",
+        TransformNone | TransformEmpty | TransformGpu => "transform",
         // Each filter function writes its register, read by one shared
         // `filter`/`backdrop-filter`. `filter-none` writes the declaration
         // itself, and a drop shadow pairs its register with a colour and a
@@ -1413,8 +1424,19 @@ mod tests {
             assert!(covers(register, &write), "{write:?}");
             assert!(!covers("transform", &write), "{write:?}");
         }
-        // `scale-3d` switches the declaration's form and owns no register.
-        assert!(!crate::scalar_tailwind_property(&StyleProperty::Scale3d));
+        // `scale-3d`, the resets and `transform`/`-gpu` own the shared
+        // declaration itself: each writes its form, and the last one decides.
+        for (write, declaration) in [
+            (StyleProperty::Scale3d, "scale"),
+            (StyleProperty::ScaleNone, "scale"),
+            (StyleProperty::TranslateNone, "translate"),
+            (StyleProperty::RotateNone, "rotate"),
+            (StyleProperty::TransformNone, "transform"),
+            (StyleProperty::TransformGpu, "transform"),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            assert!(covers(declaration, &write), "{write:?}");
+        }
     }
 
     #[test]

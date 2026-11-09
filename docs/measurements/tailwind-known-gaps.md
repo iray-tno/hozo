@@ -30,9 +30,8 @@ reason, not an oversight.
 
 | Barrier | Why | Found in |
 | --- | --- | --- |
-| Resets: `translate-none`, `scale-none`, `rotate-none`, `transform-none`, `filter-none`, `backdrop-filter-none` | They write the shared declaration itself, not a register, so they need ownership against every register rule (`md:translate-none translate-x-2`: 2 of 8 observations disagree). | [conditional-transform-axes](conditional-transform-axes.md), [tailwind-filter-order](tailwind-filter-order.md) |
+| `filter-none`, `backdrop-filter-none` | They write the shared declaration itself, against every function rule's register chain. The transform resets rank since [transform-form-order](tailwind-transform-form-order.md). | [tailwind-filter-order](tailwind-filter-order.md) |
 | `drop-shadow-none` | Writes `--tw-drop-shadow` itself, which every size and colour rule also sets. | [drop-shadow-order](tailwind-drop-shadow-order.md) |
-| `scale-3d` | Switches the declaration's form; owns no register. | [tailwind-skew-rotate-axis-order](tailwind-skew-rotate-axis-order.md) |
 | Divider style utilities (`divide-dashed`) | They set `--tw-border-style`, read by every divider width; Hozo writes the divider width's style as a literal on the children. Border and outline styles rank since [border-style-order](tailwind-border-style-order.md). | [tailwind-border-width-order](tailwind-border-width-order.md), [tailwind-outline-order](tailwind-outline-order.md) |
 | Arbitrary relative lengths (`leading-[1em]`, `tracking-[1em]`) | An em length is not a ratio; static folding does not resolve it. | [tailwind-relative-text-order](tailwind-relative-text-order.md) |
 | Arbitrary passthrough classes (`columns-[10rem]`, `cursor-[…]`, `text-[150%]`, `text-[length:…]`) | A generic write with an owned name is not modelled (`columns-[10rem] columns-3`: 4 of 8 disagree). | [tailwind-columns-underline-offset-order](tailwind-columns-underline-offset-order.md) |

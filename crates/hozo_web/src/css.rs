@@ -876,14 +876,16 @@ fn scale_value(props: &[&StyleProperty]) -> Option<String> {
     if props.is_empty() {
         return None;
     }
-    let last_authored = props
-        .iter()
-        .rposition(|property| matches!(property, StyleProperty::Scale(_)));
-    let last_axes = props
-        .iter()
-        .rposition(|property| !matches!(property, StyleProperty::Scale(_)));
+    // A whole value (`scale-[…]`, `scale-none`) written after every axis
+    // replaces the declaration, as the later rule does in Tailwind.
+    let whole = |property: &&StyleProperty| {
+        matches!(property, StyleProperty::Scale(_) | StyleProperty::ScaleNone)
+    };
+    let last_authored = props.iter().rposition(whole);
+    let last_axes = props.iter().rposition(|property| !whole(property));
     if last_authored > last_axes {
         return props.iter().rev().find_map(|property| match property {
+            StyleProperty::ScaleNone => Some("none".to_string()),
             StyleProperty::Scale(values) => {
                 Some(values.iter().map(Scale::css).collect::<Vec<_>>().join(" "))
             }
@@ -904,7 +906,16 @@ fn scale_value(props: &[&StyleProperty]) -> Option<String> {
         StyleProperty::ScaleY(v) => Some(v),
         _ => None,
     });
-    if !props.iter().any(|p| matches!(p, StyleProperty::Scale3d)) {
+    // The three-value form is the last `scale` declaration's, as in
+    // Tailwind: a later 2D utility (`scale-x-*`, `scale-*`, both of which
+    // write an x or y axis) writes the two-value form back.
+    let last_3d = props
+        .iter()
+        .rposition(|p| matches!(p, StyleProperty::Scale3d));
+    let last_2d = props
+        .iter()
+        .rposition(|p| matches!(p, StyleProperty::ScaleX(_) | StyleProperty::ScaleY(_)));
+    if last_3d.is_none() || last_3d < last_2d {
         return Some(format!("{x} {y}"));
     }
     let z = axis(|p| match p {
@@ -921,18 +932,46 @@ fn scale_value(props: &[&StyleProperty]) -> Option<String> {
 /// functions don't commute, so a different order is a different rendering
 /// rather than a different spelling.
 fn transform_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
-    let last_authored = props
-        .iter()
-        .rposition(|property| matches!(property, StyleProperty::Transform(_)));
-    let last_slots = props
-        .iter()
-        .rposition(|property| !matches!(property, StyleProperty::Transform(_)));
-    if last_authored > last_slots {
-        return props.iter().rev().find_map(|property| match property {
-            StyleProperty::Transform(functions) => Some(authored_transform_value(functions, theme)),
-            _ => None,
-        });
-    }
+    // `transform-none`, `transform`/`-cpu` and `transform-gpu` write the
+    // declaration's form; every function rule writes the plain chain. The
+    // last of them decides, as the later rule does in Tailwind.
+    let control = |property: &&StyleProperty| {
+        matches!(
+            property,
+            StyleProperty::Transform(_)
+                | StyleProperty::TransformNone
+                | StyleProperty::TransformEmpty
+                | StyleProperty::TransformGpu
+        )
+    };
+    let last_control = props.iter().rposition(control);
+    let last_slots = props.iter().rposition(|property| !control(property));
+    let gpu = if last_control > last_slots {
+        match props[last_control?] {
+            StyleProperty::Transform(functions) => {
+                return Some(authored_transform_value(functions, theme))
+            }
+            StyleProperty::TransformNone => return Some("none".to_string()),
+            StyleProperty::TransformGpu => true,
+            _ => false,
+        }
+    } else {
+        false
+    };
+    let chain = transform_chain(props);
+    Some(match (gpu, chain) {
+        (true, Some(chain)) => format!("translateZ(0) {chain}"),
+        (true, None) => "translateZ(0)".to_string(),
+        (false, Some(chain)) => chain,
+        // Only a control with nothing after it: `transform` is the empty
+        // chain, which is still a declaration a later utility overrides.
+        (false, None) if last_control.is_some() => String::new(),
+        (false, None) => return None,
+    })
+}
+
+/// The 3D rotations and skews, in Tailwind's register order.
+fn transform_chain(props: &[&StyleProperty]) -> Option<String> {
     let mut parts: Vec<String> = Vec::new();
     let mut push = |name: &str, angle: Option<&Angle>| {
         if let Some(a) = angle {
@@ -1028,14 +1067,19 @@ fn translate_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     if props.is_empty() {
         return None;
     }
-    let last_authored = props
-        .iter()
-        .rposition(|property| matches!(property, StyleProperty::Translate(_)));
-    let last_axes = props
-        .iter()
-        .rposition(|property| !matches!(property, StyleProperty::Translate(_)));
+    // A whole value (`translate-[…]`, `translate-none`) written after every
+    // axis replaces the declaration, as the later rule does in Tailwind.
+    let whole = |property: &&StyleProperty| {
+        matches!(
+            property,
+            StyleProperty::Translate(_) | StyleProperty::TranslateNone
+        )
+    };
+    let last_authored = props.iter().rposition(whole);
+    let last_axes = props.iter().rposition(|property| !whole(property));
     if last_authored > last_axes {
         return props.iter().rev().find_map(|property| match property {
+            StyleProperty::TranslateNone => Some("none".to_string()),
             StyleProperty::Translate(values) => Some(
                 values
                     .iter()
@@ -3021,8 +3065,9 @@ fn render_shape(
         rest.into_iter().partition(|p| is_gradient(p));
     let (scrollbar_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
         rest.into_iter().partition(|p| is_scrollbar_color(p));
-    let (translate_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
-        rest.into_iter().partition(|p| is_translate(p));
+    let (translate_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) = rest
+        .into_iter()
+        .partition(|p| is_translate(p) || matches!(p, StyleProperty::TranslateNone));
     let (keyword_pair_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) = rest
         .into_iter()
         .partition(|p| matches!(p, StyleProperty::KeywordPair(..)));
@@ -3031,10 +3076,19 @@ fn render_shape(
         .partition(|p| matches!(p, StyleProperty::UserSelect(_)));
     let (filter_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
         rest.into_iter().partition(|p| is_filter(p));
-    let (scale_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
-        rest.into_iter().partition(|p| is_scale_axis(p));
+    let (scale_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) = rest
+        .into_iter()
+        .partition(|p| is_scale_axis(p) || matches!(p, StyleProperty::ScaleNone));
     let (transform_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
-        rest.into_iter().partition(|p| is_transform_function(p));
+        rest.into_iter().partition(|p| {
+            is_transform_function(p)
+                || matches!(
+                    p,
+                    StyleProperty::TransformNone
+                        | StyleProperty::TransformEmpty
+                        | StyleProperty::TransformGpu
+                )
+        });
     let (spacing_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
         rest.into_iter().partition(|p| is_border_spacing(p));
     let (text_shadow_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
