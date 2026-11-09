@@ -281,6 +281,36 @@ pub(crate) fn supports_refinement(siblings: &[OrderRuleShape], node: &OrderRuleS
         })
 }
 
+/// `outline-hidden`'s `@media (forced-colors: active)` branch: a transparent
+/// outline for a mode where the system repaints outlines. Hozo emits no
+/// forced-colors fallback (a known gap), so the branch writes nothing Hozo
+/// owns and is not a second place in the order. Only beside declarations of
+/// the rule's own: alone, it is the `forced-colors:` variant.
+pub(crate) fn forced_colors_fallback(siblings: &[OrderRuleShape], node: &OrderRuleShape) -> bool {
+    if !siblings
+        .iter()
+        .any(|sibling| matches!(sibling, OrderRuleShape::Declaration { .. }))
+    {
+        return false;
+    }
+    let OrderRuleShape::AtRule {
+        name,
+        params,
+        nodes,
+    } = node
+    else {
+        return false;
+    };
+    name == "@media"
+        && params == "(forced-colors: active)"
+        && nodes.iter().all(|node| {
+            matches!(
+                node,
+                OrderRuleShape::Declaration { .. } | OrderRuleShape::Comment
+            )
+        })
+}
+
 /// The interaction and boolean ARIA selectors whose facts an owner delivers.
 pub(crate) fn owner_selector(selector: &str) -> Option<usize> {
     match selector {
@@ -449,6 +479,7 @@ fn assess_body<'a>(
             !matches!(node, OrderRuleShape::Comment)
                 && !property_registration(node)
                 && !supports_refinement(nodes, node)
+                && !forced_colors_fallback(nodes, node)
         })
         .collect::<Vec<_>>();
     if branches
@@ -800,11 +831,13 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         BorderBlockEndColor(_) => "border-block-end-color",
         // Outline widths write `outline-style: var(--tw-outline-style)`
         // beside the width, as border widths do; Hozo writes that as
-        // `BorderStyle::Default`, which never beats a written style. `None`
-        // projects to Native's `outlineWidth: 0`, a width key, so it stays
-        // out of the domain.
+        // `BorderStyle::Default`, which never beats a written style.
+        // `outline-none`/`outline-hidden` (`None`) is a written style too;
+        // Native has no `none` and writes `outlineWidth: 0` instead, which
+        // a later width can override where Tailwind's register would not (a
+        // known gap, not an ordering one).
         OutlineWidth(length) if absolute(length) => "outline-width",
-        OutlineStyle(style) if *style != crate::BorderStyle::None => "outline-style",
+        OutlineStyle(_) => "outline-style",
         OutlineColor(_) => "outline-color",
         OutlineOffset(length) if absolute(length) => "outline-offset",
         Position(
@@ -1363,7 +1396,7 @@ mod tests {
     }
 
     #[test]
-    fn outline_writes_and_written_styles_rank_but_none_does_not() {
+    fn outline_writes_and_written_styles_rank() {
         use crate::BorderStyle;
         let px = Length::Px(2.0);
         for (write, property) in [
@@ -1382,9 +1415,28 @@ mod tests {
             assert!(covers(property, &write), "{write:?}");
             assert!(!covers("outline", &write), "{write:?}");
         }
-        // Native writes `outline-none` as `outlineWidth: 0`.
-        assert!(!crate::scalar_tailwind_property(
+        // `outline-none` is a written style like the others.
+        assert!(crate::scalar_tailwind_property(
             &StyleProperty::OutlineStyle(BorderStyle::None)
+        ));
+        // `outline-hidden`'s forced-colors branch is not a second place.
+        let forced = OrderRuleShape::AtRule {
+            name: "@media".into(),
+            params: "(forced-colors: active)".into(),
+            nodes: vec![OrderRuleShape::Declaration {
+                property: "outline".into(),
+                important: false,
+            }],
+        };
+        let own = OrderRuleShape::Declaration {
+            property: "outline-style".into(),
+            important: false,
+        };
+        assert!(forced_colors_fallback(&[own, forced.clone()], &forced));
+        // Alone, it is the `forced-colors:` variant.
+        assert!(!forced_colors_fallback(
+            std::slice::from_ref(&forced),
+            &forced
         ));
         // A width's implied style never beats a written one.
         assert_eq!(

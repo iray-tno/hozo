@@ -113,3 +113,36 @@ Verification:
   Tailwind's theme). The runtime-path test compares with authored order
   rather than a plain compile, which ranks `bg-brand` by its root.
 - Inventory, domain 3: **4 gaps** (from 8).
+
+## `outline-none` and `outline-hidden`
+
+Policy **scalar-order-v54**. Both are `OutlineStyle(None)` in Hozo, a
+written style like `outline-dashed`, and now rank. Tailwind's
+`outline-hidden` adds an `@media (forced-colors: active)` branch beside
+its declarations, which Hozo does not emit. `forced_colors_fallback` reads
+that branch as a refinement, not a second place in the order, but only
+beside declarations of the rule's own: alone, it is the `forced-colors:`
+variant. (A first draft accepted it anywhere, and the built-in descriptor
+equivalence test caught `forced-colors:translate-x-4` turning
+declaration-less.)
+
+Two output gaps are independent of order and are listed in
+[known gaps](tailwind-known-gaps.md):
+
+- Native has no `none` outline style. It writes `outlineWidth: 0`, which a
+  later width can override where Tailwind's register would not.
+- The forced-colors fallback is not emitted.
+
+Verification:
+
+- **Chromium, real Tailwind as the oracle**: 5 inputs (`outline-none
+  outline-dashed`, `outline-hidden outline-dotted`, `outline-none
+  outline-2`, `focus:outline-none outline-2 outline-dashed`,
+  `outline-hidden` beside a padding conflict) in both orders, 500/1000px,
+  LTR/RTL, light/dark, focused and not: **160 of 160 agree**; authored order
+  disagreed in 48.
+- `outline-none-order.test.ts`: the 5 inputs give identical Web CSS and
+  Native output in both orders. On Web, `outline-2 outline-none` keeps
+  `outline-style: none`. `outline-order.test.ts` now expects all three
+  styles to rank.
+- Inventory, domain 3: **2 gaps** (from 4).

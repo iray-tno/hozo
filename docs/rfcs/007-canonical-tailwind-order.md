@@ -475,6 +475,8 @@ against the axes; see
 Policy v53 ranks divider styles; a divider width's implied style moves to
 the base layer on Web; see
 [the border style page](../measurements/tailwind-border-style-order.md#divider-styles).
+Policy v54 ranks `outline-none` and `outline-hidden`; see
+[the same page](../measurements/tailwind-border-style-order.md#outline-none-and-outline-hidden).
 
 ## 1. Restart, not another family-specific patch
 

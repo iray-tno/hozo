@@ -75,3 +75,4 @@ a row.
 | [`not-hover:`](tailwind-not-hover-order.md) | 0 | 0 | 37 | 1 | **0** |
 | [Transform forms](tailwind-transform-form-order.md) | 0 | 0 | 8 | 1 | 0 |
 | [Divider styles](tailwind-border-style-order.md#divider-styles) | 0 | 0 | 4 | 1 | 0 |
+| [`outline-none`, `outline-hidden`](tailwind-border-style-order.md#outline-none-and-outline-hidden) | 0 | 0 | 2 | 1 | 0 |
