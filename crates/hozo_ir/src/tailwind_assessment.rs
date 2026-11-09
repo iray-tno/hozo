@@ -178,6 +178,34 @@ pub fn assess_tailwind_rule<'a>(
         owner: [0; OWNER_PREDICATE_COUNT],
         child_scope: false,
     };
+    if let Some(branches) = breakpoint_branches(nodes) {
+        // `container`: the rule's own declarations, and one `max-width`
+        // per breakpoint. Each write is matched to its branch by its
+        // condition in `scalar_write_priority`; here a property is listed
+        // once, so ownership sees one owner per property.
+        for node in nodes {
+            if let OrderRuleShape::Declaration {
+                property,
+                important,
+            } = node
+            {
+                if *important != rule.important {
+                    return Err(RuleAssessmentError::Importance);
+                }
+                result.properties.push(property);
+            }
+        }
+        for (_, body) in &branches {
+            for node in *body {
+                if let OrderRuleShape::Declaration { property, .. } = node {
+                    if !result.properties.contains(&property.as_str()) {
+                        result.properties.push(property);
+                    }
+                }
+            }
+        }
+        return Ok(result);
+    }
     assess_body(nodes, &mut result)?;
     if result.properties.is_empty() {
         return Err(RuleAssessmentError::Empty);
@@ -195,6 +223,50 @@ pub fn assess_tailwind_rule<'a>(
         result.specificity = [0, 0, 0];
     }
     Ok(result)
+}
+
+/// An unprefixed rule whose other branches are each a `(width >= …)` query
+/// holding only declarations, as Tailwind writes `container`: the rule's
+/// own declarations apply everywhere and each branch from its width. Returns
+/// each branch's width in pixels with its declarations, or nothing for any
+/// other shape.
+pub(crate) fn breakpoint_branches(
+    nodes: &[OrderRuleShape],
+) -> Option<Vec<(f64, &[OrderRuleShape])>> {
+    let mut branches = Vec::new();
+    let mut declared = false;
+    for node in nodes {
+        match node {
+            OrderRuleShape::Declaration { .. } => declared = true,
+            OrderRuleShape::Comment => {}
+            node if property_registration(node) => {}
+            OrderRuleShape::AtRule {
+                name,
+                params,
+                nodes,
+            } if name == "@media" => {
+                let width = params
+                    .strip_prefix("(width >= ")
+                    .and_then(|rest| rest.strip_suffix(')'))
+                    .and_then(|value| {
+                        if let Some(rem) = value.strip_suffix("rem") {
+                            rem.parse::<f64>().ok().map(|rem| rem * 16.0)
+                        } else {
+                            value.strip_suffix("px")?.parse::<f64>().ok()
+                        }
+                    })?;
+                if !nodes
+                    .iter()
+                    .all(|node| matches!(node, OrderRuleShape::Declaration { .. }))
+                {
+                    return None;
+                }
+                branches.push((width, nodes.as_slice()));
+            }
+            _ => return None,
+        }
+    }
+    (declared && !branches.is_empty()).then_some(branches)
 }
 
 /// A hoisted CSS property definition has no selector-owned style writes.

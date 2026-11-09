@@ -6,7 +6,7 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v55";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v56";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
@@ -79,10 +79,14 @@ impl<'a> TailwindWritePlan<'a> {
     /// barriers for that input, not holes that known writes can leap across.
     /// The caller must opt in only with a compatible complete namespace.
     pub fn order_scalars(mut self) -> Self {
+        let mut dominated = vec![false; self.declarations.len()];
+        let mut offset = 0;
         for region in self
             .declarations
             .chunk_by_mut(|a, b| a.source.input() == b.source.input())
         {
+            let start = offset;
+            offset += region.len();
             if region.len() < 2 {
                 continue;
             }
@@ -99,16 +103,16 @@ impl<'a> TailwindWritePlan<'a> {
                     self.bindings
                         .context()
                         .scalar_write_priority(name, &decl.condition, &decl.property)
-                        .map(|priority| (priority.rank, index))
+                        .map(|priority| (priority.rank, index, priority.specificity))
                 })
                 .collect();
             let Some(mut ranks) = ranks else {
                 continue;
             };
             if ranks.windows(2).any(|pair| pair[0].0 > pair[1].0) {
-                ranks.sort_by_key(|(rank, _)| *rank);
+                ranks.sort_by_key(|(rank, _, _)| *rank);
                 let mut destination = vec![0; ranks.len()];
-                for (new, &(_, old)) in ranks.iter().enumerate() {
+                for (new, &(_, old, _)) in ranks.iter().enumerate() {
                     destination[old] = new;
                 }
                 // Move declarations in place: no cloned expression/condition
@@ -121,11 +125,44 @@ impl<'a> TailwindWritePlan<'a> {
                     }
                 }
             }
+            // A breakpoint branch of an unprefixed rule (`container`'s
+            // `max-width` at each width) sits at that rule's place in the
+            // order, which can be before an unprefixed write of the same
+            // property (`max-w-5xl`). Tailwind's cascade then never lets the
+            // branch win: same weight, earlier. Both backends apply a
+            // conditional style after the unconditional ones whatever its
+            // place, so such a branch is dropped here instead. A variant's
+            // rule always sorts after every unprefixed one, so this never
+            // touches `md:` and the like.
+            let specificity: Vec<[u32; 3]> = {
+                let mut by_position = vec![[0; 3]; ranks.len()];
+                for (new, &(_, _, weight)) in ranks.iter().enumerate() {
+                    by_position[new] = weight;
+                }
+                by_position
+            };
+            for (index, declaration) in region.iter().enumerate() {
+                if !matches!(declaration.condition, Condition::Responsive(_)) {
+                    continue;
+                }
+                dominated[start + index] = region[index + 1..]
+                    .iter()
+                    .zip(&specificity[index + 1..])
+                    .any(|(later, weight)| {
+                        later.condition == Condition::Always
+                            && later.property.same_property_as(&declaration.property)
+                            && *weight >= specificity[index]
+                    });
+            }
             for declaration in region {
                 if let StyleSource::TailwindUtility { input, utility } = declaration.source {
                     declaration.source = StyleSource::TailwindOrdered { input, utility };
                 }
             }
+        }
+        if dominated.contains(&true) {
+            let mut keep = dominated.into_iter().map(|dropped| !dropped);
+            self.declarations.retain(|_| keep.next().unwrap_or(true));
         }
         self
     }

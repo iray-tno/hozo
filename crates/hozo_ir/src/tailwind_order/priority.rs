@@ -127,6 +127,44 @@ impl TailwindOrderContext {
         if matches!(property, StyleProperty::PlaceholderColor(_)) {
             queries.push(Query::Selector(Cow::Borrowed("&::placeholder")));
         }
+        // `container`: an unconditional write is owned by the rule's own
+        // declarations, a `sm:`…`2xl:` one by the branch at that width.
+        if let crate::OrderRuleShape::Rule { nodes, .. } = &rule.shape {
+            if let Some(branches) = crate::tailwind_assessment::breakpoint_branches(nodes) {
+                if priority.owner != [0; OWNER_PREDICATE_COUNT] {
+                    return None;
+                }
+                let body: Vec<&crate::OrderRuleShape> = match condition {
+                    Condition::Always => nodes
+                        .iter()
+                        .filter(|node| matches!(node, crate::OrderRuleShape::Declaration { .. }))
+                        .collect(),
+                    Condition::Responsive(breakpoint) => {
+                        let width = match breakpoint {
+                            crate::Breakpoint::Sm => 640.0,
+                            crate::Breakpoint::Md => 768.0,
+                            crate::Breakpoint::Lg => 1024.0,
+                            crate::Breakpoint::Xl => 1280.0,
+                            crate::Breakpoint::Xl2 => 1536.0,
+                        };
+                        let (_, body) =
+                            branches.iter().find(|(at, _)| (*at - width).abs() < 0.5)?;
+                        body.iter().collect()
+                    }
+                    _ => return None,
+                };
+                let owners = body
+                    .iter()
+                    .filter(|node| match node {
+                        crate::OrderRuleShape::Declaration {
+                            property: declared, ..
+                        } => crate::tailwind_assessment::covers(declared, property),
+                        _ => false,
+                    })
+                    .count();
+                return (owners == 1).then_some(priority);
+            }
+        }
         collect(condition, &mut actual, &mut queries)?;
         if priority.owner != actual || !same_queries(&rule.shape, &queries) {
             return None;
