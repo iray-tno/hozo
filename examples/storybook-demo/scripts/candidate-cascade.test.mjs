@@ -261,6 +261,90 @@ test('runtime filter candidates agree with Tailwind and Native through class and
   }
 })
 
+test('runtime gradient candidates agree with independent Tailwind through updates and owner states', {
+  skip: !executablePath,
+}, async () => {
+  const names = [
+    'bg-linear-to-r',
+    'from-[#f00]',
+    'to-[#00f]',
+    'from-25%',
+    'to-80%',
+    'via-[#0f0]',
+    'via-55%',
+    'hover:bg-linear-to-b',
+    'focus:from-[#fff]',
+    'hover:focus:via-none',
+    'bg-linear-to-b',
+    'from-[#aaa]',
+  ]
+  const input = '@tailwind utilities;'
+  const design = await __unstable__loadDesignSystem(input)
+  const order = design.getClassOrder(names)
+  assert.ok(order.every(([, rank]) => rank !== null))
+  order.sort((a, b) => Number(a[1] - b[1]))
+  const candidates = openCandidateCache()
+  candidates.scanFile('runtime-gradient.ts', JSON.stringify(names.join(' ')), 1)
+  const actualSheet = candidates.renderCss(
+    undefined,
+    order.map(([name]) => name),
+  )
+  const oracleSheet = (await compile(input)).build(names)
+  const pages = await Promise.all([browser.newPage(), browser.newPage()])
+  try {
+    for (const [index, page] of pages.entries())
+      await page.setContent(`<!doctype html><style id="sheet">${index ? actualSheet : oracleSheet}</style>
+        <button id="parent" style="width:80px;height:40px;margin:40px"><span id="child" class="bg-linear-to-b from-[#aaa]">child</span></button>`)
+    const update = async (page, classes, state) => {
+      await page.locator('#parent').evaluate((element, value) => {
+        element.className = value
+      }, classes)
+      if (state.hovered) await page.locator('#parent').hover()
+      else await page.mouse.move(0, 0)
+      if (state.focused) await page.locator('#parent').focus()
+      else await page.locator('#parent').evaluate((element) => element.blur())
+      return page.evaluate(() => {
+        const parent = document.querySelector('#parent')
+        window.firstParent ??= parent
+        return {
+          parent: getComputedStyle(parent).backgroundImage,
+          child: getComputedStyle(document.querySelector('#child')).backgroundImage,
+          stable: parent === window.firstParent,
+        }
+      })
+    }
+    const full = names.slice(0, -2)
+    for (const owner of ['', 'hozo-candidate-owner'])
+      for (const classes of [full, full.toReversed(), ['bg-linear-to-r', 'from-[#f00]'], [], full])
+        for (const state of [
+          { hovered: false, focused: false },
+          { hovered: true, focused: false },
+          { hovered: true, focused: true },
+          { hovered: false, focused: true },
+          { hovered: false, focused: false },
+        ]) {
+          const list = [...classes, owner].filter(Boolean).join(' ')
+          const expected = await update(pages[0], list, state)
+          const actual = await update(pages[1], list, state)
+          assert.deepEqual(actual, expected, JSON.stringify({ list, state }))
+          assert.equal(actual.stable, true)
+        }
+    const rest = { hovered: false, focused: false }
+    const before = await update(pages[1], full.join(' '), rest)
+    assert.notEqual(before.parent, 'none')
+    await pages[1].evaluate(() => {
+      document.querySelector('#sheet').textContent = ''
+    })
+    assert.notDeepEqual(await update(pages[1], full.join(' '), rest), before)
+    await pages[1].evaluate((sheet) => {
+      document.querySelector('#sheet').textContent = sheet
+    }, actualSheet)
+    assert.deepEqual(await update(pages[1], full.join(' '), rest), before)
+  } finally {
+    for (const page of pages) await page.close()
+  }
+})
+
 test('responsive font sizes preserve explicit leading against real Tailwind at every breakpoint', {
   skip: !executablePath,
 }, async () => {

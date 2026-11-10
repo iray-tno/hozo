@@ -365,6 +365,27 @@ fn separate_candidate_filters_share_static_registers_but_not_backdrop_or_drop_sh
 }
 
 #[test]
+fn candidate_gradients_share_static_registers_without_unrelated_registrations() {
+    let names = [
+        "bg-linear-to-r",
+        "from-red-500",
+        "hover:to-blue-500",
+        "focus:from-25%",
+        "via-none",
+    ]
+    .map(String::from);
+    let css = render_candidate_stylesheet(&names, &Theme::default());
+    assert!(
+        css.contains("linear-gradient(var(--hozo-gradient-stops, var(--hozo-gradient-position)))"),
+        "{css}"
+    );
+    assert!(css.contains("--hozo-gradient-from-position: 25%;"), "{css}");
+    assert!(css.contains("--hozo-gradient-via-stops: initial;"), "{css}");
+    assert_eq!(css.matches("@property --hozo-").count(), 9);
+    assert!(!css.contains("@property --hozo-blur"));
+}
+
+#[test]
 fn candidate_css_registers_the_content_property_for_pseudo_elements() {
     // A bottom sheet's grabber is `before:block before:h-1 ...` in a class
     // list the pattern passes to a plain <button>, so this sheet is the only

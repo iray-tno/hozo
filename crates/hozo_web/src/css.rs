@@ -676,12 +676,20 @@ fn gradient_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
 /// and a `background-image` reading `--tw-gradient-stops` from the
 /// constructor, and each colour and position into its own register; this
 /// writes the same structure under `--hozo-` names. `bg-none` keeps its
-/// literal declaration, as Tailwind's does. `via-none`, an arbitrary
-/// `bg-[…]`, or a constructor beside `bg-none` in one condition keeps the
+/// literal declaration, as Tailwind's does. An arbitrary `bg-[…]`, or a
+/// constructor beside `bg-none` in one condition keeps the
 /// old output for the whole element.
 pub fn register_split_gradients(
     groups: &mut [(Condition, Vec<StyleProperty>)],
     theme: &Theme,
+) -> bool {
+    register_gradients(groups, theme, false)
+}
+
+fn register_gradients(
+    groups: &mut [(Condition, Vec<StyleProperty>)],
+    theme: &Theme,
+    candidate: bool,
 ) -> bool {
     fn slot(p: &StyleProperty) -> u16 {
         match p {
@@ -722,7 +730,8 @@ pub fn register_split_gradients(
             None => written.push((condition, slots)),
         }
     }
-    if !written.windows(2).any(|pair| pair[0].1 != pair[1].1) {
+    if written.is_empty() || (!candidate && !written.windows(2).any(|pair| pair[0].1 != pair[1].1))
+    {
         return false;
     }
     let set = |name: &str, value: String| StyleProperty::Arbitrary(format!("--hozo-{name}"), value);
@@ -733,6 +742,7 @@ pub fn register_split_gradients(
          var(--hozo-gradient-from) var(--hozo-gradient-from-position), \
          var(--hozo-gradient-via) var(--hozo-gradient-via-position), \
          var(--hozo-gradient-to) var(--hozo-gradient-to-position)";
+    let mut changed = false;
     for (_, props) in groups.iter_mut() {
         if !props
             .iter()
@@ -740,6 +750,7 @@ pub fn register_split_gradients(
         {
             continue;
         }
+        changed = true;
         let mut rewritten = Vec::with_capacity(props.len() + 2);
         for property in props.drain(..) {
             match &property {
@@ -791,7 +802,7 @@ pub fn register_split_gradients(
         }
         *props = rewritten;
     }
-    true
+    changed
 }
 
 fn is_scroll_snap(prop: &StyleProperty) -> bool {
@@ -1162,6 +1173,18 @@ pub fn candidate_register_css(required: &std::collections::BTreeSet<&str>) -> St
     render_register_css(Some(required))
 }
 
+const GRADIENT_REGISTERS: &[(&str, Option<&str>)] = &[
+    ("gradient-position", None),
+    ("gradient-from", Some("#0000")),
+    ("gradient-via", Some("#0000")),
+    ("gradient-to", Some("#0000")),
+    ("gradient-stops", None),
+    ("gradient-via-stops", None),
+    ("gradient-from-position", Some("0%")),
+    ("gradient-via-position", Some("50%")),
+    ("gradient-to-position", Some("100%")),
+];
+
 fn render_register_css(required: Option<&std::collections::BTreeSet<&str>>) -> String {
     const REGISTERS: &[(&str, Option<&str>)] = &[
         ("translate-x", Some("0")),
@@ -1204,18 +1227,10 @@ fn render_register_css(required: Option<&std::collections::BTreeSet<&str>>) -> S
         ("ring-offset-width", Some("0px")),
         ("ring-offset-color", Some("#fff")),
         ("ring-offset-shadow", Some("0 0 #0000")),
-        ("gradient-position", None),
-        ("gradient-from", Some("#0000")),
-        ("gradient-via", Some("#0000")),
-        ("gradient-to", Some("#0000")),
-        ("gradient-stops", None),
-        ("gradient-via-stops", None),
-        ("gradient-from-position", Some("0%")),
-        ("gradient-via-position", Some("50%")),
-        ("gradient-to-position", Some("100%")),
     ];
     REGISTERS
         .iter()
+        .chain(GRADIENT_REGISTERS)
         .filter(|(name, _)| required.is_none_or(|required| required.contains(*name)))
         .map(|(name, initial)| {
             let initial = initial.map_or(String::new(), |value| {
@@ -1264,15 +1279,20 @@ pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme
 }
 
 /// Separate runtime classes cannot be inspected together at build time.
-/// Transforms and ordinary filter functions use the same registers as split
-/// static nodes, matching the domains composed by the Native candidate map.
+/// Transforms, ordinary filter functions and gradients use the same registers
+/// as split static nodes. This adds no Native syntax admission.
 /// Backdrop filters and whole-value/drop-shadow boundaries stay unchanged.
 pub fn register_candidate_slots(
     groups: &mut [(Condition, Vec<StyleProperty>)],
     theme: &Theme,
     required: &mut std::collections::BTreeSet<&'static str>,
 ) -> bool {
-    register_axes(groups, theme, true, Some(required))
+    let axes = register_axes(groups, theme, true, Some(required));
+    let gradients = register_gradients(groups, theme, true);
+    if gradients {
+        required.extend(GRADIENT_REGISTERS.iter().map(|(name, _)| *name));
+    }
+    axes || gradients
 }
 
 fn register_axes(
