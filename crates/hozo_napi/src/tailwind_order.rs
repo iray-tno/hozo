@@ -92,6 +92,7 @@ pub struct NativeCandidatePriorityGroup {
     pub index: u32,
     pub state_keys: Vec<String>,
     pub native_keys: Vec<String>,
+    pub composition_keys: Vec<String>,
     pub orderable: bool,
     pub writes: Vec<TailwindCompileWrite>,
     pub priority_rank: Option<u32>,
@@ -123,6 +124,7 @@ impl From<hozo_native::CandidateModulePlan> for NativeCandidatePlan {
                             index: group.index as u32,
                             state_keys: group.state_keys,
                             native_keys: group.native_keys,
+                            composition_keys: group.composition_keys,
                             orderable: group.orderable,
                             writes: group
                                 .writes

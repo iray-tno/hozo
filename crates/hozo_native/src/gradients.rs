@@ -4,6 +4,26 @@
 use super::*;
 use hozo_ir::{Dimension, GradientKind, GradientStop};
 
+pub(super) struct Metadata {
+    pub code: String,
+    slots: u16,
+}
+
+impl Metadata {
+    // Constructors already write backgroundImage. Only independently composed
+    // fields need a second key space in the build-time conflict evidence.
+    pub fn composition_keys(&self) -> Vec<String> {
+        (1..7)
+            .filter(|index| self.slots & (1 << index) != 0)
+            .map(|index| format!("gradient:{index}"))
+            .collect()
+    }
+
+    pub fn has_stops(&self) -> bool {
+        self.slots & !1 != 0
+    }
+}
+
 fn slot(property: &StyleProperty) -> u16 {
     match property {
         StyleProperty::Gradient(..)
@@ -46,7 +66,7 @@ pub(super) fn split_across_conditions(declarations: &[StyleDeclaration]) -> bool
     written.windows(2).any(|pair| pair[0].1 != pair[1].1)
 }
 
-pub(super) fn metadata(props: &[StyleProperty], theme: &Theme) -> Option<String> {
+pub(super) fn metadata(props: &[StyleProperty], theme: &Theme) -> Option<Metadata> {
     if props.iter().any(unassessed) {
         return None;
     }
@@ -93,7 +113,10 @@ pub(super) fn metadata(props: &[StyleProperty], theme: &Theme) -> Option<String>
     if !positions.is_empty() {
         fields.push(format!("positions: [{}]", positions.join(", ")));
     }
-    (!fields.is_empty()).then(|| format!("{{ {} }}", fields.join(", ")))
+    (!fields.is_empty()).then(|| Metadata {
+        code: format!("{{ {} }}", fields.join(", ")),
+        slots: props.iter().fold(0, |all, property| all | slot(property)),
+    })
 }
 
 pub(super) fn defaults() -> String {
@@ -116,7 +139,8 @@ pub(super) fn specs(entries: &[StyleEntry], theme: &Theme) -> String {
             } else {
                 theme
             };
-            metadata(props, palette).map(|metadata| format!("[{STYLE_OBJECT}.{name}, {metadata}]"))
+            metadata(props, palette)
+                .map(|metadata| format!("[{STYLE_OBJECT}.{name}, {}]", metadata.code))
         })
         .collect::<Vec<_>>()
         .join(", ")
