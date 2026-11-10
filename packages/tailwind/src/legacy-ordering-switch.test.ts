@@ -10,7 +10,7 @@ import { createCompiler, setLegacyOrderingForMeasurement } from '@hozo/compiler'
 // `hover:focus:` (two), so the more specific conjunction wins on Native.
 test('switching the ordering outside the plan off changes an input it still decides', () => {
   const compiler = createCompiler()
-  const source = `import {Pressable} from '@hozo/core';export const A=()=> <Pressable className="hover:focus:p-2 active:p-4 columns-[10rem]"/>`
+  const source = `import {Pressable} from '@hozo/core';export const A=()=> <Pressable className="hover:focus:p-2 active:p-4 columns-(--layout)"/>`
   const outputs = [true, false].map((legacy) => {
     setLegacyOrderingForMeasurement(legacy)
     try {

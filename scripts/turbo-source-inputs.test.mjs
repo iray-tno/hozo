@@ -12,6 +12,9 @@ const config = JSON.parse(readFileSync(new URL('../turbo.json', import.meta.url)
 const reads = {
   '@hozo/landing#test': ['scripts/browser-audit-diagnostics.mjs'],
   '@hozo/tailwind#test': [
+    'packages/engine/src/filter-slots.ts',
+    'crates/hozo_web/src/lib.rs',
+    'crates/hozo_web/src/css.rs',
     'packages/primitives/src/native-disabled.ts',
     'packages/engine/src/class-resolver.ts',
     'packages/engine/src/transform-slots.ts',
@@ -38,6 +41,8 @@ const reads = {
     'examples/storybook-demo/tsconfig.json',
   ],
   '@hozo/compiler#test': [
+    'packages/engine/src/filter-slots.ts',
+    'crates/hozo_web/src/css.rs',
     'crates/hozo_parser/src/static_imports.rs',
     'crates/hozo_napi/src/static_imports.rs',
     'crates/hozo_web/src/owner_class.rs',
@@ -108,6 +113,7 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'crates/hozo_web/src/css.rs',
     'packages/patterns/src/toolbar.tsx',
     'scripts/style-slots/vite-owner-publication.mjs',
     'packages/vite/src/index.ts',

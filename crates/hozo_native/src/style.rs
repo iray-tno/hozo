@@ -222,8 +222,11 @@ pub fn placeholder_color(color: &Color, theme: &Theme) -> String {
 /// other's part -- that needs a runtime composer, as transforms have -- but
 /// neither loses the base any more. The copies go before the condition's own
 /// writes, so its own layer or function still wins.
+/// Split filter boundaries use their composer instead: copying the base
+/// there would overwrite a different active condition's slot value.
 pub fn fold_base_layers(
     declarations: Vec<hozo_ir::StyleDeclaration>,
+    fold_filters: bool,
 ) -> Vec<hozo_ir::StyleDeclaration> {
     fn shadow(p: &StyleProperty) -> bool {
         matches!(
@@ -260,7 +263,12 @@ pub fn fold_base_layers(
         )
     }
     let mut declarations = declarations;
-    for family in [shadow as fn(&StyleProperty) -> bool, filter, gradient] {
+    let families: &[fn(&StyleProperty) -> bool] = if fold_filters {
+        &[shadow, filter, gradient]
+    } else {
+        &[shadow, gradient]
+    };
+    for family in families {
         let base: Vec<hozo_ir::StyleDeclaration> = declarations
             .iter()
             .filter(|d| d.condition == hozo_ir::Condition::Always && family(&d.property))

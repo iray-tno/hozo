@@ -21,9 +21,9 @@
 //! contained none of this.
 
 use hozo_ir::{
-    Angle, BorderStyle, Clamp, Color, Dimension, Edge, FilterFunction, GradientKind, GradientStop,
-    GridSpan, GridTracks, Length, LengthUnit, LetterSpacing, LineHeight, MaskSlot, MaskStop,
-    Radius, Scale, StyleProperty,
+    Angle, BorderStyle, Clamp, Color, ColumnCount, Dimension, Edge, FilterFunction, GradientKind,
+    GradientStop, GridSpan, GridTracks, Length, LengthUnit, LetterSpacing, LineHeight, MaskSlot,
+    MaskStop, Radius, Scale, StyleProperty,
 };
 
 /// The functions inside which Tailwind spaces out math operators, copied
@@ -771,6 +771,22 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
     let number = || value.parse::<f64>().ok();
     let integer = || value.parse::<i32>().ok();
     let one = |property: StyleProperty| Some(vec![property]);
+
+    if prefix == "columns" && hint.is_none() {
+        // Counts and widths share the columns shorthand with named utilities.
+        // Preserve that ownership so they dedupe and rank together. Unknown
+        // variables, two-value shorthands and hinted values remain raw below.
+        let columns = if value == "auto" {
+            Some(ColumnCount::Auto)
+        } else if let Ok(count) = value.parse::<u32>() {
+            (count > 0).then_some(ColumnCount::Count(count))
+        } else {
+            length().map(|value| ColumnCount::Width(Dimension::Length(value)))
+        };
+        if let Some(columns) = columns {
+            return one(StyleProperty::Columns(columns));
+        }
+    }
 
     // Its own arm because it is two declarations, and the custom property
     // is the whole point: a `before:` rule elsewhere in the stylesheet
@@ -1836,6 +1852,30 @@ mod split_tests {
                 Length::Unit(2.0, LengthUnit::Rem)
             ))])
         );
+    }
+
+    #[test]
+    fn readable_columns_keep_named_ownership_but_opaque_values_stay_raw() {
+        assert_eq!(
+            properties("columns-[10rem]"),
+            Some(vec![StyleProperty::Columns(ColumnCount::Width(
+                Dimension::Length(Length::Unit(10.0, LengthUnit::Rem))
+            ))])
+        );
+        assert_eq!(
+            properties("columns-[3]"),
+            Some(vec![StyleProperty::Columns(ColumnCount::Count(3))])
+        );
+        assert_eq!(
+            properties("columns-[auto]"),
+            Some(vec![StyleProperty::Columns(ColumnCount::Auto)])
+        );
+        for token in ["columns-(--layout)", "columns-[10rem_3]", "columns-[0]"] {
+            assert!(matches!(
+                properties(token).as_deref(),
+                Some([StyleProperty::Arbitrary(name, _)]) if name == "columns"
+            ));
+        }
     }
 
     #[test]

@@ -321,6 +321,29 @@ fn candidate_css_uses_the_real_tailwind_names() {
 }
 
 #[test]
+fn separate_candidate_transforms_share_non_inheriting_registers() {
+    let names = ["translate-x-2", "translate-y-3", "scale-x-75", "scale-y-50"];
+    let css = render_candidate_stylesheet(&names.map(str::to_string), &Theme::default());
+    assert!(css.contains("@property --hozo-translate-x {"), "{css}");
+    assert!(css.contains("inherits: false;"), "{css}");
+    assert!(css.contains("--hozo-translate-x: 8px;"), "{css}");
+    assert!(css.contains("--hozo-translate-y: 12px;"), "{css}");
+    assert!(
+        css.contains("translate: var(--hozo-translate-x) var(--hozo-translate-y);"),
+        "{css}"
+    );
+    assert!(
+        css.contains("scale: var(--hozo-scale-x) var(--hozo-scale-y);"),
+        "{css}"
+    );
+    assert_eq!(css.matches("@property --hozo-translate-x {").count(), 1);
+    let plain = render_candidate_stylesheet(&["p-2".into()], &Theme::default());
+    assert!(!plain.contains("@property"), "{plain}");
+    let filters = render_candidate_stylesheet(&["blur-sm".into()], &Theme::default());
+    assert!(!filters.contains("@property"), "{filters}");
+}
+
+#[test]
 fn candidate_css_registers_the_content_property_for_pseudo_elements() {
     // A bottom sheet's grabber is `before:block before:h-1 ...` in a class
     // list the pattern passes to a plain <button>, so this sheet is the only

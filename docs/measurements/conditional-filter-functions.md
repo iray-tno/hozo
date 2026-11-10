@@ -30,8 +30,8 @@ conditions write the same functions.
   next step for this defect.
 - `md:blur-sm grayscale lg:filter-none` keeps its old output, so at md the
   oracle still disagrees (4 of 8 observations), before and after.
-- The literal backdrop chain sorts `opacity` last, unlike Tailwind; only the
-  register form here reads it in Tailwind's place.
+- The historical literal backdrop chain sorted `opacity` last. The follow-up
+  below closes that separate ordering defect.
 
 ## Verification
 
@@ -46,3 +46,22 @@ conditions write the same functions.
   `@property` and Tailwind's read order for both `filter` and
   `backdrop-filter`; one-condition, same-function, reset and drop-shadow
   inputs keep literal output.
+
+## Literal backdrop follow-up
+
+Literal and split-condition output now share `filter_slot` rather than letting
+the literal chain use the enum's different opacity position. Both Safari's
+prefixed declaration and the unprefixed declaration read opacity before
+saturate and sepia. This reuses an existing build-time comparator; it adds no
+device code, property registrations or output bytes beyond reordering the same
+functions. Native backdrop support is unchanged.
+
+`backdrop-literal-order.test.ts` derives the selected function order from the
+actual installed Tailwind register reader and compares both authored orders.
+The compiler regression also checks a single hover condition and both CSS
+prefixes; the Rust unit checks forward/reverse properties. On Windows with CPU
+1 / Idle / serial: 222 Web Rust tests, four compiler filter tests and the one
+independent Tailwind-reader test pass, with a rebuilt addon. Scoped all-target
+Clippy, rustfmt and the pinned Native text fixture check pass. No new browser
+pixel, Native backdrop, global conformance or device-performance result is
+claimed; the historical browser receipt above is not relabelled as a new run.

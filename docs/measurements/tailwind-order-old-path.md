@@ -22,7 +22,7 @@ turns both compiler mechanisms off. `scripts/tailwind-order-old-path.mjs`
 compiles every file of the coverage corpus for Web and Native, with them on
 and off, in the coverage script's Tailwind context. It then lists every
 component whose output changes. `legacy-ordering-switch.test.ts` is the
-control: an input with a barrier (`focus:p-2 hover:p-4 columns-[10rem]`)
+control: an input with a barrier (`hover:focus:p-2 active:p-4 columns-(--layout)`)
 does change, on both backends, when they are off.
 
 ## Result
@@ -46,7 +46,7 @@ Nothing in this corpus, but the old path is still reachable by inputs the
 plan does not rank:
 
 - **A barrier input with interaction variants**: an arbitrary value
-  (`columns-[10rem]`, `tracking-[1em]`), or a class the project's CSS does
+  (`columns-(--layout)`, `tracking-[1em]`), or a class the project's CSS does
   not generate, next to `hover:`/`focus:` writes. The interaction sort
   orders those writes by Tailwind's variant order; without it they keep the
   order they were written in.
