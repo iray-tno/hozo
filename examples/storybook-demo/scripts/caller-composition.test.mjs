@@ -752,15 +752,13 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
     candidates.renderNativeModulePlan(localContext).code.replace(/^import .*$/gm, ''),
     { createClassResolver },
   ).hozoClasses
+  const defaultResolve = evaluate(candidates.renderNativeModule().replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  }).hozoClasses
   assert.ok(plan.ordering)
   const generated = evaluate(plan.code.replace(/^import .*$/gm, ''), {
-    createClassResolver: (styles, unsupported, compose, states, ambient) => ({
-      styles,
-      unsupported,
-      compose,
-      states,
-      ambient,
-    }),
+    createClassResolver: (styles, unsupported, compose, states, ambient) =>
+      styles.schema === 1 ? styles : { styles, unsupported, compose, states, ambient },
   }).hozoClasses
   const legacy = createClassResolver(
     generated.styles,
@@ -893,6 +891,7 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
           'authored styles retain their input tier above the generated dynamic plan',
         )
         assert.deepEqual(read(resolve), oracle)
+        assert.deepEqual(read(defaultResolve), oracle, 'the ordinary built-in runtime map')
         assert.deepEqual(read(emittedResolve), oracle, 'the actual generated object factory call')
         assert.deepEqual(
           read(localResolve),
