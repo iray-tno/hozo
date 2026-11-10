@@ -14,8 +14,10 @@ Registrations are non-inheriting and emitted once per candidate sheet. A sheet
 without drawable transform axes emits none.
 
 This scope is translation, scale, skew and the existing function-transform
-axes, the domain Native already composes. Filters are deliberately excluded:
-extending only Web there would not close the known Native composition gap.
+axes, the domain Native already composes. That initial layer excluded filters
+until the Native runtime gap was repaired. A later layer connects
+[ordinary Web candidate filter functions](web-candidate-filter-slots.md)
+to this same static register writer.
 Raw/whole-value transforms retain their existing blocking path. This does not
 prove arbitrary raw forms or mixed static-plus-dynamic contribution parity.
 Owner admission, text defaults and audits are unchanged.

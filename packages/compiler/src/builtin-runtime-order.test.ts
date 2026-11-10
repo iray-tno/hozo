@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
 import {
   createCompiler,
   openCandidateCache,
@@ -18,7 +19,7 @@ function fixture(names: string[]) {
 function resolver(code: string) {
   return runInNewContext(
     `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`,
-    { createClassResolver },
+    { createClassResolver, hozoFilterStyles },
   ) as ReturnType<typeof createClassResolver>
 }
 

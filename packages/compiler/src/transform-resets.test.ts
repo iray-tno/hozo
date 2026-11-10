@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
 import { compile, compileNative, openCandidateCache } from './index.ts'
 import { generatedRuntimeImports } from './lower.ts'
@@ -129,8 +130,9 @@ test('generated dynamic candidate modules execute the same resets and restore ax
   const resolve = new Function(
     'createClassResolver',
     'hozoTransformStyles',
+    'hozoFilterStyles',
     `${executable}\nreturn hozoClasses`,
-  )(createClassResolver, hozoTransformStyles)
+  )(createClassResolver, hozoTransformStyles, hozoFilterStyles)
   assert.deepEqual(flatten(resolve('rotate-45 scale-95 rotate-none')).transform, [
     { scaleX: 0.95 },
     { scaleY: 0.95 },

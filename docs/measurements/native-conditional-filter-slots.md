@@ -55,8 +55,10 @@ selected styles and their three metadata entries took 97.36ms (checksum
 200,000). This includes per-call metadata indexing, not rendering, Yoga,
 device filters, frame time or an application performance claim.
 
-Drop-shadow size/colour composition, filter animation endpoints and dynamic
-candidate maps remain on their existing paths. This layer does not certify
+Drop-shadow size/colour composition and filter animation endpoints remain
+on their existing paths. A later layer adds
+[Native candidate-map function composition](native-candidate-filter-slots.md).
+This static layer does not certify
 mixed static/dynamic chains, shadow/gradient register composition or Native
 platform support beyond the functions already accepted by Hozo. The helper
 understands authored IR chains; it does not make unsupported arbitrary

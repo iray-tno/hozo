@@ -1,5 +1,5 @@
 // Slot numbers and function strings come from the compiler, not a second
-// Tailwind ordering table. Only cross-condition filter boundaries import this.
+// Tailwind ordering table. Only split filters and candidate maps import this.
 type Style = Record<string, unknown>
 type FilterStyle = Style | false | null | undefined | readonly FilterStyle[]
 export interface FilterSlots {
