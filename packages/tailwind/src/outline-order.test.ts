@@ -46,21 +46,19 @@ test('outline writes settle in Tailwind order, whichever is written first', asyn
   }
 })
 
-test('an outline style utility ranks, but `outline-none` keeps its input in authored order', async () => {
+test('outline styles rank, `outline-none` and `outline-hidden` included', async () => {
   // `outline-dashed` sets `--tw-outline-style`, which every outline width
   // reads; a width's own style is `BorderStyle::Default`, at zero
   // specificity, so `focus:outline-2` keeps it dashed in either order.
-  // `outline-none` is `outlineWidth: 0` on Native, a width key.
+  // `outline-none`/`outline-hidden` are written styles too (Native's
+  // `outlineWidth: 0` stand-in is a known gap, not an ordering one).
   const compiler = createCompiler()
-  for (const [style, ranked] of [
-    ['outline-dashed', true],
-    ['outline-none', false],
-  ] as const) {
+  for (const style of ['outline-dashed', 'outline-none', 'outline-hidden']) {
     const final = await context([style, 'focus:outline-2'])
     const css = [`${style} focus:outline-2`, `focus:outline-2 ${style}`].map(
       (classes) => compiler.prepareWebModule(source(classes)).emit(final)[0]!.css,
     )
-    assert.equal(css[0] === css[1], ranked, style)
+    assert.equal(css[0], css[1], style)
   }
 })
 

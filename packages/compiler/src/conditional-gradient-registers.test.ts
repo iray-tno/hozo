@@ -30,13 +30,17 @@ test('a conditional colour writes its register and the stop list, not background
   assert.doesNotMatch(media.slice(0, media.indexOf('}')), /background-image/)
 })
 
-test('one condition, same slots, via-none and arbitrary images keep literal output', () => {
+test('one condition, same slots and arbitrary images keep literal output', () => {
   for (const classes of [
     'bg-linear-to-r from-red-500 to-blue-500',
     'bg-linear-to-r from-red-500 md:bg-linear-to-l md:from-blue-500',
-    'md:via-none bg-linear-to-r from-red-500 via-green-500',
     "md:bg-[url('/a.png')] bg-linear-to-r from-red-500",
   ]) {
     assert.doesNotMatch(css(classes), /--hozo-gradient/, classes)
   }
+})
+
+test('a conditional via-none clears the via stops through its register, as Tailwind does', () => {
+  const output = css('md:via-none bg-linear-to-r from-red-500 via-green-500')
+  assert.match(output, /--hozo-gradient-via-stops: initial;/)
 })

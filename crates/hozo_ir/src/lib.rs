@@ -44,6 +44,22 @@ pub use tailwind_portable::portable_tailwind_snapshot;
 mod tailwind_builtin;
 pub use tailwind_builtin::{builtin_tailwind_snapshot, builtin_tailwind_version};
 
+static LEGACY_ORDERING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+/// Turns the ordering outside the shared plan (the interaction sort and the
+/// condition-weight group sort) off or on, process-wide. Measurement only:
+/// `scripts/tailwind-order-old-path.mjs` compiles a corpus both ways to count
+/// what those mechanisms still decide (#1230). Never set by a build.
+pub fn set_legacy_ordering(enabled: bool) {
+    LEGACY_ORDERING.store(enabled, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Whether the ordering outside the shared plan runs; see
+/// [`set_legacy_ordering`].
+pub fn legacy_ordering() -> bool {
+    LEGACY_ORDERING.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 // ---------------------------------------------------------------------------
 // Source spans / diagnostics
 // ---------------------------------------------------------------------------
@@ -5644,7 +5660,8 @@ pub fn group_by_condition(
     // changing their guards. Re-sorting those by the legacy condition weight
     // would undo that projection. Unconditional semantic defaults add no
     // selector weight; mixed/unassessed/unknown guarded inputs keep the old path.
-    if !has_canonical_tailwind_input(declarations)
+    if legacy_ordering()
+        && !has_canonical_tailwind_input(declarations)
         && groups
             .iter()
             .all(|(condition, _)| condition.owner_interaction_specificity().is_some())
@@ -5866,6 +5883,13 @@ impl StyleProperty {
             StyleProperty::MaskSlotArgument(slot, _) => *slot as u32,
             StyleProperty::GradientStopColor(stop, _)
             | StyleProperty::GradientStopPosition(stop, _) => *stop as u32,
+            // `drop-shadow-none` is its own write, not a size: Tailwind sorts
+            // it between the sizes and the colours, and a colour rebuilds the
+            // shadow from the size register even after it. Keeping both lets
+            // the backends do the same (`filter_value`, `filter_entry`).
+            StyleProperty::Filter(FilterFunction::DropShadow, value) if value.is_empty() => {
+                u32::MAX
+            }
             StyleProperty::Filter(function, _) | StyleProperty::BackdropFilter(function, _) => {
                 *function as u32
             }

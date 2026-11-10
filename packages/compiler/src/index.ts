@@ -13,7 +13,7 @@ import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
 export type { FontAvailability } from './font-diagnostics.ts'
 
 /** @internal Must match the native scalar output policy; integration tests verify it. */
-export const TAILWIND_SCALAR_ORDER_POLICY = 'scalar-order-v52' as const
+export const TAILWIND_SCALAR_ORDER_POLICY = 'scalar-order-v56' as const
 
 const require = createRequire(import.meta.url)
 
@@ -409,6 +409,7 @@ interface NativeBinding {
   prepareAuthoredTailwindContext(snapshot: string): PreparedTailwindContext
   tailwindClassesRankable(candidates: string[]): boolean[]
   tailwindClassesNativeRefusal(candidates: string[]): (string | null)[]
+  setLegacyOrderingForMeasurement(enabled: boolean): void
   reactNativeImports(source: string, sourceFile?: string): ReactNativeImports
   analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage
   compile(source: string): CompiledComponent[]
@@ -766,6 +767,12 @@ export function prepareBuiltinTailwindContext(
 /** @internal Measurement: whether each class's parsed writes are all in the ranked domain. */
 export function tailwindClassesRankable(candidates: readonly string[]): boolean[] {
   return loadNative().tailwindClassesRankable([...candidates])
+}
+
+/** @internal Measurement only: turns the ordering outside the shared plan
+ * off or on for the whole process. Never call it from a build. */
+export function setLegacyOrderingForMeasurement(enabled: boolean): void {
+  loadNative().setLegacyOrderingForMeasurement(enabled)
 }
 
 /** @internal Measurement only: why React Native refuses each class, if it does. */

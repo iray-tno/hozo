@@ -18,7 +18,7 @@ const names = [
   'bg-red-500',
   'active:bg-blue-500',
   'hover:bg-red-500!',
-  'outline-none',
+  'bg-brand',
   'rtl:p-2',
   'sm:p-2',
 ]
@@ -103,7 +103,7 @@ test('actual candidate objects share original write priorities with static Web a
       assert.ok(group.reason)
     }
   }
-  assert.equal(entries.get('outline-none')!.groups[0]!.priorityRank, undefined)
+  assert.equal(entries.get('bg-brand')!.groups[0]!.priorityRank, undefined)
   // Direction is assessed (#1230): the dynamic map ranks it as the static
   // plans do, and the resolver decides it once as an ambient fact.
   assert.notEqual(entries.get('rtl:p-2')!.groups[0]!.priorityRank, undefined)
@@ -221,7 +221,7 @@ test('the compact Rust contract drives a rank-free cached template over the actu
     'focus:bg-[#220000]',
     'active:bg-[#330000]',
     'hover:focus:bg-[#440000]',
-    'divide-dashed',
+    'text-brand',
   ]
   const cache = cacheFor(names)
   const prepared = await prepareTailwindOrder(css, base, cache.candidates())
@@ -230,7 +230,7 @@ test('the compact Rust contract drives a rank-free cached template over the actu
   )
   assert.ok(plan.ordering)
   assert.equal(plan.ordering.schema, 1)
-  assert.equal(plan.ordering.ranks['divide-dashed'], undefined)
+  assert.equal(plan.ordering.ranks['text-brand'], undefined)
   const code = `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`
   const generated = runInNewContext(code, {
     createClassResolver: (styles, unsupported, compose, states, ambient) => ({
@@ -271,8 +271,8 @@ test('the compact Rust contract drives a rank-free cached template over the actu
               : '#110000',
       )
       assert.deepEqual(
-        resolve(`${list} divide-dashed`, state),
-        legacy(`${list} divide-dashed`, state),
+        resolve(`${list} text-brand`, state),
+        legacy(`${list} text-brand`, state),
         'unranked Native shorthand freezes this string, not just the unknown group',
       )
     }

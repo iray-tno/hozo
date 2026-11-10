@@ -76,7 +76,8 @@ when no input reaches the old path, which takes two things:
    [built-in default](tailwind-builtin-order-default.md)), at about 48 KB of
    gzipped WASM.
 
-So only the barriers are left. The useful consolidation is still making the
+So only the barriers are left. [What the old path still decides](tailwind-order-old-path.md)
+measures the first two mechanisms directly. The useful consolidation is still making the
 old path smaller: each barrier graduated moves inputs off it. This script
 measures how many of this repository's inputs remain; the
 [inventory](tailwind-order-inventory.md) counts the barriers left among all

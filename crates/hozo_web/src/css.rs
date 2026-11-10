@@ -503,6 +503,10 @@ fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Opti
         })
         .flatten()
         .filter(|color| !color.is_initial());
+    let drop_none = !backdrop
+        && props.iter().any(|p| {
+            matches!(p, StyleProperty::Filter(FilterFunction::DropShadow, value) if value.is_empty())
+        });
     for prop in props {
         let (function, value) = match (prop, backdrop) {
             (StyleProperty::Filter(f, v), false) | (StyleProperty::BackdropFilter(f, v), true) => {
@@ -514,8 +518,16 @@ fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Opti
         if function == FilterFunction::None {
             return Some("none".to_string());
         }
+        // Tailwind's fixed order is size, then `drop-shadow-none`, then
+        // colour, and a colour rule rebuilds the shadow from the size
+        // register. So a colour keeps the size's shadow, `none` without one
+        // turns it off, and `none` itself draws nothing.
         let value = if function == FilterFunction::DropShadow {
-            repaint_shadow(value, drop_shadow_color, theme)
+            if value.is_empty() || (drop_none && drop_shadow_color.is_none()) {
+                String::new()
+            } else {
+                repaint_shadow(value, drop_shadow_color, theme)
+            }
         } else {
             value.to_string()
         };
@@ -530,10 +542,15 @@ fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Opti
         .map(|(_, v)| v.as_str())
         .filter(|v| !v.is_empty())
         .collect();
-    // Every slot cleared still leaves a declaration -- Tailwind emits
-    // `filter: ` with an empty value, which is what an all-`-none` chain
-    // resolves to.
-    Some(chain.join(" "))
+    // Every slot cleared still leaves a declaration. Tailwind's is a chain
+    // of empty registers, which computes to `none`; a literal empty value
+    // would be an invalid declaration and leave an earlier filter standing
+    // (`md:drop-shadow-none drop-shadow-lg` at md).
+    Some(if chain.is_empty() {
+        "none".to_string()
+    } else {
+        chain.join(" ")
+    })
 }
 
 fn is_gradient(prop: &StyleProperty) -> bool {
@@ -675,7 +692,8 @@ pub fn register_split_gradients(
     let blocked = groups.iter().any(|(_, props)| {
         props.iter().any(|p| {
             matches!(p, StyleProperty::BackgroundImage(_))
-                || matches!(p, StyleProperty::GradientStopColor(_, c) if c.is_initial())
+                || matches!(p, StyleProperty::GradientStopColor(stop, c)
+                    if c.is_initial() && *stop != GradientStop::Via)
         }) || props
             .iter()
             .filter(|p| {
@@ -731,6 +749,14 @@ pub fn register_split_gradients(
                             kind.css()
                         ),
                     ));
+                }
+                // `via-none`: Tailwind's `--tw-gradient-via-stops: initial`,
+                // which sends every `--tw-gradient-stops` that reads it back
+                // to the from/to fallback.
+                StyleProperty::GradientStopColor(GradientStop::Via, color)
+                    if color.is_initial() =>
+                {
+                    rewritten.push(set("gradient-via-stops", "initial".to_string()));
                 }
                 StyleProperty::GradientStopColor(stop, color) => {
                     let name = match stop {
@@ -3286,6 +3312,12 @@ fn render_shape(
         // `:where()` keeps the specificity at zero, matching Tailwind, so
         // a child's own utilities still win over the parent's spacing.
         rules.push(format!(":where({target} > :not(:last-child)) {{\n{body}}}"));
+        let defaults = divider_default_styles(&child_props);
+        if !defaults.is_empty() {
+            rules.push(format!(
+                "@layer base {{\n  :where({target} > :not(:last-child)) {{\n{defaults}  }}\n}}"
+            ));
+        }
     }
     if !placeholder_props.is_empty() {
         let mut body = String::new();
@@ -3310,6 +3342,26 @@ fn render_shape(
         .fold(rules.join("\n\n"), |rule, prelude| {
             format!("{prelude} {{\n{}\n}}", indent_block(&rule))
         })
+}
+
+/// The `solid` a divider width implies, which Tailwind reads from
+/// `--tw-border-style`: it applies only where no written style does, the
+/// divider's own (`divide-dashed`, also at zero specificity) or the child's.
+/// So it goes in the base layer, which every unlayered rule beats whatever
+/// its order or condition.
+fn divider_default_styles(props: &[&&StyleProperty]) -> String {
+    let mut body = String::new();
+    for prop in props {
+        let names: &[&str] = match ***prop {
+            StyleProperty::DivideX(_) => &["border-inline-style"],
+            StyleProperty::DivideY(_) => &["border-top-style", "border-bottom-style"],
+            _ => continue,
+        };
+        for name in names {
+            body.push_str(&format!("    {name}: solid;\n"));
+        }
+    }
+    body
 }
 
 /// Two spaces in front of every non-empty line. A CSS string cannot hold a
@@ -3406,22 +3458,19 @@ fn space_declarations(
         // Tailwind writes both edges, zeroing the leading one, so that
         // `divide-x-reverse` can flip which edge carries the border without
         // a different rule. Matching that shape keeps the output identical.
+        // A divider's style is not here: Tailwind's reads
+        // `--tw-border-style`, so a written style beats it wherever it
+        // applies; see `divider_default_styles`.
         StyleProperty::DivideX(l) => {
             let (start, end) = split(Axis::X, l);
             vec![
-                ("border-inline-style", "solid".to_string()),
                 ("border-inline-start-width", start),
                 ("border-inline-end-width", end),
             ]
         }
         StyleProperty::DivideY(l) => {
             let (start, end) = split(Axis::Y, l);
-            vec![
-                ("border-bottom-style", "solid".to_string()),
-                ("border-top-style", "solid".to_string()),
-                ("border-top-width", start),
-                ("border-bottom-width", end),
-            ]
+            vec![("border-top-width", start), ("border-bottom-width", end)]
         }
         // The flip itself writes nothing: it is read by the width above,
         // which is the only thing that knows how big the gap is.

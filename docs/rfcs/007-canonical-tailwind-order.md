@@ -472,6 +472,17 @@ Policy v52 ranks the transform resets and forms (`translate-none`,
 `transform`/`-gpu`) as writes of the shared declaration, read by position
 against the axes; see
 [transform form evidence](../measurements/tailwind-transform-form-order.md).
+Policy v53 ranks divider styles; a divider width's implied style moves to
+the base layer on Web; see
+[the border style page](../measurements/tailwind-border-style-order.md#divider-styles).
+Policy v54 ranks `outline-none` and `outline-hidden`; see
+[the same page](../measurements/tailwind-border-style-order.md#outline-none-and-outline-hidden).
+Policy v55 ranks `drop-shadow-none` and `via-none`, leaving domain 3 with
+no gap; see [register reset evidence](../measurements/tailwind-register-reset-order.md).
+Policy v56 ranks `container`, matching each write to its breakpoint branch
+and dropping a branch a later unprefixed write always beats. The inventory
+then has no gap in any domain; see
+[container evidence](../measurements/tailwind-container-order.md).
 
 ## 1. Restart, not another family-specific patch
 

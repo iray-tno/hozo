@@ -127,6 +127,7 @@ pub(crate) fn child_scoped(write: &StyleProperty) -> bool {
             | StyleProperty::DivideX(_)
             | StyleProperty::DivideY(_)
             | StyleProperty::DivideColor(_)
+            | StyleProperty::DivideStyle(_)
             | StyleProperty::DivideReverse(_)
     )
 }
@@ -177,6 +178,34 @@ pub fn assess_tailwind_rule<'a>(
         owner: [0; OWNER_PREDICATE_COUNT],
         child_scope: false,
     };
+    if let Some(branches) = breakpoint_branches(nodes) {
+        // `container`: the rule's own declarations, and one `max-width`
+        // per breakpoint. Each write is matched to its branch by its
+        // condition in `scalar_write_priority`; here a property is listed
+        // once, so ownership sees one owner per property.
+        for node in nodes {
+            if let OrderRuleShape::Declaration {
+                property,
+                important,
+            } = node
+            {
+                if *important != rule.important {
+                    return Err(RuleAssessmentError::Importance);
+                }
+                result.properties.push(property);
+            }
+        }
+        for (_, body) in &branches {
+            for node in *body {
+                if let OrderRuleShape::Declaration { property, .. } = node {
+                    if !result.properties.contains(&property.as_str()) {
+                        result.properties.push(property);
+                    }
+                }
+            }
+        }
+        return Ok(result);
+    }
     assess_body(nodes, &mut result)?;
     if result.properties.is_empty() {
         return Err(RuleAssessmentError::Empty);
@@ -194,6 +223,50 @@ pub fn assess_tailwind_rule<'a>(
         result.specificity = [0, 0, 0];
     }
     Ok(result)
+}
+
+/// An unprefixed rule whose other branches are each a `(width >= …)` query
+/// holding only declarations, as Tailwind writes `container`: the rule's
+/// own declarations apply everywhere and each branch from its width. Returns
+/// each branch's width in pixels with its declarations, or nothing for any
+/// other shape.
+pub(crate) fn breakpoint_branches(
+    nodes: &[OrderRuleShape],
+) -> Option<Vec<(f64, &[OrderRuleShape])>> {
+    let mut branches = Vec::new();
+    let mut declared = false;
+    for node in nodes {
+        match node {
+            OrderRuleShape::Declaration { .. } => declared = true,
+            OrderRuleShape::Comment => {}
+            node if property_registration(node) => {}
+            OrderRuleShape::AtRule {
+                name,
+                params,
+                nodes,
+            } if name == "@media" => {
+                let width = params
+                    .strip_prefix("(width >= ")
+                    .and_then(|rest| rest.strip_suffix(')'))
+                    .and_then(|value| {
+                        if let Some(rem) = value.strip_suffix("rem") {
+                            rem.parse::<f64>().ok().map(|rem| rem * 16.0)
+                        } else {
+                            value.strip_suffix("px")?.parse::<f64>().ok()
+                        }
+                    })?;
+                if !nodes
+                    .iter()
+                    .all(|node| matches!(node, OrderRuleShape::Declaration { .. }))
+                {
+                    return None;
+                }
+                branches.push((width, nodes.as_slice()));
+            }
+            _ => return None,
+        }
+    }
+    (declared && !branches.is_empty()).then_some(branches)
 }
 
 /// A hoisted CSS property definition has no selector-owned style writes.
@@ -277,6 +350,36 @@ pub(crate) fn supports_refinement(siblings: &[OrderRuleShape], node: &OrderRuleS
             } => declared(property, *important),
             OrderRuleShape::Comment => true,
             _ => false,
+        })
+}
+
+/// `outline-hidden`'s `@media (forced-colors: active)` branch: a transparent
+/// outline for a mode where the system repaints outlines. Hozo emits no
+/// forced-colors fallback (a known gap), so the branch writes nothing Hozo
+/// owns and is not a second place in the order. Only beside declarations of
+/// the rule's own: alone, it is the `forced-colors:` variant.
+pub(crate) fn forced_colors_fallback(siblings: &[OrderRuleShape], node: &OrderRuleShape) -> bool {
+    if !siblings
+        .iter()
+        .any(|sibling| matches!(sibling, OrderRuleShape::Declaration { .. }))
+    {
+        return false;
+    }
+    let OrderRuleShape::AtRule {
+        name,
+        params,
+        nodes,
+    } = node
+    else {
+        return false;
+    };
+    name == "@media"
+        && params == "(forced-colors: active)"
+        && nodes.iter().all(|node| {
+            matches!(
+                node,
+                OrderRuleShape::Declaration { .. } | OrderRuleShape::Comment
+            )
         })
 }
 
@@ -448,6 +551,7 @@ fn assess_body<'a>(
             !matches!(node, OrderRuleShape::Comment)
                 && !property_registration(node)
                 && !supports_refinement(nodes, node)
+                && !forced_colors_fallback(nodes, node)
         })
         .collect::<Vec<_>>();
     if branches
@@ -799,11 +903,13 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         BorderBlockEndColor(_) => "border-block-end-color",
         // Outline widths write `outline-style: var(--tw-outline-style)`
         // beside the width, as border widths do; Hozo writes that as
-        // `BorderStyle::Default`, which never beats a written style. `None`
-        // projects to Native's `outlineWidth: 0`, a width key, so it stays
-        // out of the domain.
+        // `BorderStyle::Default`, which never beats a written style.
+        // `outline-none`/`outline-hidden` (`None`) is a written style too;
+        // Native has no `none` and writes `outlineWidth: 0` instead, which
+        // a later width can override where Tailwind's register would not (a
+        // known gap, not an ordering one).
         OutlineWidth(length) if absolute(length) => "outline-width",
-        OutlineStyle(style) if *style != crate::BorderStyle::None => "outline-style",
+        OutlineStyle(_) => "outline-style",
         OutlineColor(_) => "outline-color",
         OutlineOffset(length) if absolute(length) => "outline-offset",
         Position(
@@ -918,12 +1024,15 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         SpaceReverse(crate::Axis::Y) => "--tw-space-y-reverse",
         DivideReverse(crate::Axis::X) => "--tw-divide-x-reverse",
         DivideReverse(crate::Axis::Y) => "--tw-divide-y-reverse",
-        // A divider's width and colour on the children. Its style
-        // (`divide-dashed`) stays out: it sets `--tw-border-style`, which
-        // every divider width reads, while Hozo writes the literal style.
+        // A divider's width, colour and style on the children. Its style
+        // (`divide-dashed`) sets `--tw-border-style`, which every divider
+        // width reads; a width's own implied style is written beneath every
+        // written one (the base layer on Web, nothing on Native), so the
+        // written style ranks like the others.
         DivideX(_) => "border-inline-start-width",
         DivideY(_) => "border-top-width",
         DivideColor(_) => "border-color",
+        DivideStyle(_) => "border-style",
         // Tailwind 4.3's block-logical spacing, one declaration each. Native
         // writes the physical key (`paddingTop`), the one `pt-*` writes, so
         // ranking decides which lands last, as the logical group does in CSS.
@@ -996,6 +1105,10 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         Filter(crate::FilterFunction::DropShadow, value) if !value.is_empty() => {
             "--tw-drop-shadow-size"
         }
+        // `drop-shadow-none` writes the shadow itself; Tailwind sorts it
+        // after every size and colour rule, and Hozo keeps the last drop
+        // shadow write, so it turns the shadow off as the register does.
+        Filter(crate::FilterFunction::DropShadow, _) => "--tw-drop-shadow",
         DropShadowColor(_) => "--tw-drop-shadow-color",
         Filter(function, _) => filter_register(*function, false)?,
         BackdropFilter(function, _) => filter_register(*function, true)?,
@@ -1021,6 +1134,12 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // every colour rule also declares.
         Gradient(..) | BackgroundImageNone | BackgroundImage(_) => "background-image",
         GradientStopColor(crate::GradientStop::From, _) => "--tw-gradient-from",
+        // `via-none` takes the middle stop back out through
+        // `--tw-gradient-via-stops: initial`; Tailwind sorts it before every
+        // `via-<colour>`, which Hozo's last-wins keeps.
+        GradientStopColor(crate::GradientStop::Via, crate::Color::Keyword("initial")) => {
+            "--tw-gradient-via-stops"
+        }
         GradientStopColor(crate::GradientStop::Via, _) => "--tw-gradient-via",
         GradientStopColor(crate::GradientStop::To, _) => "--tw-gradient-to",
         GradientStopPosition(crate::GradientStop::From, _) => "--tw-gradient-from-position",
@@ -1359,7 +1478,7 @@ mod tests {
     }
 
     #[test]
-    fn outline_writes_and_written_styles_rank_but_none_does_not() {
+    fn outline_writes_and_written_styles_rank() {
         use crate::BorderStyle;
         let px = Length::Px(2.0);
         for (write, property) in [
@@ -1378,9 +1497,28 @@ mod tests {
             assert!(covers(property, &write), "{write:?}");
             assert!(!covers("outline", &write), "{write:?}");
         }
-        // Native writes `outline-none` as `outlineWidth: 0`.
-        assert!(!crate::scalar_tailwind_property(
+        // `outline-none` is a written style like the others.
+        assert!(crate::scalar_tailwind_property(
             &StyleProperty::OutlineStyle(BorderStyle::None)
+        ));
+        // `outline-hidden`'s forced-colors branch is not a second place.
+        let forced = OrderRuleShape::AtRule {
+            name: "@media".into(),
+            params: "(forced-colors: active)".into(),
+            nodes: vec![OrderRuleShape::Declaration {
+                property: "outline".into(),
+                important: false,
+            }],
+        };
+        let own = OrderRuleShape::Declaration {
+            property: "outline-style".into(),
+            important: false,
+        };
+        assert!(forced_colors_fallback(&[own, forced.clone()], &forced));
+        // Alone, it is the `forced-colors:` variant.
+        assert!(!forced_colors_fallback(
+            std::slice::from_ref(&forced),
+            &forced
         ));
         // A width's implied style never beats a written one.
         assert_eq!(
@@ -1509,7 +1647,7 @@ mod tests {
     }
 
     #[test]
-    fn each_filter_function_owns_its_register_and_none_or_drop_shadow_none_does_not() {
+    fn each_filter_function_owns_its_register_and_filter_none_does_not() {
         use crate::FilterFunction;
         for (write, register) in [
             (
@@ -1530,12 +1668,14 @@ mod tests {
             assert!(!covers("filter", &write), "{write:?}");
             assert!(!covers("backdrop-filter", &write), "{write:?}");
         }
-        for write in [
-            StyleProperty::Filter(FilterFunction::None, "none".into()),
-            StyleProperty::Filter(FilterFunction::DropShadow, String::new()),
-        ] {
-            assert!(!crate::scalar_tailwind_property(&write), "{write:?}");
-        }
+        // `drop-shadow-none` owns the shadow register itself.
+        let none = StyleProperty::Filter(FilterFunction::DropShadow, String::new());
+        assert!(crate::scalar_tailwind_property(&none));
+        assert!(covers("--tw-drop-shadow", &none));
+        assert!(!crate::scalar_tailwind_property(&StyleProperty::Filter(
+            FilterFunction::None,
+            "none".into()
+        )));
     }
 
     fn fixture(name: &str) -> OrderCandidateDescriptor {
