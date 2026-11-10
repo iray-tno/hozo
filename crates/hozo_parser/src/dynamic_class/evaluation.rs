@@ -23,7 +23,7 @@ pub(crate) fn capture_template_parts(
     Some((decomposed, evaluation))
 }
 
-fn collect_guards(expression: &ConditionExpr, out: &mut Vec<ExprRef>) {
+pub(super) fn collect_guards(expression: &ConditionExpr, out: &mut Vec<ExprRef>) {
     match expression {
         ConditionExpr::Ref(reference) => out.push(*reference),
         ConditionExpr::Not(inner) => collect_guards(inner, out),
@@ -55,6 +55,7 @@ pub(crate) fn capture_evaluation(
     decomposed: &Decomposed,
 ) -> Option<ClassEvaluation> {
     let mut references = decomposed.fallback.clone();
+    references.extend(&decomposed.evaluation_refs);
     for declaration in &decomposed.declarations {
         collect_guards_from_condition(&declaration.condition, &mut references);
     }

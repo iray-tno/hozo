@@ -1582,7 +1582,8 @@ fn build_node(
                         let mut decomposed =
                             class_expression(&container.expression, scope, diagnostics, false)
                                 .expect("root className retains opaque fallback leaves");
-                        if (decomposed.non_repeatable_conflict
+                        let mut captured = false;
+                        if (!decomposed.evaluation_refs.is_empty()
                             || decomposed
                                 .declarations
                                 .iter()
@@ -1594,6 +1595,7 @@ fn build_node(
                                 scope,
                                 &mut decomposed,
                             ) {
+                                captured = true;
                                 for declaration in &mut decomposed.declarations {
                                     capture_condition_in_place(
                                         &mut declaration.condition,
@@ -1612,6 +1614,14 @@ fn build_node(
                                     span: to_span(attr.span),
                                 });
                             }
+                        }
+                        if !decomposed.evaluation_refs.is_empty() && !captured {
+                            // Keeping the authored call is the only safe path when a
+                            // capture wrapper cannot preserve its predicate evaluation.
+                            decomposed = dynamic_class::Decomposed::default();
+                            decomposed
+                                .fallback
+                                .push(to_expr_ref(container.expression.span()));
                         }
                         style.extend(decomposed.declarations.into_iter().map(|mut declaration| {
                             declaration.source =
@@ -1701,7 +1711,7 @@ fn build_node(
                 };
                 // Keep opaque forwarding cheap. Guarded AOT needs a capture
                 // plan, not authored code run again by an owner's callback.
-                let guarded = decomposed.non_repeatable_conflict
+                let guarded = !decomposed.evaluation_refs.is_empty()
                     || decomposed
                         .declarations
                         .iter()

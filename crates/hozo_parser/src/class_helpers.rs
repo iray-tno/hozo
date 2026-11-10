@@ -6,8 +6,8 @@
 //! export function cn(...inputs: ClassValue[]) { return clsx(inputs) }
 //! ```
 //!
-//! shadcn/ui's, which also hands the result to `twMerge`, is not one: it
-//! resolves conflicts between classes, and a join does not (#1668).
+//! shadcn/ui's wrapper is recognized as a merger separately: it hands the
+//! result to `twMerge`, so it must resolve conflicts rather than join (#1676).
 //!
 //! The compiler reads one file at a time, so a caller of `cn` cannot see
 //! this. Two halves make it visible without a type checker:
@@ -295,6 +295,13 @@ fn joiner_locals(module: &ModuleRecord) -> BTreeSet<String> {
         .import_entries
         .iter()
         .filter(|entry| !entry.is_type)
+        // The helper summary distinguishes merging from clsx-style joining,
+        // but cannot represent twJoin's array-only, non-dictionary semantics.
+        // Keep these wrappers opaque until that contract can be carried too.
+        .filter(|entry| {
+            !(entry.module_request.name.as_str() == TW_MERGE_MODULE
+                && imported_name(&entry.import_name).as_deref() == Some("twJoin"))
+        })
         .filter(|entry| {
             imported_name(&entry.import_name).is_some_and(|imported| {
                 is_builtin_joiner(entry.module_request.name.as_str(), &imported)
@@ -487,6 +494,12 @@ export default (...c) => clsx(c)";
             let source = format!("import clsx from 'clsx'\n{body}");
             assert!(summarize_class_helpers(&source).is_empty(), "{body}");
         }
+    }
+
+    #[test]
+    fn tw_join_wrappers_do_not_claim_clsx_dictionary_semantics() {
+        let source = "import { twJoin } from 'tailwind-merge'; export const cn = (...inputs) => twJoin(inputs)";
+        assert!(summarize_class_helpers(source).is_empty());
     }
 
     #[test]

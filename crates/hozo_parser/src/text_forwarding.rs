@@ -433,7 +433,7 @@ impl Classes {
                 let mut flat = Vec::new();
                 for part in parts {
                     match part.normalized() {
-                        Classes::Join(inner) | Classes::Merge(inner) => flat.extend(inner),
+                        Classes::Join(inner) => flat.extend(inner),
                         Classes::Literal(text) if text.is_empty() => {}
                         other => flat.push(other),
                     }
@@ -1443,6 +1443,24 @@ fn resolve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn normalization_preserves_nested_merge_boundaries() {
+        let nested = Classes::Merge(vec![
+            Classes::Merge(vec![
+                Classes::Literal("overflow-x-auto".into()),
+                Classes::Literal("overflow-hidden".into()),
+            ]),
+            Classes::Literal("line-clamp-2".into()),
+        ]);
+        let mut resolved = Vec::new();
+        nested.normalized().resolve(&|_| false, &mut resolved);
+        assert_eq!(resolved, ["line-clamp-2"]);
+        assert_eq!(
+            crate::tw_merge::merge_class_list("overflow-x-auto overflow-hidden line-clamp-2"),
+            "overflow-x-auto line-clamp-2"
+        );
+    }
 
     fn button(body: &str) -> String {
         format!(
