@@ -105,7 +105,7 @@ test('relative text metrics, border style and transform neighbors still preserve
   for (const neighbor of [
     'tracking-[1em]',
     'leading-[1em]',
-    'columns-[10rem]',
+    'columns-(--layout)',
     'cursor-[grab]',
     'overline',
     'align-baseline',
