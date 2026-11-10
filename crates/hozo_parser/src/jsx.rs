@@ -2458,12 +2458,12 @@ fn build_node(
 
     // Each input keeps its own ordering semantics; grouping must retain
     // these boundaries rather than merge a later input back into an old rule.
-    crate::interaction_order::order_tailwind_interactions(&mut style);
+    // Tailwind's order within an input is the shared plan's (#1230); an input
+    // the plan cannot rank keeps the order it was written in.
     for slot in &mut props.class_slots {
         for declaration in &mut slot.style {
             declaration.source = declaration.source.with_tailwind_input(slot.span.start);
         }
-        crate::interaction_order::order_tailwind_interactions(&mut slot.style);
     }
     validate_semantic_children(primitive, &children, diagnostics);
     validate_focusable_disabled(&props, to_span(el.span()), diagnostics);

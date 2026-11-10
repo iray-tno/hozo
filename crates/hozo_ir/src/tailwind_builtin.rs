@@ -222,6 +222,43 @@ fn choose_form<'f>(forms: &'f [Form], writes: &[crate::StyleProperty]) -> Option
         })
     })
     .or_else(|| unique(&|form| writes.iter().any(|write| declares(form.nodes, write))))
+    // The body that declares every write and nothing the writes do not:
+    // `transition-colors` declares all three transition properties, which
+    // `transition-none`'s one-property body does not, and the reverse for
+    // `transition-none` itself.
+    .or_else(|| {
+        unique(&|form| {
+            writes.iter().all(|write| declares(form.nodes, write))
+                && declared(form.nodes).iter().all(|property| {
+                    writes
+                        .iter()
+                        .any(|write| crate::tailwind_assessment::covers(property, write))
+                })
+        })
+    })
+    // Bodies the comparison cannot tell apart: the same property order and
+    // declaration count rank the same, so any of them describes the class.
+    .or_else(|| {
+        let mut owning = forms
+            .iter()
+            .filter(|form| writes.iter().all(|write| declares(form.nodes, write)));
+        let first = owning.next()?;
+        owning
+            .all(|form| form.order == first.order && form.count == first.count)
+            .then_some(first)
+    })
+}
+
+fn declared(nodes: &[N]) -> Vec<&'static str> {
+    let mut out = Vec::new();
+    for node in nodes {
+        match node {
+            N::D(property, _) if !property.starts_with("--tw-sort") => out.push(*property),
+            N::R(_, nested) | N::A(_, _, nested) => out.extend(declared(nested)),
+            _ => {}
+        }
+    }
+    out
 }
 
 fn owned(node: &N, slot: &[crate::OrderRuleShape]) -> crate::OrderRuleShape {

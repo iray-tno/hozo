@@ -49,8 +49,8 @@ Reading it:
 
 | Mechanism | Where | What it does | Still needed for |
 | --- | --- | --- | --- |
-| Interaction cascade sort | `crates/hozo_parser/src/interaction_order.rs` (`order_tailwind_interactions`) | Sorts owner-interaction conditions (`hover`, `focus`, `focus-visible`, `active`, conjunctions) by Tailwind's variant order within each input, before the plan runs. | Inputs with a barrier. Redundant for a ranked input: the plan re-sorts it completely. (Until [#1832](tailwind-builtin-order-default.md) also every compile with no Tailwind context; every compile has an order now.) |
-| Condition-weight group sort | `crates/hozo_ir/src/lib.rs` (`group_by_condition`) | Sorts a node's condition groups by owner-interaction specificity. Skipped only when the node's styles are one ranked input (plus unconditional semantic defaults). | Nodes with an input on the old path, and nodes with several inputs (a class list beside a slot or `style`). |
+| ~~Interaction cascade sort~~ | Deleted ([old path](tailwind-order-old-path.md#deleting-the-interaction-sort)). | | |
+| Condition-weight group sort | `crates/hozo_ir/src/lib.rs` (`group_by_condition`) | Orders a node's condition groups by owner-interaction weight: ADR 011's cross-input rule, and, since the interaction sort went, a single Tailwind input the plan could not rank (Native has no cascade to restore weight). | Nodes with several inputs, and barrier inputs. Not Tailwind ordering: CSS weight, which Native emulates. |
 | Runtime state rank | `crates/hozo_native/src/candidate.rs` (`StateGroup.order`) and `packages/engine/src/class-resolver.ts` | The generated map gives each state group the same interaction cascade key; the resolver sorts by it once per cached string. Already skipped when the plan's ranks cover the whole string. | Runtime strings with any unranked class. |
 
 Not on this list, because they are platform semantics rather than a second

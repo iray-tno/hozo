@@ -483,6 +483,9 @@ Policy v56 ranks `container`, matching each write to its breakpoint branch
 and dropping a branch a later unprefixed write always beats. The inventory
 then has no gap in any domain; see
 [container evidence](../measurements/tailwind-container-order.md).
+The compile-time interaction sort is deleted; the condition-weight group
+sort, ADR 011's cross-input rule, also covers a single unranked input; see
+[what the old path still decides](../measurements/tailwind-order-old-path.md).
 
 ## 1. Restart, not another family-specific patch
 

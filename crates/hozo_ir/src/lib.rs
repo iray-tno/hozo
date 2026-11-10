@@ -5649,7 +5649,16 @@ pub fn group_by_condition(
             None => groups.push((decl.condition.clone(), vec![decl.property.clone()])),
         }
     }
-    if start == 0 {
+    // One input is already in its frontend's order. The exception is a
+    // Tailwind input the shared plan could not rank (a barrier): it is in
+    // the order it was written, and Native has no cascade to restore
+    // selector weight, so the weight sort below still applies to it. Equal
+    // weights keep their written order.
+    if start == 0
+        && !declarations
+            .iter()
+            .any(|declaration| matches!(declaration.source, StyleSource::TailwindUtility { .. }))
+    {
         return groups;
     }
     // Only a domain whose selector weight is known can be linearized
