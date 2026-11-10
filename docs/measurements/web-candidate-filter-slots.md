@@ -46,3 +46,7 @@ registration set; `translate-x-2 blur-sm sepia` is5171/598 and still one set.
 These are unbundled candidate CSS sizes, not an app-size or frame-time claim.
 Filter composition adds no browser-side JavaScript. The shared registration
 set's coarse size is recorded, not presented as free.
+
+A [following footprint optimization](candidate-register-footprint.md) removes
+unrelated registrations from candidate sheets while keeping the same registry
+and full reader families. The counts above are the initial layer's receipt.

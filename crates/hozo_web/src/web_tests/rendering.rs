@@ -326,6 +326,8 @@ fn separate_candidate_transforms_share_non_inheriting_registers() {
     let css = render_candidate_stylesheet(&names.map(str::to_string), &Theme::default());
     assert!(css.contains("@property --hozo-translate-x {"), "{css}");
     assert!(css.contains("inherits: false;"), "{css}");
+    assert_eq!(css.matches("@property --hozo-").count(), 6);
+    assert!(!css.contains("@property --hozo-shadow"), "{css}");
     assert!(css.contains("--hozo-translate-x: 8px;"), "{css}");
     assert!(css.contains("--hozo-translate-y: 12px;"), "{css}");
     assert!(
@@ -353,6 +355,9 @@ fn separate_candidate_filters_share_static_registers_but_not_backdrop_or_drop_sh
     assert!(css.contains("filter: var(--hozo-blur,)"), "{css}");
     assert_eq!(css.matches("@property --hozo-blur {").count(), 1);
     assert!(css.contains("inherits: false;"), "{css}");
+    assert_eq!(css.matches("@property --hozo-").count(), 8);
+    assert!(!css.contains("@property --hozo-translate"), "{css}");
+    assert!(!css.contains("@property --hozo-shadow"), "{css}");
     for name in ["filter-none", "drop-shadow-sm", "backdrop-blur-sm"] {
         let css = render_candidate_stylesheet(&[name.into()], &Theme::default());
         assert!(!css.contains("@property"), "{name}: {css}");

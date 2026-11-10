@@ -1152,6 +1152,17 @@ fn translate_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
 /// a child that writes another one. An initial value is what an unwritten
 /// axis means; a function register has none, so `var(--r,)` reads nothing.
 pub fn axis_register_css() -> &'static str {
+    static CSS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    CSS.get_or_init(|| render_register_css(None))
+}
+
+/// Candidate sheets need the registers their actual readers use, not every
+/// unrelated static family. Values/order still come from the single registry.
+pub fn candidate_register_css(required: &std::collections::BTreeSet<&str>) -> String {
+    render_register_css(Some(required))
+}
+
+fn render_register_css(required: Option<&std::collections::BTreeSet<&str>>) -> String {
     const REGISTERS: &[(&str, Option<&str>)] = &[
         ("translate-x", Some("0")),
         ("translate-y", Some("0")),
@@ -1203,20 +1214,18 @@ pub fn axis_register_css() -> &'static str {
         ("gradient-via-position", Some("50%")),
         ("gradient-to-position", Some("100%")),
     ];
-    static CSS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    CSS.get_or_init(|| {
-        REGISTERS
-            .iter()
-            .map(|(name, initial)| {
-                let initial = initial.map_or(String::new(), |value| {
-                    format!("  initial-value: {value};\n")
-                });
-                format!(
-                    "@property --hozo-{name} {{\n  syntax: \"*\";\n  inherits: false;\n{initial}}}\n\n"
-                )
-            })
-            .collect()
-    })
+    REGISTERS
+        .iter()
+        .filter(|(name, _)| required.is_none_or(|required| required.contains(*name)))
+        .map(|(name, initial)| {
+            let initial = initial.map_or(String::new(), |value| {
+                format!("  initial-value: {value};\n")
+            });
+            format!(
+                "@property --hozo-{name} {{\n  syntax: \"*\";\n  inherits: false;\n{initial}}}\n\n"
+            )
+        })
+        .collect()
 }
 
 /// A filter function's place in Tailwind's `filter`/`backdrop-filter` value.
@@ -1251,7 +1260,7 @@ fn filter_slot(function: FilterFunction, backdrop: bool) -> Option<usize> {
 /// literal `translate: 16px 8px`, and `scale-100 hover:scale-95` its two. A family with an authored whole value or a reset
 /// (`translate-[…]`, `translate-none`) is left as it was.
 pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme: &Theme) -> bool {
-    register_axes(groups, theme, false)
+    register_axes(groups, theme, false, None)
 }
 
 /// Separate runtime classes cannot be inspected together at build time.
@@ -1261,14 +1270,16 @@ pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme
 pub fn register_candidate_slots(
     groups: &mut [(Condition, Vec<StyleProperty>)],
     theme: &Theme,
+    required: &mut std::collections::BTreeSet<&'static str>,
 ) -> bool {
-    register_axes(groups, theme, true)
+    register_axes(groups, theme, true, Some(required))
 }
 
 fn register_axes(
     groups: &mut [(Condition, Vec<StyleProperty>)],
     theme: &Theme,
     candidate: bool,
+    mut required: Option<&mut std::collections::BTreeSet<&'static str>>,
 ) -> bool {
     struct Family {
         name: &'static str,
@@ -1468,6 +1479,14 @@ fn register_axes(
             .any(|(_, props)| props.iter().any(|p| (family.blocks)(p)));
         if !split || blocked {
             continue;
+        }
+        if let Some(required) = required.as_deref_mut() {
+            // Record the whole reader family, not only today's writers: an
+            // unwritten register must stay non-inheriting on a child too.
+            required.extend(family.axes.iter().map(|name| {
+                name.strip_prefix("--hozo-")
+                    .expect("internal family register prefix")
+            }));
         }
         let reader = if family.optional {
             family

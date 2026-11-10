@@ -530,7 +530,7 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
     let mut owned = String::new();
     let mut uses_leading = false;
     let mut uses_content = false;
-    let mut uses_registers = false;
+    let mut register_names = std::collections::BTreeSet::new();
     for name in class_names {
         let Some(mut utility) = hozo_parser::resolve_class_name(name) else {
             continue;
@@ -543,7 +543,7 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
             // a different utility. Static owners diagnose the original token.
             continue;
         }
-        uses_registers |= css::register_candidate_slots(&mut utility.groups, theme);
+        css::register_candidate_slots(&mut utility.groups, theme, &mut register_names);
         let selector = css::escape_class_selector(&utility.class_name);
         // The owner class adds nothing (`:where`), so this never reaches
         // ordinary HTML or a target's descendants. `:not(hozo-none)` -- an
@@ -682,8 +682,8 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
     if uses_content {
         out.insert_str(0, CONTENT_BASE_CSS);
     }
-    if uses_registers {
-        out.insert_str(0, css::axis_register_css());
+    if !register_names.is_empty() {
+        out.insert_str(0, &css::candidate_register_css(&register_names));
     }
     // A named sublayer loses to Tailwind's direct utilities regardless of
     // which stylesheet loads first. Declare the standard layer order too:
