@@ -466,7 +466,7 @@ fn is_translate(prop: &StyleProperty) -> bool {
     )
 }
 
-/// The `filter`/`backdrop-filter` chain, in `FilterFunction` order.
+/// The `filter`/`backdrop-filter` chain, in the same order as its registers.
 ///
 /// Sorted by the function rather than by the order the utilities were
 /// written, because filter functions don't commute -- `grayscale invert`
@@ -536,7 +536,10 @@ fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Opti
     if functions.is_empty() {
         return None;
     }
-    functions.sort_by_key(|(function, _)| *function);
+    // Backdrop opacity precedes saturation, unlike the enum's shared order.
+    // Read the same slots used by conditional register emission; drop-shadow
+    // is outside that register form and remains the final own-filter function.
+    functions.sort_by_key(|(function, _)| filter_slot(*function, backdrop).unwrap_or(usize::MAX));
     let chain: Vec<&str> = functions
         .iter()
         .map(|(_, v)| v.as_str())
@@ -3545,6 +3548,24 @@ mod tests {
         );
         // The element's own chain and the backdrop's are independent.
         assert_eq!(filter_value(&refs, true, &Theme::default()), None);
+    }
+
+    #[test]
+    fn literal_backdrop_functions_share_the_conditional_register_order() {
+        let props = [
+            StyleProperty::BackdropFilter(FilterFunction::Sepia, "sepia(100%)".into()),
+            StyleProperty::BackdropFilter(FilterFunction::Saturate, "saturate(150%)".into()),
+            StyleProperty::BackdropFilter(FilterFunction::Opacity, "opacity(50%)".into()),
+        ];
+        for refs in [
+            props.iter().collect::<Vec<_>>(),
+            props.iter().rev().collect::<Vec<_>>(),
+        ] {
+            assert_eq!(
+                filter_value(&refs, true, &Theme::default()),
+                Some("opacity(50%) saturate(150%) sepia(100%)".into())
+            );
+        }
     }
 
     #[test]

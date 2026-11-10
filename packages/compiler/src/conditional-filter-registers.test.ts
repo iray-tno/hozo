@@ -30,6 +30,21 @@ test('backdrop filters read opacity before saturate, as Tailwind does', () => {
   )
 })
 
+test('literal backdrop filters use the register order, including the Safari prefix', () => {
+  for (const classes of [
+    'backdrop-sepia backdrop-saturate-150 backdrop-opacity-50',
+    'backdrop-opacity-50 backdrop-saturate-150 backdrop-sepia',
+    'hover:backdrop-sepia hover:backdrop-saturate-150 hover:backdrop-opacity-50',
+  ]) {
+    const output = css(classes)
+    const declarations = [...output.matchAll(/(?:-webkit-)?backdrop-filter: ([^;]+);/g)]
+    assert.equal(declarations.length, 2, output)
+    for (const [, value] of declarations)
+      assert.equal(value, 'opacity(50%) saturate(150%) sepia(100%)', classes)
+    assert.doesNotMatch(output, /@property --hozo-backdrop/, classes)
+  }
+})
+
 test('one condition, the same functions, a whole-chain reset or a drop shadow keep literal output', () => {
   for (const classes of [
     'blur-sm grayscale',
