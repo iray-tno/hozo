@@ -47,11 +47,8 @@ test('actual candidate objects share original write priorities with static Web a
   const generated = runInNewContext(
     `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`,
     {
-      createClassResolver: (styles, unsupported, _compose, states) => ({
-        styles,
-        unsupported,
-        states,
-      }),
+      createClassResolver: (styles, unsupported, _compose, states) =>
+        styles.schema === 1 ? styles : { styles, unsupported, states },
       hozoTransformStyles: () => {
         throw new Error('generation must not resolve a class string')
       },
@@ -233,13 +230,8 @@ test('the compact Rust contract drives a rank-free cached template over the actu
   assert.equal(plan.ordering.ranks['text-brand'], undefined)
   const code = `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`
   const generated = runInNewContext(code, {
-    createClassResolver: (styles, unsupported, compose, states, ambient) => ({
-      styles,
-      unsupported,
-      compose,
-      states,
-      ambient,
-    }),
+    createClassResolver: (styles, unsupported, compose, states, ambient) =>
+      styles.schema === 1 ? styles : { styles, unsupported, compose, states, ambient },
   })
   const legacy = createClassResolver(
     generated.styles,
@@ -248,8 +240,8 @@ test('the compact Rust contract drives a rank-free cached template over the actu
     generated.states,
     generated.ambient,
   )
-  // Exercise the future factory call with real Rust metadata and the exact
-  // emitted objects. The production generator/adapters are NOT switched yet.
+  // Replay the supplied namespace's metadata over the exact emitted objects.
+  // Reporting-only code uses built-in ranks; its sidecar is not installed.
   const resolve = createClassResolver({ schema: 1, ...generated, ordering: plan.ordering! })
   const flatten = (styles: object[]) => Object.assign({}, ...styles)
   for (const list of [

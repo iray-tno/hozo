@@ -169,9 +169,11 @@ test('a completed batch changes both static targets and the actual generated fac
   const legacy = openCandidateCache()
   legacy.importFile(row.id, row.record, 0)
   assert.match(
-    legacy.renderNativeModulePlan(ordinary).code,
+    legacy.renderNativeModulePlan(authored).code,
     /createClassResolver\(styles, unsupported\)/,
   )
+  assert.equal(legacy.renderNativeModulePlan(ordinary).code, legacy.renderNativeModule())
+  assert.match(legacy.renderNativeModule(), /createClassResolver\(\{ schema: 1/)
   assert.match(result.native.code, /createClassResolver\(\{ schema: 1/)
   assert.doesNotMatch(
     result.native.code,

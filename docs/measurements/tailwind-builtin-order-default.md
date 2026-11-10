@@ -21,6 +21,11 @@ compiles get a context.
 - A captured, ordered project context is unchanged and still wins: real
   Tailwind's descriptors, the project's own theme and variants.
 
+The ordinary Native runtime map now uses the same built-in default too;
+[its separate receipt](native-runtime-builtin-order.md) records the previous
+static/dynamic mismatch, retained barriers and generated-map byte cost. This
+does not make the text inheritance protocol or prepared owner route default.
+
 ## What it costs
 
 The built-in data now ships in every binding. WASM, built the same way on

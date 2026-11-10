@@ -51,13 +51,13 @@ export const textFixtureManifest = {
     route: 'per-region proof; runtime fallback on missing proof',
     sourceSha256: {
       'packages/compiler/src/index.ts':
-        '04d5613b6176afa1b234663b6371c6fd001288d0bab19a2d65e640186036a334',
+        'e95ea5260bfa18b81bae8005aa5cd7d615fd93b7d257809fa7d77845fe683043',
       'packages/metro/src/transform.ts':
         '85bffa328dcf0320248f92e7baffbba774e1a4b6bffd99414bc7e918da570106',
       'packages/metro/src/native-source-evidence.ts':
         '693857f1459cc82b9dbc3aabafe5ca2e12be95be61cfc20888fb3d464f0bfe35',
       'crates/hozo_napi/src/lib.rs':
-        '2901ecc8458c4b5e506a58f45bd93ebb98adbb7462b4a25c3868d197896ee544',
+        'dfbb6ec54999b0914c9d1d59351a1fcb7daf2bf8e82dc9ff48a9ceac8570d474',
       'crates/hozo_napi/src/owner_slots.rs':
         '32f992813986c3e391d73f3ddcc13c9aec38987c7d3060d482e84b8862f7d9ac',
       'crates/hozo_napi/src/tailwind_order.rs':
