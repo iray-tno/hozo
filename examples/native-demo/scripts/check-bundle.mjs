@@ -163,6 +163,14 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // latter two have the same 146 modules; the last 321 is form (+272) and
 // behaviors (+49). The barrel check still passes. This accepts the measured
 // cost with 4,709 of room; it is not a runtime size reduction.
+//
+// Raised to 530 KB with maintainer approval for #1737. At 0c707f5f the
+// existing module-length metric is 515,116 on iOS and 515,124 on Android;
+// the last accepted baseline cb0e9c83 was 505,291 on iOS. Shared owner
+// constants, form facts, ColorPicker and Dialog account for the growth,
+// with no re-exporting barrel returning. This leaves 14,876 on Android.
+// See docs/measurements/native-development-budget.md for the module census
+// and the separate production measurement. The existing metric is retained.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -176,8 +184,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 510_000,
-  `Hozo's modules stay below 510 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 530_000,
+  `Hozo's modules stay below 530 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // The cause behind the six raises above, watched directly rather than
