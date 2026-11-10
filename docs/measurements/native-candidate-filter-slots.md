@@ -17,6 +17,8 @@ state style objects once, at module initialization. Resolution queries only
 the selected styles, never the project-wide map. Unconditional results retain
 their existing cache, and a selected list without filters bypasses the helper.
 A namespace with no assessed filter functions emits no filter import/table.
+A [following optimization](native-single-filter-maps.md) omits them for
+single-function namespaces too, since ordinary replacement already agrees.
 
 Filter composition runs before the existing text-metric and transform
 composition. It preserves original style identities for those other maps.

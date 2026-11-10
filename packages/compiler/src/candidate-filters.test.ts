@@ -127,6 +127,16 @@ test('filter-free namespaces have no filter import or metadata', () => {
   )
 })
 
+test('single-function namespaces retain direct replacement, even across states and resets', () => {
+  const { code, resolve, count } = fixture(['blur-sm', 'hover:blur-lg', 'filter-none'])
+  assert.doesNotMatch(code, /hozoFilterStyles|const filters|filter-slots/)
+  assert.equal(flatten(resolve('blur-sm hover:blur-lg', { hovered: true })).filter, 'blur(16px)')
+  assert.equal(flatten(resolve('blur-sm hover:blur-lg', { hovered: false })).filter, 'blur(8px)')
+  assert.equal(flatten(resolve('blur-sm filter-none')).filter, 'none')
+  assert.equal(flatten(resolve('filter-none blur-sm')).filter, 'blur(8px)')
+  assert.equal(count(), 0)
+})
+
 test('the real compiled dynamic Pressable callback receives the composed state chain', () => {
   const { resolve } = fixture(['blur-sm', 'hover:sepia'])
   const result = compileNative(
