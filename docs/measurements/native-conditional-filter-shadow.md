@@ -32,11 +32,12 @@ exactly Tailwind's result whenever one condition touches the family.
 
 ## Not covered
 
-Two conditions that both touch the family and are active together
-(`md:blur-sm hover:sepia grayscale` while hovered at md) still lose each
-other's part: each object now carries the base, but the later one replaces
-the earlier. That needs a runtime composer for filters and shadows like
-`hozoTransformStyles`. Neither loses the base any more.
+Two conditions that both touch the shadow or gradient family and are active
+together still lose each other's part: each object carries the base, but the
+later one replaces the earlier. A later layer adds a
+[scoped runtime composer for ordinary conditional filter functions](native-conditional-filter-slots.md).
+Drop-shadow size/colour and filter animation endpoints remain outside that
+repair. The older base-folding path remains for those boundaries.
 
 ## Verification
 

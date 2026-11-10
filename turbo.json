@@ -87,6 +87,7 @@
         "$TURBO_ROOT$/packages/primitives/src/native-disabled.ts",
         "$TURBO_ROOT$/packages/engine/src/class-resolver.ts",
         "$TURBO_ROOT$/packages/engine/src/transform-slots.ts",
+        "$TURBO_ROOT$/packages/engine/src/filter-slots.ts",
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_portable.rs"
