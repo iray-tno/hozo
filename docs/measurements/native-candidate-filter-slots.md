@@ -31,8 +31,10 @@ selected style writes an unassessed whole filter, the entire filter chain
 retains its previous last-object behavior. Transform/text composition still
 runs. Merely scanning an unused drop-shadow does not disable other chains.
 
-This is Native candidate-map evidence, not a fix for Web candidate filters,
-drop-shadow registers, filter animation endpoints, mixed static/dynamic
+This is Native candidate-map evidence; the
+[following Web layer](web-candidate-filter-slots.md) connects its ordinary
+candidate filters to the shared static writer. Neither fixes drop-shadow
+registers, filter animation endpoints, mixed static/dynamic
 contributions, or Native runtime `md:`/`dark:` admission. The latter remain
 diagnosed as before. No unsupported syntax is newly admitted.
 

@@ -10,6 +10,7 @@ import { gzipSync } from 'node:zlib'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
 import { createClassResolver, createClassTransitions, hozoSplitTextStyle } from '@hozo/engine'
+import { hozoFilterStyles } from '@hozo/engine/generated/filter-slots'
 import { hozoAuthoredStyle, hozoGapSpreadStyles } from '@hozo/engine/generated/gap-styles'
 import { hozoSpreadStyles } from '@hozo/engine/generated/spread-styles'
 import { NativeSelect } from '@hozo/form'
@@ -149,6 +150,112 @@ test('runtime candidate transforms compose and stay local through updates agains
       document.querySelector('#sheet').textContent = sheet
     }, actualSheet)
     assert.deepEqual(await update(pages[1], full.join(' ')), before)
+  } finally {
+    for (const page of pages) await page.close()
+  }
+})
+
+test('runtime filter candidates agree with Tailwind and Native through class and owner-state updates', {
+  skip: !executablePath,
+}, async () => {
+  const names = [
+    'blur-[8px]',
+    'brightness-50',
+    'contrast-125',
+    'grayscale',
+    'hue-rotate-30',
+    'invert',
+    'saturate-150',
+    'sepia',
+    'hover:blur-[16px]',
+    'focus:sepia-50',
+    'blur-[2px]',
+  ]
+  const input = '@tailwind utilities;'
+  const design = await __unstable__loadDesignSystem(input)
+  const order = design.getClassOrder(names)
+  assert.ok(order.every(([, rank]) => rank !== null))
+  order.sort((a, b) => Number(a[1] - b[1]))
+  const candidates = openCandidateCache()
+  candidates.scanFile('runtime-filter.ts', JSON.stringify(names.join(' ')), 1)
+  const actualSheet = candidates.renderCss(
+    undefined,
+    order.map(([name]) => name),
+  )
+  const nativeModule = candidates.renderNativeModule()
+  const native = runInNewContext(
+    `${nativeModule.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`,
+    { createClassResolver, hozoFilterStyles },
+  )
+  const oracleSheet = (await compile(input)).build(names)
+  const pages = await Promise.all([browser.newPage(), browser.newPage()])
+  try {
+    for (const [index, page] of pages.entries())
+      await page.setContent(`<!doctype html><style id="sheet">${index ? actualSheet : oracleSheet}</style>
+        <button id="parent" style="width:80px;height:40px;margin:40px"><span id="child" class="blur-[2px]">child</span></button>
+        <div id="native"></div>`)
+    const update = async (page, classes, state) => {
+      await page.locator('#parent').evaluate((element, value) => {
+        element.className = value
+      }, classes)
+      if (state.hovered) await page.locator('#parent').hover()
+      else await page.mouse.move(0, 0)
+      if (state.focused) await page.locator('#parent').focus()
+      else await page.locator('#parent').evaluate((element) => element.blur())
+      return page.evaluate(() => {
+        const parent = document.querySelector('#parent')
+        window.firstParent ??= parent
+        return {
+          parent: getComputedStyle(parent).filter,
+          child: getComputedStyle(document.querySelector('#child')).filter,
+          stable: parent === window.firstParent,
+        }
+      })
+    }
+    const full = names.filter((name) => name !== 'blur-[2px]')
+    for (const classes of [
+      full,
+      full.toReversed(),
+      ['brightness-50', 'hover:blur-[16px]'],
+      [],
+      full,
+    ]) {
+      for (const state of [
+        { hovered: false, focused: false },
+        { hovered: true, focused: false },
+        { hovered: true, focused: true },
+        { hovered: false, focused: true },
+        { hovered: false, focused: false },
+      ]) {
+        const list = classes.join(' ')
+        const expected = await update(pages[0], list, state)
+        const actual = await update(pages[1], list, state)
+        assert.deepEqual(actual, expected, JSON.stringify({ list, state }))
+        assert.equal(actual.stable, true)
+        const filter = Object.assign({}, ...native(list, state).flat(Infinity)).filter ?? ''
+        const normalized = await pages[1].evaluate((value) => {
+          const element = document.querySelector('#native')
+          element.style.filter = value
+          return getComputedStyle(element).filter
+        }, filter)
+        assert.equal(
+          normalized,
+          expected.parent,
+          `Native declaration ${JSON.stringify({ list, state })}`,
+        )
+      }
+    }
+    const rest = { hovered: false, focused: false }
+    const before = await update(pages[1], full.join(' '), rest)
+    assert.notEqual(before.parent, 'none')
+    await pages[1].evaluate(() => {
+      document.querySelector('#sheet').textContent = ''
+    })
+    assert.notDeepEqual(await update(pages[1], full.join(' '), rest), before)
+    await pages[1].evaluate((sheet) => {
+      document.querySelector('#sheet').textContent = sheet
+    }, actualSheet)
+    assert.deepEqual(await update(pages[1], full.join(' '), rest), before)
   } finally {
     for (const page of pages) await page.close()
   }

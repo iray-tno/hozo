@@ -1254,11 +1254,11 @@ pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme
     register_axes(groups, theme, false)
 }
 
-/// Separate runtime classes can contribute different axes on the same host.
-/// They cannot be inspected together at build time, so each drawable transform
-/// uses the same registers as a split static node. Filters are deliberately
-/// excluded: this is the domain already composed by the Native runtime map.
-pub fn register_candidate_transforms(
+/// Separate runtime classes cannot be inspected together at build time.
+/// Transforms and ordinary filter functions use the same registers as split
+/// static nodes, matching the domains composed by the Native candidate map.
+/// Backdrop filters and whole-value/drop-shadow boundaries stay unchanged.
+pub fn register_candidate_slots(
     groups: &mut [(Condition, Vec<StyleProperty>)],
     theme: &Theme,
 ) -> bool {
@@ -1461,7 +1461,7 @@ fn register_axes(
         }
         let split = (candidate
             && !written.is_empty()
-            && matches!(family.name, "translate" | "scale" | "transform"))
+            && matches!(family.name, "translate" | "scale" | "transform" | "filter"))
             || written.windows(2).any(|pair| pair[0].1 != pair[1].1);
         let blocked = groups
             .iter()

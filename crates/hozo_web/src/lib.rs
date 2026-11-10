@@ -530,7 +530,7 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
     let mut owned = String::new();
     let mut uses_leading = false;
     let mut uses_content = false;
-    let mut uses_transforms = false;
+    let mut uses_registers = false;
     for name in class_names {
         let Some(mut utility) = hozo_parser::resolve_class_name(name) else {
             continue;
@@ -543,7 +543,7 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
             // a different utility. Static owners diagnose the original token.
             continue;
         }
-        uses_transforms |= css::register_candidate_transforms(&mut utility.groups, theme);
+        uses_registers |= css::register_candidate_slots(&mut utility.groups, theme);
         let selector = css::escape_class_selector(&utility.class_name);
         // The owner class adds nothing (`:where`), so this never reaches
         // ordinary HTML or a target's descendants. `:not(hozo-none)` -- an
@@ -682,7 +682,7 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
     if uses_content {
         out.insert_str(0, CONTENT_BASE_CSS);
     }
-    if uses_transforms {
+    if uses_registers {
         out.insert_str(0, css::axis_register_css());
     }
     // A named sublayer loses to Tailwind's direct utilities regardless of
