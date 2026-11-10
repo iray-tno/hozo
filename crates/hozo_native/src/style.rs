@@ -20,7 +20,10 @@
 
 mod effects;
 
-pub(super) use effects::{background_image_entry, box_shadow_entry, filter_entry, transform_entry};
+pub(super) use effects::{
+    background_image_entry, box_shadow_entry, filter_entry, gradient_prelude, transform_entry,
+    GRADIENT_EMPTY_COLOR,
+};
 
 use hozo_ir::{
     Align, AlignSelf, Axis, BorderStyle, Color, DecorationStyle, Dimension, Display, Edge,
@@ -207,6 +210,12 @@ pub fn placeholder_color(color: &Color, theme: &Theme) -> String {
     resolve_theme_color(color, theme)
 }
 
+/// Families whose independent registers are composed after state selection.
+pub(super) struct ComposedLayers {
+    pub filters: bool,
+    pub gradients: bool,
+}
+
 /// Copy the unconditional `boxShadow`, `filter` and `backgroundImage` writes
 /// into every other condition that writes the same family.
 ///
@@ -222,11 +231,11 @@ pub fn placeholder_color(color: &Color, theme: &Theme) -> String {
 /// other's part -- that needs a runtime composer, as transforms have -- but
 /// neither loses the base any more. The copies go before the condition's own
 /// writes, so its own layer or function still wins.
-/// Split filter boundaries use their composer instead: copying the base
+/// Split filter/gradient boundaries use their composer instead: copying the base
 /// there would overwrite a different active condition's slot value.
 pub fn fold_base_layers(
     declarations: Vec<hozo_ir::StyleDeclaration>,
-    fold_filters: bool,
+    composed: ComposedLayers,
 ) -> Vec<hozo_ir::StyleDeclaration> {
     fn shadow(p: &StyleProperty) -> bool {
         matches!(
@@ -263,12 +272,14 @@ pub fn fold_base_layers(
         )
     }
     let mut declarations = declarations;
-    let families: &[fn(&StyleProperty) -> bool] = if fold_filters {
-        &[shadow, filter, gradient]
-    } else {
-        &[shadow, gradient]
-    };
-    for family in families {
+    for (family, composed) in [
+        (shadow as fn(&StyleProperty) -> bool, false),
+        (filter, composed.filters),
+        (gradient, composed.gradients),
+    ] {
+        if composed {
+            continue;
+        }
         let base: Vec<hozo_ir::StyleDeclaration> = declarations
             .iter()
             .filter(|d| d.condition == hozo_ir::Condition::Always && family(&d.property))

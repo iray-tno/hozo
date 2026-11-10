@@ -56,6 +56,7 @@ mod candidate;
 mod class_route;
 mod conditions;
 mod filters;
+mod gradients;
 mod grid;
 mod interaction;
 mod keyframes;
