@@ -1251,6 +1251,25 @@ fn filter_slot(function: FilterFunction, backdrop: bool) -> Option<usize> {
 /// literal `translate: 16px 8px`, and `scale-100 hover:scale-95` its two. A family with an authored whole value or a reset
 /// (`translate-[…]`, `translate-none`) is left as it was.
 pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme: &Theme) -> bool {
+    register_axes(groups, theme, false)
+}
+
+/// Separate runtime classes can contribute different axes on the same host.
+/// They cannot be inspected together at build time, so each drawable transform
+/// uses the same registers as a split static node. Filters are deliberately
+/// excluded: this is the domain already composed by the Native runtime map.
+pub fn register_candidate_transforms(
+    groups: &mut [(Condition, Vec<StyleProperty>)],
+    theme: &Theme,
+) -> bool {
+    register_axes(groups, theme, true)
+}
+
+fn register_axes(
+    groups: &mut [(Condition, Vec<StyleProperty>)],
+    theme: &Theme,
+    candidate: bool,
+) -> bool {
     struct Family {
         name: &'static str,
         axes: &'static [&'static str],
@@ -1440,7 +1459,10 @@ pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme
                 None => written.push((condition, axes)),
             }
         }
-        let split = written.windows(2).any(|pair| pair[0].1 != pair[1].1);
+        let split = (candidate
+            && !written.is_empty()
+            && matches!(family.name, "translate" | "scale" | "transform"))
+            || written.windows(2).any(|pair| pair[0].1 != pair[1].1);
         let blocked = groups
             .iter()
             .any(|(_, props)| props.iter().any(|p| (family.blocks)(p)));
