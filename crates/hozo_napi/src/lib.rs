@@ -1050,6 +1050,17 @@ pub struct CandidateCache {
     sources: Option<Vec<String>>,
 }
 
+// The ordinary runtime map and context-free static compilation must choose
+// the same authority. Descriptors are build-time data; only compact ranks
+// enter the generated resolver. Unassessed classes remain whole-input
+// barriers in that resolver, not invented rank-zero writes.
+fn builtin_candidate_module(names: &[String], theme: &hozo_ir::Theme) -> String {
+    hozo_parser::builtin_tailwind_context(names.iter().map(String::as_str))
+        .and_then(|context| hozo_native::render_final_candidate_module_plan(names, theme, &context))
+        .map(|plan| plan.code)
+        .unwrap_or_else(|_| hozo_native::render_candidate_module(names, theme))
+}
+
 #[napi]
 impl CandidateCache {
     /// Opens the cache at `path` (JSON on disk today -- the format is the
@@ -1211,11 +1222,12 @@ impl CandidateCache {
     /// a Web build will never import would be wasted work.
     #[napi]
     pub fn render_native_module(&self, theme: Option<JsTheme>) -> String {
-        hozo_native::render_candidate_module(&self.inner.union(), &to_theme(theme))
+        builtin_candidate_module(&self.inner.union(), &to_theme(theme))
     }
 
     /// One context selects static and candidate output policy together.
-    /// Per-file contexts keep the old sidecar-only/positional output.
+    /// Reporting-only contexts retain their own sidecar facts, over the same
+    /// built-in output as a context-free call (as static compilation does).
     #[napi]
     pub fn render_native_module_plan(
         &self,
@@ -1227,8 +1239,13 @@ impl CandidateCache {
         } else {
             hozo_native::render_candidate_module_plan
         };
-        let mut plan = render(&self.inner.union(), &to_theme(theme), &context.context)
-            .map_err(napi::Error::from_reason)?;
+        let names = self.inner.union();
+        let theme = to_theme(theme);
+        let mut plan =
+            render(&names, &theme, &context.context).map_err(napi::Error::from_reason)?;
+        if !context.ordered && !context.authored {
+            plan.code = builtin_candidate_module(&names, &theme);
+        }
         plan.fingerprint = context.fingerprint();
         Ok(plan.into())
     }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createCompiler, prepareFinalTailwindContext } from '@hozo/compiler'
+import { __unstable__loadDesignSystem } from 'tailwindcss'
 import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 // #1230. `columns-*` and `underline-offset-*` had no ownership entry, so an
@@ -39,5 +40,34 @@ test('columns and underline offsets settle in Tailwind order, whichever is writt
     )
     assert.deepEqual(native[0]!.diagnostics, native[1]!.diagnostics, pair.join(' '))
     assert.equal(native[0]!.styles, native[1]!.styles, pair.join(' '))
+  }
+})
+
+test('readable arbitrary columns share named ownership without claiming Native layout', async () => {
+  const pairs = [
+    ['columns-[10rem]', 'columns-3'],
+    ['columns-[3]', 'columns-2'],
+    ['columns-[auto]', 'columns-2'],
+    ['columns-[24px]', 'columns-[10rem]'],
+  ]
+  const design = await __unstable__loadDesignSystem('@tailwind utilities;')
+  const compiler = createCompiler()
+  const final = await context([...new Set(pairs.flat())])
+  for (const pair of pairs) {
+    const ordered = design.getClassOrder(pair)
+    assert.ok(ordered.every(([, rank]) => rank !== null))
+    ordered.sort((a, b) => Number(a[1]! - b[1]!))
+    const winner = ordered.at(-1)![0]
+    const expected = design.candidatesToCss([winner])[0]!.match(/\bcolumns: ([^;]+);/)![1]!
+    for (const values of [pair, pair.toReversed()]) {
+      const input = source(values.join(' '))
+      const compiled = compiler.prepareWebModule(input).emit(final)[0]!
+      assert.match(compiled.css, new RegExp(`columns: ${expected};`), values.join(' '))
+      const plain = compiler.compile(input)[0]!
+      assert.equal(plain.css, compiled.css, 'built-in and captured order agree')
+      const native = compiler.prepareNativeModule(input).emit(final).components[0]!
+      assert.ok(native.diagnostics.some((entry) => entry.code === 'WEB_ONLY_PROPERTY_ON_NATIVE'))
+      assert.doesNotMatch(native.styles, /column/)
+    }
   }
 })

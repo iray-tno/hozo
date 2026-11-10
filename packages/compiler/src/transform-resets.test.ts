@@ -119,7 +119,7 @@ test('generated dynamic candidate modules execute the same resets and restore ax
   const cache = openCandidateCache()
   cache.scanFile(
     'Dynamic.tsx',
-    `const variants = 'rotate-45 scale-95 rotate-none translate-y-3 translate-none translate-x-2 transform-cpu'`,
+    `const variants = 'rotate-45 scale-95 rotate-none translate-y-3 translate-none translate-x-2 transform-cpu filter-none'`,
     1,
   )
   const module = cache.renderNativeModule()
@@ -136,10 +136,15 @@ test('generated dynamic candidate modules execute the same resets and restore ax
     { scaleY: 0.95 },
   ])
   assert.deepEqual(flatten(resolve('translate-y-3 translate-none')).transform, [])
-  assert.deepEqual(flatten(resolve('translate-y-3 translate-none translate-x-2')).transform, [
-    { translateX: 8 },
-    { translateY: 12 },
-  ])
+  // Tailwind ranks the reset last, even when an axis was authored after it.
+  assert.deepEqual(flatten(resolve('translate-y-3 translate-none translate-x-2')).transform, [])
+  assert.deepEqual(flatten(resolve('translate-x-2 translate-none translate-y-3')).transform, [])
+  // A drawable unranked neighbour keeps the old whole-string path. Its
+  // register restoration remains supported; ranking must not delete it.
+  assert.deepEqual(
+    flatten(resolve('translate-y-3 translate-none translate-x-2 filter-none')).transform,
+    [{ translateX: 8 }, { translateY: 12 }],
+  )
   assert.equal(resolve('rotate-45 scale-95 rotate-none'), resolve('rotate-45 scale-95 rotate-none'))
 })
 

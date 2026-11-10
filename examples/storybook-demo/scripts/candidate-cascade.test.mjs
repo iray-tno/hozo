@@ -18,7 +18,7 @@ import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { Children, createElement, Fragment } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { compile } from 'tailwindcss'
+import { __unstable__loadDesignSystem, compile } from 'tailwindcss'
 import { chipAncestorFixture } from './chip-ancestor-fixture.mjs'
 
 const executablePath = [
@@ -85,6 +85,73 @@ after(async () => {
     )
   // This exact mkdtemp result owns only this test's candidate snapshot.
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('runtime candidate transforms compose and stay local through updates against real Tailwind', {
+  skip: !executablePath,
+}, async () => {
+  const names = [
+    'translate-x-2',
+    'translate-y-3',
+    'translate-y-1',
+    'scale-50',
+    'scale-x-75',
+    'skew-x-3',
+    'skew-y-6',
+  ]
+  const input = '@theme { --spacing: .25rem; } @tailwind utilities;'
+  const design = await __unstable__loadDesignSystem(input)
+  const order = design.getClassOrder(names)
+  assert.ok(order.every(([, rank]) => rank !== null))
+  order.sort((a, b) => Number(a[1] - b[1]))
+  const candidates = openCandidateCache()
+  candidates.scanFile('runtime-transform.ts', JSON.stringify(names.join(' ')), 1)
+  const actualSheet = candidates.renderCss(
+    undefined,
+    order.map(([name]) => name),
+  )
+  const oracleSheet = (await compile(input)).build(names)
+  // Independent documents prevent either sheet rescuing the other's result.
+  const pages = await Promise.all([browser.newPage(), browser.newPage()])
+  try {
+    for (const [index, page] of pages.entries())
+      await page.setContent(`<!doctype html><style id="sheet">${index ? actualSheet : oracleSheet}</style>
+        <div id="parent" style="width:80px;height:40px"><div id="child" class="translate-y-1"></div></div>`)
+    const update = async (page, classes) =>
+      page.evaluate((value) => {
+        const parent = document.querySelector('#parent')
+        window.firstParent ??= parent
+        parent.className = value
+        const read = (element) => {
+          const style = getComputedStyle(element)
+          return { translate: style.translate, scale: style.scale, transform: style.transform }
+        }
+        return {
+          parent: read(parent),
+          child: read(document.querySelector('#child')),
+          stable: parent === window.firstParent,
+        }
+      }, classes)
+    const full = names.filter((name) => name !== 'translate-y-1')
+    for (const classes of [full, full.toReversed(), ['translate-y-3'], [], full]) {
+      const [expected, actual] = await Promise.all(
+        pages.map((page) => update(page, classes.join(' '))),
+      )
+      assert.deepEqual(actual, expected, classes.join(' '))
+      assert.equal(actual.stable, true)
+    }
+    const before = await update(pages[1], full.join(' '))
+    await pages[1].evaluate(() => {
+      document.querySelector('#sheet').textContent = ''
+    })
+    assert.notDeepEqual((await update(pages[1], full.join(' '))).parent, before.parent)
+    await pages[1].evaluate((sheet) => {
+      document.querySelector('#sheet').textContent = sheet
+    }, actualSheet)
+    assert.deepEqual(await update(pages[1], full.join(' ')), before)
+  } finally {
+    for (const page of pages) await page.close()
+  }
 })
 
 test('responsive font sizes preserve explicit leading against real Tailwind at every breakpoint', {

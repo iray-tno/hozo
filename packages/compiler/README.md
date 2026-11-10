@@ -389,9 +389,9 @@ before both static lowerers and emits the generated resolver's object ABI from
 that same context. This changes bounded batch winners **together**, not just
 Native fallback. `prepareFinalTailwindContext` is the internal output capability,
 not an app option or mutable compiler setter. Its fingerprint is
-`scalar-order-v56:<descriptor fingerprint>` so output caches cannot confuse it
+`scalar-order-v57:<descriptor fingerprint>` so output caches cannot confuse it
 with the unchanged pass-through `prepareTailwindContext` namespace. Captured
-plans report the same fingerprint and `mode: 'scalar-order-v56'`. The policy
+plans report the same fingerprint and `mode: 'scalar-order-v57'`. The policy
 revision also changes when the eligible projection domain expands, not only
 when the comparator changes; Metro transports it in its startup cache identity.
 

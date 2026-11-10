@@ -13,7 +13,7 @@ import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
 export type { FontAvailability } from './font-diagnostics.ts'
 
 /** @internal Must match the native scalar output policy; integration tests verify it. */
-export const TAILWIND_SCALAR_ORDER_POLICY = 'scalar-order-v56' as const
+export const TAILWIND_SCALAR_ORDER_POLICY = 'scalar-order-v57' as const
 
 const require = createRequire(import.meta.url)
 
@@ -361,10 +361,14 @@ export interface CandidateCache {
   candidates(): string[]
   /// The Native equivalent: a JS module exporting `hozoClasses`, a
   /// resolver bound to this project's class-name -> style-object map.
+  /// Without an ordered project context, uses built-in Tailwind ranks,
+  /// matching context-free static compilation.
   renderNativeModule(theme?: Theme): string
-  /** @internal One actual generation pass with a build-time-only sidecar.
-   * Requires a complete context; returned code is unchanged. Not installed
-   * by adapters yet. Group ranks are original-rule facts, not platform proof.
+  /** @internal Complete-context output with a build-time-only sidecar.
+   * Reporting contexts expose their supplied rule facts without installing
+   * those ranks: their code uses the same built-in defaults as the ordinary
+   * call. Final contexts apply their own ranks. Group ranks are original-rule
+   * facts, not platform proof or permission to install a reporting sidecar.
    */
   renderNativeModulePlan(context: PreparedTailwindContext, theme?: Theme): NativeCandidatePlan
   persist(): void

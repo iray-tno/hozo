@@ -100,6 +100,10 @@
       "types": "./dist/generated/environment.d.ts",
       "default": "./dist/generated/environment.js"
     },
+    "./generated/filter-slots": {
+      "types": "./dist/generated/filter-slots.d.ts",
+      "default": "./dist/generated/filter-slots.js"
+    },
     "./generated/flat-list": {
       "types": "./dist/generated/flat-list.d.ts",
       "default": "./dist/generated/flat-list.js"

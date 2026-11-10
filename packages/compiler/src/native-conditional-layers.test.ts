@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
 import { compileNative } from './index.ts'
 
 // #1230. Each condition's Native style object carried one whole `boxShadow`
@@ -25,6 +26,7 @@ export function C() { return <View className="${classes}" /> }`)[0]!
   const evaluate = new Function(
     'hozoStyles',
     'hozoTransformStyles',
+    'hozoFilterStyles',
     '__hozoBp_md',
     `return (${styleExpression(result.jsx)})`,
   )
@@ -34,7 +36,7 @@ export function C() { return <View className="${classes}" /> }`)[0]!
       : value && typeof value === 'object'
         ? (value as Record<string, unknown>)
         : {}
-  return (md: boolean) => flat(evaluate(styles, undefined, md))
+  return (md: boolean) => flat(evaluate(styles, undefined, hozoFilterStyles, md))
 }
 
 test('a conditional filter keeps the base functions', () => {
