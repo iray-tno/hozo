@@ -55,3 +55,29 @@ plan does not rank:
   within one input; the group sort orders across inputs by interaction
   weight: specificity first, then JSX input order, the cross-input rule of
   [ADR 011](../decisions/011-styling-inputs-keep-their-own-cascade.md).
+
+## Deleting the interaction sort
+
+The interaction sort put a barrier input's interaction writes in Tailwind's
+order: weight first, then variant order. Both halves were checked before it
+went.
+
+- **Weight.** Native has no cascade, so an unranked `hover:focus:p-2
+  active:p-4` needs the two-state rule after the one-state one. The
+  condition-weight group sort does that, but only ran for nodes with several
+  inputs. It now also runs for a single Tailwind input the plan did not
+  rank, so this half is kept (`legacy-ordering-switch.test.ts` is now its
+  control).
+- **Variant order at equal weight** (`hover:` before `focus:`). This half
+  is gone: a barrier input keeps the order it was written in there, on both
+  backends. Barriers are now only arbitrary values and classes the
+  project's CSS does not generate.
+
+Deleting it exposed two inputs it had been rescuing in compiles with no
+project CSS, `transition-colors` beside interaction writes. The built-in
+descriptors had left `transition-*` and the shadow sizes undescribed, so
+those inputs were barriers there. The built-in form choice now describes
+them, and both inputs rank (`interaction-order.test.ts`).
+
+After both changes the corpus still shows **0** components changed by
+switching the remaining sort off.
