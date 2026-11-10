@@ -744,11 +744,10 @@ fn collect_patterns_for_groups(
     prefixes: &mut BTreeSet<String>,
     has_leading_validators: &mut bool,
 ) {
+    #[allow(clippy::collapsible_if)]
     if let Some(group_id) = node.class_group_id {
-        if targets.contains(group_id) {
-            if !prefix.is_empty() {
-                exact.insert(escape_regex(prefix));
-            }
+        if targets.contains(group_id) && !prefix.is_empty() {
+            exact.insert(escape_regex(prefix));
         }
     }
     for &(group_id, _) in node.validators {
