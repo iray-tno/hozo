@@ -3,6 +3,7 @@ import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { createCompiler, openCandidateCache, prepareFinalTailwindContext } from '@hozo/compiler'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
 import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 // #1230. No filter function had an ownership entry, so an input with one
@@ -59,7 +60,7 @@ test('the dynamic Native map keeps the filter Tailwind keeps', async () => {
   for (const entry of plan.entries) assert.notEqual(entry.kind, 'refused', entry.candidate)
   const resolve = runInNewContext(
     `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};hozoClasses`,
-    { createClassResolver },
+    { createClassResolver, hozoFilterStyles },
   )
   const style = (classes: string) => Object.assign({}, ...[resolve(classes)].flat(Infinity))
   for (const classes of ['brightness-150 brightness-50', 'brightness-50 brightness-150']) {

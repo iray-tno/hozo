@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { compileNative } from '@hozo/compiler'
+import { compileNative, openCandidateCache } from '@hozo/compiler'
 import { __unstable__loadDesignSystem } from 'tailwindcss'
+import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
 
 test('Native conditional filter slots use Tailwind actual function writers and reader order', async () => {
@@ -48,5 +49,23 @@ test('Native conditional filter slots use Tailwind actual function writers and r
     )(new Function(`return (${result.styles})`)(), hozoFilterStyles, true, true)
     const output = Object.assign({}, ...value.flat(Infinity))
     assert.equal(output.filter, expected)
+  }
+  const runtime = names.map((name, index) => `${index % 2 ? 'focus' : 'hover'}:${name}`)
+  const cache = openCandidateCache()
+  cache.scanFile('runtime.ts', JSON.stringify(runtime.join(' ')), 1)
+  const code = cache
+    .renderNativeModule()
+    .replace(/^import .*$/gm, '')
+    .replaceAll('export const ', 'const ')
+  const resolve = new Function(
+    'createClassResolver',
+    'hozoFilterStyles',
+    `${code}; return hozoClasses`,
+  )(createClassResolver, hozoFilterStyles)
+  for (const classes of [runtime, runtime.toReversed()]) {
+    assert.equal(
+      Object.assign({}, ...resolve(classes.join(' '), { hovered: true, focused: true })).filter,
+      expected,
+    )
   }
 })

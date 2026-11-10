@@ -4,17 +4,18 @@
 use super::*;
 use hozo_ir::FilterFunction;
 
+fn opaque_register(property: &StyleProperty) -> bool {
+    matches!(
+        property,
+        StyleProperty::DropShadowColor(_) | StyleProperty::Filter(FilterFunction::DropShadow, _)
+    )
+}
+
 pub(super) fn split_across_conditions(declarations: &[hozo_ir::StyleDeclaration]) -> bool {
     // Drop-shadow colour/size registers and animation endpoints need their
     // own composition proof. Keep their existing lowering rather than partly
     // adopting a chain whose colour or frame we cannot yet reconstruct.
-    if declarations.iter().any(|d| {
-        matches!(
-            d.property,
-            StyleProperty::DropShadowColor(_)
-                | StyleProperty::Filter(FilterFunction::DropShadow, _)
-        )
-    }) {
+    if declarations.iter().any(|d| opaque_register(&d.property)) {
         return false;
     }
     let mut written: Vec<(&Condition, u32)> = Vec::new();
@@ -35,7 +36,10 @@ pub(super) fn split_across_conditions(declarations: &[hozo_ir::StyleDeclaration]
     written.windows(2).any(|pair| pair[0].1 != pair[1].1)
 }
 
-fn metadata(props: &[StyleProperty]) -> Option<String> {
+pub(super) fn metadata(props: &[StyleProperty]) -> Option<String> {
+    if props.iter().any(opaque_register) {
+        return None;
+    }
     let mut slots = Vec::new();
     let mut mode = None;
     let mut authored = None;
