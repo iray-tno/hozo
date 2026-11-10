@@ -24,14 +24,12 @@ where the direction is column. Write `flex-row`. The compiler warns with
 ## On React Native, `hover:`, `active:` or `disabled:` do nothing through `cn()`
 
 A project helper named in a `className` is followed to its file and read
-when it only wraps `clsx`, `classnames` or `cx`. Anything else needs
-declaring with `classHelpers`, or the call takes the runtime fallback, which
-cannot carry state styles on Native.
-
-shadcn/ui's `cn` also hands its result to `tailwind-merge`, which drops a
-class that a later one conflicts with. Hozo does not read it as a join, so a
-caller's `px-2` still replaces the component's `px-3` as it does with
-Tailwind. Declaring it gives that up for the compiled classes. See
+when it wraps `clsx`, `classnames`, `cx`, `twJoin` or `twMerge` (including
+shadcn/ui's `cn`, whose conflict resolution is compiled into per-group guards
+so a caller's `px-2` still replaces the component's `px-3`). A helper behind
+an alias the bundler cannot resolve, or one that wraps a custom
+`extendTailwindMerge` / `createTailwindMerge` configuration, takes the
+runtime fallback unless declared with `classHelpers`. See
 [How styles are resolved](../guides/styles/).
 
 ## A class name built at runtime has no style

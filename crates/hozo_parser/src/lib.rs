@@ -28,6 +28,9 @@ pub use tailwind_plan::{
 };
 mod text_forwarding;
 mod text_regions;
+pub mod tw_merge;
+#[rustfmt::skip]
+pub(crate) mod tw_merge_table;
 mod unfold;
 #[cfg(test)]
 mod utility_identity;
@@ -38,7 +41,10 @@ pub(crate) mod tailwind_variants;
 
 pub use bindings::top_level_bindings;
 pub use canvas::{parse_canvas_paints, CanvasClassPaint};
-pub use class_helpers::{class_helper_candidates, summarize_class_helpers, ClassHelperCandidate};
+pub use class_helpers::{
+    class_helper_candidates, summarize_class_helper_merges, summarize_class_helpers,
+    ClassHelperCandidate,
+};
 pub use class_literals::{runtime_class_lists, RuntimeClassList};
 pub use dynamic_class::ClassHelper;
 pub use important::IMPORTANT_NOT_LOWERED;

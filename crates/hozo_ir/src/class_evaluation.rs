@@ -14,6 +14,16 @@ pub struct ClassPredicateCapture {
     pub reference: ExprRef,
 }
 
+/// Checks whether a runtime fallback class expression contains a token that
+/// conflicts with a compiled `tailwind-merge` group (#1676).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassConflictGuard {
+    pub reference: ExprRef,
+    pub capture: Option<ClassPredicateCapture>,
+    pub group: String,
+    pub pattern: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassEvaluation {
     pub span: SourceSpan,
@@ -172,6 +182,18 @@ impl ClassEvaluation {
             ConditionExpr::And(a, b) | ConditionExpr::Or(a, b) => {
                 self.capture_condition(a);
                 self.capture_condition(b);
+            }
+            ConditionExpr::ClassConflict(conflict) => {
+                let index = self
+                    .references()
+                    .iter()
+                    .position(|r| *r == conflict.reference)
+                    .expect("every residual belongs to the capture plan");
+                conflict.capture = Some(ClassPredicateCapture {
+                    plan: self.span,
+                    index,
+                    reference: conflict.reference,
+                });
             }
             ConditionExpr::Static(_)
             | ConditionExpr::Captured(_)

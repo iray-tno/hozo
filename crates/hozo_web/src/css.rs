@@ -2128,6 +2128,18 @@ pub fn state_disabled_ref_class(expr_ref: hozo_ir::ExprRef) -> String {
     )
 }
 
+pub fn conflict_ref_class(conflict: &hozo_ir::ClassConflictGuard) -> String {
+    let slug: String = conflict
+        .group
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    format!(
+        "hozo-conflict-{}-{}-{}",
+        conflict.reference.0.start, conflict.reference.0.end, slug
+    )
+}
+
 fn condition_expr_selector(expr: &ConditionExpr) -> String {
     match expr {
         ConditionExpr::Static(true) => String::new(),
@@ -2143,6 +2155,9 @@ fn condition_expr_selector(expr: &ConditionExpr) -> String {
         }
         ConditionExpr::Captured(capture) => {
             format!(":where(.{})", expr_ref_class(capture.reference))
+        }
+        ConditionExpr::ClassConflict(conflict) => {
+            format!(":where(.{})", conflict_ref_class(conflict))
         }
         ConditionExpr::Not(inner) => format!(":not({})", condition_expr_selector(inner)),
         ConditionExpr::And(a, b) => format!(

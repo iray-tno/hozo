@@ -57,13 +57,19 @@ runtime fallback below. On the Web the classes still apply. On React Native,
 the fallback, so the component loses its state styles.
 
 So Hozo follows the import to the helper's file and reads it. A
-function that only hands its arguments to `clsx`, `classnames` or `cx` is
-then read as `clsx` is (#964).
+function that only hands its arguments to `clsx`, `classnames`, `cx`,
+`twJoin` or `twMerge` is then read argument by argument (#964, #1676).
 
-`tailwind-merge` is not read this way, nor is shadcn/ui's `cn`, which hands
-its result to it. It drops a class that a later one conflicts with, so a
-caller's `px-2` replaces the component's `px-3`. Compiled, the `px-3` would
-win instead (#1668). Those calls stay at runtime, where `twMerge` decides.
+When the call uses `twMerge` — or a helper such as shadcn/ui's `cn` that
+hands its result to `twMerge` — Hozo applies `tailwind-merge`'s conflict
+resolution at compile time. Static conflicts (`twMerge('p-4', 'px-2')`) and
+conditional overrides (`cn('px-3', active && 'px-2')`) are resolved into the
+compiled rules and guards. When a static base is followed by a caller's
+`className` (`cn('px-3 py-1 hover:bg-blue-500', className)`), Hozo emits a
+small per-conflict-group check so a caller's conflicting utility drops the
+base group while `hover:` and `active:` still compile on React Native. Custom
+mergers built with `extendTailwindMerge` or `createTailwindMerge` stay at
+runtime so their custom conflict groups run as configured.
 
 Anything else can be declared, and a declaration wins over what was found:
 

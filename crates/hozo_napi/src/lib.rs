@@ -593,6 +593,7 @@ pub struct Compiler {
 pub struct ClassHelper {
     pub module: String,
     pub name: String,
+    pub merge: Option<bool>,
 }
 
 /// An import a file calls inside a `className` that is not a joiner the
@@ -688,6 +689,12 @@ pub fn class_helper_candidates(source: String) -> Vec<ClassHelperCandidate> {
 #[napi]
 pub fn summarize_class_helpers(source: String) -> Vec<String> {
     hozo_parser::summarize_class_helpers(&source)
+}
+
+/// Subset of [`summarize_class_helpers`] that call `twMerge` (#1676).
+#[napi]
+pub fn summarize_class_helper_merges(source: String) -> Vec<String> {
+    hozo_parser::summarize_class_helper_merges(&source)
 }
 
 /// One package's text forwarding, as its manifest lists it.
@@ -946,6 +953,7 @@ impl Compiler {
             .map(|helper| hozo_parser::ClassHelper {
                 module: helper.module,
                 name: helper.name,
+                merge: helper.merge.unwrap_or(false),
             })
             .collect();
     }
