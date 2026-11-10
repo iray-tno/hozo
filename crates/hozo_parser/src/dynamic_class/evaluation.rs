@@ -31,8 +31,22 @@ fn collect_guards(expression: &ConditionExpr, out: &mut Vec<ExprRef>) {
             collect_guards(a, out);
             collect_guards(b, out);
         }
-        ConditionExpr::Static(_) | ConditionExpr::Captured(_) | ConditionExpr::StateDisabled(_) => {
+        ConditionExpr::Static(_)
+        | ConditionExpr::Captured(_)
+        | ConditionExpr::StateDisabled(_)
+        | ConditionExpr::ClassConflict(_) => {}
+    }
+}
+
+fn collect_guards_from_condition(condition: &Condition, out: &mut Vec<ExprRef>) {
+    match condition {
+        Condition::Expr(expression) => collect_guards(expression, out),
+        Condition::All(conditions) => {
+            for inner in conditions {
+                collect_guards_from_condition(inner, out);
+            }
         }
+        _ => {}
     }
 }
 
@@ -42,9 +56,7 @@ pub(crate) fn capture_evaluation(
 ) -> Option<ClassEvaluation> {
     let mut references = decomposed.fallback.clone();
     for declaration in &decomposed.declarations {
-        if let Condition::Expr(expression) = &declaration.condition {
-            collect_guards(expression, &mut references);
-        }
+        collect_guards_from_condition(&declaration.condition, &mut references);
     }
     references.sort_by_key(|reference| (reference.0.start, reference.0.end));
     references.dedup();

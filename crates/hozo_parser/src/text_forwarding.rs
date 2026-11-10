@@ -75,6 +75,7 @@ const PATTERN_HOSTS: [(&str, &str, bool); 3] = [
 /// there.
 const JOIN_MODULES: [&str; 2] = ["clsx", "classnames"];
 const HOZO_JOIN_MODULES: [&str; 2] = ["@hozo/core", "@hozo/engine"];
+const TW_MERGE_MODULE: &str = "tailwind-merge";
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct TextForwardingSummary {
@@ -392,6 +393,7 @@ enum Classes {
         otherwise: Box<Classes>,
     },
     Join(Vec<Classes>),
+    Merge(Vec<Classes>),
 }
 
 impl Classes {
@@ -427,6 +429,17 @@ impl Classes {
                     _ => Classes::Join(flat),
                 }
             }
+            Classes::Merge(parts) => {
+                let mut flat = Vec::new();
+                for part in parts {
+                    match part.normalized() {
+                        Classes::Join(inner) | Classes::Merge(inner) => flat.extend(inner),
+                        Classes::Literal(text) if text.is_empty() => {}
+                        other => flat.push(other),
+                    }
+                }
+                Classes::Merge(flat)
+            }
         }
     }
 
@@ -442,13 +455,15 @@ impl Classes {
                 then.comparisons(out);
                 otherwise.comparisons(out);
             }
-            Classes::Join(parts) => parts.iter().for_each(|part| part.comparisons(out)),
+            Classes::Join(parts) | Classes::Merge(parts) => {
+                parts.iter().for_each(|part| part.comparisons(out))
+            }
         }
     }
 
-    fn resolve<'a>(&'a self, holds: &dyn Fn(&Comparison) -> bool, out: &mut Vec<&'a str>) {
+    fn resolve(&self, holds: &dyn Fn(&Comparison) -> bool, out: &mut Vec<String>) {
         match self {
-            Classes::Literal(text) => out.push(text),
+            Classes::Literal(text) => out.push(text.clone()),
             Classes::Choice {
                 when,
                 then,
@@ -461,6 +476,14 @@ impl Classes {
                 }
             }
             Classes::Join(parts) => parts.iter().for_each(|part| part.resolve(holds, out)),
+            Classes::Merge(parts) => {
+                let mut inner = Vec::new();
+                parts
+                    .iter()
+                    .for_each(|part| part.resolve(holds, &mut inner));
+                let joined = inner.join(" ");
+                out.push(crate::tw_merge::merge_class_list(&joined));
+            }
         }
     }
 }
@@ -1223,22 +1246,36 @@ fn read_join(call: &CallExpression, scope: &Scope) -> Option<Classes> {
     if scope.params.is_local(callee.name.as_str()) {
         return None;
     }
-    let recognized = scope.module.import_entries.iter().any(|entry| {
+    let kind = scope.module.import_entries.iter().find_map(|entry| {
         let from = entry.module_request.name.as_str();
-        entry.local_name.name == callee.name.as_str()
-            && (JOIN_MODULES.contains(&from)
-                || HOZO_JOIN_MODULES.contains(&from)
-                    && matches!(&entry.import_name, ImportImportName::Name(n) if n.name == "cx"))
-    });
-    if !recognized {
-        return None;
-    }
+        if entry.local_name.name != callee.name.as_str() {
+            return None;
+        }
+        if JOIN_MODULES.contains(&from)
+            || (HOZO_JOIN_MODULES.contains(&from)
+                && matches!(&entry.import_name, ImportImportName::Name(n) if n.name == "cx"))
+            || (from == TW_MERGE_MODULE
+                && matches!(&entry.import_name, ImportImportName::Name(n) if n.name == "twJoin"))
+        {
+            return Some(false);
+        }
+        if from == TW_MERGE_MODULE
+            && matches!(&entry.import_name, ImportImportName::Name(n) if n.name == "twMerge")
+        {
+            return Some(true);
+        }
+        None
+    })?;
     let mut parts = Vec::new();
     for argument in &call.arguments {
         // A spread argument hides what is joined.
         parts.push(read_classes(argument.as_expression()?, scope)?);
     }
-    Some(Classes::Join(parts))
+    Some(if kind {
+        Classes::Merge(parts)
+    } else {
+        Classes::Join(parts)
+    })
 }
 
 /// Manifests' text forwarding, keyed by the module a caller imports from and

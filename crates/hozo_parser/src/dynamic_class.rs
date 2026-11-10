@@ -37,6 +37,7 @@ pub(crate) use evaluation::{capture_evaluation, capture_template_parts};
 /// caller's Tailwind utility, layered, can never beat. The whole call stays
 /// at runtime, where the real `twMerge` decides.
 const RECOGNIZED_CX_MODULES: [&str; 2] = ["clsx", "classnames"];
+const TW_MERGE_MODULE: &str = "tailwind-merge";
 
 /// Hozo's own helper (#873), so merging a caller's `className` needs no
 /// dependency. Engine owns it and core re-exports it, so both are read.
@@ -44,6 +45,12 @@ const RECOGNIZED_CX_MODULES: [&str; 2] = ["clsx", "classnames"];
 /// component, is not a class joiner.
 const HOZO_CX_MODULES: [&str; 2] = ["@hozo/core", "@hozo/engine"];
 const HOZO_CX_NAME: &str = "cx";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum HelperKind {
+    Join,
+    Merge,
+}
 
 #[derive(Default)]
 pub struct Decomposed {
@@ -69,6 +76,12 @@ pub struct Decomposed {
     /// The optional guarded-template proof is irrelevant to other legacy
     /// failures; do not decompose ordinary opaque branches a second time.
     pub guarded_template: bool,
+    /// True when a `ClassConflict` guard references a non-identifier fallback
+    /// (e.g. a function call), requiring a single-evaluation capture plan.
+    pub non_repeatable_conflict: bool,
+    /// Per-declaration token metadata for `twMerge` conflict resolution.
+    pub(crate) declaration_tokens: Vec<Option<crate::tw_merge::ClassifiedToken>>,
+    pub(crate) declaration_guards: Vec<Option<ConditionExpr>>,
 }
 
 /// A class the author wrote that Hozo could not compile, and why.
@@ -98,13 +111,14 @@ pub struct CompiledToken {
     pub unconditional: bool,
 }
 
-/// A function the project says joins class strings as `clsx` does, by the
-/// specifier its callers import it from and the name they import (#964).
-/// `name` is `default` for a default import.
+/// A function the project says joins class strings as `clsx` or `twMerge`
+/// does, by the specifier its callers import it from and the name they
+/// import (#964, #1676). `name` is `default` for a default import.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassHelper {
     pub module: String,
     pub name: String,
+    pub merge: bool,
 }
 
 /// Which calls in a file are read argument by argument: the imports above,
@@ -245,38 +259,52 @@ fn to_condition(expr: Option<ConditionExpr>) -> Condition {
     }
 }
 
-fn is_recognized_cx_call(callee: &Expression, module_record: &Joiners) -> Option<()> {
+fn is_recognized_cx_call(callee: &Expression, module_record: &Joiners) -> Option<HelperKind> {
     let Expression::Identifier(ident) = callee else {
         return None;
     };
     is_recognized_cx_identifier(ident, module_record)
 }
 
-fn is_recognized_cx_identifier(ident: &IdentifierReference, joiners: &Joiners) -> Option<()> {
+fn is_recognized_cx_identifier(
+    ident: &IdentifierReference,
+    joiners: &Joiners,
+) -> Option<HelperKind> {
     let name = ident.name.as_str();
     joiners
         .module_record
         .import_entries
         .iter()
         .find_map(|entry| {
+            if entry.local_name.name.as_str() != name {
+                return None;
+            }
             let module = entry.module_request.name.as_str();
             let imported = match &entry.import_name {
                 ImportImportName::Name(n) => n.name.as_str(),
                 ImportImportName::Default(_) => "default",
                 ImportImportName::NamespaceObject => return None,
             };
-            let is_project_helper = joiners
+            if let Some(helper) = joiners
                 .helpers
                 .iter()
-                .any(|helper| helper.module == module && helper.name == imported);
-            let is_hozo_cx = HOZO_CX_MODULES.contains(&module)
-                && matches!(
-                    &entry.import_name,
-                    ImportImportName::Name(n) if n.name.as_str() == HOZO_CX_NAME
-                );
-            (entry.local_name.name.as_str() == name
-                && (RECOGNIZED_CX_MODULES.contains(&module) || is_hozo_cx || is_project_helper))
-                .then_some(())
+                .find(|helper| helper.module == module && helper.name == imported)
+            {
+                return Some(if helper.merge {
+                    HelperKind::Merge
+                } else {
+                    HelperKind::Join
+                });
+            }
+            if module == TW_MERGE_MODULE {
+                return match imported {
+                    "twMerge" => Some(HelperKind::Merge),
+                    "twJoin" => Some(HelperKind::Join),
+                    _ => None,
+                };
+            }
+            let is_hozo_cx = HOZO_CX_MODULES.contains(&module) && imported == HOZO_CX_NAME;
+            (RECOGNIZED_CX_MODULES.contains(&module) || is_hozo_cx).then_some(HelperKind::Join)
         })
 }
 
@@ -356,6 +384,7 @@ fn decompose_literal(
                 unconditional: condition.is_none(),
             });
         }
+        let classified = crate::tw_merge::classify_token(token);
         if token_condition == Condition::Always {
             let final_condition = to_condition(condition.clone());
             let source = utility_source(token, units);
@@ -365,6 +394,8 @@ fn decompose_literal(
                     property,
                     condition: final_condition.clone(),
                 });
+                out.declaration_tokens.push(classified.clone());
+                out.declaration_guards.push(condition.clone());
             }
         } else if condition.is_none() {
             // No surrounding dynamic guard, so the token's own
@@ -377,6 +408,8 @@ fn decompose_literal(
                     property,
                     condition: token_condition.clone(),
                 });
+                out.declaration_tokens.push(classified.clone());
+                out.declaration_guards.push(None);
             }
         } else {
             // A variant-prefixed literal nested inside a dynamic
@@ -543,6 +576,7 @@ fn decompose(
                         },
                         unconditional: condition.is_none(),
                     });
+                    let classified = crate::tw_merge::classify_token(token);
                     let source = utility_source(token, module_record.units);
                     for property in properties {
                         out.declarations.push(StyleDeclaration {
@@ -550,6 +584,8 @@ fn decompose(
                             property,
                             condition: token_condition.clone(),
                         });
+                        out.declaration_tokens.push(classified.clone());
+                        out.declaration_guards.push(condition.clone());
                     }
                 }
                 if !text(index).trim().is_empty() {
@@ -562,6 +598,9 @@ fn decompose(
             if capture_templates {
                 for part in parts {
                     out.declarations.extend(part.declarations);
+                    out.declaration_tokens.extend(part.declaration_tokens);
+                    out.declaration_guards.extend(part.declaration_guards);
+                    out.non_repeatable_conflict |= part.non_repeatable_conflict;
                     out.fallback.extend(part.fallback);
                     out.consumed.extend(part.consumed);
                     out.unsupported_variants.extend(part.unsupported_variants);
@@ -614,10 +653,22 @@ fn decompose(
             );
         }
         Target::Call(call) if is_recognized_cx_call(&call.callee, module_record).is_some() => {
-            for arg in &call.arguments {
-                decompose(
-                    classify_argument(arg),
-                    condition.clone(),
+            let kind = is_recognized_cx_call(&call.callee, module_record).unwrap();
+            if kind == HelperKind::Join {
+                for arg in &call.arguments {
+                    decompose(
+                        classify_argument(arg),
+                        condition.clone(),
+                        guard,
+                        out,
+                        module_record,
+                        capture_templates,
+                    );
+                }
+            } else {
+                decompose_merge_call(
+                    call,
+                    condition,
                     guard,
                     out,
                     module_record,
@@ -643,6 +694,219 @@ fn decompose(
             fall_back_to(out, guard.unwrap_or(span));
         }
     }
+}
+
+fn conjoin_condition_with_guard(condition: Condition, guard: ConditionExpr) -> Condition {
+    match condition {
+        Condition::Always => Condition::Expr(guard),
+        Condition::Expr(existing) => {
+            Condition::Expr(ConditionExpr::And(Box::new(existing), Box::new(guard)))
+        }
+        Condition::All(mut items) => {
+            if let Some(Condition::Expr(existing)) = items.first_mut() {
+                let merged = ConditionExpr::And(Box::new(existing.clone()), Box::new(guard));
+                *existing = merged;
+                Condition::All(items)
+            } else {
+                let mut next = vec![Condition::Expr(guard)];
+                next.extend(items);
+                Condition::All(next)
+            }
+        }
+        other => Condition::all(vec![Condition::Expr(guard), other]),
+    }
+}
+
+fn decompose_merge_call(
+    call: &CallExpression,
+    condition: Option<ConditionExpr>,
+    guard: Option<Span>,
+    out: &mut Decomposed,
+    module_record: &Joiners,
+    capture_templates: bool,
+) {
+    let whole_span = guard.unwrap_or(call.span);
+    let mut sub = Decomposed::default();
+    let mut arg_ranges = Vec::with_capacity(call.arguments.len());
+    let mut arg_is_repeatable = Vec::with_capacity(call.arguments.len());
+
+    for arg in &call.arguments {
+        let decl_start = sub.declarations.len();
+        let fb_start = sub.fallback.len();
+        let target = classify_argument(arg);
+        let repeatable = matches!(target, Target::Identifier(_));
+        decompose(
+            target,
+            None,
+            None,
+            &mut sub,
+            module_record,
+            capture_templates,
+        );
+        let decl_end = sub.declarations.len();
+        let fb_end = sub.fallback.len();
+
+        // If an argument partially compiled and partially fell back (e.g. a
+        // ternary where one branch is opaque, or a literal with a custom
+        // class alongside a Tailwind utility), keep the whole call at runtime
+        // so `twMerge` sees every token in order.
+        let arg_decls = decl_end - decl_start;
+        let arg_fbs = fb_end - fb_start;
+        if arg_decls > 0 && arg_fbs > 0 {
+            fall_back_to(out, whole_span);
+            return;
+        }
+        // An opaque fallback before a static Tailwind utility (`cn(className, 'px-2')`)
+        // would require compiled `px-2` to override an arbitrary runtime token's
+        // shorthands/modifiers; keep that call at runtime when earlier fallbacks
+        // precede later static declarations.
+        if arg_decls > 0 && fb_start > 0 {
+            fall_back_to(out, whole_span);
+            return;
+        }
+        arg_ranges.push((decl_start..decl_end, fb_start..fb_end));
+        arg_is_repeatable.push(repeatable);
+    }
+
+    let n = sub.declarations.len();
+    let mut dropped = vec![false; n];
+    let mut extra_guards: Vec<Vec<ConditionExpr>> = vec![Vec::new(); n];
+
+    // Part 1: Static & conditional conflict resolution (including intra-literal
+    // conflicts like `twMerge('px-3 px-2')` and cross-argument conflicts like
+    // `cn('px-3', active && 'px-2')`).
+    for i in 0..n {
+        let Some(ref earlier_tok) = sub.declaration_tokens[i] else {
+            continue;
+        };
+        let mut overriding_conds: Vec<ConditionExpr> = Vec::new();
+        for j in (i + 1)..n {
+            // Declarations expanded from the same utility token (e.g. `px-3` ->
+            // paddingLeft + paddingRight) share the same `StyleSource` and must
+            // not override each other.
+            if sub.declarations[i].source == sub.declarations[j].source
+                && sub.declaration_guards[i] == sub.declaration_guards[j]
+            {
+                continue;
+            }
+            let Some(ref later_tok) = sub.declaration_tokens[j] else {
+                continue;
+            };
+            if !crate::tw_merge::overrides(later_tok, earlier_tok) {
+                continue;
+            }
+            match &sub.declaration_guards[j] {
+                None => {
+                    dropped[i] = true;
+                    break;
+                }
+                Some(later_guard) if sub.declaration_guards[i].as_ref() == Some(later_guard) => {
+                    dropped[i] = true;
+                    break;
+                }
+                Some(later_guard) => {
+                    if !overriding_conds.contains(later_guard) {
+                        overriding_conds.push(later_guard.clone());
+                    }
+                }
+            }
+        }
+        if !dropped[i] && !overriding_conds.is_empty() {
+            // Check whether the union of later guards is exhaustive (e.g. `cond` and `!cond`
+            // from both branches of a ternary overriding the same group).
+            let exhaustive = overriding_conds.iter().any(|c| {
+                overriding_conds
+                    .iter()
+                    .any(|other| matches!(other, ConditionExpr::Not(inner) if **inner == *c))
+            });
+            if exhaustive {
+                dropped[i] = true;
+            } else {
+                for cond in overriding_conds {
+                    extra_guards[i].push(ConditionExpr::Not(Box::new(cond)));
+                }
+            }
+        }
+    }
+
+    // Part 2: Runtime fallback `className` conflict guards (`cn('px-3 py-1', className)`).
+    for (arg_idx, (decl_range, _)) in arg_ranges.iter().enumerate() {
+        for later_arg_idx in (arg_idx + 1)..arg_ranges.len() {
+            let (_, ref fb_range) = arg_ranges[later_arg_idx];
+            if fb_range.is_empty() {
+                continue;
+            }
+            let repeatable = arg_is_repeatable[later_arg_idx];
+            for fb_idx in fb_range.clone() {
+                let fb_ref = sub.fallback[fb_idx];
+                for i in decl_range.clone() {
+                    if dropped[i] {
+                        continue;
+                    }
+                    let Some(ref earlier_tok) = sub.declaration_tokens[i] else {
+                        continue;
+                    };
+                    let pattern = crate::tw_merge::conflict_regex_for_target(
+                        &earlier_tok.modifier_id,
+                        &earlier_tok.class_group_id,
+                    );
+                    let group_key = earlier_tok.class_id();
+                    let conflict_guard = ConditionExpr::Not(Box::new(
+                        ConditionExpr::ClassConflict(Box::new(hozo_ir::ClassConflictGuard {
+                            reference: fb_ref,
+                            capture: None,
+                            group: group_key,
+                            pattern,
+                        })),
+                    ));
+                    extra_guards[i].push(conflict_guard);
+                    if !repeatable {
+                        out.non_repeatable_conflict = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Apply enclosing call condition (`condition`) if the `cn(...)` call itself is
+    // inside a branch (`cond && cn(...)`), and emit surviving declarations.
+    for i in 0..n {
+        if dropped[i] {
+            continue;
+        }
+        let mut decl = sub.declarations[i].clone();
+        let mut combined_guard = condition.clone();
+        for g in &extra_guards[i] {
+            combined_guard = Some(match combined_guard {
+                None => g.clone(),
+                Some(prev) => ConditionExpr::And(Box::new(prev), Box::new(g.clone())),
+            });
+        }
+        if let Some(g) = combined_guard {
+            decl.condition = conjoin_condition_with_guard(decl.condition, g);
+        }
+        let effective_guard = match (&condition, &sub.declaration_guards[i]) {
+            (None, g) => g.clone(),
+            (Some(c), None) => Some(c.clone()),
+            (Some(c), Some(g)) => {
+                Some(ConditionExpr::And(Box::new(c.clone()), Box::new(g.clone())))
+            }
+        };
+        out.declarations.push(decl);
+        out.declaration_tokens
+            .push(sub.declaration_tokens[i].clone());
+        out.declaration_guards.push(effective_guard);
+    }
+
+    for fb in sub.fallback {
+        let fb_span = guard.unwrap_or(Span::new(fb.0.start, fb.0.end));
+        fall_back_to(out, fb_span);
+    }
+    out.consumed.extend(sub.consumed);
+    out.unsupported_variants.extend(sub.unsupported_variants);
+    out.compiled.extend(sub.compiled);
+    out.guarded_template |= sub.guarded_template;
+    out.non_repeatable_conflict |= sub.non_repeatable_conflict;
 }
 
 #[cfg(test)]
@@ -799,6 +1063,15 @@ const el = <View className={cx('p-4', className)} />";
         ClassHelper {
             module: module.to_string(),
             name: name.to_string(),
+            merge: false,
+        }
+    }
+
+    fn merge_helper(module: &str, name: &str) -> ClassHelper {
+        ClassHelper {
+            module: module.to_string(),
+            name: name.to_string(),
+            merge: true,
         }
     }
 
@@ -1003,5 +1276,44 @@ const el = <View className={{{expression}}} />
     fn a_template_inside_clsx_decomposes_too() {
         let source = wrap("cn(`p-4 ${className}`, 'bg-blue-500')");
         assert_eq!(carried(&source), ["className"]);
+    }
+
+    #[test]
+    fn tw_merge_resolves_static_and_conditional_conflicts_and_guards_runtime_fallback() {
+        let static_override = decompose_source(
+            r#"
+            import { View } from '@hozo/core'
+            import { twMerge } from 'tailwind-merge'
+            const el = <View className={twMerge('px-3 py-1', 'px-2')} />
+            "#,
+        );
+        assert!(static_override.fallback.is_empty());
+        // py-1 (2 decls) + px-2 (2 decls) = 4 decls; px-3 was dropped.
+        assert_eq!(static_override.declarations.len(), 4);
+
+        let cond_override = decompose_source(
+            r#"
+            import { View } from '@hozo/core'
+            import { twMerge } from 'tailwind-merge'
+            const el = <View className={twMerge('px-3', active && 'px-2')} />
+            "#,
+        );
+        assert!(cond_override.fallback.is_empty());
+        assert_eq!(cond_override.declarations.len(), 4);
+        assert!(cond_override
+            .declarations
+            .iter()
+            .any(|d| matches!(d.condition, Condition::Expr(ConditionExpr::Not(_)))));
+
+        let runtime_fallback = decompose_with_helpers(
+            r#"
+            import { View } from '@hozo/core'
+            import { cn } from '@/lib/utils'
+            const el = <View className={cn('px-3 hover:bg-blue-500', className)} />
+            "#,
+            &[merge_helper("@/lib/utils", "cn")],
+        );
+        assert_eq!(runtime_fallback.fallback.len(), 1);
+        assert_eq!(runtime_fallback.declarations.len(), 3);
     }
 }

@@ -85,6 +85,30 @@ export function format(n: number) { return String(n) }
     const { utimesSync } = await import('node:fs')
     utimesSync(utils, new Date(), new Date(Date.now() + 5000))
     assert.deepEqual(await findClassHelpers(SHADCN, path.join(root, 'Item.tsx'), resolve), [])
+
+    // shadcn's `twMerge(clsx(inputs))` is recognized with `merge: true` (#1676).
+    writeFileSync(
+      utils,
+      `import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+`,
+    )
+    utimesSync(utils, new Date(), new Date(Date.now() + 10000))
+    assert.deepEqual(await findClassHelpers(SHADCN, path.join(root, 'Item.tsx'), resolve), [
+      { module: '@/lib/utils', name: 'cn', merge: true },
+    ])
+
+    // Custom mergers via `extendTailwindMerge` / `createTailwindMerge` stay at runtime.
+    writeFileSync(
+      utils,
+      `import { extendTailwindMerge } from 'tailwind-merge'
+const customTwMerge = extendTailwindMerge({})
+export function cn(...inputs: string[]) { return customTwMerge(inputs) }
+`,
+    )
+    utimesSync(utils, new Date(), new Date(Date.now() + 15000))
+    assert.deepEqual(await findClassHelpers(SHADCN, path.join(root, 'Item.tsx'), resolve), [])
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

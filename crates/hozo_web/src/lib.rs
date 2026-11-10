@@ -1022,6 +1022,17 @@ fn render_condition_expr(source: &str, expr: &hozo_ir::ConditionExpr) -> String 
             hozo_ir::ClassEvaluation::binding(source, capture.plan),
             capture.index
         ),
+        ConditionExpr::ClassConflict(conflict) => {
+            let value = match &conflict.capture {
+                Some(capture) => format!(
+                    "{}[{}]",
+                    hozo_ir::ClassEvaluation::binding(source, capture.plan),
+                    capture.index
+                ),
+                None => format!("({})", source_text(source, conflict.reference)),
+            };
+            format!("/{}/.test({})", conflict.pattern, value)
+        }
         ConditionExpr::Not(inner) => format!("!({})", render_condition_expr(source, inner)),
         ConditionExpr::And(a, b) => {
             format!(
@@ -2570,37 +2581,55 @@ fn render_verbatim(
 fn class_guards(style: &[hozo_ir::StyleDeclaration], source: &str) -> Vec<String> {
     let mut refs = Vec::new();
     for decl in style {
-        if let hozo_ir::Condition::Expr(expr) = &decl.condition {
-            collect_from_expr(expr, &mut refs);
-        }
+        collect_from_condition(&decl.condition, &mut refs);
     }
-    refs.sort_by_key(|(reference, state, _)| (reference.0.start, reference.0.end, *state));
-    refs.dedup_by_key(|(reference, state, _)| (*reference, *state));
+    refs.sort_by(|(a_ref, a_kind, _), (b_ref, b_kind, _)| {
+        (a_ref.0.start, a_ref.0.end, a_kind).cmp(&(b_ref.0.start, b_ref.0.end, b_kind))
+    });
+    refs.dedup_by(|(a_ref, a_kind, _), (b_ref, b_kind, _)| a_ref == b_ref && a_kind == b_kind);
     refs.into_iter()
-        .map(|(reference, state, expression)| {
+        .map(|(_, class_name, expression)| {
             format!(
                 "({}) && '{}'",
                 render_condition_expr(source, expression),
-                if state {
-                    css::state_disabled_ref_class(reference)
-                } else {
-                    css::expr_ref_class(reference)
-                }
+                class_name
             )
         })
         .collect()
 }
 
+fn collect_from_condition<'a>(
+    condition: &'a hozo_ir::Condition,
+    out: &mut Vec<(hozo_ir::ExprRef, String, &'a hozo_ir::ConditionExpr)>,
+) {
+    match condition {
+        hozo_ir::Condition::Expr(expr) => collect_from_expr(expr, out),
+        hozo_ir::Condition::All(conditions) => {
+            for inner in conditions {
+                collect_from_condition(inner, out);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn collect_from_expr<'a>(
     expr: &'a hozo_ir::ConditionExpr,
-    out: &mut Vec<(hozo_ir::ExprRef, bool, &'a hozo_ir::ConditionExpr)>,
+    out: &mut Vec<(hozo_ir::ExprRef, String, &'a hozo_ir::ConditionExpr)>,
 ) {
     use hozo_ir::ConditionExpr;
     match expr {
         ConditionExpr::Static(_) => {}
-        ConditionExpr::Ref(r) => out.push((*r, false, expr)),
-        ConditionExpr::StateDisabled(r) => out.push((*r, true, expr)),
-        ConditionExpr::Captured(capture) => out.push((capture.reference, false, expr)),
+        ConditionExpr::Ref(r) => out.push((*r, css::expr_ref_class(*r), expr)),
+        ConditionExpr::StateDisabled(r) => out.push((*r, css::state_disabled_ref_class(*r), expr)),
+        ConditionExpr::Captured(capture) => out.push((
+            capture.reference,
+            css::expr_ref_class(capture.reference),
+            expr,
+        )),
+        ConditionExpr::ClassConflict(conflict) => {
+            out.push((conflict.reference, css::conflict_ref_class(conflict), expr))
+        }
         ConditionExpr::Not(inner) => collect_from_expr(inner, out),
         ConditionExpr::And(a, b) | ConditionExpr::Or(a, b) => {
             collect_from_expr(a, out);

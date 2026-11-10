@@ -559,6 +559,17 @@ fn render_condition_expr(source: &str, expr: &ConditionExpr) -> String {
             hozo_ir::ClassEvaluation::binding(source, capture.plan),
             capture.index
         ),
+        ConditionExpr::ClassConflict(conflict) => {
+            let value = match &conflict.capture {
+                Some(capture) => format!(
+                    "{}[{}]",
+                    hozo_ir::ClassEvaluation::binding(source, capture.plan),
+                    capture.index
+                ),
+                None => format!("({})", source_text(source, conflict.reference)),
+            };
+            format!("/{}/.test({})", conflict.pattern, value)
+        }
         ConditionExpr::Not(inner) => format!("!({})", render_condition_expr(source, inner)),
         ConditionExpr::And(a, b) => {
             format!(
@@ -1387,13 +1398,21 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         // Each atom's own suffix, joined. Names the combination rather
         // than the first of it, so `md:hover:` and `md:focus:` don't share
         // a style entry.
-        Condition::All(conditions) => Some(
-            conditions
-                .iter()
-                .filter_map(condition_suffix)
-                .collect::<Vec<_>>()
-                .join("_"),
-        ),
+        Condition::All(conditions) => {
+            let mut non_expr = Vec::new();
+            let mut exprs = Vec::new();
+            for cond in conditions {
+                if let Some(suffix) = condition_suffix(cond) {
+                    if matches!(cond, Condition::Expr(_)) {
+                        exprs.push(suffix);
+                    } else {
+                        non_expr.push(suffix);
+                    }
+                }
+            }
+            non_expr.extend(exprs);
+            Some(non_expr.join("_"))
+        }
         Condition::Hover => Some("hover".to_string()),
         Condition::Focus => Some("focus".to_string()),
         Condition::FocusVisible => Some("focusvisible".to_string()),
@@ -1504,6 +1523,17 @@ fn expr_key(expr: &ConditionExpr) -> String {
         ConditionExpr::StateDisabled(r) => format!("state_disabled_{}_{}", r.0.start, r.0.end),
         ConditionExpr::Captured(capture) => {
             format!("{}_{}", capture.reference.0.start, capture.reference.0.end)
+        }
+        ConditionExpr::ClassConflict(conflict) => {
+            let slug: String = conflict
+                .group
+                .chars()
+                .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+                .collect();
+            format!(
+                "conflict_{}_{}_{}",
+                conflict.reference.0.start, conflict.reference.0.end, slug
+            )
         }
         ConditionExpr::Not(inner) => format!("not_{}", expr_key(inner)),
         ConditionExpr::And(a, b) => format!("{}_and_{}", expr_key(a), expr_key(b)),

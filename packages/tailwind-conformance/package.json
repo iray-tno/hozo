@@ -15,11 +15,11 @@
   "dependencies": {
     "@hozo/behaviors": "workspace:^",
     "@hozo/compiler": "workspace:*",
+    "@hozo/engine": "workspace:^",
     "@hozo/metro": "workspace:^",
     "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
     "@hozo/rn-compat": "workspace:^",
-    "@hozo/engine": "workspace:^",
     "@hozo/svg": "workspace:^",
     "tailwindcss": "^4.3.3"
   },
@@ -38,6 +38,7 @@
     "react-dom": "^19.2.8",
     "react-native": "^0.87.1",
     "react-test-renderer": "^19.2.8",
+    "tailwind-merge": "^3.7.0",
     "typescript": "^7.0.2"
   }
 }

@@ -258,6 +258,39 @@ fn class_expression(
     Some(decomposed)
 }
 
+fn capture_condition_in_place(condition: &mut Condition, evaluation: &hozo_ir::ClassEvaluation) {
+    match condition {
+        Condition::Expr(expression) => evaluation.capture_condition(expression),
+        Condition::All(conditions) => {
+            for inner in conditions {
+                capture_condition_in_place(inner, evaluation);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn has_authored_guard_expr(expression: &ConditionExpr) -> bool {
+    match expression {
+        ConditionExpr::Ref(_) | ConditionExpr::Captured(_) => true,
+        ConditionExpr::Not(inner) => has_authored_guard_expr(inner),
+        ConditionExpr::And(a, b) | ConditionExpr::Or(a, b) => {
+            has_authored_guard_expr(a) || has_authored_guard_expr(b)
+        }
+        ConditionExpr::Static(_)
+        | ConditionExpr::StateDisabled(_)
+        | ConditionExpr::ClassConflict(_) => false,
+    }
+}
+
+fn has_authored_guard(condition: &Condition) -> bool {
+    match condition {
+        Condition::Expr(expression) => has_authored_guard_expr(expression),
+        Condition::All(conditions) => conditions.iter().any(has_authored_guard),
+        _ => false,
+    }
+}
+
 fn capture_class_expression(
     expression: &JSXExpression,
     scope: &Scope,
@@ -1549,10 +1582,11 @@ fn build_node(
                         let mut decomposed =
                             class_expression(&container.expression, scope, diagnostics, false)
                                 .expect("root className retains opaque fallback leaves");
-                        if decomposed
-                            .declarations
-                            .iter()
-                            .any(|d| matches!(d.condition, Condition::Expr(_)))
+                        if (decomposed.non_repeatable_conflict
+                            || decomposed
+                                .declarations
+                                .iter()
+                                .any(|d| has_authored_guard(&d.condition)))
                             && root_capture::can_wrap(el, attr.span)
                         {
                             if let Some(mut evaluation) = capture_class_expression(
@@ -1561,10 +1595,10 @@ fn build_node(
                                 &mut decomposed,
                             ) {
                                 for declaration in &mut decomposed.declarations {
-                                    if let Condition::Expr(expression) = &mut declaration.condition
-                                    {
-                                        evaluation.capture_condition(expression);
-                                    }
+                                    capture_condition_in_place(
+                                        &mut declaration.condition,
+                                        &evaluation,
+                                    );
                                 }
                                 evaluation.scope = hozo_ir::ClassCaptureScope::Subtree {
                                     expression_container,
@@ -1667,10 +1701,11 @@ fn build_node(
                 };
                 // Keep opaque forwarding cheap. Guarded AOT needs a capture
                 // plan, not authored code run again by an owner's callback.
-                let guarded = decomposed
-                    .declarations
-                    .iter()
-                    .any(|d| matches!(d.condition, Condition::Expr(_)));
+                let guarded = decomposed.non_repeatable_conflict
+                    || decomposed
+                        .declarations
+                        .iter()
+                        .any(|d| has_authored_guard(&d.condition));
                 let evaluation = guarded
                     .then(|| {
                         capture_class_expression(&container.expression, scope, &mut decomposed)
@@ -1684,9 +1719,7 @@ fn build_node(
                 }
                 if let Some(evaluation) = &evaluation {
                     for declaration in &mut decomposed.declarations {
-                        if let Condition::Expr(expression) = &mut declaration.condition {
-                            evaluation.capture_condition(expression);
-                        }
+                        capture_condition_in_place(&mut declaration.condition, evaluation);
                     }
                 }
                 consumed.extend(decomposed.consumed);

@@ -252,6 +252,7 @@ export interface TextForwardingSummary {
 export interface ClassHelper {
   module: string
   name: string
+  merge?: boolean
 }
 
 /** One package's text forwarding: the specifier callers import from, and its components. */
@@ -426,6 +427,7 @@ interface NativeBinding {
   nativeClassVerdicts(classNames: string[]): (NativeClassVerdict | null)[]
   nativeClassesDrawnStatically(source: string): string[]
   summarizeClassHelpers(source: string): string[]
+  summarizeClassHelperMerges(source: string): string[]
   CandidateCache: CandidateCacheConstructor
   Compiler: CompilerConstructor
 }
@@ -1219,6 +1221,14 @@ export function scanTailwindOrderCandidates(source: string): string[] {
  */
 export function summarizeClassHelpers(source: string): string[] {
   return loadNative().summarizeClassHelpers(source)
+}
+
+/**
+ * Subset of `summarizeClassHelpers` whose implementation calls `twMerge`
+ * (#1676).
+ */
+export function summarizeClassHelperMerges(source: string): string[] {
+  return loadNative().summarizeClassHelperMerges(source)
 }
 
 /**

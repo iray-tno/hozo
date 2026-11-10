@@ -13,6 +13,7 @@ import {
   type FontAvailability,
   openCandidateCache,
   type StylexExternalBinding,
+  summarizeClassHelperMerges,
   summarizeClassHelpers,
 } from './index.ts'
 import { withOwnerPackageCandidates } from './owner-package-candidates.ts'
@@ -284,6 +285,8 @@ export interface ClassHelperOption {
   name: string
   /** `false` to keep this function from being read as a class joiner. */
   recognize?: boolean
+  /** `true` when the helper resolves conflicts with `twMerge` (#1676). */
+  merge?: boolean
 }
 
 /**
@@ -299,24 +302,30 @@ export function resolveClassHelpers(
   const refused = new Set(declared.filter((h) => h.recognize === false).map(key))
   const out = new Map<string, ClassHelper>()
   for (const helper of [...found, ...declared.filter((h) => h.recognize !== false)]) {
-    if (!refused.has(key(helper)))
-      out.set(key(helper), { module: helper.module, name: helper.name })
+    if (!refused.has(key(helper))) {
+      const entry: ClassHelper = { module: helper.module, name: helper.name }
+      if (helper.merge) entry.merge = true
+      out.set(key(helper), entry)
+    }
   }
   return [...out.values()]
 }
 
 const SCRIPT = /.(?:[cm]?[jt]sx?)$/
-const summaries = new Map<string, { modifiedMs: number; exports: string[] }>()
+const summaries = new Map<string, { modifiedMs: number; exports: string[]; merges: Set<string> }>()
 
 /** What a helper file exports as joiners, read again only when it changes. */
-function helperExports(file: string): string[] {
+function helperExports(file: string): { exports: string[]; merges: Set<string> } {
   const modifiedMs = statSync(file, { throwIfNoEntry: false })?.mtimeMs
-  if (modifiedMs === undefined) return []
+  if (modifiedMs === undefined) return { exports: [], merges: new Set() }
   const cached = summaries.get(file)
-  if (cached?.modifiedMs === modifiedMs) return cached.exports
-  const exports = summarizeClassHelpers(readFileSync(file, 'utf8'))
-  summaries.set(file, { modifiedMs, exports })
-  return exports
+  if (cached?.modifiedMs === modifiedMs) return cached
+  const content = readFileSync(file, 'utf8')
+  const exports = summarizeClassHelpers(content)
+  const merges = new Set(summarizeClassHelperMerges(content))
+  const entry = { modifiedMs, exports, merges }
+  summaries.set(file, entry)
+  return entry
 }
 
 /**
@@ -341,7 +350,12 @@ export async function findClassHelpers(
     const file = resolved?.split('?')[0]
     if (!file || !SCRIPT.test(file)) continue
     onDependency?.(file)
-    if (helperExports(file).includes(imported)) found.push({ module: specifier, name: imported })
+    const summary = helperExports(file)
+    if (summary.exports.includes(imported)) {
+      const helper: ClassHelper = { module: specifier, name: imported }
+      if (summary.merges.has(imported)) helper.merge = true
+      found.push(helper)
+    }
   }
   return found
 }
@@ -924,8 +938,13 @@ export function projectClassHelpers(
     const found: ClassHelper[] = []
     for (const { specifier, imported } of classHelperCandidates(source)) {
       const target = resolve(specifier, importer)
-      if (target && SCRIPT.test(target) && helperExports(target).includes(imported)) {
-        found.push({ module: specifier, name: imported })
+      if (target && SCRIPT.test(target)) {
+        const summary = helperExports(target)
+        if (summary.exports.includes(imported)) {
+          const helper: ClassHelper = { module: specifier, name: imported }
+          if (summary.merges.has(imported)) helper.merge = true
+          found.push(helper)
+        }
       }
     }
     if (found.length > 0) out[importer] = found

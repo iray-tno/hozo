@@ -35,11 +35,15 @@ use oxc_span::SourceType;
 use oxc_syntax::module_record::{ExportExportName, ImportImportName, ModuleRecord};
 
 /// The joiners a helper may hand its arguments to: the modules
-/// `dynamic_class` already trusts, and `cx`. Not `tailwind-merge`, for the
-/// reason given there: shadcn/ui's `cn` resolves conflicts, so it is not a
-/// join.
+/// `dynamic_class` already trusts, `cx`, and `tailwind-merge`'s default
+/// `twMerge` / `twJoin` (#1676). Custom `extendTailwindMerge` or
+/// `createTailwindMerge` configurations are refused so their runtime
+/// behavior is preserved.
 const JOIN_MODULES: [&str; 2] = ["clsx", "classnames"];
 const HOZO_JOIN_MODULES: [&str; 2] = ["@hozo/core", "@hozo/engine"];
+const TW_MERGE_MODULE: &str = "tailwind-merge";
+const TW_MERGE_EXPORTS: [&str; 2] = ["twMerge", "twJoin"];
+const TW_MERGE_CUSTOM_EXPORTS: [&str; 2] = ["extendTailwindMerge", "createTailwindMerge"];
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ClassHelperCandidate {
@@ -64,7 +68,37 @@ fn imported_name(name: &ImportImportName) -> Option<String> {
 }
 
 fn is_builtin_joiner(module: &str, imported: &str) -> bool {
-    JOIN_MODULES.contains(&module) || HOZO_JOIN_MODULES.contains(&module) && imported == "cx"
+    JOIN_MODULES.contains(&module)
+        || (HOZO_JOIN_MODULES.contains(&module) && imported == "cx")
+        || (module == TW_MERGE_MODULE && TW_MERGE_EXPORTS.contains(&imported))
+}
+
+fn has_custom_tw_merge(module: &ModuleRecord, program: &oxc_ast::ast::Program<'_>) -> bool {
+    let imported_custom = module.import_entries.iter().any(|entry| {
+        !entry.is_type
+            && entry.module_request.name.as_str() == TW_MERGE_MODULE
+            && imported_name(&entry.import_name)
+                .is_some_and(|name| TW_MERGE_CUSTOM_EXPORTS.contains(&name.as_str()))
+    });
+    if imported_custom {
+        return true;
+    }
+    struct CustomCall {
+        found: bool,
+    }
+    impl<'a> Visit<'a> for CustomCall {
+        fn visit_call_expression(&mut self, it: &oxc_ast::ast::CallExpression<'a>) {
+            if let Expression::Identifier(callee) = &it.callee {
+                if TW_MERGE_CUSTOM_EXPORTS.contains(&callee.name.as_str()) {
+                    self.found = true;
+                }
+            }
+            walk::walk_call_expression(self, it);
+        }
+    }
+    let mut finder = CustomCall { found: false };
+    finder.visit_program(program);
+    finder.found
 }
 
 /// The imports a file calls inside a `className`, other than the joiners
@@ -130,13 +164,31 @@ impl<'a> Visit<'a> for Callees {
 /// joiner, possibly through another (`twMerge(clsx(inputs))`). `default`
 /// for a default export.
 pub fn summarize_class_helpers(source: &str) -> Vec<String> {
+    summarize_helpers_internal(source, false)
+}
+
+/// Subset of [`summarize_class_helpers`] whose return expression calls
+/// `twMerge` (and therefore needs `twMerge` conflict resolution rather than
+/// a pure `clsx` join).
+pub fn summarize_class_helper_merges(source: &str) -> Vec<String> {
+    summarize_helpers_internal(source, true)
+}
+
+fn summarize_helpers_internal(source: &str, require_merge: bool) -> Vec<String> {
     let allocator = Allocator::default();
     let Some(ret) = parse(&allocator, source) else {
         return Vec::new();
     };
     let module = &ret.module_record;
+    if has_custom_tw_merge(module, &ret.program) {
+        return Vec::new();
+    }
     let joiners = joiner_locals(module);
     if joiners.is_empty() {
+        return Vec::new();
+    }
+    let mergers = merger_locals(module);
+    if require_merge && mergers.is_empty() {
         return Vec::new();
     }
 
@@ -152,10 +204,9 @@ pub fn summarize_class_helpers(source: &str) -> Vec<String> {
         match statement {
             Statement::FunctionDeclaration(function) => consider(
                 function.id.as_ref().map(|id| id.name.as_str()),
-                function
-                    .body
-                    .as_ref()
-                    .is_some_and(|body| joins(&function.params, body, &joiners)),
+                function.body.as_ref().is_some_and(|body| {
+                    joins(&function.params, body, &joiners, &mergers, require_merge)
+                }),
                 &mut helpers,
             ),
             Statement::VariableDeclaration(declaration) => {
@@ -165,7 +216,7 @@ pub fn summarize_class_helpers(source: &str) -> Vec<String> {
                     {
                         consider(
                             Some(id.name.as_str()),
-                            expression_joins(init, &joiners),
+                            expression_joins(init, &joiners, &mergers, require_merge),
                             &mut helpers,
                         );
                     }
@@ -174,10 +225,9 @@ pub fn summarize_class_helpers(source: &str) -> Vec<String> {
             Statement::ExportDeclaration(export) => match &export.declaration {
                 Declaration::FunctionDeclaration(function) => consider(
                     function.id.as_ref().map(|id| id.name.as_str()),
-                    function
-                        .body
-                        .as_ref()
-                        .is_some_and(|body| joins(&function.params, body, &joiners)),
+                    function.body.as_ref().is_some_and(|body| {
+                        joins(&function.params, body, &joiners, &mergers, require_merge)
+                    }),
                     &mut helpers,
                 ),
                 Declaration::VariableDeclaration(declaration) => {
@@ -187,7 +237,7 @@ pub fn summarize_class_helpers(source: &str) -> Vec<String> {
                         {
                             consider(
                                 Some(id.name.as_str()),
-                                expression_joins(init, &joiners),
+                                expression_joins(init, &joiners, &mergers, require_merge),
                                 &mut helpers,
                             );
                         }
@@ -199,17 +249,16 @@ pub fn summarize_class_helpers(source: &str) -> Vec<String> {
                 use oxc_ast::ast::ExportDefaultDeclarationKind as Kind;
                 match &export.declaration {
                     Kind::FunctionDeclaration(function) => {
-                        let is_helper = function
-                            .body
-                            .as_ref()
-                            .is_some_and(|body| joins(&function.params, body, &joiners));
+                        let is_helper = function.body.as_ref().is_some_and(|body| {
+                            joins(&function.params, body, &joiners, &mergers, require_merge)
+                        });
                         if let Some(id) = &function.id {
                             consider(Some(id.name.as_str()), is_helper, &mut helpers);
                         }
                         default_is_helper |= is_helper;
                     }
                     Kind::ArrowFunctionExpression(arrow) => {
-                        default_is_helper |= arrow_joins(arrow, &joiners);
+                        default_is_helper |= arrow_joins(arrow, &joiners, &mergers, require_merge);
                     }
                     _ => {}
                 }
@@ -255,6 +304,19 @@ fn joiner_locals(module: &ModuleRecord) -> BTreeSet<String> {
         .collect()
 }
 
+fn merger_locals(module: &ModuleRecord) -> BTreeSet<String> {
+    module
+        .import_entries
+        .iter()
+        .filter(|entry| !entry.is_type)
+        .filter(|entry| {
+            entry.module_request.name.as_str() == TW_MERGE_MODULE
+                && imported_name(&entry.import_name).is_some_and(|imported| imported == "twMerge")
+        })
+        .map(|entry| entry.local_name.name.to_string())
+        .collect()
+}
+
 fn rest_name(params: &FormalParameters) -> Option<String> {
     if !params.items.is_empty() {
         return None;
@@ -265,37 +327,75 @@ fn rest_name(params: &FormalParameters) -> Option<String> {
     }
 }
 
-fn joins(params: &FormalParameters, body: &FunctionBody, joiners: &BTreeSet<String>) -> bool {
+fn joins(
+    params: &FormalParameters,
+    body: &FunctionBody,
+    joiners: &BTreeSet<String>,
+    mergers: &BTreeSet<String>,
+    require_merge: bool,
+) -> bool {
     let Some(rest) = rest_name(params) else {
         return false;
     };
     let [Statement::ReturnStatement(ret)] = body.statements.as_slice() else {
         return false;
     };
-    ret.argument
-        .as_ref()
-        .is_some_and(|argument| hands_on(argument, &rest, joiners))
+    ret.argument.as_ref().is_some_and(|argument| {
+        hands_on(argument, &rest, joiners) && (!require_merge || calls_any(argument, mergers))
+    })
 }
 
-fn arrow_joins(arrow: &ArrowFunctionExpression, joiners: &BTreeSet<String>) -> bool {
+fn arrow_joins(
+    arrow: &ArrowFunctionExpression,
+    joiners: &BTreeSet<String>,
+    mergers: &BTreeSet<String>,
+    require_merge: bool,
+) -> bool {
     let Some(rest) = rest_name(&arrow.params) else {
         return false;
     };
     match &arrow.body {
-        ArrowFunctionBody::FunctionBody(body) => joins(&arrow.params, body, joiners),
-        concise => concise
-            .as_expression()
-            .is_some_and(|e| hands_on(e, &rest, joiners)),
+        ArrowFunctionBody::FunctionBody(body) => {
+            joins(&arrow.params, body, joiners, mergers, require_merge)
+        }
+        concise => concise.as_expression().is_some_and(|e| {
+            hands_on(e, &rest, joiners) && (!require_merge || calls_any(e, mergers))
+        }),
     }
 }
 
-fn expression_joins(expression: &Expression, joiners: &BTreeSet<String>) -> bool {
+fn expression_joins(
+    expression: &Expression,
+    joiners: &BTreeSet<String>,
+    mergers: &BTreeSet<String>,
+    require_merge: bool,
+) -> bool {
     match expression.without_parentheses() {
-        Expression::ArrowFunctionExpression(arrow) => arrow_joins(arrow, joiners),
+        Expression::ArrowFunctionExpression(arrow) => {
+            arrow_joins(arrow, joiners, mergers, require_merge)
+        }
         Expression::FunctionExpression(function) => function
             .body
             .as_ref()
-            .is_some_and(|body| joins(&function.params, body, joiners)),
+            .is_some_and(|body| joins(&function.params, body, joiners, mergers, require_merge)),
+        _ => false,
+    }
+}
+
+fn calls_any(expression: &Expression, targets: &BTreeSet<String>) -> bool {
+    let Expression::CallExpression(call) = expression.without_parentheses() else {
+        return false;
+    };
+    let Expression::Identifier(callee) = &call.callee else {
+        return false;
+    };
+    if targets.contains(callee.name.as_str()) {
+        return true;
+    }
+    match call.arguments.as_slice() {
+        [argument] => argument
+            .as_expression()
+            .is_some_and(|inner| calls_any(inner, targets)),
         _ => false,
     }
 }
@@ -338,15 +438,27 @@ export function cn(...inputs: ClassValue[]) {
     }
 
     #[test]
-    fn shadcns_cn_is_not_since_tailwind_merge_resolves_conflicts() {
-        // #1668: read as a join, a caller's `px-2` could not override the
-        // compiled `px-3`, where `twMerge` would have dropped the `px-3`.
+    fn shadcns_cn_is_recognized_as_a_merging_helper() {
+        // #1676: `twMerge(clsx(inputs))` is recognized and marked as a
+        // conflict-merging helper (`summarize_class_helper_merges`), while
+        // custom `extendTailwindMerge` / `createTailwindMerge` helpers stay at
+        // runtime.
         let source = "import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }";
-        assert!(summarize_class_helpers(source).is_empty());
+        assert_eq!(summarize_class_helpers(source), ["cn"]);
+        assert_eq!(summarize_class_helper_merges(source), ["cn"]);
+
+        let custom = "import { clsx, type ClassValue } from 'clsx'
+import { extendTailwindMerge } from 'tailwind-merge'
+const customTwMerge = extendTailwindMerge({ extend: {} })
+export function cn(...inputs: ClassValue[]) {
+  return customTwMerge(clsx(inputs))
+}";
+        assert!(summarize_class_helpers(custom).is_empty());
+        assert!(summarize_class_helper_merges(custom).is_empty());
     }
 
     #[test]
