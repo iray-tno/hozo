@@ -27,9 +27,10 @@ A project helper named in a `className` is followed to its file and read
 when it wraps `clsx`, `classnames`, `cx` or `twMerge` (including
 shadcn/ui's `cn`). A merge compiles only when all possible class tokens are
 known and supported. A caller's opaque `className` keeps the whole merge at
-runtime, where Native cannot carry state variants; keep required state styles
-outside that merge. A helper behind an alias the bundler cannot resolve also
-falls back unless declared with `classHelpers`. Custom
+runtime. Check that the class appears in the project candidate map and that
+the component supplies the required state. For example, `Pressable` supplies
+its own hover state to the resolver. A helper behind an alias the bundler
+cannot resolve also falls back unless declared with `classHelpers`. Custom
 `extendTailwindMerge` / `createTailwindMerge` configurations stay at runtime;
 a declaration does not prove their conflict rules. See
 [How styles are resolved](../guides/styles/).

@@ -52,9 +52,7 @@ a caller's `className`, falls back alone and the rest still compiles.
 A project's own helper is not one of them, even when it only wraps those
 libraries, as a `cn` in `@/lib/utils` often does. The compiler reads one
 file at a time, so it cannot see what `cn` does, and the whole call takes the
-runtime fallback below. On the Web the classes still apply. On React Native,
-`hover:`, `active:`, `disabled:` and `focus-visible:` cannot be carried by
-the fallback, so the component loses its state styles.
+runtime fallback below.
 
 So Hozo follows the import to the helper's file and reads it. A
 function that only hands its arguments to `clsx`, `classnames`, `cx`,
@@ -73,10 +71,12 @@ caller class list (`cn('px-3 py-1 hover:bg-blue-500', className)`) or an
 unsupported token, the whole merge stays at runtime. Custom classes and
 ambiguous arbitrary values cannot be classified by prefix alone, and a
 token removed by a later token must not suppress an earlier class.
-Native's runtime fallback cannot carry state variants, so keep state styles
-outside an opaque merge when they must compile. Custom mergers built with
-`extendTailwindMerge` or `createTailwindMerge` also stay at runtime so their
-configured conflict groups remain authoritative.
+On Native, a `Pressable` can apply runtime `hover:` and `active:` candidates
+from the project map using its own interaction state. Runtime variant support
+depends on what the candidate map can represent and what state the component
+supplies. Custom mergers built with `extendTailwindMerge` or
+`createTailwindMerge` also stay at runtime so their configured conflict groups
+remain authoritative.
 
 Anything else can be declared, and a declaration wins over what was found:
 
