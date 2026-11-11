@@ -13,7 +13,8 @@ in the compiler:
   one ranked input.
 
 The third, the runtime state rank, lives in the generated resolver and is
-not switched here. The method and original counts below are historical.
+not switched here. The method and original counts below are historical;
+the switch and old script are available in the history at `6a8bccd7`.
 
 ## Method
 
@@ -126,3 +127,62 @@ Reported values are per-process medians, with no outliers removed:
 
 The warm ranked row varies by process, including one slower run. These are
 small, synthetic resolver timings, not a Hermes or app frame-time claim.
+
+## One source for built-in owner variant order
+
+Native fallback ranks now compress the four positions in the same built-in
+Tailwind descriptors used by the compiler. The parser's separate
+`OWNER_INTERACTION_ORDER` generated table and its comparator module are
+gone. The old public Rust symbol is an alias, not a second implementation.
+The emitted integer representation and whole-string fallback policy remain.
+
+`packages/tailwind/src/order.test.ts` reads the emitted Native state tuples
+and compares all 15 nonempty combinations of hover, focus, focus-visible and
+active with real Tailwind CSS ordered by selector weight and emission order.
+Disabled still has a tuple but no fallback rank in this bounded domain.
+
+## Explicit Native condition projection
+
+Source-aware grouping no longer decides whether to apply a backend-specific
+sort. The Native plan returns ordered groups and the single-ranked-input proof
+to the same emitter, replacing its separate provenance scan. The Native
+projection does no sort for already monotone or unknown weights. It sorts
+known inversions stably and coalesces adjacent groups in place. The pre-ranked
+Tailwind order and the mixed-source equal-weight order are unchanged.
+
+A new IR test covers a stronger conjunction separated from an equal
+conjunction by a weaker condition, and the same input with an unassessed
+dark guard. The latter must not be assigned weight zero. Against the parent
+addon, normal output for 818 files (721 components per target) matched
+byte for byte across Web JSX/CSS, Native JSX/styles, and both diagnostics.
+The generated text fixture's compiler-source hashes are not part of that
+corpus. The process-wide measurement switch is still present in this step.
+
+## Removing the process-wide switch
+
+The next step deletes the IR atomic flag and its N-API/TypeScript measurement
+exports. Native specificity is now an explicit part of its condition plan,
+not mutable process state. The positive emitted-style test checks all eight
+hover/focus/press states with a real Tailwind barrier; the browser check
+retains its independent Tailwind CSS. Neither test needs to disable normal
+ordering to prove that the more specific condition wins.
+
+`node scripts/tailwind-order-projection.mjs` is the read-only replacement for
+before/after changes. With a fresh addon on both revisions, compare its
+JSON record; missing or broken compiles fail rather than looking equal. The
+818-file receipt from the previous step is unchanged after this deletion.
+
+## Omit equal fallback ranks
+
+Candidate modules only serialize the optional fallback rank on state tuples
+when at least two known ranks differ in the namespace. Equal ranks already
+keep authored order; a string with an unknown rank still falls back as
+before. The compact built-in/captured priority table is unaffected.
+
+The generated-module test puts an unranked `filter-none` between two state
+classes, checks both equal-rank input orders, and checks that an earlier
+higher-rank class still wins across different states. A cache scan of 51
+`hover:opacity-0` … `hover:opacity-100` candidates produced 4,883 → 4,628 raw
+bytes, 778 → 773 gzip bytes. Two unconditional candidates stayed 450/272
+bytes; a three-candidate map with competing states stayed 644/327 bytes.
+These are standalone generated module sizes, not app bundle results.

@@ -69,6 +69,53 @@ pub(crate) fn variant(instance: &str) -> Option<(u16, &'static [N])> {
         .map(|index| (data::VARIANTS[index].1, data::VARIANTS[index].2))
 }
 
+/// Bounded owner precedence when a complete candidate priority is unavailable.
+/// Reuse the built-in descriptor's variant positions. Compress just these
+/// four positions to preserve the generated resolver's existing integer ABI.
+pub fn builtin_owner_interaction_rank(condition: &crate::Condition) -> Option<u32> {
+    use crate::Condition;
+    static BITS: std::sync::OnceLock<Option<[u8; 4]>> = std::sync::OnceLock::new();
+
+    fn parts(condition: &Condition, bits: &[u8; 4]) -> Option<(u16, u8)> {
+        let slot = match condition {
+            Condition::Hover => 0,
+            Condition::Focus => 1,
+            Condition::FocusVisible => 2,
+            Condition::Pressed => 3,
+            Condition::All(conditions) if !conditions.is_empty() => {
+                return conditions
+                    .iter()
+                    .try_fold((0_u16, 0_u8), |(weight, mask), item| {
+                        let (count, bit) = parts(item, bits)?;
+                        Some((weight.checked_add(count)?, mask | bit))
+                    });
+            }
+            _ => return None,
+        };
+        Some((1, bits[slot]))
+    }
+
+    let bits = BITS.get_or_init(|| {
+        let mut positions = [
+            (variant("hover")?.0, 0),
+            (variant("focus")?.0, 1),
+            (variant("focus-visible")?.0, 2),
+            (variant("active")?.0, 3),
+        ];
+        positions.sort_unstable();
+        if positions.windows(2).any(|pair| pair[0].0 == pair[1].0) {
+            return None;
+        }
+        let mut bits = [0; 4];
+        for (rank, (_, slot)) in positions.into_iter().enumerate() {
+            bits[slot] = 1 << rank;
+        }
+        Some(bits)
+    });
+    let (weight, mask) = parts(condition, bits.as_ref()?)?;
+    Some(u32::from(weight) * 256 + u32::from(mask))
+}
+
 /// A snapshot of every given class's rule descriptor, built from the
 /// generated data instead of a captured Tailwind.
 ///

@@ -301,10 +301,12 @@ pub(super) fn build_style_entries(
     // condition, a breakpoint, `dark:`, a className branch -- is (0,1,0) and
     // loses to it.
     let mut state_parts: Vec<String> = Vec::new();
-    let canonical_input = hozo_ir::has_canonical_tailwind_input(declarations);
+    let hozo_ir::NativeConditionGroupPlan {
+        mut groups,
+        canonical_input,
+    } = hozo_ir::plan_native_condition_groups(declarations);
     let mut ordered_states = Vec::new();
     let mut has_interactive = false;
-    let mut groups = hozo_ir::group_by_condition(declarations);
     for (_, props) in &mut groups {
         *props = hozo_ir::dedupe_last_wins(theme.resolve_shadow_tokens(std::mem::take(props)));
     }

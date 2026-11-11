@@ -329,6 +329,15 @@ fn render_candidate_module_impl(
     let states_argument = if states.is_empty() {
         ""
     } else {
+        // Tied owner groups always keep the authored string order in the
+        // fallback. Don't ship rank data if no pair could change that order.
+        // The separate captured/built-in plan still carries its full ranks.
+        let mut owner_ranks = states
+            .iter()
+            .flat_map(|(_, groups)| groups.iter().filter_map(|group| group.order));
+        let emit_owner_ranks = owner_ranks
+            .next()
+            .is_some_and(|first| owner_ranks.any(|rank| rank != first));
         out.push_str("const states = {\n");
         for (name, groups) in &states {
             let groups: Vec<String> = groups
@@ -342,6 +351,7 @@ fn render_candidate_module_impl(
                         .collect();
                     let order = group
                         .order
+                        .filter(|_| emit_owner_ranks)
                         .map(|key| format!(", {key}"))
                         .unwrap_or_default();
                     format!("[[{}], {{ {} }}{order}]", keys.join(", "), pairs.join(", "))
@@ -682,7 +692,7 @@ fn state_groups(
                 filter: crate::filters::metadata(properties),
                 gradient: crate::gradients::metadata(properties, theme),
                 shadow: crate::shadows::metadata(properties, theme),
-                order: hozo_parser::interaction_cascade_key(condition),
+                order: hozo_ir::builtin_owner_interaction_rank(condition),
                 font_default: has_font_default(properties),
             })
         })

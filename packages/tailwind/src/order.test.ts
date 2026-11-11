@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 
+import { openCandidateCache } from '@hozo/compiler'
 import { compile } from 'tailwindcss'
 
 import { loadClassOrder, tailwindPackageDir } from './theme.ts'
@@ -84,16 +85,32 @@ test('candidates come out in the order Tailwind writes them', async () => {
   assert.deepEqual(ours, await tailwindOrder(candidates))
 })
 
-test('generated owner-state order uses the same Tailwind ordering API as candidate CSS', async () => {
-  const source = readFileSync(
-    new URL('../../../crates/hozo_parser/src/tailwind_variants.rs', import.meta.url),
-    'utf8',
+test('emitted Native fallback rank uses the same owner variant order as real Tailwind', async () => {
+  const variants = ['active', 'focus-visible', 'focus', 'hover']
+  const names = Array.from(
+    { length: 15 },
+    (_, index) => `${variants.filter((_, slot) => (index + 1) & (1 << slot)).join(':')}:opacity-50`,
   )
-  const block = source.match(/OWNER_INTERACTION_ORDER:[^=]+= &\[([^\]]+)\]/)![1]!
-  const names = [...block.matchAll(/"([^"]+)"/g)].map((match) => `${match[1]}:opacity-50`)
-  assert.equal(names.length, 4)
-  assert.deepEqual(names, await loadClassOrder(CSS, tailwindPackageDir(), [...names].reverse()))
-  assert.deepEqual(names, await tailwindOrder([...names].reverse()))
+  const cache = openCandidateCache()
+  cache.scanFile('owner.tsx', JSON.stringify([...names, 'disabled:opacity-50'].join(' ')), 1)
+  const code = cache.renderNativeModule()
+  const states = new Function(
+    'createClassResolver',
+    `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; return states`,
+  )(() => ({})) as Record<string, readonly [readonly string[], object, number?][]>
+  const ranked = names.map((name) => {
+    const rank = states[name]?.[0]?.[2]
+    assert.equal(typeof rank, 'number', name)
+    return { name, rank: rank! }
+  })
+  const specificity = (name: string) => name.split(':').length
+  const expected = (await tailwindOrder(names)).sort((a, b) => specificity(a) - specificity(b))
+  assert.deepEqual(
+    ranked.sort((a, b) => a.rank - b.rank).map(({ name }) => name),
+    expected,
+  )
+  assert.equal(states['disabled:opacity-50']?.length, 1)
+  assert.equal(states['disabled:opacity-50']![0]![2], undefined)
 })
 
 test('the breakpoints end up ascending, which is the case that broke', async () => {

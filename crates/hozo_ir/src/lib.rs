@@ -43,23 +43,9 @@ mod tailwind_portable;
 pub use tailwind_portable::portable_tailwind_snapshot;
 // Generated per-root and per-variant facts for a compile with no project CSS.
 mod tailwind_builtin;
-pub use tailwind_builtin::{builtin_tailwind_snapshot, builtin_tailwind_version};
-
-static LEGACY_ORDERING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
-
-/// Turns the ordering outside the shared plan (the interaction sort and the
-/// condition-weight group sort) off or on, process-wide. Measurement only:
-/// `scripts/tailwind-order-old-path.mjs` compiles a corpus both ways to count
-/// what those mechanisms still decide (#1230). Never set by a build.
-pub fn set_legacy_ordering(enabled: bool) {
-    LEGACY_ORDERING.store(enabled, std::sync::atomic::Ordering::Relaxed);
-}
-
-/// Whether the ordering outside the shared plan runs; see
-/// [`set_legacy_ordering`].
-pub fn legacy_ordering() -> bool {
-    LEGACY_ORDERING.load(std::sync::atomic::Ordering::Relaxed)
-}
+pub use tailwind_builtin::{
+    builtin_owner_interaction_rank, builtin_tailwind_snapshot, builtin_tailwind_version,
+};
 
 // ---------------------------------------------------------------------------
 // Source spans / diagnostics
@@ -5639,7 +5625,7 @@ impl Condition {
 pub fn group_by_condition(
     declarations: &[StyleDeclaration],
 ) -> Vec<(Condition, Vec<StyleProperty>)> {
-    condition_groups(declarations, true)
+    plan_native_condition_groups(declarations).groups
 }
 
 /// CSS handles selector specificity itself. Preserve source order between
@@ -5647,22 +5633,54 @@ pub fn group_by_condition(
 pub fn group_by_condition_for_css(
     declarations: &[StyleDeclaration],
 ) -> Vec<(Condition, Vec<StyleProperty>)> {
-    condition_groups(declarations, false)
+    let (groups, needs_composition) = condition_groups(declarations);
+    if needs_composition {
+        coalesce_adjacent_conditions(groups)
+    } else {
+        groups
+    }
 }
 
-fn condition_groups(
-    declarations: &[StyleDeclaration],
-    linearize_specificity: bool,
-) -> Vec<(Condition, Vec<StyleProperty>)> {
-    let mut groups: Vec<(Condition, Vec<StyleProperty>)> = Vec::new();
+type ConditionGroup = (Condition, Vec<StyleProperty>);
+
+/// The ordered groups and the single-ranked-input proof used by Native
+/// emission. The same proof must govern both this projection and the
+/// subsequent construction of the style array.
+pub struct NativeConditionGroupPlan {
+    pub groups: Vec<ConditionGroup>,
+    pub canonical_input: bool,
+}
+
+pub fn plan_native_condition_groups(declarations: &[StyleDeclaration]) -> NativeConditionGroupPlan {
+    let (mut groups, needs_composition) = condition_groups(declarations);
+    let canonical_input = has_canonical_tailwind_input(declarations);
+    if needs_composition {
+        // An input whose shared order was assessed is already linearized.
+        // This includes backend projections that inserted register fallbacks
+        // ahead of explicit writes without changing their guards.
+        if !canonical_input {
+            linearize_native_specificity(&mut groups);
+        }
+        groups = coalesce_adjacent_conditions(groups);
+    }
+    NativeConditionGroupPlan {
+        groups,
+        canonical_input,
+    }
+}
+
+fn condition_groups(declarations: &[StyleDeclaration]) -> (Vec<ConditionGroup>, bool) {
+    let mut groups: Vec<ConditionGroup> = Vec::new();
     let mut source = None;
     let mut start = 0;
     let mut ordered = false;
+    let mut unranked_tailwind = false;
     for decl in declarations {
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
         // backwards across that rule, losing JSX tie order.
         let next_ordered = matches!(decl.source, StyleSource::TailwindOrdered { .. });
+        unranked_tailwind |= matches!(decl.source, StyleSource::TailwindUtility { .. });
         if source != Some(decl.source.input())
             || ordered != next_ordered
             || (next_ordered
@@ -5682,48 +5700,40 @@ fn condition_groups(
             None => groups.push((decl.condition.clone(), vec![decl.property.clone()])),
         }
     }
-    // One input is already in its frontend's order. The exception is a
-    // Tailwind input the shared plan could not rank (a barrier): it is in
-    // the order it was written, and Native has no cascade to restore
-    // selector weight, so the weight sort below still applies to it. Equal
-    // weights keep their written order.
-    if start == 0
-        && !declarations
-            .iter()
-            .any(|declaration| matches!(declaration.source, StyleSource::TailwindUtility { .. }))
-    {
-        return groups;
+    // A single input is already in its frontend's order unless a Tailwind
+    // barrier kept that input in authored order.
+    (groups, start != 0 || unranked_tailwind)
+}
+
+fn linearize_native_specificity(groups: &mut [ConditionGroup]) {
+    // Native arrays cannot express CSS specificity. Only project this
+    // bounded domain when every guard has known weight; unknown is not zero.
+    let mut previous = 0;
+    let mut inverted = false;
+    for (condition, _) in groups.iter() {
+        let Some(weight) = condition.owner_interaction_specificity() else {
+            return;
+        };
+        inverted |= weight < previous;
+        previous = weight;
     }
-    // Only a domain whose selector weight is known can be linearized
-    // this way on Native. Do not guess at structural/arbitrary selectors.
-    // Multiple StyleX inputs need the same rule, not just mixed frontends.
-    // The common plan already owns canonical input order. In particular a
-    // backend may project register fallbacks before explicit writes without
-    // changing their guards. Re-sorting those by the legacy condition weight
-    // would undo that projection. Unconditional semantic defaults add no
-    // selector weight; mixed/unassessed/unknown guarded inputs keep the old path.
-    if linearize_specificity
-        && legacy_ordering()
-        && !has_canonical_tailwind_input(declarations)
-        && groups
-            .iter()
-            .all(|(condition, _)| condition.owner_interaction_specificity().is_some())
-    {
-        groups.sort_by_key(|(condition, _)| condition.owner_interaction_specificity().unwrap());
+    if inverted {
+        groups.sort_by_cached_key(|(condition, _)| condition.owner_interaction_specificity());
     }
+}
+
+fn coalesce_adjacent_conditions(mut groups: Vec<ConditionGroup>) -> Vec<ConditionGroup> {
     // Consecutive equal rules are safe to coalesce, including resting
     // transforms from two inputs. Never merge across an intervening rule.
-    let mut coalesced: Vec<(Condition, Vec<StyleProperty>)> = Vec::new();
-    for (condition, props) in groups {
-        if let Some((last_condition, last_props)) = coalesced.last_mut() {
-            if *last_condition == condition {
-                last_props.extend(props);
-                continue;
-            }
+    groups.dedup_by(|later, earlier| {
+        if later.0 == earlier.0 {
+            earlier.1.append(&mut later.1);
+            true
+        } else {
+            false
         }
-        coalesced.push((condition, props));
-    }
-    coalesced
+    });
+    groups
 }
 
 /// Backend projections may preserve one assessed input's established order,
@@ -6034,6 +6044,38 @@ mod grouping_tests {
         let groups = group_by_condition(&styles);
         assert_eq!(groups[0].0, Condition::Pressed);
         assert!(matches!(groups[1].0, Condition::All(_)));
+    }
+
+    #[test]
+    fn native_group_plan_projects_known_weights_and_keeps_unknown_guards_in_place() {
+        let all = Condition::All(vec![Condition::Hover, Condition::Focus]);
+        let style = |condition, input, opacity| StyleDeclaration {
+            condition,
+            source: StyleSource::Stylex(input),
+            property: StyleProperty::Opacity(opacity),
+        };
+        let mut declarations = vec![
+            style(all.clone(), 1, 0.1),
+            style(Condition::Pressed, 2, 0.2),
+            style(all.clone(), 3, 0.3),
+        ];
+        let known = plan_native_condition_groups(&declarations);
+        assert!(!known.canonical_input);
+        assert_eq!(
+            known.groups,
+            vec![
+                (Condition::Pressed, vec![StyleProperty::Opacity(0.2)]),
+                (
+                    all.clone(),
+                    vec![StyleProperty::Opacity(0.1), StyleProperty::Opacity(0.3)]
+                ),
+            ],
+        );
+        declarations.push(style(Condition::Dark, 4, 0.4));
+        let unknown = plan_native_condition_groups(&declarations);
+        assert_eq!(unknown.groups, group_by_condition_for_css(&declarations));
+        assert_eq!(unknown.groups.len(), 4);
+        assert_eq!(unknown.groups[0].0, all);
     }
 }
 
