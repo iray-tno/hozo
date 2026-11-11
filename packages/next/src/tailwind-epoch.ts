@@ -178,13 +178,7 @@ export class NextTailwindProject {
       const revision = this.universe
       const prepared = this.#snapshot ? await this.order(revision.candidates) : undefined
       const order = prepared
-        ? [...revision.candidates].sort((a, b) => {
-            const left = prepared.lookup(a)?.firstRuleRank,
-              right = prepared.lookup(b)?.firstRuleRank
-            if (left == null) return right == null ? 0 : 1
-            if (right == null) return -1
-            return BigInt(left) < BigInt(right) ? -1 : BigInt(left) > BigInt(right) ? 1 : 0
-          })
+        ? prepared.classOrder(revision.candidates)
         : await loadProjectClassOrder(options.root, this.cache.candidates(), {
             css: options.css,
             fresh: true,

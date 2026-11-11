@@ -20,7 +20,7 @@ import { test } from 'node:test'
 import { openCandidateCache } from '@hozo/compiler'
 import { compile } from 'tailwindcss'
 
-import { loadClassOrder, tailwindPackageDir } from './theme.ts'
+import { loadClassOrder, prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 const CSS = '@import "tailwindcss";'
 
@@ -137,4 +137,22 @@ test('a token that only looked like a class keeps its place and goes last', asyn
   ])
   assert.deepEqual(ours.slice(0, 2), ['sm:block', 'md:hidden'])
   assert.deepEqual(ours.slice(2), ['notautility', 'alsonotone'])
+})
+
+test('prepared and direct Web candidate ordering agree with Tailwind CSS and preserve unknowns', async () => {
+  const names = ['2xl:block', 'hover:p-4', 'p-2', 'md:hidden', 'focus:p-2']
+  const input = ['unknown-z', ...names, 'unknown-a']
+  const prepared = await prepareTailwindOrder(CSS, tailwindPackageDir(), input)
+  const upstream = await tailwindOrder(names)
+  for (const candidates of [input, [...input].reverse()]) {
+    const expected = [...upstream, ...candidates.filter((name) => name.startsWith('unknown-'))]
+    assert.deepEqual(prepared.classOrder(candidates), expected)
+    assert.deepEqual(await loadClassOrder(CSS, tailwindPackageDir(), candidates), expected)
+  }
+  assert.deepEqual(prepared.classOrder(['p-2', 'p-2', 'uncollected']), [
+    'p-2',
+    'p-2',
+    'uncollected',
+  ])
+  assert.equal(prepared.lookup('uncollected'), null)
 })

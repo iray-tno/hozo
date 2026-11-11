@@ -57,6 +57,23 @@ export interface PreparedTailwindOrder {
   readonly snapshot: TailwindOrderSnapshot
   /** null means collect this candidate and prepare again, not rank zero. */
   readonly lookup: (candidate: string) => OrderCandidateDescriptor | null
+  /** Whole-candidate stylesheet order, not individual declaration priority. */
+  readonly classOrder: (candidates: readonly string[]) => string[]
+}
+
+export function orderByFirstRule(
+  candidates: readonly string[],
+  rank: (candidate: string) => bigint | null,
+): string[] {
+  // These are upstream ordinals, not CSS weights. Unknowns remain at the
+  // end in input order; narrowing to Number would lose integer precision.
+  return [...candidates].sort((a, b) => {
+    const left = rank(a)
+    const right = rank(b)
+    if (left === null) return right === null ? 0 : 1
+    if (right === null) return -1
+    return left < right ? -1 : left > right ? 1 : 0
+  })
 }
 
 export const orderingHash = (value: string) => createHash('sha256').update(value).digest('hex')
@@ -150,5 +167,13 @@ export function describeTailwindOrder(
   }
   const snapshot = freeze({ ...data, fingerprint: orderingHash(JSON.stringify(data)) })
   const byName = new Map(snapshot.candidates.map((entry) => [entry.candidate, entry]))
-  return Object.freeze({ snapshot, lookup: (candidate: string) => byName.get(candidate) ?? null })
+  return Object.freeze({
+    snapshot,
+    lookup: (candidate: string) => byName.get(candidate) ?? null,
+    classOrder: (requested: readonly string[]) =>
+      orderByFirstRule(requested, (name) => {
+        const rank = byName.get(name)?.firstRuleRank
+        return rank == null ? null : BigInt(rank)
+      }),
+  })
 }

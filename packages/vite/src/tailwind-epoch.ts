@@ -98,15 +98,7 @@ export class ViteTailwindEpoch {
     }
     const prepared = await this.order(names)
     this.check()
-    return [...names].sort((a, b) => {
-      const left = prepared.lookup(a)?.firstRuleRank
-      const right = prepared.lookup(b)?.firstRuleRank
-      if (left == null) return right == null ? 0 : 1
-      if (right == null) return -1
-      const x = BigInt(left),
-        y = BigInt(right)
-      return x < y ? -1 : x > y ? 1 : 0
-    })
+    return prepared.classOrder(names)
   }
 
   private order(names: readonly string[]): Promise<PreparedTailwindOrder> {
