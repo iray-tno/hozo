@@ -13,7 +13,7 @@ in the compiler:
   one ranked input.
 
 The third, the runtime state rank, lives in the generated resolver and is
-not switched here.
+not switched here. The method and original counts below are historical.
 
 ## Method
 
@@ -81,3 +81,48 @@ them, and both inputs rank (`interaction-order.test.ts`).
 
 After both changes the corpus still shows **0** components changed by
 switching the remaining sort off.
+
+## Removing the Web call to the remaining sort
+
+The Web emitter now groups in source order. It delegates specificity to CSS
+instead of applying the fallback weight sort intended for Native arrays.
+Equal-specificity rules keep their existing relative order. The Native emitter
+still uses the bounded sort for a barrier or a mixed input where it matters.
+
+The negative control deliberately puts `hover:focus:p-2` before
+`active:p-4` alongside an unassessed `columns-(--layout)`. The former Web
+emitter changed CSS when the measurement switch was toggled. It now emits
+the same CSS in both modes, with the conjunction first, while the Native
+emitter still changes its output if the needed sort is removed. The independent
+Storybook browser test compares the overlapping-state result to Tailwind CSS.
+The browser test passed on Chrome with real mouse hover and press, together
+with the existing mixed StyleX/Tailwind source-sheet comparison. The
+corpus script compiled 819 files (721 components per target, no failed
+files) and observed no changes with the measurement switch. The Web zero
+is now a control, not evidence that the Native fallback can also be deleted.
+
+## One Native runtime state selector
+
+The generated ranked plan and the whole-string fallback now prepare the same
+cached entry shape. State updates share one selection loop. The fallback
+still places resting writes before state writes, and the ranked plan can
+interleave them. It is the duplicate selector and parallel group/name arrays
+that are gone, not the fallback ordering rule. Cached resting arrays,
+original style identities (including effect metadata keys) and missing-state
+warnings are unchanged.
+
+Bounded Node 25.9, Windows, single CPU comparison against `a8f66983`.
+Same style objects and states, four rotating focus/press combinations.
+Each of three fresh processes ran nine alternating old/new samples per row:
+120,000 lookups of a cached string or 5,000 distinct strings in a fresh
+resolver. The latter include unknown inert suffixes to defeat the cache.
+Reported values are per-process medians, with no outliers removed:
+
+| Input | Warm, ns/op old → new (three runs) | Cold, µs/op old → new (three runs) |
+| --- | --- | --- |
+| Resting only | 16.1 → 14.3; 16.3 → 14.4; 16.3 → 14.5 | 1.66 → 1.66; 1.60 → 1.64; 1.78 → 1.66 |
+| Ranked, three state entries and ambient style | 126.3 → 119.2; 121.8 → 132.9; 129.5 → 121.8 | 4.92 → 3.84; 3.04 → 2.99; 3.00 → 2.91 |
+| Same input plus one unranked style (fallback) | 168.3 → 123.1; 172.1 → 122.5; 166.7 → 123.1 | 3.49 → 1.93; 3.49 → 1.92; 3.39 → 1.91 |
+
+The warm ranked row varies by process, including one slower run. These are
+small, synthetic resolver timings, not a Hermes or app frame-time claim.
