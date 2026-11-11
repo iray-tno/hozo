@@ -202,3 +202,17 @@ For 104 generated opacity candidates, the standalone module was 10,169 →
 9,649 raw bytes, 1,372 → 1,385 gzip bytes. With the uncaptured token the
 module stayed 10,228/1,412 bytes. This removes unused metadata, not a gzip
 or runtime-speed win. The 818-file static projection receipt is unchanged.
+
+## Remove the implicit Native candidate downgrade
+
+The ordinary Node candidate API previously caught an error building its
+built-in Tailwind context or rendering its final plan, then silently
+published a second module in authored order. These errors are not valid
+unassessed candidates. They now fail candidate generation, as an invalid
+captured context already does. Empty and valid partially assessed maps
+keep their earlier behavior, as does the explicit authored control.
+
+The N-API test injects an impossible empty candidate identity and verifies
+an error rather than a successful module. This does not remove the
+reachable Native resolver's selector-specificity fallback or change how
+the context-free static APIs handle invariant failures.
