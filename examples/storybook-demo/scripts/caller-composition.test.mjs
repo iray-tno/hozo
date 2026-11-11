@@ -73,6 +73,7 @@ function evaluate(code, context) {
     nativeDisabledProps,
     hozoAuthoredStyle,
     hozoGapSpreadStyles,
+    hozoShadowStyles,
     ...context,
   })
   return module.exports
@@ -198,10 +199,12 @@ for (const { file, name, slots, source, variants, classes } of uiCases) {
       StyleSheet: { create: (styles) => styles },
       useHozoDark: () => false,
       hozoSpreadStyles,
-      hozoClasses: (classes, state) => {
-        calls.push(classes)
-        return resolveUiClasses(classes, state)
-      },
+      // Observe the residual without dropping the generated resolver's
+      // identity tables or the mixed boundary's selective deferral argument.
+      hozoClasses: Object.assign((...args) => {
+        calls.push(args[0])
+        return resolveUiClasses(...args)
+      }, resolveUiClasses),
     }
     const moduleFrom = (code) => {
       const exported = evaluate(code.replace(/^import .*$/gm, ''), context)
