@@ -1654,6 +1654,42 @@ test('canonical-order baseline records current Hozo divergences without claiming
   }
 })
 
+test('Web leaves fallback conjunction specificity to the browser', {
+  skip: !executablePath,
+}, async () => {
+  const classes = 'hover:focus:p-2 active:p-4 columns-(--layout)'
+  const result = compiler.compile(
+    `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
+  )[0]
+  assert.match(result.css, /:hover:focus[\s\S]*:active/)
+  const html = renderToStaticMarkup(
+    evaluate(`module.exports=(${result.jsx})`, { h: createElement }),
+  )
+  const css = (await compile('@theme { --spacing: 0.25rem; } @tailwind utilities;')).build(
+    classes.split(' '),
+  )
+  const page = await browser.newPage()
+  const oracle = await browser.newPage()
+  try {
+    await page.setContent(`<style>${result.css}</style>${html}`)
+    await oracle.setContent(`<style>${css}</style><button class="${classes}">Target</button>`)
+    for (const target of [page, oracle]) {
+      const button = target.getByRole('button', { name: 'Target' })
+      await button.hover()
+      await target.mouse.down()
+      const state = await button.evaluate((el) => ({
+        overlap: el.matches(':hover:focus:active'),
+        padding: getComputedStyle(el).paddingTop,
+      }))
+      assert.deepEqual(state, { overlap: true, padding: '8px' })
+      await target.mouse.up()
+    }
+  } finally {
+    await page.close()
+    await oracle.close()
+  }
+})
+
 test('mixed StyleX/Tailwind inputs match independently ordered source sheets on both targets', {
   skip: !executablePath,
 }, async () => {

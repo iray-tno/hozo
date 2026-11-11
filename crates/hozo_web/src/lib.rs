@@ -1107,7 +1107,7 @@ fn push_rules_using(
     diagnostics: &mut Vec<Diagnostic>,
     render: fn(&str, &hozo_ir::Condition, &[hozo_ir::StyleProperty], &Theme) -> String,
 ) {
-    let mut groups: Vec<_> = hozo_ir::group_by_condition(style)
+    let mut groups: Vec<_> = hozo_ir::group_by_condition_for_css(style)
         .into_iter()
         .map(|(condition, props)| {
             (

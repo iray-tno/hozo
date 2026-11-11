@@ -1,13 +1,13 @@
 // What the ordering outside the shared plan still decides in this
-// repository (RFC 007, #1230): the interaction sort and the condition-weight
-// group sort, the two the progress scale's stage 6 asks to delete.
+// repository (RFC 007, #1230): the remaining Native condition-weight sort.
 //
 // Every file of the coverage corpus is compiled twice, for Web and Native,
-// with those mechanisms on and off (`setLegacyOrderingForMeasurement`), in
+// with the Native sort on and off (`setLegacyOrderingForMeasurement`), in
 // the same Tailwind context as `tailwind-order-coverage.mjs`. A component
 // whose output differs is one the old path still decides; the report names
 // it with the class lists of the node that changed. The runtime state rank
-// is not switched here: it lives in the generated resolver.
+// is not switched here: it lives in the generated resolver. Web output
+// no longer depends on the switch; its reported differences are a control.
 //
 // Read-only. `--json` prints every difference.
 //

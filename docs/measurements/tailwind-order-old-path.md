@@ -13,7 +13,7 @@ in the compiler:
   one ranked input.
 
 The third, the runtime state rank, lives in the generated resolver and is
-not switched here.
+not switched here. The method and original counts below are historical.
 
 ## Method
 
@@ -81,3 +81,22 @@ them, and both inputs rank (`interaction-order.test.ts`).
 
 After both changes the corpus still shows **0** components changed by
 switching the remaining sort off.
+
+## Removing the Web call to the remaining sort
+
+The Web emitter now groups in source order. It delegates specificity to CSS
+instead of applying the fallback weight sort intended for Native arrays.
+Equal-specificity rules keep their existing relative order. The Native emitter
+still uses the bounded sort for a barrier or a mixed input where it matters.
+
+The negative control deliberately puts `hover:focus:p-2` before
+`active:p-4` alongside an unassessed `columns-(--layout)`. The former Web
+emitter changed CSS when the measurement switch was toggled. It now emits
+the same CSS in both modes, with the conjunction first, while the Native
+emitter still changes its output if the needed sort is removed. The independent
+Storybook browser test compares the overlapping-state result to Tailwind CSS.
+The browser test passed on Chrome with real mouse hover and press, together
+with the existing mixed StyleX/Tailwind source-sheet comparison. The
+corpus script compiled 819 files (721 components per target, no failed
+files) and observed no changes with the measurement switch. The Web zero
+is now a control, not evidence that the Native fallback can also be deleted.

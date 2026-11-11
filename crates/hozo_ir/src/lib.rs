@@ -5639,6 +5639,21 @@ impl Condition {
 pub fn group_by_condition(
     declarations: &[StyleDeclaration],
 ) -> Vec<(Condition, Vec<StyleProperty>)> {
+    condition_groups(declarations, true)
+}
+
+/// CSS handles selector specificity itself. Preserve source order between
+/// groups, particularly the input order that breaks equal-specificity ties.
+pub fn group_by_condition_for_css(
+    declarations: &[StyleDeclaration],
+) -> Vec<(Condition, Vec<StyleProperty>)> {
+    condition_groups(declarations, false)
+}
+
+fn condition_groups(
+    declarations: &[StyleDeclaration],
+    linearize_specificity: bool,
+) -> Vec<(Condition, Vec<StyleProperty>)> {
     let mut groups: Vec<(Condition, Vec<StyleProperty>)> = Vec::new();
     let mut source = None;
     let mut start = 0;
@@ -5687,7 +5702,8 @@ pub fn group_by_condition(
     // changing their guards. Re-sorting those by the legacy condition weight
     // would undo that projection. Unconditional semantic defaults add no
     // selector weight; mixed/unassessed/unknown guarded inputs keep the old path.
-    if legacy_ordering()
+    if linearize_specificity
+        && legacy_ordering()
         && !has_canonical_tailwind_input(declarations)
         && groups
             .iter()
