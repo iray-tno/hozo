@@ -139,3 +139,20 @@ The emitted integer representation and whole-string fallback policy remain.
 and compares all 15 nonempty combinations of hover, focus, focus-visible and
 active with real Tailwind CSS ordered by selector weight and emission order.
 Disabled still has a tuple but no fallback rank in this bounded domain.
+
+## Explicit Native condition projection
+
+Source-aware grouping no longer decides whether to apply a backend-specific
+sort. The Native plan returns ordered groups and the single-ranked-input proof
+to the same emitter, replacing its separate provenance scan. The Native
+projection does no sort for already monotone or unknown weights. It sorts
+known inversions stably and coalesces adjacent groups in place. The pre-ranked
+Tailwind order and the mixed-source equal-weight order are unchanged.
+
+A new IR test covers a stronger conjunction separated from an equal
+conjunction by a weaker condition, and the same input with an unassessed
+dark guard. The latter must not be assigned weight zero. Against the parent
+addon, normal output for 818 files (721 components per target) matched
+byte for byte across Web JSX/CSS, Native JSX/styles, and both diagnostics.
+The generated text fixture's compiler-source hashes are not part of that
+corpus. The process-wide measurement switch is still present in this step.
