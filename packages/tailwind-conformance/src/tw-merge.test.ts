@@ -172,6 +172,24 @@ import { cn } from '@/lib/utils'
 export const A = () => <View className={${expression}} />`
 }
 
+async function compileBothRoutes(compiler: ReturnType<typeof createCompiler>, input: string) {
+  const web = compiler.prepareWebModule(input)
+  const native = compiler.prepareNativeModule(input)
+  const candidates = [...new Set([...web.candidates, ...native.candidates])]
+  const { snapshot } = await prepareTailwindOrder(
+    '@import "tailwindcss/theme.css";',
+    tailwindPackageDir(),
+    candidates,
+  )
+  const context = prepareTailwindContext(JSON.stringify(snapshot))
+  return [
+    compiler.compile(input),
+    compiler.compileNative(input),
+    web.emit(context),
+    native.emit(context).components,
+  ]
+}
+
 test('ordinary and prepared lowering preserve shadowed helper calls and compile the import alias', async () => {
   const compiler = createTwMergeCompiler()
   for (const specifier of ['tailwind-merge', '@/lib/utils']) {
@@ -180,21 +198,7 @@ test('ordinary and prepared lowering preserve shadowed helper calls and compile 
     const input = `${imports}
       export const Local = (merge) => <View className={merge('p-4', 'p-2')} />
       export const Imported = () => <View className={merge('p-4', 'p-2')} />`
-    const web = compiler.prepareWebModule(input)
-    const native = compiler.prepareNativeModule(input)
-    const candidates = [...new Set([...web.candidates, ...native.candidates])]
-    const { snapshot } = await prepareTailwindOrder(
-      '@import "tailwindcss/theme.css";',
-      tailwindPackageDir(),
-      candidates,
-    )
-    const context = prepareTailwindContext(JSON.stringify(snapshot))
-    for (const [local, imported] of [
-      compiler.compile(input),
-      compiler.compileNative(input),
-      web.emit(context),
-      native.emit(context).components,
-    ]) {
+    for (const [local, imported] of await compileBothRoutes(compiler, input)) {
       const calls: string[][] = []
       render(local.jsx, {
         View: 'View',
@@ -207,6 +211,51 @@ test('ordinary and prepared lowering preserve shadowed helper calls and compile 
       })
       assert.deepEqual(calls, [['p-4', 'p-2']])
       assert.doesNotMatch(imported.jsx, /\bmerge\(/)
+    }
+  }
+})
+
+test('empty merge branches keep evaluation order, short-circuiting and errors on both routes', async () => {
+  const compiler = createTwMergeCompiler()
+  const expressions = [
+    ["cn(visit(0) ? visit(1) ? '' : '' : '', visit(2) && 'p-2', visit(3) && '')", true],
+    ["cn(visit(0) ? visit(1) ? '' : '' : '', visit(2) ? '' : '', visit(3) && '')", true],
+    ["cn(visit(0) && (visit(1) ? '' : ''), visit(2) && 'p-2', visit(3) && '')", false],
+  ] as const
+  for (const [expression, compiled] of expressions) {
+    for (const [result] of await compileBothRoutes(compiler, source(expression))) {
+      assert.equal(!/\bcn\(/.test(result.jsx), compiled, result.jsx)
+      for (const first of [false, true]) {
+        const calls: number[] = []
+        const visit = (index: number) => {
+          calls.push(index)
+          return index !== 0 || first
+        }
+        const scope = {
+          View: 'View',
+          hozoStyles: {},
+          hozoClasses: (classes: unknown) => classes,
+          cn: twMerge,
+          visit,
+        }
+        render(result.jsx, scope)
+        assert.deepEqual(calls, first ? [0, 1, 2, 3] : [0, 2, 3])
+        const failure = new Error('empty class predicate failed')
+        calls.length = 0
+        assert.throws(
+          () =>
+            render(result.jsx, {
+              ...scope,
+              visit: (index: number) => {
+                calls.push(index)
+                if (index === 3) throw failure
+                return first
+              },
+            }),
+          (error) => error === failure,
+        )
+        assert.deepEqual(calls, first ? [0, 1, 2, 3] : [0, 2, 3])
+      }
     }
   }
 })

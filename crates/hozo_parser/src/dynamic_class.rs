@@ -72,8 +72,11 @@ pub struct Decomposed {
     /// The optional guarded-template proof is irrelevant to other legacy
     /// failures; do not decompose ordinary opaque branches a second time.
     pub guarded_template: bool,
-    /// Authored predicates still run even when merging removes all their classes.
+    /// Authored predicates still run when their branch emits no classes.
     pub evaluation_refs: Vec<ExprRef>,
+    /// A closed helper may disappear entirely, so its predicates are collected
+    /// from the expression before utility expansion or conflict elimination.
+    capture_predicates: bool,
     /// Per-declaration token metadata for `twMerge` conflict resolution.
     pub(crate) declaration_tokens: Vec<Option<crate::tw_merge::ClassifiedToken>>,
     pub(crate) declaration_guards: Vec<Option<ConditionExpr>>,
@@ -554,7 +557,10 @@ fn decompose(
             let mut parts = Vec::new();
             if capture_templates {
                 for expression in &template.expressions {
-                    let mut part = Decomposed::default();
+                    let mut part = Decomposed {
+                        capture_predicates: out.capture_predicates,
+                        ..Decomposed::default()
+                    };
                     decompose(
                         classify_expression(expression),
                         condition.clone(),
@@ -633,6 +639,9 @@ fn decompose(
             }
         }
         Target::Logical(logical) => {
+            if out.capture_predicates {
+                out.evaluation_refs.push(to_expr_ref(logical.left.span()));
+            }
             let guarded = and_ref(&condition, logical.left.span());
             let guard = guard.or(Some(logical.span));
             decompose(
@@ -645,6 +654,9 @@ fn decompose(
             );
         }
         Target::Conditional(cond) => {
+            if out.capture_predicates {
+                out.evaluation_refs.push(to_expr_ref(cond.test.span()));
+            }
             let guard = guard.or(Some(cond.span));
             let when_true = and_ref(&condition, cond.test.span());
             decompose(
@@ -751,7 +763,10 @@ fn decompose_closed_call(
     let merge_conflicts =
         is_recognized_cx_call(&call.callee, module_record) == Some(HelperKind::Merge);
     let whole_span = guard.unwrap_or(call.span);
-    let mut sub = Decomposed::default();
+    let mut sub = Decomposed {
+        capture_predicates: true,
+        ..Decomposed::default()
+    };
     for arg in &call.arguments {
         decompose(
             classify_argument(arg),
@@ -769,10 +784,6 @@ fn decompose_closed_call(
         fall_back_to(out, whole_span);
         return;
     }
-    for authored_guard in sub.declaration_guards.iter().flatten() {
-        evaluation::collect_guards(authored_guard, &mut sub.evaluation_refs);
-    }
-
     let n = sub.declarations.len();
     let mut dropped = vec![false; n];
     let mut extra_guards: Vec<Vec<ConditionExpr>> = vec![Vec::new(); n];

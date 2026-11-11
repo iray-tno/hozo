@@ -23,7 +23,7 @@ pub(crate) fn capture_template_parts(
     Some((decomposed, evaluation))
 }
 
-pub(super) fn collect_guards(expression: &ConditionExpr, out: &mut Vec<ExprRef>) {
+fn collect_guards(expression: &ConditionExpr, out: &mut Vec<ExprRef>) {
     match expression {
         ConditionExpr::Ref(reference) => out.push(*reference),
         ConditionExpr::Not(inner) => collect_guards(inner, out),
