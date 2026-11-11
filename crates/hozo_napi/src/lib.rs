@@ -1204,13 +1204,16 @@ impl CandidateCache {
     /// Taken as a hint rather than as the list to render: what is rendered
     /// is still this cache's own union, sorted by position in `order`, so
     /// a caller that passes a stale or partial list gets a complete
-    /// stylesheet in a worse order rather than a missing rule. Omitted --
-    /// which `@hozo/next` does while the config is still being evaluated,
-    /// for the same reason it passes no theme there -- keeps the
-    /// alphabetical order.
+    /// stylesheet in a worse order rather than a missing rule. Without a
+    /// project hint, use the compiler's built-in Tailwind descriptors.
     #[napi]
-    pub fn render_css(&self, theme: Option<JsTheme>, order: Option<Vec<String>>) -> String {
+    pub fn render_css(
+        &self,
+        theme: Option<JsTheme>,
+        order: Option<Vec<String>>,
+    ) -> napi::Result<String> {
         let mut names = self.inner.union();
+        let theme = to_theme(theme);
         if let Some(order) = order {
             let rank: std::collections::HashMap<&str, usize> = order
                 .iter()
@@ -1221,8 +1224,12 @@ impl CandidateCache {
             // and go last, which is where Tailwind puts what it does not
             // recognise.
             names.sort_by_key(|name| rank.get(name.as_str()).copied().unwrap_or(usize::MAX));
+            Ok(hozo_web::render_candidate_stylesheet(&names, &theme))
+        } else {
+            hozo_web::render_builtin_candidate_stylesheet(&names, &theme).map_err(|reason| {
+                napi::Error::from_reason(format!("Cannot order Web candidates: {reason}"))
+            })
         }
-        hozo_web::render_candidate_stylesheet(&names, &to_theme(theme))
     }
 
     /// Every candidate this cache holds, so a caller can ask Tailwind what

@@ -216,3 +216,24 @@ The N-API test injects an impossible empty candidate identity and verifies
 an error rather than a successful module. This does not remove the
 reachable Native resolver's selector-specificity fallback or change how
 the context-free static APIs handle invariant failures.
+
+## Remove the alphabetical Web candidate default
+
+Without a project order hint, `renderCss` now uses the same built-in rule
+comparator as the static compiler. Rendering reuses the parsed utilities.
+Explicit captured hints still take precedence; undescribed forms still
+render after described forms. The alphabetically sorted cache union is
+still a stable inventory, not a CSS precedence policy.
+
+The real Tailwind 4.3.3 regression includes numeric padding, hover/active,
+and three breakpoints; an explicit alphabetical sheet is the failing
+control. The ordinary Chromium corpus matched Tailwind in all 60
+default-candidate observations. The ordered project and static Web
+routes also matched 60/60. The two Native routes each matched 56/60;
+this Web change does not alter those platform differences.
+
+Scoped debug build timings (median of 30 warm calls; not an app or runtime
+benchmark): 256 candidates took 6.46 → 9.29 ms without a hint, and 1,024
+took 24.68 → 37.60 ms. The 1,024-candidate explicit-hint control took
+27.30 → 25.99 ms. Generated raw sizes were unchanged; the difference is
+rule order. No JS resolver or browser-side work was added.
