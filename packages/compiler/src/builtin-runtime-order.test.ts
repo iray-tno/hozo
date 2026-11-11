@@ -61,6 +61,33 @@ test('unranked runtime input keeps its entire authored path, not a ranked subset
   assert.equal(flatten(resolve('filter-none')).filter, 'none')
 })
 
+test('uniform fallback ranks need no tuple metadata but competing owner states still do', () => {
+  const uniform = fixture(['hover:opacity-25', 'hover:opacity-75', 'filter-none'])
+  const uniformCode = uniform.renderNativeModule()
+  assert.doesNotMatch(uniformCode, /\{ opacity: [\d.]+ \}, \d+\]/)
+  const resolve = resolver(uniformCode)
+  // filter-none forces the whole input off the compact plan, so this checks
+  // authored tie order in the actual generated fallback.
+  const state = { hovered: true, pressed: true }
+  assert.equal(
+    flatten(resolve('hover:opacity-75 filter-none hover:opacity-25', state)).opacity,
+    0.25,
+  )
+  assert.equal(
+    flatten(resolve('hover:opacity-25 filter-none hover:opacity-75', state)).opacity,
+    0.75,
+  )
+
+  const competing = fixture(['hover:opacity-25', 'active:opacity-75', 'filter-none'])
+  const competingCode = competing.renderNativeModule()
+  assert.match(competingCode, /\{ opacity: 0.75 \}, \d+\]/)
+  assert.equal(
+    flatten(resolver(competingCode)('active:opacity-75 filter-none hover:opacity-25', state))
+      .opacity,
+    0.75,
+  )
+})
+
 test('the authored negative control remains distinct from default runtime output', () => {
   const cache = fixture(['p-2', 'p-4'])
   // Use the existing authored test capability, not a new production flag.

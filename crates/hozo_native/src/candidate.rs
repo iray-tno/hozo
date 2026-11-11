@@ -329,6 +329,15 @@ fn render_candidate_module_impl(
     let states_argument = if states.is_empty() {
         ""
     } else {
+        // Tied owner groups always keep the authored string order in the
+        // fallback. Don't ship rank data if no pair could change that order.
+        // The separate captured/built-in plan still carries its full ranks.
+        let mut owner_ranks = states
+            .iter()
+            .flat_map(|(_, groups)| groups.iter().filter_map(|group| group.order));
+        let emit_owner_ranks = owner_ranks
+            .next()
+            .is_some_and(|first| owner_ranks.any(|rank| rank != first));
         out.push_str("const states = {\n");
         for (name, groups) in &states {
             let groups: Vec<String> = groups
@@ -342,6 +351,7 @@ fn render_candidate_module_impl(
                         .collect();
                     let order = group
                         .order
+                        .filter(|_| emit_owner_ranks)
                         .map(|key| format!(", {key}"))
                         .unwrap_or_default();
                     format!("[[{}], {{ {} }}{order}]", keys.join(", "), pairs.join(", "))

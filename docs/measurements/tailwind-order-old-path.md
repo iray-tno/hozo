@@ -171,3 +171,18 @@ ordering to prove that the more specific condition wins.
 before/after changes. With a fresh addon on both revisions, compare its
 JSON record; missing or broken compiles fail rather than looking equal. The
 818-file receipt from the previous step is unchanged after this deletion.
+
+## Omit equal fallback ranks
+
+Candidate modules only serialize the optional fallback rank on state tuples
+when at least two known ranks differ in the namespace. Equal ranks already
+keep authored order; a string with an unknown rank still falls back as
+before. The compact built-in/captured priority table is unaffected.
+
+The generated-module test puts an unranked `filter-none` between two state
+classes, checks both equal-rank input orders, and checks that an earlier
+higher-rank class still wins across different states. A cache scan of 51
+`hover:opacity-0` … `hover:opacity-100` candidates produced 4,883 → 4,628 raw
+bytes, 778 → 773 gzip bytes. Two unconditional candidates stayed 450/272
+bytes; a three-candidate map with competing states stayed 644/327 bytes.
+These are standalone generated module sizes, not app bundle results.
