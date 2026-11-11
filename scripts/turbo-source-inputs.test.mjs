@@ -12,6 +12,7 @@ const config = JSON.parse(readFileSync(new URL('../turbo.json', import.meta.url)
 const reads = {
   '@hozo/landing#test': ['scripts/browser-audit-diagnostics.mjs'],
   '@hozo/tailwind#test': [
+    'packages/engine/src/shadow-slots.ts',
     'packages/engine/src/gradient-slots.ts',
     'packages/engine/src/filter-slots.ts',
     'crates/hozo_web/src/lib.rs',
@@ -42,6 +43,7 @@ const reads = {
     'examples/storybook-demo/tsconfig.json',
   ],
   '@hozo/compiler#test': [
+    'packages/engine/src/shadow-slots.ts',
     'packages/engine/src/gradient-slots.ts',
     'packages/engine/src/filter-slots.ts',
     'crates/hozo_web/src/css.rs',
@@ -144,6 +146,8 @@ const reads = {
     'packages/primitives/src/link.native.tsx',
     'packages/engine/src/generated/class-resolver.ts',
     'packages/engine/src/generated/transform-slots.ts',
+    'packages/engine/src/generated/shadow-slots.ts',
+    'packages/engine/src/shadow-slots.ts',
     'crates/hozo_ir/src/theme.rs',
     'crates/hozo_parser/src/tailwind.rs',
     'Cargo.toml',

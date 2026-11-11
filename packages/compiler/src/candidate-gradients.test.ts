@@ -121,7 +121,7 @@ test('plain selected strings bypass composition and constructor-only maps keep t
   resolve('p-4')
   assert.equal(count(), 0)
   for (const names of [['p-4'], ['bg-linear-to-r', 'bg-radial']])
-    assert.doesNotMatch(fixture(names).code, /gradient-slots|const gradients/)
+    assert.doesNotMatch(fixture(names).code, /generated\/gradient-slots/)
   assert.equal(flat(fixture(['from-red-500']).resolve('from-red-500')).backgroundImage, undefined)
 })
 

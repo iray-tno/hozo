@@ -101,6 +101,10 @@
       "types": "./dist/generated/scrollable.d.ts",
       "default": "./dist/generated/scrollable.js"
     },
+    "./generated/shadow-slots": {
+      "types": "./dist/generated/shadow-slots.d.ts",
+      "default": "./dist/generated/shadow-slots.js"
+    },
     "./generated/spread-styles": {
       "types": "./dist/generated/spread-styles.d.ts",
       "default": "./dist/generated/spread-styles.js"

@@ -200,6 +200,10 @@
       "types": "./dist/generated/scrollable.d.ts",
       "default": "./dist/generated/scrollable.js"
     },
+    "./generated/shadow-slots": {
+      "types": "./dist/generated/shadow-slots.d.ts",
+      "default": "./dist/generated/shadow-slots.js"
+    },
     "./generated/spaced": {
       "types": "./dist/generated/spaced.d.ts",
       "default": "./dist/generated/spaced.js"

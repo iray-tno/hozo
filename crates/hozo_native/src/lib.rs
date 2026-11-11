@@ -66,6 +66,7 @@ mod pattern;
 mod pattern_layout;
 mod render;
 mod runtime_classes;
+mod shadows;
 mod source_evidence;
 mod spread_style;
 mod style;

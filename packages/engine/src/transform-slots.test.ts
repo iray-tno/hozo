@@ -121,6 +121,18 @@ test('a project-sized candidate index is queried only for the styles actually re
   ])
 })
 
+test('a candidate composer preserves identities when a different family is deferred', () => {
+  const specs = new Map([baseSpec])
+  const result = hozoTransformStyles([base], specs, undefined, true)
+  assert.equal(result[0], base)
+  assert.deepEqual(transform(result), [
+    { translateX: 8 },
+    { rotate: '45deg' },
+    { scaleX: 0.95 },
+    { scaleY: 0.95 },
+  ])
+})
+
 test('a two-dimensional scale disables the Z slot without destroying its register', () => {
   const matrix = { matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 1] }
   const z = { transform: [matrix] }

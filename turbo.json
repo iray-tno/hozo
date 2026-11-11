@@ -89,6 +89,7 @@
         "$TURBO_ROOT$/packages/engine/src/transform-slots.ts",
         "$TURBO_ROOT$/packages/engine/src/filter-slots.ts",
         "$TURBO_ROOT$/packages/engine/src/gradient-slots.ts",
+        "$TURBO_ROOT$/packages/engine/src/shadow-slots.ts",
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_portable.rs"
@@ -233,6 +234,8 @@
         "$TURBO_ROOT$/packages/engine/src/gap-styles.ts",
         "$TURBO_ROOT$/packages/engine/src/generated/class-resolver.ts",
         "$TURBO_ROOT$/packages/engine/src/generated/transform-slots.ts",
+        "$TURBO_ROOT$/packages/engine/src/generated/shadow-slots.ts",
+        "$TURBO_ROOT$/packages/engine/src/shadow-slots.ts",
         "$TURBO_ROOT$/packages/engine/src/class-resolver.ts",
         "$TURBO_ROOT$/packages/compiler/src/**",
         "$TURBO_ROOT$/examples/showcase/src/**",

@@ -40,6 +40,12 @@ fn slots(property: &StyleProperty) -> u32 {
     }
 }
 
+pub(super) fn can_mix(declarations: &[hozo_ir::StyleDeclaration]) -> bool {
+    declarations
+        .iter()
+        .any(|d| slots(&d.property) != 0 || is_control(&d.property))
+}
+
 /// Whether two conditions write different transform slots.
 ///
 /// Each condition's style object carries a whole `transform` array, and RN

@@ -40,6 +40,15 @@ fn unassessed(property: &StyleProperty) -> bool {
         || matches!(property, StyleProperty::GradientStopPosition(_, value) if !matches!(value, Dimension::Percent(_)))
 }
 
+pub(super) fn can_mix(declarations: &[StyleDeclaration]) -> bool {
+    declarations.iter().any(|d| slot(&d.property) != 0)
+        && !declarations.iter().any(|d| {
+            unassessed(&d.property)
+                || matches!(&d.property, StyleProperty::Arbitrary(name, _)
+                    if name == "background-image" || name == "backgroundImage")
+        })
+}
+
 pub(super) fn split_across_conditions(declarations: &[StyleDeclaration]) -> bool {
     if declarations.iter().any(|d| unassessed(&d.property)) {
         return false;

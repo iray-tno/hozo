@@ -18,6 +18,7 @@ export function hozoGradientStyles(
   styles: readonly GradientStyle[],
   specs: readonly GradientSpec[] | ReadonlyMap<Style, GradientSlots>,
   defaults: GradientDefaults,
+  candidates?: ReadonlyMap<Style, GradientSlots>,
 ): (Style | number)[] {
   const metadata: ReadonlyMap<Style, GradientSlots> = Array.isArray(specs)
     ? new Map(specs)
@@ -42,7 +43,7 @@ export function hozoGradientStyles(
     }
     const object = style as Style
     result.push(object)
-    const slots = metadata.get(object)
+    const slots = metadata.get(object) ?? candidates?.get(object)
     if (!slots) {
       if ('backgroundImage' in object) {
         state.image = undefined

@@ -23,6 +23,8 @@ export type TransformStyle = Style | false | null | undefined | readonly Transfo
 export function hozoTransformStyles(
   styles: readonly TransformStyle[],
   specs: readonly TransformSpec[] | ReadonlyMap<Style, TransformSlots>,
+  candidates?: ReadonlyMap<Style, TransformSlots>,
+  preserveIdentities = false,
 ): Style[] {
   // Candidate maps can contain thousands of entries. They pre-index once;
   // resolving one class string must never walk the entire project map.
@@ -57,7 +59,7 @@ export function hozoTransformStyles(
       return
     }
     const object = style as Style
-    const slots = metadata.get(object)
+    const slots = metadata.get(object) ?? candidates?.get(object)
     if (!slots) {
       result.push(object)
       // An authored RN transform is a whole-array override, not CSS slots.
@@ -73,8 +75,14 @@ export function hozoTransformStyles(
       }
       return
     }
-    const { transform: _transform, ...rest } = object
-    if (Object.keys(rest).length) result.push(rest)
+    if (preserveIdentities) {
+      // A deferred family (e.g. gradient stops) may also index this object.
+      // The final transform still wins without copying away that identity.
+      result.push(object)
+    } else {
+      const { transform: _transform, ...rest } = object
+      if (Object.keys(rest).length) result.push(rest)
+    }
     touched = true
     if (slots.rotate) rotate = slots.rotate
     if (slots.scale3d !== undefined) scale3d = slots.scale3d

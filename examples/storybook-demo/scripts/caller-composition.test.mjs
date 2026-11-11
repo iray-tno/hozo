@@ -28,6 +28,7 @@ import { compile } from 'tailwindcss'
 import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
 import { hozoTextMetricStyles } from '../../../packages/engine/src/class-resolver.ts'
 import { hozoGapSpreadStyles } from '../../../packages/engine/src/gap-styles.ts'
+import { hozoShadowStyles } from '../../../packages/engine/src/generated/shadow-slots.ts'
 import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 import { nativeDisabledProps } from '../../../packages/primitives/src/native-disabled.ts'
@@ -72,6 +73,7 @@ function evaluate(code, context) {
     nativeDisabledProps,
     hozoAuthoredStyle,
     hozoGapSpreadStyles,
+    hozoShadowStyles,
     ...context,
   })
   return module.exports
@@ -172,7 +174,7 @@ uiCache.scanFile('radius-callers.ts', JSON.stringify(radiusCandidates.join(' '))
 const uiCandidates = uiCache.renderCss(uiTheme)
 const { hozoClasses: resolveUiClasses } = evaluate(
   uiCache.renderNativeModule(uiTheme).replace(/^import .*$/gm, ''),
-  { createClassResolver, hozoTextMetricStyles },
+  { createClassResolver, hozoTextMetricStyles, hozoShadowStyles },
 )
 
 for (const { file, name, slots, source, variants, classes } of uiCases) {
@@ -197,10 +199,12 @@ for (const { file, name, slots, source, variants, classes } of uiCases) {
       StyleSheet: { create: (styles) => styles },
       useHozoDark: () => false,
       hozoSpreadStyles,
-      hozoClasses: (classes, state) => {
-        calls.push(classes)
-        return resolveUiClasses(classes, state)
-      },
+      // Observe the residual without dropping the generated resolver's
+      // identity tables or the mixed boundary's selective deferral argument.
+      hozoClasses: Object.assign((...args) => {
+        calls.push(args[0])
+        return resolveUiClasses(...args)
+      }, resolveUiClasses),
     }
     const moduleFrom = (code) => {
       const exported = evaluate(code.replace(/^import .*$/gm, ''), context)

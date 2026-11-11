@@ -982,17 +982,31 @@ pub(super) fn render_node(
     });
     let (child_declarations, own_declarations): (Vec<_>, Vec<_>) =
         own_declarations.partition(|d| style::is_child_scoped(&d.property));
-    let compose_filters =
-        component != "HozoAnimated" && crate::filters::split_across_conditions(&own_declarations);
-    let compose_gradients =
-        component != "HozoAnimated" && crate::gradients::split_across_conditions(&own_declarations);
-    // Copying base filter registers into every condition would overwrite a
+    let mixed_effect_boundary = matches!(node.primitive, Primitive::View | Primitive::Pressable)
+        && component != "HozoAnimated"
+        && !node.props.has_spread()
+        && !node.class_name_fallback.is_empty();
+    let mixed_shadows = mixed_effect_boundary && crate::shadows::can_mix(&own_declarations);
+    let mixed_gradients = mixed_effect_boundary && crate::gradients::can_mix(&own_declarations);
+    let mixed_transforms = mixed_effect_boundary && crate::transforms::can_mix(&own_declarations);
+    let mixed_filters = mixed_effect_boundary && crate::filters::can_mix(&own_declarations);
+    let compose_filters = mixed_filters
+        || (component != "HozoAnimated"
+            && crate::filters::split_across_conditions(&own_declarations));
+    let compose_gradients = mixed_gradients
+        || (component != "HozoAnimated"
+            && crate::gradients::split_across_conditions(&own_declarations));
+    let compose_shadows = mixed_shadows
+        || (component != "HozoAnimated"
+            && crate::shadows::split_across_conditions(&own_declarations));
+    // Copying base effect registers into every condition would overwrite a
     // different active condition's value when the runtime joins the slots.
     let own_declarations = style::fold_base_layers(
         own_declarations,
         style::ComposedLayers {
             filters: compose_filters,
             gradients: compose_gradients,
+            shadows: compose_shadows,
         },
     );
 
@@ -1065,12 +1079,13 @@ pub(super) fn render_node(
     } else {
         None
     };
-    let transform_specs = if (own_declarations
-        .iter()
-        .any(|d| crate::transforms::is_control(&d.property))
-        && own_declarations
+    let transform_specs = if mixed_transforms
+        || (own_declarations
             .iter()
-            .any(|d| d.condition != Condition::Always))
+            .any(|d| crate::transforms::is_control(&d.property))
+            && own_declarations
+                .iter()
+                .any(|d| d.condition != Condition::Always))
         || crate::transforms::split_across_conditions(
             own_declarations.iter().map(|d| (&d.property, &d.condition)),
         ) {
@@ -1088,6 +1103,19 @@ pub(super) fn render_node(
     } else {
         String::new()
     };
+    let shadow_specs = if compose_shadows {
+        crate::shadows::specs(&cx.style_entries[transform_entry_start..], theme)
+    } else {
+        String::new()
+    };
+    let mixed_shadows = mixed_shadows && !shadow_specs.is_empty();
+    let mixed_gradients = mixed_gradients && !gradient_specs.is_empty();
+    let mixed_transforms = mixed_transforms && !transform_specs.is_empty();
+    let mixed_filters = mixed_filters && !filter_specs.is_empty();
+    let deferred_effects = u8::from(mixed_shadows) * crate::candidate::DEFER_SHADOW
+        + u8::from(mixed_gradients) * crate::candidate::DEFER_GRADIENT
+        + u8::from(mixed_transforms) * crate::candidate::DEFER_TRANSFORM
+        + u8::from(mixed_filters) * crate::candidate::DEFER_FILTER;
     let starting_parts = frames.starting;
     let exit_parts = frames.exit;
     if own_declarations
@@ -1177,9 +1205,13 @@ pub(super) fn render_node(
                 let value = captured
                     .as_deref()
                     .unwrap_or_else(|| source_text(source, *expr_ref));
-                match &class_state {
-                    Some(state) => format!("hozoClasses({value}, {state})"),
-                    None => format!("hozoClasses({value})"),
+                match (&class_state, deferred_effects) {
+                    (Some(state), 0) => format!("hozoClasses({value}, {state})"),
+                    (None, 0) => format!("hozoClasses({value})"),
+                    (state, effects) => format!(
+                        "hozoClasses({value}, {}, {effects})",
+                        state.as_deref().unwrap_or("undefined")
+                    ),
                 }
             })
             .collect()
@@ -1521,6 +1553,42 @@ pub(super) fn render_node(
     // Style attributes a spread could replace are held here and composed
     // with the spreads where those are emitted (`spread_style`).
     let mut held = crate::spread_style::HeldStyles::new(&node.props.passthrough);
+    if mixed_shadows && !shadow_specs.is_empty() {
+        // Resolve class contributions before authored styles; even an opaque
+        // registered RN style ID remains last and can override the result.
+        cx.runtime.need_component("hozoShadowStyles");
+        style_array_parts = vec![format!(
+            "hozoShadowStyles([{}], [{}], {}, hozoClasses.shadowSlots)",
+            style_array_parts.join(", "),
+            shadow_specs,
+            crate::shadows::defaults()
+        )];
+    }
+    if mixed_gradients {
+        cx.runtime.need_component("hozoGradientStyles");
+        style_array_parts = vec![format!(
+            "hozoGradientStyles([{}], [{}], {}, hozoClasses.gradientSlots)",
+            style_array_parts.join(", "),
+            gradient_specs,
+            crate::gradients::defaults()
+        )];
+    }
+    if mixed_filters {
+        cx.runtime.need_component("hozoFilterStyles");
+        style_array_parts = vec![format!(
+            "hozoFilterStyles([{}], [{}], hozoClasses.filterSlots ?? null)",
+            style_array_parts.join(", "),
+            filter_specs
+        )];
+    }
+    if mixed_transforms {
+        cx.runtime.need_component("hozoTransformStyles");
+        style_array_parts = vec![format!(
+            "hozoTransformStyles([{}], [{}], hozoClasses.transformSlots)",
+            style_array_parts.join(", "),
+            transform_specs
+        )];
+    }
     if (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some() {
         if !authored_style.is_empty() {
             held.emit(
@@ -1532,7 +1600,16 @@ pub(super) fn render_node(
         style_array_parts.extend(authored_style);
     }
 
-    if !gradient_specs.is_empty() {
+    if !mixed_shadows && !shadow_specs.is_empty() {
+        cx.runtime.need_component("hozoShadowStyles");
+        style_array_parts = vec![format!(
+            "hozoShadowStyles([{}], [{}], {})",
+            style_array_parts.join(", "),
+            shadow_specs,
+            crate::shadows::defaults()
+        )];
+    }
+    if !mixed_gradients && !gradient_specs.is_empty() {
         cx.runtime.need_component("hozoGradientStyles");
         style_array_parts = vec![format!(
             "hozoGradientStyles([{}], [{}], {})",
@@ -1541,7 +1618,7 @@ pub(super) fn render_node(
             crate::gradients::defaults()
         )];
     }
-    if !filter_specs.is_empty() {
+    if !mixed_filters && !filter_specs.is_empty() {
         cx.runtime.need_component("hozoFilterStyles");
         style_array_parts = vec![format!(
             "hozoFilterStyles([{}], [{}])",
@@ -1549,7 +1626,7 @@ pub(super) fn render_node(
             filter_specs
         )];
     }
-    if !transform_specs.is_empty() {
+    if !mixed_transforms && !transform_specs.is_empty() {
         cx.runtime.need_component("hozoTransformStyles");
         style_array_parts = vec![format!(
             "hozoTransformStyles([{}], [{}])",

@@ -21,8 +21,8 @@
 mod effects;
 
 pub(super) use effects::{
-    background_image_entry, box_shadow_entry, filter_entry, gradient_prelude, transform_entry,
-    GRADIENT_EMPTY_COLOR,
+    background_image_entry, box_shadow_entry, filter_entry, gradient_prelude, shadow_paint_parts,
+    split_shadow_layers, transform_entry, GRADIENT_EMPTY_COLOR, RING_COLOR, RING_OFFSET_COLOR,
 };
 
 use hozo_ir::{
@@ -214,6 +214,7 @@ pub fn placeholder_color(color: &Color, theme: &Theme) -> String {
 pub(super) struct ComposedLayers {
     pub filters: bool,
     pub gradients: bool,
+    pub shadows: bool,
 }
 
 /// Copy the unconditional `boxShadow`, `filter` and `backgroundImage` writes
@@ -231,28 +232,12 @@ pub(super) struct ComposedLayers {
 /// other's part -- that needs a runtime composer, as transforms have -- but
 /// neither loses the base any more. The copies go before the condition's own
 /// writes, so its own layer or function still wins.
-/// Split filter/gradient boundaries use their composer instead: copying the base
+/// Split effect boundaries use their composer instead: copying the base
 /// there would overwrite a different active condition's slot value.
 pub fn fold_base_layers(
     declarations: Vec<hozo_ir::StyleDeclaration>,
     composed: ComposedLayers,
 ) -> Vec<hozo_ir::StyleDeclaration> {
-    fn shadow(p: &StyleProperty) -> bool {
-        matches!(
-            p,
-            StyleProperty::BoxShadow(_)
-                | StyleProperty::RingWidth(_)
-                | StyleProperty::RingColor(_)
-                | StyleProperty::InsetRingWidth(_)
-                | StyleProperty::RingOffsetWidth(_)
-                | StyleProperty::RingOffsetColor(_)
-                | StyleProperty::RingInset
-                | StyleProperty::ShadowColor(_)
-                | StyleProperty::InsetShadowColor(_)
-                | StyleProperty::InsetRingColor(_)
-                | StyleProperty::InsetShadow(_)
-        )
-    }
     fn filter(p: &StyleProperty) -> bool {
         matches!(
             p,
@@ -273,7 +258,10 @@ pub fn fold_base_layers(
     }
     let mut declarations = declarations;
     for (family, composed) in [
-        (shadow as fn(&StyleProperty) -> bool, false),
+        (
+            crate::shadows::is_slot as fn(&StyleProperty) -> bool,
+            composed.shadows,
+        ),
         (filter, composed.filters),
         (gradient, composed.gradients),
     ] {
