@@ -87,7 +87,7 @@ test('the device fixture is reproducible and binding decisions come from the exi
   for (const entry of prepared.cases) assert.equal(entry.ordinary, entry.reference)
   assert.equal(prepared.manifest.schemaVersion, 3)
   assert.equal(Object.keys(prepared.manifest.production.sourceSha256).length, 12)
-  assert.equal(Object.keys(prepared.manifest.productionStatic.sourceSha256).length, 39)
+  assert.equal(Object.keys(prepared.manifest.productionStatic.sourceSha256).length, 40)
   for (const file of [
     'crates/hozo_native/src/spread_style.rs',
     'packages/metro/src/native-source-evidence.ts',
@@ -109,6 +109,8 @@ test('the device fixture is reproducible and binding decisions come from the exi
     'crates/hozo_parser/src/owner_slots.rs',
     'crates/hozo_napi/src/tailwind_order.rs',
     'crates/hozo_napi/src/prepared_module.rs',
+    'crates/hozo_ir/src/tailwind_builtin.rs',
+    'crates/hozo_ir/src/tailwind_builtin_data.rs',
   ])
     assert.equal(
       prepared.manifest.productionStatic.sourceSha256[file],
@@ -119,7 +121,7 @@ test('the device fixture is reproducible and binding decisions come from the exi
         .digest('hex'),
       `${file} belongs to the static compiler receipt`,
     )
-  for (const file of ['interaction_order.rs', 'jsx.rs', 'tailwind_variants.rs'])
+  for (const file of ['jsx.rs', 'tailwind_variants.rs'])
     assert.equal(
       prepared.manifest.productionStatic.sourceSha256[`crates/hozo_parser/src/${file}`].length,
       64,

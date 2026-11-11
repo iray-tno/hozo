@@ -682,7 +682,7 @@ fn state_groups(
                 filter: crate::filters::metadata(properties),
                 gradient: crate::gradients::metadata(properties, theme),
                 shadow: crate::shadows::metadata(properties, theme),
-                order: hozo_parser::interaction_cascade_key(condition),
+                order: hozo_ir::builtin_owner_interaction_rank(condition),
                 font_default: has_font_default(properties),
             })
         })

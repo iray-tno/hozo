@@ -126,3 +126,16 @@ Reported values are per-process medians, with no outliers removed:
 
 The warm ranked row varies by process, including one slower run. These are
 small, synthetic resolver timings, not a Hermes or app frame-time claim.
+
+## One source for built-in owner variant order
+
+Native fallback ranks now compress the four positions in the same built-in
+Tailwind descriptors used by the compiler. The parser's separate
+`OWNER_INTERACTION_ORDER` generated table and its comparator module are
+gone. The old public Rust symbol is an alias, not a second implementation.
+The emitted integer representation and whole-string fallback policy remain.
+
+`packages/tailwind/src/order.test.ts` reads the emitted Native state tuples
+and compares all 15 nonempty combinations of hover, focus, focus-visible and
+active with real Tailwind CSS ordered by selector weight and emission order.
+Disabled still has a tuple but no fallback rank in this bounded domain.

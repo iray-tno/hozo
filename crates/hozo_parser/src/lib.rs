@@ -13,7 +13,6 @@ mod class_helpers;
 mod class_literals;
 mod dynamic_class;
 mod important;
-mod interaction_order;
 mod jsx;
 mod owner_slots;
 mod rest;
@@ -48,7 +47,8 @@ pub use class_helpers::{
 pub use class_literals::{runtime_class_lists, RuntimeClassList};
 pub use dynamic_class::ClassHelper;
 pub use important::IMPORTANT_NOT_LOWERED;
-pub use interaction_order::interaction_cascade_key;
+// Keep the existing Rust symbol without maintaining a second ordering table.
+pub use hozo_ir::builtin_owner_interaction_rank as interaction_cascade_key;
 pub use jsx::is_primitive_name;
 pub use owner_slots::{
     inspect_owner_class_slots, OwnerSlotBinding, OwnerSlotInspection, OwnerSlotSite,
