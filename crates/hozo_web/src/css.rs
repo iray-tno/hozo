@@ -1427,17 +1427,14 @@ fn register_axes(
                 StyleProperty::Filter(_, value) => value.clone(),
                 _ => unreachable!(),
             },
-            // A drop shadow repaints with its own colour register, and
-            // `filter-none`/`filter-[…]` replace the whole chain.
+            // A drop shadow repaints with its own colour register. Raw
+            // values do not participate in the ordinary register family.
             blocks: |p| {
                 matches!(
                     p,
                     StyleProperty::FilterRaw(_)
                         | StyleProperty::DropShadowColor(_)
-                        | StyleProperty::Filter(
-                            FilterFunction::None | FilterFunction::DropShadow,
-                            _
-                        )
+                        | StyleProperty::Filter(FilterFunction::DropShadow, _)
                 )
             },
             three: |_| false,
@@ -1466,13 +1463,10 @@ fn register_axes(
                 _ => unreachable!(),
             },
             blocks: |p| {
-                matches!(
-                    p,
-                    StyleProperty::BackdropFilter(
-                        FilterFunction::None | FilterFunction::DropShadow,
-                        _
-                    )
-                )
+                matches!(p, StyleProperty::BackdropFilter(FilterFunction::DropShadow, _))
+                    // StyleX's literal `none` is an authored CSS value, not
+                    // Tailwind's empty-sentinel whole-property reset.
+                    || matches!(p, StyleProperty::BackdropFilter(FilterFunction::None, value) if !value.is_empty())
             },
             three: |_| false,
             optional: true,
@@ -1483,7 +1477,7 @@ fn register_axes(
         let touches = |props: &[StyleProperty]| {
             props
                 .iter()
-                .any(|p| (family.axis)(p).is_some() || (family.three)(p) || (family.blocks)(p))
+                .any(|p| (family.axis)(p).is_some() || (family.three)(p))
         };
         // Conditions that write the same axes replace each other exactly as
         // Tailwind's registers do, so only differing axis sets need them.
@@ -1535,6 +1529,19 @@ fn register_axes(
             if !touches(props) {
                 continue;
             }
+            // A Tailwind reset replaces the filter declaration, not the
+            // variables. Keep writes in the same condition, but do not add
+            // a reader over the reset. A later rule can read them again.
+            let resets_filter = props.iter().any(|p| {
+                matches!(
+                    (family.name, p),
+                    ("filter", StyleProperty::Filter(FilterFunction::None, _))
+                        | (
+                            "backdrop-filter",
+                            StyleProperty::BackdropFilter(FilterFunction::None, _)
+                        )
+                )
+            });
             let mut rewritten = Vec::with_capacity(props.len() + 1);
             for property in props.drain(..) {
                 match (family.axis)(&property) {
@@ -1545,6 +1552,10 @@ fn register_axes(
                     None if (family.three)(&property) => {}
                     None => rewritten.push(property),
                 }
+            }
+            if resets_filter {
+                *props = rewritten;
+                continue;
             }
             if family.name == "backdrop-filter" {
                 rewritten.push(StyleProperty::Arbitrary(

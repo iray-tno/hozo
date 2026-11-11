@@ -55,6 +55,21 @@ plans both rank them. Native continues to refuse `backdrop-filter-none`.
 - Regression tests exercise the rank in both contexts, whole-declaration
   reset versus blur in both authored orders, and a real uncaptured colour
   that still sends the Native string down the authored path.
-- No new ordering mechanism. Web's separate register revival across
-  conditions with a reset, and genuine Native fallback parity, are still
-  outside this receipt.
+- No new ordering mechanism. Web's register projection is covered
+  separately below; genuine Native fallback parity is outside this receipt.
+
+### Web register revival
+
+`blur-sm filter-none hover:sepia` is off at rest. While hovered, it
+restores the base blur and adds sepia; on leaving, it turns off again.
+Previously the whole-property reset disabled register splitting for the
+static owner, so the later condition could only apply sepia on its own.
+The reset still writes `filter: none`, but no longer suppresses the
+register writes. The backdrop family has the same behavior on Web.
+
+In Chromium, Tailwind 4.3.3 and all three Hozo Web routes (built-in,
+captured, and the upstream-ordered candidate sheet) produced
+`none → blur(8px) sepia(1) → none` for both families in both input
+orders. Standalone resets, same-axis replacements and opaque/drop-shadow
+boundaries keep their earlier output shape. Native filter composition
+was unchanged; backdrop support on Native was not extended.

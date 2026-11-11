@@ -31,7 +31,6 @@ reason, not an oversight.
 
 | Barrier | Why | Found in |
 | --- | --- | --- |
-| Web filter register revival across a whole-property reset | `filter-none` and `backdrop-filter-none` rank as declarations, but Web still switches off register composition when they are present. A later active function can lose earlier registers instead of restoring them. | [tailwind-filter-order](tailwind-filter-order.md#whole-property-resets) |
 | Arbitrary relative lengths (`leading-[1em]`, `tracking-[1em]`) | An em length is not a ratio; static folding does not resolve it. | [tailwind-relative-text-order](tailwind-relative-text-order.md) |
 | Opaque arbitrary passthrough classes (`columns-(--layout)`, `cursor-[…]`, `text-[150%]`, `text-[length:…]`) | A generic write with an owned name is not modelled. Readable arbitrary column counts/widths/auto now use the named ownership; unknown variables and two-value shorthands still do not. | [tailwind-columns-underline-offset-order](tailwind-columns-underline-offset-order.md) |
 | `line-clamp-*`, `object-position`, masks, text shadows | Several declarations, or a Web-only keyword table, or registers not yet modelled. | [tailwind-columns-underline-offset-order](tailwind-columns-underline-offset-order.md) |

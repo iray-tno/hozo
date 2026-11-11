@@ -33,9 +33,24 @@ test('candidate reader families share one subset while static output keeps its r
   assert.equal([...staticCss.matchAll(/@property --hozo-/g)].length, 49)
 })
 
-test('unrelated sheets and unassessed filter forms retain their existing paths', () => {
+test('unrelated sheets and standalone reset or drop shadow forms need no registers', () => {
   for (const name of ['p-4', 'filter-none', 'drop-shadow-sm', 'backdrop-filter-none']) {
     assert.doesNotMatch(sheet([name]), /@property/, name)
+  }
+})
+
+test('static resets retain ordinary registers only when another condition reads them', () => {
+  const source = (classes: string) =>
+    `import {Pressable} from '@hozo/core';const el=<Pressable className="${classes}"/>`
+  const split = compile(source('blur-sm filter-none hover:sepia'))[0]!.css
+  assert.match(split, /\.hozo-0 \{[^}]*--hozo-blur: blur\(8px\);[^}]*filter: none;/)
+  assert.match(split, /:hover \{[^}]*filter: var\(--hozo-blur,\)/)
+  for (const classes of [
+    'blur-sm filter-none',
+    'blur-sm hover:blur-lg filter-none',
+    'blur-sm filter-none hover:sepia drop-shadow-sm',
+  ]) {
+    assert.doesNotMatch(compile(source(classes))[0]!.css, /@property --hozo-blur/, classes)
   }
 })
 
