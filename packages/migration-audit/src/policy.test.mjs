@@ -9,6 +9,11 @@ import { AuditInputError, evaluateFailurePolicy, measureRealApp, runCli } from '
 import { failurePolicyMarkdown } from './policy.mjs'
 
 const cli = fileURLToPath(new URL('./cli.mjs', import.meta.url))
+// The deprecated binary's first stderr line (RFC 011); the rest is unchanged.
+const afterNotice = (stderr) => {
+  assert.match(stderr, /^hozo-migration-audit is deprecated; run `hozo dry-fit`/)
+  return stderr.replace(/^[^\n]*\n/, '')
+}
 const capture = () => ({
   output: '',
   write(value) {
@@ -144,8 +149,8 @@ test('CLI applies recorded exits and saves syntax-error evidence before failing'
     assert.equal(report.failurePolicy.exitCode, expected)
     assert.equal(report.failurePolicy.newErrors, null)
     assert.deepEqual(report.failurePolicy.incompleteFiles, [])
-    if (expected) assert.match(result.stderr, /^hozo-migration-audit: .*current error/)
-    else assert.equal(result.stderr, '')
+    if (expected) assert.match(afterNotice(result.stderr), /^hozo-migration-audit: .*current error/)
+    else assert.equal(afterNotice(result.stderr), '')
   }
   assert.equal(readFileSync(file, 'utf8'), 'export const value = ;')
   assert.deepEqual(readdirSync(root, { recursive: true }), snapshot)
@@ -168,7 +173,7 @@ test('CLI blocks incomplete context and different scope/schema but writes both o
       { encoding: 'utf8' },
     )
     assert.equal(result.status, 1, result.stderr)
-    assert.equal(result.stderr.trim().split(/\r?\n/).length, 1)
+    assert.equal(afterNotice(result.stderr).trim().split(/\r?\n/).length, 1)
     assert.match(result.stderr, /requires a comparable baseline/)
     const report = JSON.parse(readFileSync(destination, 'utf8'))
     assert.equal(report.failurePolicy.status, 'blocked')
@@ -273,9 +278,11 @@ test('invalid policy and missing/malformed baseline fail briefly before any outp
     const result = spawnSync(process.execPath, [cli, root, ...args, '--output', destination], {
       encoding: 'utf8',
     })
-    assert.equal(result.status, 1)
-    assert.equal(result.stderr.trim().split(/\r?\n/).length, 1)
-    assert.match(result.stderr, /^hozo-migration-audit:/)
+    // `2`: the audit did not run, which is not a finding (RFC 011 §3).
+    assert.equal(result.status, 2)
+    const error = afterNotice(result.stderr)
+    assert.equal(error.trim().split(/\r?\n/).length, 1)
+    assert.match(error, /^hozo-migration-audit: .* \[[a-z-]+\]/)
     assert.equal(result.stdout, '')
     assert.deepEqual(readdirSync(output), ['invalid.json'])
   }

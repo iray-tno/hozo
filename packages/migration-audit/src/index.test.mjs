@@ -636,6 +636,11 @@ function fixture(t, files) {
 }
 
 const simpleSource = 'export function App() { return <div /> }\n'
+// The deprecated binary's first stderr line; everything after it is unchanged.
+const withoutDeprecation = (stderr) => {
+  assert.match(stderr, /^hozo-migration-audit is deprecated; run `hozo dry-fit`/)
+  return stderr.replace(/^[^\n]*\n/, '')
+}
 function checkoutSnapshot(root) {
   return readdirSync(root, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
@@ -730,9 +735,12 @@ test('no JS/TS, missing source, source file and missing checkout are input error
   await assert.rejects(() => measureRealApp({ root: path.join(root, 'missing') }), AuditInputError)
   const cli = fileURLToPath(new URL('./cli.mjs', import.meta.url))
   const result = spawnSync(process.execPath, [cli, root], { encoding: 'utf8' })
-  assert.equal(result.status, 1)
+  assert.equal(result.status, 2)
   assert.equal(result.stdout, '')
-  assert.match(result.stderr, /^hozo-migration-audit: No JS\/TS.*--source[^\r\n]*\r?\n$/)
+  assert.match(
+    withoutDeprecation(result.stderr),
+    /^hozo-migration-audit: No JS\/TS.*--source[^\r\n]* \[no-sources\]\r?\n$/,
+  )
   assert.doesNotMatch(result.stderr, /ENOENT|at walk|node:fs/)
 })
 
@@ -768,12 +776,18 @@ test('help succeeds without a checkout and argument errors have no stack trace',
   const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8' })
   assert.equal(help.status, 0)
   assert.match(help.stdout, /JS\/TS.*\.tsx\/\.jsx/)
-  assert.equal(help.stderr, '')
-  for (const args of [[], ['--source'], ['.', '--unknown', 'x']]) {
+  assert.equal(withoutDeprecation(help.stderr), '')
+  for (const [args, code] of [
+    [[], 'missing-checkout'],
+    [['--source'], 'missing-value'],
+    [['.', '--unknown', 'x'], 'unknown-option'],
+  ]) {
     const result = spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' })
-    assert.equal(result.status, 1)
-    assert.equal(result.stderr.trim().split(/\r?\n/).length, 1)
-    assert.match(result.stderr, /^hozo-migration-audit:/)
+    // `2`: the audit did not run, which is not a finding (RFC 011 §3).
+    assert.equal(result.status, 2)
+    const error = withoutDeprecation(result.stderr)
+    assert.equal(error.trim().split(/\r?\n/).length, 1)
+    assert.match(error, new RegExp(`^hozo-migration-audit: .* \\[${code}\\]\\r?\\n$`))
   }
 })
 

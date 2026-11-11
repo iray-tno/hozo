@@ -24,11 +24,21 @@ const SAMPLE_LIMIT = 12
 const DOM_STYLE_ARRAY =
   /<(?:a|article|aside|button|div|fieldset|footer|h[1-6]|header|hr|img|input|label|legend|li|main|meter|nav|ol|p|progress|section|select|span|textarea|ul)\b[^>]*?\bstyle=\{\[/g
 
-export class AuditInputError extends Error {}
+// An input the audit cannot run on, as opposed to a finding in the code it
+// audits. `code` is a stable string for scripts and `hozo explain`; the
+// message is for people and may change.
+export class AuditInputError extends Error {
+  constructor(message, code = 'invalid-input') {
+    super(message)
+    this.code = code
+  }
+}
 
-const HELP = `Usage:
-  hozo-migration-audit <checkout> [options]
-  hozo-migration-audit --root <checkout> [options]
+// `command` is the name the caller was invoked as: `hozo dry-fit` through
+// `@hozo/cli`, `hozo-migration-audit` through the deprecated binary.
+const help = (command) => `Usage:
+  ${command} <checkout> [options]
+  ${command} --root <checkout> [options]
 
 Options:
   --source <directory>       Source directory; repeat to scan several (default: src/app, then root)
@@ -76,12 +86,14 @@ function parseArgs(argv) {
     // failed with `Missing value for .` -- the `.` was read as a flag waiting
     // for its value (#457). A bare token is the checkout.
     if (!key?.startsWith('--')) {
-      if (options.root) throw new AuditInputError(`Unexpected argument: ${key}`)
+      if (options.root)
+        throw new AuditInputError(`Unexpected argument: ${key}`, 'unexpected-argument')
       options.root = key
       continue
     }
     const value = argv[index + 1]
-    if (!value || value.startsWith('--')) throw new AuditInputError(`Missing value for ${key}`)
+    if (!value || value.startsWith('--'))
+      throw new AuditInputError(`Missing value for ${key}`, 'missing-value')
     index += 1
     if (key === '--root') options.root = value
     else if (key === '--source') (options.source ??= []).push(value)
@@ -104,13 +116,17 @@ function parseArgs(argv) {
     else if (key === '--reproduce-command') options.reproduceCommand = value
     else if (key === '--format' && (value === 'json' || value === 'markdown'))
       options.format = value
-    else throw new AuditInputError(`Unknown option or value: ${key} ${value}`)
+    else throw new AuditInputError(`Unknown option or value: ${key} ${value}`, 'unknown-option')
   }
-  if (!options.root) throw new AuditInputError('A checkout is required; use --help for usage')
+  if (!options.root)
+    throw new AuditInputError('A checkout is required; use --help for usage', 'missing-checkout')
   if ((options.write || options.force) && !options.fix)
-    throw new AuditInputError('--write and --force only apply to --fix')
+    throw new AuditInputError('--write and --force only apply to --fix', 'fix-only-option')
   if (options.failOn === 'new-errors' && !options.compare)
-    throw new AuditInputError('--fail-on new-errors requires --compare <JSON report>')
+    throw new AuditInputError(
+      '--fail-on new-errors requires --compare <JSON report>',
+      'missing-compare',
+    )
   return options
 }
 
@@ -124,7 +140,8 @@ function isDirectory(directory) {
 }
 
 function sourceFiles(root, options) {
-  if (!isDirectory(root)) throw new AuditInputError(`Checkout is not a directory: ${root}`)
+  if (!isDirectory(root))
+    throw new AuditInputError(`Checkout is not a directory: ${root}`, 'checkout-not-directory')
   for (const key of ['include', 'exclude']) {
     if (
       options[key] !== undefined &&
@@ -138,12 +155,12 @@ function sourceFiles(root, options) {
             glob.split(/[\\/]/).includes('..'),
         ))
     )
-      throw new AuditInputError(`${key} must be nonempty checkout-relative globs`)
+      throw new AuditInputError(`${key} must be nonempty checkout-relative globs`, 'invalid-glob')
   }
   try {
     return discoverAnalysisSources(root, options)
   } catch (error) {
-    throw new AuditInputError(error.message)
+    throw new AuditInputError(error.message, 'no-sources')
   }
 }
 
@@ -194,23 +211,29 @@ async function measure(options) {
   const provenanceStarted = performance.now()
   const commit = optionalGit(root, ['rev-parse', 'HEAD']) ?? 'unknown'
   if (options.expectedCommit && !commit.startsWith(options.expectedCommit)) {
-    throw new AuditInputError(`Expected corpus commit ${options.expectedCommit}, found ${commit}`)
+    throw new AuditInputError(
+      `Expected corpus commit ${options.expectedCommit}, found ${commit}`,
+      'commit-mismatch',
+    )
   }
 
   const repository =
     options.repository ?? optionalGit(root, ['remote', 'get-url', 'origin']) ?? root
   if (options.preflight !== undefined && ![true, false, 'auto'].includes(options.preflight))
-    throw new AuditInputError('preflight must be auto, true or false')
+    throw new AuditInputError('preflight must be auto, true or false', 'invalid-option')
   if (options.nativePlatform !== undefined && !['ios', 'android'].includes(options.nativePlatform))
-    throw new AuditInputError('nativePlatform must be ios or android')
+    throw new AuditInputError('nativePlatform must be ios or android', 'invalid-option')
   if (options.css !== undefined && (typeof options.css !== 'string' || !options.css.trim()))
-    throw new AuditInputError('css must name a stylesheet')
+    throw new AuditInputError('css must name a stylesheet', 'invalid-option')
   if (
     options.primitiveSources !== undefined &&
     (!Array.isArray(options.primitiveSources) ||
       options.primitiveSources.some((source) => typeof source !== 'string' || !source.trim()))
   )
-    throw new AuditInputError('primitiveSources must be an array of nonempty module names')
+    throw new AuditInputError(
+      'primitiveSources must be an array of nonempty module names',
+      'invalid-option',
+    )
   const dirty = optionalGit(root, ['status', '--porcelain', '--ignore-submodules=all'])
   const provenanceDurationMs = performance.now() - provenanceStarted
   const sourceReadStarted = performance.now()
@@ -223,11 +246,12 @@ async function measure(options) {
       loadStaticProjectTheme,
     )
   } catch (error) {
-    if (error instanceof AnalysisFontInputError) throw new AuditInputError(error.message)
+    if (error instanceof AnalysisFontInputError)
+      throw new AuditInputError(error.message, 'invalid-font-availability')
     throw error
   }
   if (options.css !== undefined && project.projectFacts.css.status === 'invalid')
-    throw new AuditInputError(project.projectFacts.css.reason)
+    throw new AuditInputError(project.projectFacts.css.reason, 'invalid-css')
   const { compiler } = project
   const sourceHash = createHash('sha256')
   const report = {
@@ -865,10 +889,13 @@ ${
 `
 }
 
-export async function runCli(argv = process.argv.slice(2), { stdout = process.stdout } = {}) {
+export async function runCli(
+  argv = process.argv.slice(2),
+  { stdout = process.stdout, command = 'hozo-migration-audit' } = {},
+) {
   const options = parseArgs(argv)
   if (options.help) {
-    stdout.write(`${HELP}\n`)
+    stdout.write(`${help(command)}\n`)
     return
   }
   if (options.fix) {
@@ -876,7 +903,7 @@ export async function runCli(argv = process.argv.slice(2), { stdout = process.st
     try {
       return runImportFix(root, sourceFiles(root, options).files, { ...options, stdout })
     } catch (error) {
-      if (error instanceof FixRefusedError) throw new AuditInputError(error.message)
+      if (error instanceof FixRefusedError) throw new AuditInputError(error.message, 'fix-refused')
       throw error
     }
   }
@@ -890,11 +917,17 @@ export async function runCli(argv = process.argv.slice(2), { stdout = process.st
   let baseline
   if (options.compare) {
     if (options.output && path.resolve(options.output) === path.resolve(options.compare))
-      throw new AuditInputError('comparison output must not overwrite its baseline')
+      throw new AuditInputError(
+        'comparison output must not overwrite its baseline',
+        'compare-overwrite',
+      )
     try {
       baseline = validateBaseline(JSON.parse(readFileSync(path.resolve(options.compare), 'utf8')))
     } catch (error) {
-      throw new AuditInputError(`cannot compare baseline: ${error.message.replace(/\s+/g, ' ')}`)
+      throw new AuditInputError(
+        `cannot compare baseline: ${error.message.replace(/\s+/g, ' ')}`,
+        'invalid-baseline',
+      )
     }
   }
   const report = await measure(options)

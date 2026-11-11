@@ -1,0 +1,50 @@
+{
+  "name": "@hozo/cli",
+  "version": "0.4.0",
+  "description": "The `hozo` command: one entry point for Hozo's command-line tools.",
+  "keywords": [
+    "react-native",
+    "cli",
+    "migration",
+    "audit",
+    "compiler"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iray-tno/hozo.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://iray-tno.github.io/hozo/",
+  "bugs": {
+    "url": "https://github.com/iray-tno/hozo/issues"
+  },
+  "type": "module",
+  "main": "./src/index.mjs",
+  "sideEffects": false,
+  "bin": {
+    "hozo": "./src/cli.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "CHANGELOG.md",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/*.test.mjs",
+    "!src/**/*.bench.ts"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "test": "node --test src/*.test.mjs"
+  },
+  "dependencies": {
+    "@hozo/migration-audit": "workspace:^"
+  }
+}
