@@ -8,6 +8,7 @@ use super::*;
 // Shared by generated resolver pipelines and the JSX sites that defer them.
 pub(super) const DEFER_SHADOW: u8 = 1;
 pub(super) const DEFER_GRADIENT: u8 = 2;
+pub(super) const DEFER_TRANSFORM: u8 = 4;
 mod plan;
 use plan::CandidatePlanBuilder;
 pub use plan::{
@@ -468,11 +469,12 @@ fn render_candidate_module_impl(
         input = "text";
     }
     if needs_transform_slots {
-        pipeline.push_str(&format!("const transformed = {input}.some(style => transforms.has(style)) ? hozoTransformStyles({input}, transforms) : {input}; "));
+        pipeline.push_str(&format!("const transformed = !(deferred & {DEFER_TRANSFORM}) && {input}.some(style => transforms.has(style)) ? hozoTransformStyles({input}, transforms, undefined, Boolean(deferred)) : {input}; "));
         input = "transformed";
     }
     let effect_mask = u8::from(needs_shadow_slots) * DEFER_SHADOW
-        + u8::from(needs_gradient_slots) * DEFER_GRADIENT;
+        + u8::from(needs_gradient_slots) * DEFER_GRADIENT
+        + u8::from(needs_transform_slots) * DEFER_TRANSFORM;
     let compose = if pipeline.is_empty() {
         None
     } else {
@@ -521,6 +523,9 @@ fn render_candidate_module_impl(
     }
     if has_gradient_slots {
         out.push_str("hozoClasses.gradientSlots = gradients\n");
+    }
+    if needs_transform_slots {
+        out.push_str("hozoClasses.transformSlots = transforms\n");
     }
     if effect_mask != 0 {
         out.push_str(&format!("hozoClasses.effectMask = {effect_mask}\n"));
@@ -1063,7 +1068,7 @@ mod tests {
             &Theme::default(),
         );
         assert!(
-            module.contains("? hozoTransformStyles(resolved, transforms) : resolved"),
+            module.contains("? hozoTransformStyles(resolved, transforms, undefined, Boolean(deferred)) : resolved"),
             "{module}"
         );
         assert!(

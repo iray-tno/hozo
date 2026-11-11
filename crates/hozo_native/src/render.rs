@@ -990,6 +990,7 @@ pub(super) fn render_node(
         && !node.class_name_fallback.is_empty();
     let mixed_shadows = mixed_effect_boundary && crate::shadows::can_mix(&own_declarations);
     let mixed_gradients = mixed_effect_boundary && crate::gradients::can_mix(&own_declarations);
+    let mixed_transforms = mixed_effect_boundary && crate::transforms::can_mix(&own_declarations);
     let compose_gradients = mixed_gradients
         || (component != "HozoAnimated"
             && crate::gradients::split_across_conditions(&own_declarations));
@@ -1076,12 +1077,13 @@ pub(super) fn render_node(
     } else {
         None
     };
-    let transform_specs = if (own_declarations
-        .iter()
-        .any(|d| crate::transforms::is_control(&d.property))
-        && own_declarations
+    let transform_specs = if mixed_transforms
+        || (own_declarations
             .iter()
-            .any(|d| d.condition != Condition::Always))
+            .any(|d| crate::transforms::is_control(&d.property))
+            && own_declarations
+                .iter()
+                .any(|d| d.condition != Condition::Always))
         || crate::transforms::split_across_conditions(
             own_declarations.iter().map(|d| (&d.property, &d.condition)),
         ) {
@@ -1106,8 +1108,10 @@ pub(super) fn render_node(
     };
     let mixed_shadows = mixed_shadows && !shadow_specs.is_empty();
     let mixed_gradients = mixed_gradients && !gradient_specs.is_empty();
+    let mixed_transforms = mixed_transforms && !transform_specs.is_empty();
     let deferred_effects = u8::from(mixed_shadows) * crate::candidate::DEFER_SHADOW
-        + u8::from(mixed_gradients) * crate::candidate::DEFER_GRADIENT;
+        + u8::from(mixed_gradients) * crate::candidate::DEFER_GRADIENT
+        + u8::from(mixed_transforms) * crate::candidate::DEFER_TRANSFORM;
     let starting_parts = frames.starting;
     let exit_parts = frames.exit;
     if own_declarations
@@ -1565,6 +1569,14 @@ pub(super) fn render_node(
             crate::gradients::defaults()
         )];
     }
+    if mixed_transforms {
+        cx.runtime.need_component("hozoTransformStyles");
+        style_array_parts = vec![format!(
+            "hozoTransformStyles([{}], [{}], hozoClasses.transformSlots)",
+            style_array_parts.join(", "),
+            transform_specs
+        )];
+    }
     if (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some() {
         if !authored_style.is_empty() {
             held.emit(
@@ -1602,7 +1614,7 @@ pub(super) fn render_node(
             filter_specs
         )];
     }
-    if !transform_specs.is_empty() {
+    if !mixed_transforms && !transform_specs.is_empty() {
         cx.runtime.need_component("hozoTransformStyles");
         style_array_parts = vec![format!(
             "hozoTransformStyles([{}], [{}])",

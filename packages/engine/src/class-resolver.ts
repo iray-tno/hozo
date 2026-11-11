@@ -1,5 +1,6 @@
 import type { GradientSlots } from './gradient-slots.ts'
 import type { ShadowSlots } from './shadow-slots.ts'
+import type { TransformSlots } from './transform-slots.ts'
 
 /** A React Native style object, as the compiler emits it. */
 export type StyleObject = Record<string, unknown>
@@ -70,6 +71,7 @@ export type ClassResolver = ((
   /** @internal Compiler-generated identities for mixed effect boundaries. */
   shadowSlots?: ReadonlyMap<StyleObject, ShadowSlots>
   gradientSlots?: ReadonlyMap<StyleObject, GradientSlots>
+  transformSlots?: ReadonlyMap<StyleObject, TransformSlots>
   /** @internal Bit mask of this namespace's installed deferrable composers. */
   effectMask?: number
 }

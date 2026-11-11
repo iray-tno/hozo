@@ -5,6 +5,7 @@ import { hozoAuthoredStyle } from '../../engine/src/authored-gap.ts'
 import { type ClassResolver, createClassResolver } from '../../engine/src/class-resolver.ts'
 import { hozoGradientStyles } from '../../engine/src/gradient-slots.ts'
 import { hozoShadowStyles } from '../../engine/src/shadow-slots.ts'
+import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
 import { compileNative, openCandidateCache } from './index.ts'
 
 function moduleFor(names: string[]) {
@@ -13,7 +14,7 @@ function moduleFor(names: string[]) {
   const code = cache.renderNativeModule()
   const resolve = runInNewContext(
     `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`,
-    { createClassResolver, hozoGradientStyles, hozoShadowStyles },
+    { createClassResolver, hozoGradientStyles, hozoShadowStyles, hozoTransformStyles },
   ) as ClassResolver
   return { resolve, code }
 }
@@ -43,6 +44,7 @@ function selected(tag: 'View' | 'Pressable', literal: string) {
     'hozoClasses',
     'hozoShadowStyles',
     'hozoGradientStyles',
+    'hozoTransformStyles',
     'hozoAuthoredStyle',
     'classes',
     'style',
@@ -55,6 +57,7 @@ function selected(tag: 'View' | 'Pressable', literal: string) {
       resolver,
       hozoShadowStyles,
       hozoGradientStyles,
+      hozoTransformStyles,
       hozoAuthoredStyle,
       classes,
       style,
@@ -181,4 +184,47 @@ test('shadow and gradient can defer together while preserving owner states and o
   assert.notEqual(deferred, ordinary)
   assert.equal(resolve(classes, idle, 3), deferred)
   assert.equal(resolve(classes, idle), ordinary)
+})
+
+test('mixed transforms retain independent axes and owner resets, with authored style last', () => {
+  const { resolve } = moduleFor(['translate-y-2', 'rotate-45', 'hover:scale-95'])
+  const classes = 'translate-y-2 rotate-45 hover:scale-95'
+  const read = selected('Pressable', 'translate-x-4 hover:rotate-none')
+  const rest = Object.assign({}, ...read(resolve, classes))
+  assert.deepEqual(structuredClone(rest.transform), [
+    { translateX: 16 },
+    { translateY: 8 },
+    { rotate: '45deg' },
+  ])
+  assert.deepEqual(structuredClone(Object.assign({}, ...read(resolve, classes, true)).transform), [
+    { translateX: 16 },
+    { translateY: 8 },
+    { scaleX: 0.95 },
+    { scaleY: 0.95 },
+  ])
+  assert.deepEqual(Object.assign({}, ...read(resolve, classes)), rest)
+  const authored = { transform: [{ rotate: '10deg' }] }
+  assert.deepEqual(
+    Object.assign({}, ...read(resolve, classes, true, authored)).transform,
+    authored.transform,
+  )
+  assert.equal(read(resolve, classes, true, 42).at(-1), 42)
+  assert.doesNotMatch(fixture('View', 'p-4').jsx, /transformSlots/)
+  assert.doesNotMatch(fixture('View', 'rotate-45', '{...props}').jsx, /transformSlots/)
+})
+
+test('mixed transforms and gradients defer independently without changing normal candidate caching', () => {
+  const { resolve } = moduleFor(['translate-y-2', 'to-blue-500'])
+  const names = 'translate-y-2 to-blue-500'
+  const normal = resolve(names)
+  const read = selected('View', 'translate-x-4 bg-linear-to-r from-red-500')
+  const computed = Object.assign({}, ...read(resolve, names))
+  assert.deepEqual(structuredClone(computed.transform), [{ translateX: 16 }, { translateY: 8 }])
+  assert.equal(computed.backgroundImage, 'linear-gradient(to right, #fb2c36 0%, #2b7fff 100%)')
+  const premature = Object.assign((value: unknown) => resolve(value), resolve)
+  assert.notDeepEqual(
+    structuredClone(Object.assign({}, ...read(premature, names)).transform),
+    structuredClone(computed.transform),
+  )
+  assert.equal(resolve(names), normal)
 })
