@@ -1279,9 +1279,9 @@ pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme
 }
 
 /// Separate runtime classes cannot be inspected together at build time.
-/// Transforms, ordinary filter functions and gradients use the same registers
-/// as split static nodes. This adds no Native syntax admission.
-/// Backdrop filters and whole-value/drop-shadow boundaries stay unchanged.
+/// Transforms, ordinary filter/backdrop functions and gradients use the same
+/// registers as split static nodes. Whole-value/drop-shadow boundaries stay
+/// unchanged. This adds no Native syntax admission.
 pub fn register_candidate_slots(
     groups: &mut [(Condition, Vec<StyleProperty>)],
     theme: &Theme,
@@ -1490,9 +1490,7 @@ fn register_axes(
                 None => written.push((condition, axes)),
             }
         }
-        let split = (candidate
-            && !written.is_empty()
-            && matches!(family.name, "translate" | "scale" | "transform" | "filter"))
+        let split = (candidate && !written.is_empty())
             || written.windows(2).any(|pair| pair[0].1 != pair[1].1);
         let blocked = groups
             .iter()
@@ -1539,6 +1537,12 @@ fn register_axes(
                     None if (family.three)(&property) => {}
                     None => rewritten.push(property),
                 }
+            }
+            if family.name == "backdrop-filter" {
+                rewritten.push(StyleProperty::Arbitrary(
+                    "-webkit-backdrop-filter".to_string(),
+                    reader.clone(),
+                ));
             }
             rewritten.push(StyleProperty::Arbitrary(
                 family.name.to_string(),

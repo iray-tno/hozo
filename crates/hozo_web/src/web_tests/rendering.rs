@@ -341,12 +341,10 @@ fn separate_candidate_transforms_share_non_inheriting_registers() {
     assert_eq!(css.matches("@property --hozo-translate-x {").count(), 1);
     let plain = render_candidate_stylesheet(&["p-2".into()], &Theme::default());
     assert!(!plain.contains("@property"), "{plain}");
-    let backdrop = render_candidate_stylesheet(&["backdrop-blur-sm".into()], &Theme::default());
-    assert!(!backdrop.contains("@property"), "{backdrop}");
 }
 
 #[test]
-fn separate_candidate_filters_share_static_registers_but_not_backdrop_or_drop_shadow() {
+fn separate_candidate_filters_share_static_registers_but_not_drop_shadow() {
     let names = ["blur-sm", "grayscale", "hover:sepia"];
     let css = render_candidate_stylesheet(&names.map(str::to_string), &Theme::default());
     assert!(css.contains("--hozo-blur: blur(8px);"), "{css}");
@@ -358,10 +356,34 @@ fn separate_candidate_filters_share_static_registers_but_not_backdrop_or_drop_sh
     assert_eq!(css.matches("@property --hozo-").count(), 8);
     assert!(!css.contains("@property --hozo-translate"), "{css}");
     assert!(!css.contains("@property --hozo-shadow"), "{css}");
-    for name in ["filter-none", "drop-shadow-sm", "backdrop-blur-sm"] {
+    for name in ["filter-none", "drop-shadow-sm", "backdrop-filter-none"] {
         let css = render_candidate_stylesheet(&[name.into()], &Theme::default());
         assert!(!css.contains("@property"), "{name}: {css}");
     }
+}
+
+#[test]
+fn candidate_backdrop_functions_read_their_own_registers_with_both_spellings() {
+    let names = [
+        "backdrop-blur-sm",
+        "hover:backdrop-opacity-50",
+        "backdrop-saturate-150",
+    ];
+    let css = render_candidate_stylesheet(&names.map(str::to_string), &Theme::default());
+    assert!(
+        css.contains("--hozo-backdrop-opacity: opacity(50%);"),
+        "{css}"
+    );
+    assert!(
+        css.contains("-webkit-backdrop-filter: var(--hozo-backdrop-blur,)"),
+        "{css}"
+    );
+    assert!(
+        css.contains("  backdrop-filter: var(--hozo-backdrop-blur,)"),
+        "{css}"
+    );
+    assert_eq!(css.matches("@property --hozo-backdrop-").count(), 9);
+    assert_eq!(css.matches("@property --hozo-").count(), 9);
 }
 
 #[test]
