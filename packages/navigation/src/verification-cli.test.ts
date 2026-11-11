@@ -89,9 +89,16 @@ test('reports configuration and argument errors without throwing', () => {
 test('the binary runs when invoked through a symlink', (t) => {
   const directory = mkdtempSync(path.join(tmpdir(), 'hozo-links-bin-'))
   t.after(() => rmSync(directory, { recursive: true, force: true }))
-  const link = path.join(directory, 'hozo-links.ts')
+  // The package's tests run from `.test-build`, compiled to `.js`; a direct
+  // `node --test src/…` runs the `.ts`. Link whichever this file is.
+  const extension = path.extname(fileURLToPath(import.meta.url))
+  const link = path.join(directory, `hozo-links${extension}`)
   try {
-    symlinkSync(fileURLToPath(new URL('./verification-cli.ts', import.meta.url)), link, 'file')
+    symlinkSync(
+      fileURLToPath(new URL(`./verification-cli${extension}`, import.meta.url)),
+      link,
+      'file',
+    )
   } catch (error) {
     // Windows without developer mode refuses symlinks; CI runs on Linux.
     if ((error as NodeJS.ErrnoException).code === 'EPERM') return t.skip('symlinks unavailable')
