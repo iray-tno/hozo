@@ -251,3 +251,18 @@ The same debug sample took 7.96 ms for 256 and 33.41 ms for 1,024 on the
 no-hint path, down from 9.29 and 37.60 ms respectively. Ranking still has
 a build-side cost compared with doing no sort. The 1,024 explicit-hint
 control was 27.65 ms; empty and single-candidate output are unchanged.
+
+## Share Native selector weight in the fallback
+
+The legacy Native candidate rank no longer counts positive owner selectors
+itself. It uses the same bounded specificity projection as the static
+Native arrays. The variant mask still supplies the historical tiebreaker
+and still refuses unknown shapes; serialized ranks do not change.
+
+The fallback regression now uses two real Tailwind rules for one
+`bg-brand` candidate (theme plus `@utility`). It verifies the exact
+`ambiguous-property-owner` reason and a valid Native colour, rather than
+using an unresolved colour as a stand-in. A positive conjunction beats a
+single state in either order; the [equal-weight and repeated-guard
+counterexamples](tailwind-order-coverage.md#proposed-stage-6-gate-1230)
+still block deleting the variant mask.

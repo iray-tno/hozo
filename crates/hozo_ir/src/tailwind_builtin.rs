@@ -76,7 +76,7 @@ pub fn builtin_owner_interaction_rank(condition: &crate::Condition) -> Option<u3
     use crate::Condition;
     static BITS: std::sync::OnceLock<Option<[u8; 4]>> = std::sync::OnceLock::new();
 
-    fn parts(condition: &Condition, bits: &[u8; 4]) -> Option<(u16, u8)> {
+    fn variant_mask(condition: &Condition, bits: &[u8; 4]) -> Option<u8> {
         let slot = match condition {
             Condition::Hover => 0,
             Condition::Focus => 1,
@@ -85,14 +85,11 @@ pub fn builtin_owner_interaction_rank(condition: &crate::Condition) -> Option<u3
             Condition::All(conditions) if !conditions.is_empty() => {
                 return conditions
                     .iter()
-                    .try_fold((0_u16, 0_u8), |(weight, mask), item| {
-                        let (count, bit) = parts(item, bits)?;
-                        Some((weight.checked_add(count)?, mask | bit))
-                    });
+                    .try_fold(0, |mask, item| Some(mask | variant_mask(item, bits)?));
             }
             _ => return None,
         };
-        Some((1, bits[slot]))
+        Some(bits[slot])
     }
 
     let bits = BITS.get_or_init(|| {
@@ -112,7 +109,10 @@ pub fn builtin_owner_interaction_rank(condition: &crate::Condition) -> Option<u3
         }
         Some(bits)
     });
-    let (weight, mask) = parts(condition, bits.as_ref()?)?;
+    // Keep the legacy variant tie separate from the Native projection's
+    // selector weight. The mask also refuses guards that are not owner states.
+    let mask = variant_mask(condition, bits.as_ref()?)?;
+    let weight = condition.owner_interaction_specificity()?;
     Some(u32::from(weight) * 256 + u32::from(mask))
 }
 
