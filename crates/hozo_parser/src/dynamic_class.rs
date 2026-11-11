@@ -716,6 +716,16 @@ fn conjoin_condition_with_guard(condition: Condition, guard: ConditionExpr) -> C
     }
 }
 
+fn guard_nodes(guard: &ConditionExpr) -> usize {
+    match guard {
+        ConditionExpr::Not(inner) => 1 + guard_nodes(inner),
+        ConditionExpr::And(left, right) | ConditionExpr::Or(left, right) => {
+            1 + guard_nodes(left) + guard_nodes(right)
+        }
+        _ => 1,
+    }
+}
+
 fn decompose_closed_call(
     call: &CallExpression,
     condition: Option<ConditionExpr>,
@@ -757,6 +767,9 @@ fn decompose_closed_call(
     // conflicts like `twMerge('px-3 px-2')` and cross-argument conflicts like
     // `cn('px-3', active && 'px-2')`).
     let mut effective_guards = sub.declaration_guards.clone();
+    // IR conditions are trees. Bound the added nodes before cloning them so a
+    // short source expression cannot grow exponentially through cross-group conflicts.
+    let mut remaining_guard_nodes = 1024usize;
     for i in (0..n).rev() {
         if !merge_conflicts {
             continue;
@@ -784,7 +797,15 @@ fn decompose_closed_call(
             if !crate::tw_merge::overrides(later_tok, earlier_tok) {
                 continue;
             }
-            match &effective_guards[j] {
+            // Any surviving token that removes a later member of the same
+            // group also removes this one, so its authored guard suffices.
+            // Across different groups this implication need not hold.
+            let later_guard = if later_tok.class_group_id == earlier_tok.class_group_id {
+                &sub.declaration_guards[j]
+            } else {
+                &effective_guards[j]
+            };
+            match later_guard {
                 None => {
                     dropped[i] = true;
                     break;
@@ -795,6 +816,13 @@ fn decompose_closed_call(
                 }
                 Some(later_guard) => {
                     if !overriding_conds.contains(later_guard) {
+                        let Some(remaining) =
+                            remaining_guard_nodes.checked_sub(guard_nodes(later_guard) + 2)
+                        else {
+                            fall_back_to(out, whole_span);
+                            return;
+                        };
+                        remaining_guard_nodes = remaining;
                         overriding_conds.push(later_guard.clone());
                     }
                 }

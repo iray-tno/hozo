@@ -172,6 +172,57 @@ import { cn } from '@/lib/utils'
 export const A = () => <View className={${expression}} />`
 }
 
+test('same-group conditional merges keep guards small and select the real winning padding', () => {
+  const compiler = createTwMergeCompiler()
+  const classes = Array.from({ length: 10 }, (_, index) => `p-${index + 1}`)
+  const args = classes.map((name, index) => `flags[${index}] && '${name}'`).join(', ')
+  const input = source(`cn(${args})`)
+  const [web] = compiler.compile(input)
+  const [native] = compiler.compileNative(input)
+  assert.doesNotMatch(web.jsx, /\bcn\(/)
+  assert.doesNotMatch(native.jsx, /\bcn\(/)
+  assert.ok(web.jsx.length + web.css.length < 10_000)
+  assert.ok(native.jsx.length < 10_000)
+  const hozoStyles = new Function(`return (${native.styles})`)()
+  for (const active of [[], [0], [0, 3, 6], [1, 9]]) {
+    const flags = classes.map((_, index) => active.includes(index))
+    const { style } = render(native.jsx, { View: 'View', hozoStyles, flags })
+    const merged = twMerge(...classes.filter((_, index) => flags[index]))
+    const expected = merged ? 4 * Number(merged.slice(2)) : undefined
+    assert.equal(Object.assign({}, ...[style].flat(Infinity)).paddingTop, expected)
+  }
+})
+
+test('a merge that exceeds the guard expansion budget retains every original evaluation', () => {
+  const compiler = createTwMergeCompiler()
+  const classes = Array.from({ length: 16 }, (_, index) => `p-${index + 1}`)
+  const args = classes.map((name, index) => `choose(${index}) && '${name}'`).join(', ')
+  const input = source(`cn(${args})`)
+  for (const jsx of [compiler.compile(input)[0].jsx, compiler.compileNative(input)[0].jsx]) {
+    assert.match(jsx, /\bcn\(/)
+    const evaluations: number[] = []
+    const results: string[] = []
+    render(jsx, {
+      View: 'View',
+      hozoClasses: (value: unknown) => value,
+      choose: (index: number) => {
+        evaluations.push(index)
+        return index < 7
+      },
+      cn: (...values: Parameters<typeof twMerge>) => {
+        const result = twMerge(...values)
+        results.push(result)
+        return result
+      },
+    })
+    assert.deepEqual(
+      evaluations,
+      classes.map((_, index) => index),
+    )
+    assert.deepEqual(results, [twMerge(...classes.slice(0, 7))])
+  }
+})
+
 const mergeCases = [
   ['overflow-x-auto', 'overflow-hidden', 'line-clamp-2'],
   ['touch-pan-x', 'touch-none', 'touch-pan-y'],
