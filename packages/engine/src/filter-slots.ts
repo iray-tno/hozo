@@ -12,6 +12,7 @@ export type FilterSpec = readonly [Style, FilterSlots]
 export function hozoFilterStyles(
   styles: readonly FilterStyle[],
   specs: readonly FilterSpec[] | ReadonlyMap<Style, FilterSlots>,
+  candidates?: ReadonlyMap<Style, FilterSlots> | null,
 ): Style[] {
   const metadata: ReadonlyMap<Style, FilterSlots> = Array.isArray(specs)
     ? new Map(specs)
@@ -20,6 +21,7 @@ export function hozoFilterStyles(
   const slots = new Map<number, string>()
   const state = { mode: 'slots' as FilterSlots['mode'], authored: '' }
   let touched = false
+  let opaque = false
   function visit(style: FilterStyle): void {
     if (!style) return
     if (Array.isArray(style)) {
@@ -30,9 +32,12 @@ export function hozoFilterStyles(
     // Preserve identity: transform metadata may refer to the very same entry.
     // The final filter wins over these intermediate whole-chain strings.
     result.push(object)
-    const spec = metadata.get(object)
+    const spec = metadata.get(object) ?? candidates?.get(object)
     if (!spec) {
       if ('filter' in object) {
+        // A mixed chain with an unassessed candidate (e.g. drop-shadow)
+        // must retain whole-property replacement, not compose partially.
+        opaque = true
         slots.clear()
         touched = false
       }
@@ -44,7 +49,7 @@ export function hozoFilterStyles(
     if (spec.authored !== undefined) state.authored = spec.authored
   }
   for (const style of styles) visit(style)
-  if (touched) {
+  if (touched && !(opaque && candidates !== undefined)) {
     result.push({
       filter:
         state.mode === 'none'

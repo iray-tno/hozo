@@ -11,6 +11,15 @@ fn opaque_register(property: &StyleProperty) -> bool {
     )
 }
 
+pub(super) fn can_mix(declarations: &[hozo_ir::StyleDeclaration]) -> bool {
+    declarations.iter().any(|d| {
+        matches!(
+            d.property,
+            StyleProperty::Filter(..) | StyleProperty::FilterRaw(_)
+        )
+    }) && !declarations.iter().any(|d| opaque_register(&d.property))
+}
+
 pub(super) fn split_across_conditions(declarations: &[hozo_ir::StyleDeclaration]) -> bool {
     // Drop-shadow colour/size registers and animation endpoints need their
     // own composition proof. Keep their existing lowering rather than partly

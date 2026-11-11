@@ -9,6 +9,7 @@ use super::*;
 pub(super) const DEFER_SHADOW: u8 = 1;
 pub(super) const DEFER_GRADIENT: u8 = 2;
 pub(super) const DEFER_TRANSFORM: u8 = 4;
+pub(super) const DEFER_FILTER: u8 = 8;
 mod plan;
 use plan::CandidatePlanBuilder;
 pub use plan::{
@@ -254,6 +255,10 @@ fn render_candidate_module_impl(
         }))
         .fold(0u32, |all, functions| all | functions);
     let needs_filter_slots = functions.count_ones() > 1;
+    let has_filter_slots = !filters.is_empty()
+        || states
+            .iter()
+            .any(|(_, groups)| groups.iter().any(|group| group.filter.is_some()));
     // Constructor-only namespaces already replace the complete image correctly.
     // Stop-only writers must survive as metadata, not a fake image reset.
     let needs_gradient_slots = gradients.iter().any(|(_, metadata)| metadata.has_stops())
@@ -374,7 +379,7 @@ fn render_candidate_module_impl(
         // it; the resolver continues to cache its unconditional result.
         out.push_str("])\n\n");
     }
-    if needs_filter_slots {
+    if has_filter_slots {
         // Index actual style identities once. A selected drop-shadow or any
         // other unassessed whole-filter entry keeps the entire filter chain
         // on its old path, never a partly composed approximation.
@@ -459,7 +464,7 @@ fn render_candidate_module_impl(
         input = "shadow";
     }
     if needs_filter_slots {
-        pipeline.push_str(&format!("const filtered = {input}.some(style => 'filter' in style && !filters.has(style)) ? {input} : {input}.some(style => filters.has(style)) ? hozoFilterStyles({input}, filters) : {input}; "));
+        pipeline.push_str(&format!("const filtered = (deferred & {DEFER_FILTER}) || {input}.some(style => 'filter' in style && !filters.has(style)) ? {input} : {input}.some(style => filters.has(style)) ? hozoFilterStyles({input}, filters) : {input}; "));
         input = "filtered";
     }
     if needs_font_defaults {
@@ -474,7 +479,8 @@ fn render_candidate_module_impl(
     }
     let effect_mask = u8::from(needs_shadow_slots) * DEFER_SHADOW
         + u8::from(needs_gradient_slots) * DEFER_GRADIENT
-        + u8::from(needs_transform_slots) * DEFER_TRANSFORM;
+        + u8::from(needs_transform_slots) * DEFER_TRANSFORM
+        + u8::from(needs_filter_slots) * DEFER_FILTER;
     let compose = if pipeline.is_empty() {
         None
     } else {
@@ -526,6 +532,9 @@ fn render_candidate_module_impl(
     }
     if needs_transform_slots {
         out.push_str("hozoClasses.transformSlots = transforms\n");
+    }
+    if has_filter_slots {
+        out.push_str("hozoClasses.filterSlots = filters\n");
     }
     if effect_mask != 0 {
         out.push_str(&format!("hozoClasses.effectMask = {effect_mask}\n"));

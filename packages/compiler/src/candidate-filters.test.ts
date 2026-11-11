@@ -129,7 +129,8 @@ test('filter-free namespaces have no filter import or metadata', () => {
 
 test('single-function namespaces retain direct replacement, even across states and resets', () => {
   const { code, resolve, count } = fixture(['blur-sm', 'hover:blur-lg', 'filter-none'])
-  assert.doesNotMatch(code, /hozoFilterStyles|const filters|filter-slots/)
+  assert.doesNotMatch(code, /hozoFilterStyles|filter-slots/)
+  assert.match(code, /hozoClasses\.filterSlots = filters/)
   assert.equal(flatten(resolve('blur-sm hover:blur-lg', { hovered: true })).filter, 'blur(16px)')
   assert.equal(flatten(resolve('blur-sm hover:blur-lg', { hovered: false })).filter, 'blur(8px)')
   assert.equal(flatten(resolve('blur-sm filter-none')).filter, 'none')

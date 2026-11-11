@@ -1,3 +1,4 @@
+import type { FilterSlots } from './filter-slots.ts'
 import type { GradientSlots } from './gradient-slots.ts'
 import type { ShadowSlots } from './shadow-slots.ts'
 import type { TransformSlots } from './transform-slots.ts'
@@ -72,6 +73,7 @@ export type ClassResolver = ((
   shadowSlots?: ReadonlyMap<StyleObject, ShadowSlots>
   gradientSlots?: ReadonlyMap<StyleObject, GradientSlots>
   transformSlots?: ReadonlyMap<StyleObject, TransformSlots>
+  filterSlots?: ReadonlyMap<StyleObject, FilterSlots>
   /** @internal Bit mask of this namespace's installed deferrable composers. */
   effectMask?: number
 }

@@ -3,6 +3,7 @@ import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { hozoAuthoredStyle } from '../../engine/src/authored-gap.ts'
 import { type ClassResolver, createClassResolver } from '../../engine/src/class-resolver.ts'
+import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
 import { hozoGradientStyles } from '../../engine/src/gradient-slots.ts'
 import { hozoShadowStyles } from '../../engine/src/shadow-slots.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
@@ -14,7 +15,13 @@ function moduleFor(names: string[]) {
   const code = cache.renderNativeModule()
   const resolve = runInNewContext(
     `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`,
-    { createClassResolver, hozoGradientStyles, hozoShadowStyles, hozoTransformStyles },
+    {
+      createClassResolver,
+      hozoFilterStyles,
+      hozoGradientStyles,
+      hozoShadowStyles,
+      hozoTransformStyles,
+    },
   ) as ClassResolver
   return { resolve, code }
 }
@@ -45,6 +52,7 @@ function selected(tag: 'View' | 'Pressable', literal: string) {
     'hozoShadowStyles',
     'hozoGradientStyles',
     'hozoTransformStyles',
+    'hozoFilterStyles',
     'hozoAuthoredStyle',
     'classes',
     'style',
@@ -58,6 +66,7 @@ function selected(tag: 'View' | 'Pressable', literal: string) {
       hozoShadowStyles,
       hozoGradientStyles,
       hozoTransformStyles,
+      hozoFilterStyles,
       hozoAuthoredStyle,
       classes,
       style,
@@ -227,4 +236,53 @@ test('mixed transforms and gradients defer independently without changing normal
     structuredClone(computed.transform),
   )
   assert.equal(resolve(names), normal)
+})
+
+test('one dynamic filter function supplies metadata without installing a resolver composer', () => {
+  const { resolve, code } = moduleFor(['sepia'])
+  assert.doesNotMatch(code, /generated\/filter-slots/)
+  assert.equal(Object.assign({}, ...resolve('sepia')).filter, 'sepia(100%)')
+  const read = selected('View', 'blur-sm')
+  assert.equal(Object.assign({}, ...read(resolve, 'sepia')).filter, 'blur(8px) sepia(100%)')
+  assert.equal(
+    Object.assign({}, ...read(resolve, 'sepia', false, { filter: 'none' })).filter,
+    'none',
+  )
+  assert.equal(read(resolve, 'sepia', false, 42).at(-1), 42)
+  assert.doesNotMatch(fixture('View', 'blur-sm', '{...props}').jsx, /filterSlots/)
+})
+
+test('mixed filters retain resting slots and defer independently of mixed transforms', () => {
+  const { resolve } = moduleFor(['sepia', 'invert', 'translate-y-2'])
+  const classes = 'sepia invert translate-y-2'
+  const read = selected('Pressable', 'blur-sm hover:filter-none translate-x-4')
+  const rest = Object.assign({}, ...read(resolve, classes))
+  assert.equal(rest.filter, 'blur(8px) invert(100%) sepia(100%)')
+  assert.deepEqual(structuredClone(rest.transform), [{ translateX: 16 }, { translateY: 8 }])
+  const active = Object.assign({}, ...read(resolve, classes, true))
+  assert.equal(active.filter, 'none')
+  assert.deepEqual(structuredClone(active.transform), structuredClone(rest.transform))
+  assert.equal(Object.assign({}, ...read(resolve, classes)).filter, rest.filter)
+  const premature = Object.assign((value: unknown) => resolve(value), resolve)
+  assert.notEqual(Object.assign({}, ...read(premature, classes)).filter, rest.filter)
+  const ordinary = resolve(classes)
+  assert.equal(resolve(classes), ordinary)
+  assert.equal(Object.assign({}, ...ordinary).filter, 'invert(100%) sepia(100%)')
+})
+
+test('unassessed drop-shadow candidates keep whole-filter precedence', () => {
+  const { resolve } = moduleFor(['drop-shadow-sm', 'sepia', 'invert'])
+  const read = selected('View', 'blur-sm')
+  const drop = Object.assign({}, ...resolve('drop-shadow-sm')).filter
+  assert.match(drop, /^drop-shadow\(/)
+  assert.equal(Object.assign({}, ...read(resolve, 'drop-shadow-sm')).filter, drop)
+  for (const classes of ['sepia drop-shadow-sm', 'drop-shadow-sm sepia']) {
+    assert.equal(
+      Object.assign({}, ...read(resolve, classes)).filter,
+      Object.assign({}, ...resolve(classes)).filter,
+    )
+  }
+  const dropOnly = moduleFor(['drop-shadow-sm']).resolve
+  assert.equal(Object.assign({}, ...read(dropOnly, 'drop-shadow-sm')).filter, drop)
+  assert.doesNotMatch(fixture('View', 'drop-shadow-sm').jsx, /filterSlots/)
 })

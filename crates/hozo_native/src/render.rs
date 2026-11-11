@@ -982,8 +982,6 @@ pub(super) fn render_node(
     });
     let (child_declarations, own_declarations): (Vec<_>, Vec<_>) =
         own_declarations.partition(|d| style::is_child_scoped(&d.property));
-    let compose_filters =
-        component != "HozoAnimated" && crate::filters::split_across_conditions(&own_declarations);
     let mixed_effect_boundary = matches!(node.primitive, Primitive::View | Primitive::Pressable)
         && component != "HozoAnimated"
         && !node.props.has_spread()
@@ -991,6 +989,10 @@ pub(super) fn render_node(
     let mixed_shadows = mixed_effect_boundary && crate::shadows::can_mix(&own_declarations);
     let mixed_gradients = mixed_effect_boundary && crate::gradients::can_mix(&own_declarations);
     let mixed_transforms = mixed_effect_boundary && crate::transforms::can_mix(&own_declarations);
+    let mixed_filters = mixed_effect_boundary && crate::filters::can_mix(&own_declarations);
+    let compose_filters = mixed_filters
+        || (component != "HozoAnimated"
+            && crate::filters::split_across_conditions(&own_declarations));
     let compose_gradients = mixed_gradients
         || (component != "HozoAnimated"
             && crate::gradients::split_across_conditions(&own_declarations));
@@ -1109,9 +1111,11 @@ pub(super) fn render_node(
     let mixed_shadows = mixed_shadows && !shadow_specs.is_empty();
     let mixed_gradients = mixed_gradients && !gradient_specs.is_empty();
     let mixed_transforms = mixed_transforms && !transform_specs.is_empty();
+    let mixed_filters = mixed_filters && !filter_specs.is_empty();
     let deferred_effects = u8::from(mixed_shadows) * crate::candidate::DEFER_SHADOW
         + u8::from(mixed_gradients) * crate::candidate::DEFER_GRADIENT
-        + u8::from(mixed_transforms) * crate::candidate::DEFER_TRANSFORM;
+        + u8::from(mixed_transforms) * crate::candidate::DEFER_TRANSFORM
+        + u8::from(mixed_filters) * crate::candidate::DEFER_FILTER;
     let starting_parts = frames.starting;
     let exit_parts = frames.exit;
     if own_declarations
@@ -1569,6 +1573,14 @@ pub(super) fn render_node(
             crate::gradients::defaults()
         )];
     }
+    if mixed_filters {
+        cx.runtime.need_component("hozoFilterStyles");
+        style_array_parts = vec![format!(
+            "hozoFilterStyles([{}], [{}], hozoClasses.filterSlots ?? null)",
+            style_array_parts.join(", "),
+            filter_specs
+        )];
+    }
     if mixed_transforms {
         cx.runtime.need_component("hozoTransformStyles");
         style_array_parts = vec![format!(
@@ -1606,7 +1618,7 @@ pub(super) fn render_node(
             crate::gradients::defaults()
         )];
     }
-    if !filter_specs.is_empty() {
+    if !mixed_filters && !filter_specs.is_empty() {
         cx.runtime.need_component("hozoFilterStyles");
         style_array_parts = vec![format!(
             "hozoFilterStyles([{}], [{}])",
