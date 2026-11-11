@@ -34,7 +34,25 @@ test('candidate reader families share one subset while static output keeps its r
 })
 
 test('unrelated sheets and unassessed filter forms retain their existing paths', () => {
-  for (const name of ['p-4', 'filter-none', 'drop-shadow-sm', 'backdrop-blur-sm']) {
+  for (const name of ['p-4', 'filter-none', 'drop-shadow-sm', 'backdrop-filter-none']) {
     assert.doesNotMatch(sheet([name]), /@property/, name)
   }
+})
+
+test('backdrop candidates compose through a separate non-inheriting family', () => {
+  const css = sheet(['backdrop-blur-sm', 'hover:backdrop-opacity-50', 'backdrop-saturate-150'])
+  assert.equal([...css.matchAll(/@property --hozo-/g)].length, 9)
+  assert.match(css, /@property --hozo-backdrop-blur \{\s+syntax: "\*";\s+inherits: false;/)
+  assert.match(css, /--hozo-backdrop-opacity: opacity\(50%\);/)
+  const readers = [...css.matchAll(/^ +(-webkit-)?backdrop-filter: ([^;]+);/gm)]
+  assert.equal(readers.length, 12, css)
+  for (const [index, reader] of readers.entries()) {
+    assert.equal(reader[1], index % 2 === 0 ? '-webkit-' : undefined)
+    assert.match(reader[2]!, /var\(--hozo-backdrop-opacity,\) var\(--hozo-backdrop-saturate,\)/)
+    assert.equal(reader[2], readers[index ^ 1]![2])
+  }
+  assert.equal(
+    [...sheet(['blur-sm', 'backdrop-blur-sm']).matchAll(/@property --hozo-/g)].length,
+    17,
+  )
 })

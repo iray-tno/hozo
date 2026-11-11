@@ -27,6 +27,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   hozoFilterStyles: '@hozo/core/generated/filter-slots',
   HozoFlatList: '@hozo/core/generated/flat-list',
   hozoGapSpreadStyles: '@hozo/core/generated/gap-styles',
+  hozoGradientStyles: '@hozo/core/generated/gradient-slots',
   HozoGrid: '@hozo/core/generated/grid',
   HozoGridItem: '@hozo/core/generated/grid',
   hozoImageDomProps: '@hozo/core/generated/view-dom-props',

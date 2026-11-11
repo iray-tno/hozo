@@ -337,6 +337,15 @@ fn scale_z(prop: &StyleProperty) -> Option<f64> {
 /// a word (#1267), which is why the prefixed spelling was here until the
 /// floor moved (#1272).
 const BACKGROUND_IMAGE: &str = "backgroundImage";
+pub(crate) const GRADIENT_EMPTY_COLOR: &str = "#0000";
+
+pub(crate) fn gradient_prelude(prelude: &str) -> &str {
+    match prelude.find(" in ") {
+        Some(cut) => &prelude[..cut],
+        None if prelude.starts_with("in ") => "",
+        None => prelude,
+    }
+}
 
 /// A gradient as React Native's background image, which takes CSS
 /// gradient syntax as a string.
@@ -379,11 +388,7 @@ pub(crate) fn background_image_entry(
     }
     // Everything up to the interpolation clause: `to right in oklab` is a
     // direction React Native understands followed by one it doesn't.
-    let direction = match prelude.find(" in ") {
-        Some(cut) => &prelude[..cut],
-        None if prelude.starts_with("in ") => "",
-        None => prelude,
-    };
+    let direction = gradient_prelude(prelude);
 
     let color = |stop: GradientStop| {
         props.iter().find_map(|p| match p {
@@ -407,7 +412,7 @@ pub(crate) fn background_image_entry(
     let stop = |s: GradientStop| {
         // `resolve_theme_color` returns a quoted JS string; this one goes
         // inside a larger string, so the quotes come off.
-        let color = color(s).unwrap_or_else(|| "'#0000'".to_string());
+        let color = color(s).unwrap_or_else(|| js_string(GRADIENT_EMPTY_COLOR));
         format!("{} {}", color.trim_matches('\''), position(s))
     };
 

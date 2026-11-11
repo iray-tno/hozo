@@ -984,9 +984,17 @@ pub(super) fn render_node(
         own_declarations.partition(|d| style::is_child_scoped(&d.property));
     let compose_filters =
         component != "HozoAnimated" && crate::filters::split_across_conditions(&own_declarations);
+    let compose_gradients =
+        component != "HozoAnimated" && crate::gradients::split_across_conditions(&own_declarations);
     // Copying base filter registers into every condition would overwrite a
     // different active condition's value when the runtime joins the slots.
-    let own_declarations = style::fold_base_layers(own_declarations, !compose_filters);
+    let own_declarations = style::fold_base_layers(
+        own_declarations,
+        style::ComposedLayers {
+            filters: compose_filters,
+            gradients: compose_gradients,
+        },
+    );
 
     let mut frames = crate::conditions::AnimatedFrames::default();
     let animates = component == "HozoAnimated";
@@ -1072,6 +1080,11 @@ pub(super) fn render_node(
     };
     let filter_specs = if compose_filters {
         crate::filters::specs(&cx.style_entries[transform_entry_start..])
+    } else {
+        String::new()
+    };
+    let gradient_specs = if compose_gradients {
+        crate::gradients::specs(&cx.style_entries[transform_entry_start..], theme)
     } else {
         String::new()
     };
@@ -1519,6 +1532,15 @@ pub(super) fn render_node(
         style_array_parts.extend(authored_style);
     }
 
+    if !gradient_specs.is_empty() {
+        cx.runtime.need_component("hozoGradientStyles");
+        style_array_parts = vec![format!(
+            "hozoGradientStyles([{}], [{}], {})",
+            style_array_parts.join(", "),
+            gradient_specs,
+            crate::gradients::defaults()
+        )];
+    }
     if !filter_specs.is_empty() {
         cx.runtime.need_component("hozoFilterStyles");
         style_array_parts = vec![format!(

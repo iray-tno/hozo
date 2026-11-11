@@ -24,6 +24,7 @@ test('filter functions under different conditions are registers read by one filt
 
 test('backdrop filters read opacity before saturate, as Tailwind does', () => {
   const split = css('md:backdrop-blur-sm backdrop-opacity-50')
+  assert.match(split, /-webkit-backdrop-filter: var\(--hozo-backdrop-blur,\)/)
   assert.match(
     split,
     /backdrop-filter: var\(--hozo-backdrop-blur,\) var\(--hozo-backdrop-brightness,\) var\(--hozo-backdrop-contrast,\) var\(--hozo-backdrop-grayscale,\) var\(--hozo-backdrop-hue-rotate,\) var\(--hozo-backdrop-invert,\) var\(--hozo-backdrop-opacity,\) var\(--hozo-backdrop-saturate,\) var\(--hozo-backdrop-sepia,\);/,

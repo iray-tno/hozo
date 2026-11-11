@@ -717,6 +717,8 @@ export interface NativeCandidatePlan {
       index: number
       stateKeys: string[]
       nativeKeys: string[]
+      /** Actual generated metadata fields, not invented Native style keys. */
+      compositionKeys: string[]
       orderable: boolean
       /** Original IR write indices before Native expansion/deduplication. */
       writes: TailwindCompilePlan['sites'][number]['blocks'][number]['writes']

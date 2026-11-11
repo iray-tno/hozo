@@ -12,6 +12,7 @@ const config = JSON.parse(readFileSync(new URL('../turbo.json', import.meta.url)
 const reads = {
   '@hozo/landing#test': ['scripts/browser-audit-diagnostics.mjs'],
   '@hozo/tailwind#test': [
+    'packages/engine/src/gradient-slots.ts',
     'packages/engine/src/filter-slots.ts',
     'crates/hozo_web/src/lib.rs',
     'crates/hozo_web/src/css.rs',
@@ -41,6 +42,7 @@ const reads = {
     'examples/storybook-demo/tsconfig.json',
   ],
   '@hozo/compiler#test': [
+    'packages/engine/src/gradient-slots.ts',
     'packages/engine/src/filter-slots.ts',
     'crates/hozo_web/src/css.rs',
     'crates/hozo_parser/src/static_imports.rs',

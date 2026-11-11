@@ -35,6 +35,9 @@ pub struct CandidatePriorityGroup {
     /// Exact predicate keys emitted by state_groups, not reinterpreted CSS.
     pub state_keys: Vec<String>,
     pub native_keys: Vec<String>,
+    /// Actual independent metadata writes with no standalone RN declaration.
+    /// Kept disjoint from real native_keys; these are not hypothetical styles.
+    pub composition_keys: Vec<String>,
     pub orderable: bool,
     pub writes: Vec<TailwindWriteEvidence>,
     /// Only uniform assessed writes acquire a whole-object priority. A
@@ -67,8 +70,9 @@ impl<'a> CandidatePlanBuilder<'a> {
         condition: &Condition,
         keys: Vec<String>,
         props: &[StyleProperty],
-        pairs: &[(String, String)],
+        emitted: (&[(String, String)], Option<&crate::gradients::Metadata>),
     ) -> CandidatePriorityGroup {
+        let (pairs, gradient) = emitted;
         let writes: Vec<_> = props
             .iter()
             .enumerate()
@@ -91,6 +95,9 @@ impl<'a> CandidatePlanBuilder<'a> {
             index,
             state_keys: keys,
             native_keys: pairs.iter().map(|(key, _)| key.clone()).collect(),
+            composition_keys: gradient
+                .map(|metadata| metadata.composition_keys())
+                .unwrap_or_default(),
             // Scalar physical keys need no logical-edge, shorthand-gap or
             // register normalization. This is eligibility, not an order table.
             orderable,
@@ -127,12 +134,25 @@ impl<'a> CandidatePlanBuilder<'a> {
         self.entry(name, "refused", Some(reason), Vec::new());
     }
 
-    pub fn style(&mut self, name: &str, props: &[StyleProperty], pairs: &[(String, String)]) {
+    pub fn style(
+        &mut self,
+        name: &str,
+        props: &[StyleProperty],
+        pairs: &[(String, String)],
+        gradient: Option<&crate::gradients::Metadata>,
+    ) {
         self.entry(
             name,
             "style",
             None,
-            vec![self.group(name, 0, &Condition::Always, Vec::new(), props, pairs)],
+            vec![self.group(
+                name,
+                0,
+                &Condition::Always,
+                Vec::new(),
+                props,
+                (pairs, gradient),
+            )],
         );
     }
 
@@ -153,7 +173,7 @@ impl<'a> CandidatePlanBuilder<'a> {
                     condition,
                     group.keys.clone(),
                     properties,
-                    &group.pairs,
+                    (&group.pairs, group.gradient.as_ref()),
                 )
             })
             .collect();
@@ -188,8 +208,19 @@ fn ordering(entries: &[CandidatePriorityEntry]) -> Option<CandidateOrdering> {
     let mut owners = HashMap::new();
     let mut conflict = false;
     for entry in &eligible {
-        for key in entry.groups.iter().flat_map(|group| &group.native_keys) {
-            if let Some(previous) = owners.insert(key.as_str(), entry.candidate.as_str()) {
+        for key in entry.groups.iter().flat_map(|group| {
+            group
+                .native_keys
+                .iter()
+                .map(|key| (false, key.as_str()))
+                .chain(
+                    group
+                        .composition_keys
+                        .iter()
+                        .map(|key| (true, key.as_str())),
+                )
+        }) {
+            if let Some(previous) = owners.insert(key, entry.candidate.as_str()) {
                 conflict |= previous != entry.candidate;
             }
         }
