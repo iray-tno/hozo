@@ -447,8 +447,10 @@ function configureHozo(
         const helpers = await findClassHelpers(
           source,
           absoluteFile,
-          async (specifier, importer) =>
-            (await this.resolve(specifier, importer, { skipSelf: true }))?.id,
+          async (specifier, importer) => {
+            const resolved = await this.resolve(specifier, importer, { skipSelf: true })
+            return resolved?.external ? undefined : resolved?.id
+          },
           (dependency) => this.addWatchFile(dependency),
         )
         compiler.setClassHelpers(resolveClassHelpers(options.classHelpers, helpers))

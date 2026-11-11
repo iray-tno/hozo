@@ -73,9 +73,6 @@ const PATTERN_HOSTS: [(&str, &str, bool); 3] = [
 /// The `cx`-shaped helpers whose arguments are read one by one, as
 /// `dynamic_class` reads them. Not `tailwind-merge`, for the reason given
 /// there.
-const JOIN_MODULES: [&str; 2] = ["clsx", "classnames"];
-const HOZO_JOIN_MODULES: [&str; 2] = ["@hozo/core", "@hozo/engine"];
-const TW_MERGE_MODULE: &str = "tailwind-merge";
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct TextForwardingSummary {
@@ -406,7 +403,6 @@ enum Classes {
         otherwise: Box<Classes>,
     },
     Join(Vec<Classes>),
-    Merge(Vec<Classes>),
 }
 
 impl Classes {
@@ -442,17 +438,6 @@ impl Classes {
                     _ => Classes::Join(flat),
                 }
             }
-            Classes::Merge(parts) => {
-                let mut flat = Vec::new();
-                for part in parts {
-                    match part.normalized() {
-                        Classes::Join(inner) => flat.extend(inner),
-                        Classes::Literal(text) if text.is_empty() => {}
-                        other => flat.push(other),
-                    }
-                }
-                Classes::Merge(flat)
-            }
         }
     }
 
@@ -468,9 +453,7 @@ impl Classes {
                 then.comparisons(out);
                 otherwise.comparisons(out);
             }
-            Classes::Join(parts) | Classes::Merge(parts) => {
-                parts.iter().for_each(|part| part.comparisons(out))
-            }
+            Classes::Join(parts) => parts.iter().for_each(|part| part.comparisons(out)),
         }
     }
 
@@ -489,14 +472,6 @@ impl Classes {
                 }
             }
             Classes::Join(parts) => parts.iter().for_each(|part| part.resolve(holds, out)),
-            Classes::Merge(parts) => {
-                let mut inner = Vec::new();
-                parts
-                    .iter()
-                    .for_each(|part| part.resolve(holds, &mut inner));
-                let joined = inner.join(" ");
-                out.push(crate::tw_merge::merge_class_list(&joined));
-            }
         }
     }
 }
@@ -1271,36 +1246,20 @@ fn read_join(call: &CallExpression, scope: &Scope) -> Option<Classes> {
         return None;
     };
     let import = scope.import_refs.get(&callee.span.start)?;
-    let kind = scope.module.import_entries.iter().find_map(|entry| {
-        let from = entry.module_request.name.as_str();
-        if entry.local_name.span.start != *import {
-            return None;
-        }
-        if JOIN_MODULES.contains(&from)
-            || (HOZO_JOIN_MODULES.contains(&from)
-                && matches!(&entry.import_name, ImportImportName::Name(n) if n.name == "cx"))
-            || (from == TW_MERGE_MODULE
-                && matches!(&entry.import_name, ImportImportName::Name(n) if n.name == "twJoin"))
-        {
-            return Some(false);
-        }
-        if from == TW_MERGE_MODULE
-            && matches!(&entry.import_name, ImportImportName::Name(n) if n.name == "twMerge")
-        {
-            return Some(true);
-        }
-        None
-    })?;
+    let entry = scope
+        .module
+        .import_entries
+        .iter()
+        .find(|entry| entry.local_name.span.start == *import)?;
+    // A source-only manifest has no resolved merger entry. Its forwarding
+    // contract can use a join, but cannot assume any conflict table.
+    crate::dynamic_class::helper_import(entry, &[])?;
     let mut parts = Vec::new();
     for argument in &call.arguments {
         // A spread argument hides what is joined.
         parts.push(read_classes(argument.as_expression()?, scope)?);
     }
-    Some(if kind {
-        Classes::Merge(parts)
-    } else {
-        Classes::Join(parts)
-    })
+    Some(Classes::Join(parts))
 }
 
 /// Manifests' text forwarding, keyed by the module a caller imports from and
@@ -1470,21 +1429,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn normalization_preserves_nested_merge_boundaries() {
-        let nested = Classes::Merge(vec![
-            Classes::Merge(vec![
-                Classes::Literal("overflow-x-auto".into()),
-                Classes::Literal("overflow-hidden".into()),
-            ]),
-            Classes::Literal("line-clamp-2".into()),
-        ]);
-        let mut resolved = Vec::new();
-        nested.normalized().resolve(&|_| false, &mut resolved);
-        assert_eq!(resolved, ["line-clamp-2"]);
-        assert_eq!(
-            crate::tw_merge::merge_class_list("overflow-x-auto overflow-hidden line-clamp-2"),
-            "overflow-x-auto line-clamp-2"
+    fn forwarding_does_not_assume_unresolved_merger_rules() {
+        let source = button(
+            "return <Host {...rest} disabled={disabled} className={classes('text-sm', 'text-lg', className)} />",
         );
+        let join = format!("import {{ twJoin as classes }} from 'tailwind-merge';{source}");
+        let merge = format!("import {{ twMerge as classes }} from 'tailwind-merge';{source}");
+        assert_eq!(summarize_text_forwarding(&join).components.len(), 1);
+        assert!(summarize_text_forwarding(&merge).components.is_empty());
     }
 
     fn button(body: &str) -> String {

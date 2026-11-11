@@ -594,6 +594,7 @@ pub struct ClassHelper {
     pub module: String,
     pub name: String,
     pub merge: Option<bool>,
+    pub merge_config: Option<String>,
 }
 
 /// An import a file calls inside a `className` that is not a joiner the
@@ -950,6 +951,11 @@ impl Compiler {
     pub fn set_class_helpers(&mut self, helpers: Vec<ClassHelper>) {
         self.class_helpers = helpers
             .into_iter()
+            .filter(|helper| {
+                helper.merge != Some(true)
+                    || helper.merge_config.as_deref()
+                        == Some(hozo_parser::tw_merge::DEFAULT_CONFIG_ID)
+            })
             .map(|helper| hozo_parser::ClassHelper {
                 module: helper.module,
                 name: helper.name,

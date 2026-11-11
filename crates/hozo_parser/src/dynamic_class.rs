@@ -116,6 +116,7 @@ pub struct CompiledToken {
 pub struct ClassHelper {
     pub module: String,
     pub name: String,
+    /// The caller has verified the resolved merger uses this compiler's default table.
     pub merge: bool,
 }
 
@@ -295,6 +296,9 @@ pub(crate) fn helper_import(
         .iter()
         .find(|helper| helper.module == module && helper.name == imported)
     {
+        if module == TW_MERGE_MODULE && imported == "twMerge" && !helper.merge {
+            return None;
+        }
         return Some(if helper.merge {
             HelperKind::Merge
         } else {
@@ -303,7 +307,6 @@ pub(crate) fn helper_import(
     }
     if module == TW_MERGE_MODULE {
         return match imported {
-            "twMerge" => Some(HelperKind::Merge),
             "twJoin" => Some(HelperKind::StrictJoin),
             _ => None,
         };
@@ -1336,7 +1339,8 @@ const el = <View className={{{expression}}} />
             ),
         ] {
             let source = format!("import {{ View }} from '@hozo/core'; import {{ twMerge }} from 'tailwind-merge'; const el = <View className={{{expression}}} />");
-            let decomposed = decompose_source(&source);
+            let decomposed =
+                decompose_with_helpers(&source, &[merge_helper("tailwind-merge", "twMerge")]);
             assert!(decomposed.fallback.is_empty());
             for a in [false, true] {
                 for b in [false, true] {
@@ -1365,23 +1369,25 @@ const el = <View className={{{expression}}} />
 
     #[test]
     fn tw_merge_resolves_known_conflicts_and_keeps_opaque_calls() {
-        let static_override = decompose_source(
+        let static_override = decompose_with_helpers(
             r#"
             import { View } from '@hozo/core'
             import { twMerge } from 'tailwind-merge'
             const el = <View className={twMerge('px-3 py-1', 'px-2')} />
             "#,
+            &[merge_helper("tailwind-merge", "twMerge")],
         );
         assert!(static_override.fallback.is_empty());
         // py-1 (2 decls) + px-2 (2 decls) = 4 decls; px-3 was dropped.
         assert_eq!(static_override.declarations.len(), 4);
 
-        let cond_override = decompose_source(
+        let cond_override = decompose_with_helpers(
             r#"
             import { View } from '@hozo/core'
             import { twMerge } from 'tailwind-merge'
             const el = <View className={twMerge('px-3', active && 'px-2')} />
             "#,
+            &[merge_helper("tailwind-merge", "twMerge")],
         );
         assert!(cond_override.fallback.is_empty());
         assert_eq!(cond_override.declarations.len(), 4);

@@ -2,12 +2,27 @@
 // `tailwind-merge` across static, conditional, and runtime-fallback cases (#1676).
 
 import assert from 'node:assert/strict'
+import { appendFileSync, copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 
-import { createCompiler, prepareTailwindContext } from '@hozo/compiler'
+import {
+  createCompiler,
+  openCandidateCache,
+  type PreparedTailwindContext,
+  prepareFinalTailwindContext,
+  prepareTailwindContext,
+} from '@hozo/compiler'
 import { twJoin, twMerge } from 'tailwind-merge'
+import { twMerge as legacyMerge } from 'tailwind-merge-legacy'
+import { compile as compileTailwind } from 'tailwindcss'
 
+import { findClassHelpers, resolveClassHelpers } from '../../compiler/src/project.ts'
+import { TAILWIND_MERGE_CONFIG } from '../../compiler/src/tw-merge-config.ts'
+import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { prepareTailwindOrder, tailwindPackageDir } from '../../tailwind/src/theme.ts'
 
 import { ALL_CANDIDATES } from './candidates.ts'
@@ -16,7 +31,10 @@ const require = createRequire(import.meta.url)
 
 function createTwMergeCompiler() {
   const compiler = createCompiler(undefined, ['@hozo/core', '@hozo/primitives'])
-  compiler.setClassHelpers([{ module: '@/lib/utils', name: 'cn', merge: true }])
+  compiler.setClassHelpers([
+    { module: '@/lib/utils', name: 'cn', merge: true, mergeConfig: TAILWIND_MERGE_CONFIG },
+    { module: 'tailwind-merge', name: 'twMerge', merge: true, mergeConfig: TAILWIND_MERGE_CONFIG },
+  ])
   return compiler
 }
 
@@ -172,16 +190,22 @@ import { cn } from '@/lib/utils'
 export const A = () => <View className={${expression}} />`
 }
 
-async function compileBothRoutes(compiler: ReturnType<typeof createCompiler>, input: string) {
+async function compileBothRoutes(
+  compiler: ReturnType<typeof createCompiler>,
+  input: string,
+  context?: PreparedTailwindContext,
+) {
   const web = compiler.prepareWebModule(input)
   const native = compiler.prepareNativeModule(input)
-  const candidates = [...new Set([...web.candidates, ...native.candidates])]
-  const { snapshot } = await prepareTailwindOrder(
-    '@import "tailwindcss/theme.css";',
-    tailwindPackageDir(),
-    candidates,
-  )
-  const context = prepareTailwindContext(JSON.stringify(snapshot))
+  if (!context) {
+    const candidates = [...new Set([...web.candidates, ...native.candidates])]
+    const { snapshot } = await prepareTailwindOrder(
+      '@import "tailwindcss/theme.css";',
+      tailwindPackageDir(),
+      candidates,
+    )
+    context = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  }
   return [
     compiler.compile(input),
     compiler.compileNative(input),
@@ -190,6 +214,181 @@ async function compileBothRoutes(compiler: ReturnType<typeof createCompiler>, in
   ]
 }
 
+const PADDING_THEME = '@theme { --spacing: 4px; } @tailwind utilities;'
+const PADDING_CLASSES = ['ps-8', 'px-2']
+
+test('the compiler keeps the class tokens selected by the resolved merger before CSS ordering', async () => {
+  const compiler = createCompiler()
+  const direct = (expression: string) =>
+    source(expression).replace(
+      "import { cn } from '@/lib/utils'",
+      "import { twMerge as cn } from 'tailwind-merge'",
+    )
+  compiler.setClassHelpers(
+    await findClassHelpers(direct("cn('ps-8', 'px-2')"), fileURLToPath(import.meta.url), async () =>
+      fileURLToPath(import.meta.resolve('tailwind-merge')),
+    ),
+  )
+  const { snapshot } = await prepareTailwindOrder(
+    PADDING_THEME,
+    tailwindPackageDir(),
+    PADDING_CLASSES,
+  )
+  const context = prepareTailwindContext(JSON.stringify(snapshot))
+  for (const classes of [PADDING_CLASSES, [...PADDING_CLASSES].reverse()]) {
+    const input = direct(`cn(${classes.map((token) => JSON.stringify(token)).join(', ')})`)
+    const [result] = compiler
+      .prepareWebModule(input, undefined, { tailwindPlan: true })
+      .emit(context)
+    assert.doesNotMatch(result.jsx, /\bcn\(/)
+    assert.equal(result.tailwindPlan?.mode, 'passthrough')
+    const tokens = result.tailwindPlan.sites.flatMap((site) =>
+      site.blocks.map((block) => block.candidate),
+    )
+    assert.deepEqual([...new Set(tokens)], twMerge(...classes).split(' '))
+  }
+})
+
+async function referencePaddingOrder() {
+  const tailwind = await compileTailwind(PADDING_THEME)
+  const css = tailwind.build(PADDING_CLASSES)
+  assert.match(css, /\.px-2 \{\s*padding-inline: calc\(var\(--spacing\) \* 2\)/)
+  assert.match(css, /\.ps-8 \{\s*padding-inline-start: calc\(var\(--spacing\) \* 8\)/)
+  return [...css.matchAll(/\.(ps-8|px-2) \{/g)].map((match) => match[1])
+}
+
+test('Tailwind CSS orders the two padding rules independently of the authored list order', async () => {
+  assert.deepEqual(await referencePaddingOrder(), ['px-2', 'ps-8'])
+})
+
+test('ordinary and prepared routes use the resolved merger version through direct calls and wrappers', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-merger-version-'))
+  try {
+    const app = path.join(root, 'App.tsx')
+    const wrapper = path.join(root, 'wrapper.ts')
+    const official = fileURLToPath(import.meta.resolve('tailwind-merge'))
+    const legacy = require.resolve('tailwind-merge-legacy')
+    writeFileSync(
+      wrapper,
+      `import { twMerge } from 'tailwind-merge'; export const cn = (...args) => twMerge(args)`,
+    )
+    const direct = source("cn('ps-8', 'px-2')").replace(
+      "import { cn } from '@/lib/utils'",
+      "import { twMerge as cn } from 'tailwind-merge'",
+    )
+    const wrapped = source("cn('ps-8', 'px-2')")
+    assert.equal(twMerge('ps-8', 'px-2'), 'px-2')
+    assert.equal(legacyMerge('ps-8', 'px-2'), 'ps-8 px-2')
+
+    // Read Tailwind's order for the Web sheet and the final Native plan.
+    // Ordinary Native uses the compiler's built-in ranks.
+    const { snapshot } = await prepareTailwindOrder(
+      PADDING_THEME,
+      tailwindPackageDir(),
+      PADDING_CLASSES,
+    )
+    const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
+    const cache = openCandidateCache()
+    cache.scanFile(app, direct, 1)
+    const candidateCss = cache.renderCss(undefined, await referencePaddingOrder())
+    assert.match(
+      candidateCss,
+      /\.px-2:where\(\.hozo-candidate-owner\):not\(hozo-none\) \{\s*padding-inline-start: 8px;\s*padding-inline-end: 8px;\s*\}[\s\S]*\.ps-8:where\(\.hozo-candidate-owner\):not\(hozo-none\) \{\s*padding-inline-start: 32px;/,
+    )
+    const nativeResolvers = [
+      cache.renderNativeModule(),
+      cache.renderNativeModulePlan(context).code,
+    ].map((code) =>
+      new Function(
+        'createClassResolver',
+        `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; return hozoClasses`,
+      )(createClassResolver),
+    )
+
+    const compiler = createCompiler()
+    for (const input of [direct, wrapped]) {
+      const dependencies: string[] = []
+      const discover = (target: string) =>
+        findClassHelpers(
+          input,
+          app,
+          async (specifier, importer) => {
+            if (specifier === '@/lib/utils') return wrapper
+            assert.equal(specifier, 'tailwind-merge')
+            assert.equal(importer, input === direct ? app : wrapper)
+            return target
+          },
+          (file) => dependencies.push(file),
+        )
+      const entry = input === direct ? official : require.resolve('tailwind-merge')
+      const proven = await discover(entry)
+      assert.equal(proven[0]?.mergeConfig, TAILWIND_MERGE_CONFIG)
+      compiler.setClassHelpers(proven)
+      for (const [result] of await compileBothRoutes(compiler, input, context)) {
+        assert.doesNotMatch(result.jsx, /\bcn\(/)
+        if ('css' in result) {
+          assert.match(result.css, /padding-inline-start: 8px/)
+          assert.doesNotMatch(result.css, /padding-inline-start: 32px/)
+        } else {
+          const hozoStyles = new Function(`return (${result.styles})`)()
+          const { style } = render(result.jsx, { View: 'View', hozoStyles })
+          assert.deepEqual(Object.assign({}, ...[style].flat(Infinity)), {
+            paddingStart: 8,
+            paddingEnd: 8,
+          })
+        }
+      }
+      assert.ok(dependencies.includes(entry))
+      if (input === wrapped) assert.ok(dependencies.includes(wrapper))
+
+      const unproven = await discover(legacy)
+      assert.equal(unproven[0]?.mergeConfig, undefined)
+      // A legacy declaration without rule evidence cannot override discovery.
+      const { module, name } = unproven[0]
+      compiler.setClassHelpers(resolveClassHelpers([{ module, name }], unproven))
+      for (const [route, [result]] of (
+        await compileBothRoutes(compiler, input, context)
+      ).entries()) {
+        const results: string[] = []
+        assert.match(result.jsx, /\bcn\(/)
+        const props = render(result.jsx, {
+          View: 'View',
+          hozoStyles: {},
+          hozoClasses: nativeResolvers[route < 2 ? 0 : 1],
+          cn: (...args: Parameters<typeof legacyMerge>) => {
+            const merged = legacyMerge(...args)
+            results.push(merged)
+            return merged
+          },
+        })
+        assert.deepEqual(results, ['ps-8 px-2'])
+        if ('css' in result) {
+          assert.match(props.className, /\bhozo-candidate-owner\b/)
+          assert.match(props.className, /\bps-8 px-2\b/)
+        } else {
+          assert.deepEqual(Object.assign({}, ...[props.style].flat(Infinity)), {
+            paddingStart: 32,
+            paddingEnd: 8,
+          })
+        }
+      }
+    }
+
+    const patched = path.join(root, 'merger.mjs')
+    copyFileSync(official, patched)
+    const discoverPatched = () => findClassHelpers(direct, app, async () => patched)
+    assert.equal((await discoverPatched())[0]?.mergeConfig, TAILWIND_MERGE_CONFIG)
+    const queried = await findClassHelpers(direct, app, async () => `${patched}?wrapped`)
+    assert.equal(queried[0]?.mergeConfig, undefined)
+    appendFileSync(patched, '\n// Local patch\n')
+    assert.equal((await discoverPatched())[0]?.mergeConfig, undefined)
+    compiler.setClassHelpers([{ module: 'tailwind-merge', name: 'twMerge', merge: true }])
+    assert.match(compiler.compile(direct)[0].jsx, /\bcn\(/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('ordinary and prepared lowering preserve shadowed helper calls and compile the import alias', async () => {
   const compiler = createTwMergeCompiler()
   for (const specifier of ['tailwind-merge', '@/lib/utils']) {
@@ -197,19 +396,25 @@ test('ordinary and prepared lowering preserve shadowed helper calls and compile 
     const imports = `import { View } from '@hozo/core'; import { ${imported} as merge } from '${specifier}';`
     const input = `${imports}
       export const Local = (merge) => <View className={merge('p-4', 'p-2')} />
+      export const Nested = () => {
+        function merge() { return 'p-8' }
+        return <View className={merge('p-4', 'p-2')} />
+      }
       export const Imported = () => <View className={merge('p-4', 'p-2')} />`
-    for (const [local, imported] of await compileBothRoutes(compiler, input)) {
-      const calls: string[][] = []
-      render(local.jsx, {
-        View: 'View',
-        hozoStyles: {},
-        hozoClasses: (classes: unknown) => classes,
-        merge: (...args: string[]) => {
-          calls.push(args)
-          return 'p-8'
-        },
-      })
-      assert.deepEqual(calls, [['p-4', 'p-2']])
+    for (const [local, nested, imported] of await compileBothRoutes(compiler, input)) {
+      for (const result of [local, nested]) {
+        const calls: string[][] = []
+        render(result.jsx, {
+          View: 'View',
+          hozoStyles: {},
+          hozoClasses: (classes: unknown) => classes,
+          merge: (...args: string[]) => {
+            calls.push(args)
+            return 'p-8'
+          },
+        })
+        assert.deepEqual(calls, [['p-4', 'p-2']])
+      }
       assert.doesNotMatch(imported.jsx, /\bmerge\(/)
     }
   }

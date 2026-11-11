@@ -10,6 +10,8 @@ use crate::tw_merge_table::{
     ORDER_SENSITIVE_MODIFIERS, POSTFIX_LOOKUP_CLASS_GROUPS, ROOT_INDEX, TRIE_NODES,
 };
 
+pub use crate::tw_merge_table::DEFAULT_CONFIG_ID;
+
 const ARBITRARY_PROPERTY_PREFIX: &str = "arbitrary..";
 
 #[derive(Clone, Debug, PartialEq, Eq)]

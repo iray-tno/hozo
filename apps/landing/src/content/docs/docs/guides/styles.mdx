@@ -61,16 +61,23 @@ calls compile when all class tokens are known and supported. Its opaque
 arguments and wrappers stay at runtime to preserve array flattening;
 `twJoin` does not share `clsx`'s object-dictionary semantics.
 
-When the call uses `twMerge` — or a helper such as shadcn/ui's `cn` that
-hands its result to `twMerge` — Hozo applies `tailwind-merge`'s conflict
-resolution at compile time. Static conflicts (`twMerge('p-4', 'px-2')`) and
-conditional overrides (`cn('px-3', active && 'px-2')`) are resolved into the
+When the call uses `twMerge` or a helper such as shadcn/ui's `cn`, Hozo can
+apply the merger's conflict rules at compile time. Vite resolves the actual
+dependency and checks its shipped entry against the implementation used to
+generate Hozo's conflict table. A different or unverified implementation
+stays at runtime. This includes externalized imports, generated dependency
+entries without matching bytes, Metro's startup scan, and source-only tools without
+bundler resolution for the merger. Static conflicts
+(`twMerge('p-4', 'px-2')`) and conditional overrides
+(`cn('px-3', active && 'px-2')`) are resolved into the
 compiled rules and guards. This requires every possible class token to be
 known and supported by the compiler. If any argument contains an opaque
 caller class list (`cn('px-3 py-1 hover:bg-blue-500', className)`) or an
 unsupported token, the whole merge stays at runtime. Custom classes and
 ambiguous arbitrary values cannot be classified by prefix alone, and a
 token removed by a later token must not suppress an earlier class.
+The merger decides which tokens survive. Tailwind's CSS cascade decides
+the precedence of the utilities that survive.
 On Native, a `Pressable` can apply runtime `hover:` and `active:` candidates
 from the project map using its own interaction state. Runtime variant support
 depends on what the candidate map can represent and what state the component
@@ -78,15 +85,17 @@ supplies. Custom mergers built with `extendTailwindMerge` or
 `createTailwindMerge` also stay at runtime so their configured conflict groups
 remain authoritative.
 
-Anything else can be declared, and a declaration wins over what was found:
+Pure joiners can also be declared:
 
 ```ts
 hozo({ classHelpers: [{ module: '@/lib/utils', name: 'cn' }] })
 ```
 
 `module` is the specifier as callers write it, and `recognize: false` undoes
-a function found automatically. The same option works for `withHozo` on
-Metro. Vite resolves the import as the build does and re-reads the helper
+a function found automatically. `merge: true` identifies a conflict merger
+and keeps the original call when the build has no proof of its rules. The
+same options work for `withHozo` on Metro. Vite resolves the import as the
+build does and re-reads the helper
 when it changes. Metro reads helpers once when it starts, resolving relative
 imports and tsconfig `paths`, so a helper edited while it runs needs a
 restart, and one behind any other alias needs declaring. Or use `cx` from

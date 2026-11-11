@@ -101,8 +101,8 @@ fn has_custom_tw_merge(module: &ModuleRecord, program: &oxc_ast::ast::Program<'_
     finder.found
 }
 
-/// The imports a file calls inside a `className`, other than the joiners
-/// the compiler already recognizes.
+/// The imports a file calls inside a `className` that need resolution. Pure
+/// built-in joiners are already known; mergers need their resolved rules.
 pub fn class_helper_candidates(source: &str) -> Vec<ClassHelperCandidate> {
     let allocator = Allocator::default();
     let Some(ret) = parse(&allocator, source) else {
@@ -122,7 +122,9 @@ pub fn class_helper_candidates(source: &str) -> Vec<ClassHelperCandidate> {
             continue;
         };
         let specifier = entry.module_request.name.to_string();
-        if is_builtin_joiner(&specifier, &imported) {
+        if is_builtin_joiner(&specifier, &imported)
+            && !(specifier == TW_MERGE_MODULE && imported == "twMerge")
+        {
             continue;
         }
         out.insert(ClassHelperCandidate {
