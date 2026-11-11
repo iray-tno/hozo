@@ -47,22 +47,6 @@ pub use tailwind_builtin::{
     builtin_owner_interaction_rank, builtin_tailwind_snapshot, builtin_tailwind_version,
 };
 
-static LEGACY_ORDERING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
-
-/// Turns the ordering outside the shared plan (the interaction sort and the
-/// condition-weight group sort) off or on, process-wide. Measurement only:
-/// `scripts/tailwind-order-old-path.mjs` compiles a corpus both ways to count
-/// what those mechanisms still decide (#1230). Never set by a build.
-pub fn set_legacy_ordering(enabled: bool) {
-    LEGACY_ORDERING.store(enabled, std::sync::atomic::Ordering::Relaxed);
-}
-
-/// Whether the ordering outside the shared plan runs; see
-/// [`set_legacy_ordering`].
-pub fn legacy_ordering() -> bool {
-    LEGACY_ORDERING.load(std::sync::atomic::Ordering::Relaxed)
-}
-
 // ---------------------------------------------------------------------------
 // Source spans / diagnostics
 // ---------------------------------------------------------------------------
@@ -5674,7 +5658,7 @@ pub fn plan_native_condition_groups(declarations: &[StyleDeclaration]) -> Native
         // An input whose shared order was assessed is already linearized.
         // This includes backend projections that inserted register fallbacks
         // ahead of explicit writes without changing their guards.
-        if !canonical_input && legacy_ordering() {
+        if !canonical_input {
             linearize_native_specificity(&mut groups);
         }
         groups = coalesce_adjacent_conditions(groups);

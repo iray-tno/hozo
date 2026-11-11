@@ -16,12 +16,13 @@ const variants = [
 ]
 const compiler = createCompiler()
 const flatten = (style) => Object.assign({}, ...style.filter(Boolean))
-function props(source: string, inherited = false) {
+function props(source: string, inherited = false, errors: string[] = []) {
   const component = compiler.compileNativeModule(source, undefined, undefined, {
     textInheritance: inherited,
   }).components[0]
-  assert.ok(
-    !component.diagnostics.some((entry) => entry.severity === 'error'),
+  assert.deepEqual(
+    component.diagnostics.filter((entry) => entry.severity === 'error').map((entry) => entry.code),
+    errors,
     JSON.stringify(component.diagnostics),
   )
   const module = { exports: {} }
@@ -111,6 +112,23 @@ test('a more specific conjunction wins over a later-ranked single state', () => 
     flatten(props(source).style({ hovered: true, focused: true, pressed: true })).backgroundColor,
     '#112233',
   )
+})
+
+test('a Tailwind barrier keeps Native specificity and lets CSS arbitrate independently', () => {
+  const source = `import {Button} from '@hozo/core';export const Scene=({children})=><Button className="hover:focus:p-2 active:p-4 columns-(--layout)">{children}</Button>`
+  const [web] = compiler.compile(source)
+  // The unassessed utility leaves the conjunction before active in CSS.
+  // Its extra selector weight, not the source order, makes it win in Chrome.
+  assert.match(web!.css, /:hover:focus[\s\S]*:active/)
+  const { style } = props(source, false, ['WEB_ONLY_PROPERTY_ON_NATIVE'])
+  for (const hovered of [false, true]) {
+    for (const focused of [false, true]) {
+      for (const pressed of [false, true]) {
+        const selected = flatten(style({ hovered, focused, pressed }))
+        assert.equal(selected.paddingTop, hovered && focused ? 8 : pressed ? 16 : undefined)
+      }
+    }
+  }
 })
 
 test('constant/helper class expressions and secondary slots retain Tailwind provenance', () => {

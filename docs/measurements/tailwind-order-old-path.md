@@ -13,7 +13,8 @@ in the compiler:
   one ranked input.
 
 The third, the runtime state rank, lives in the generated resolver and is
-not switched here. The method and original counts below are historical.
+not switched here. The method and original counts below are historical;
+the switch and old script are available in the history at `6a8bccd7`.
 
 ## Method
 
@@ -156,3 +157,17 @@ addon, normal output for 818 files (721 components per target) matched
 byte for byte across Web JSX/CSS, Native JSX/styles, and both diagnostics.
 The generated text fixture's compiler-source hashes are not part of that
 corpus. The process-wide measurement switch is still present in this step.
+
+## Removing the process-wide switch
+
+The next step deletes the IR atomic flag and its N-API/TypeScript measurement
+exports. Native specificity is now an explicit part of its condition plan,
+not mutable process state. The positive emitted-style test checks all eight
+hover/focus/press states with a real Tailwind barrier; the browser check
+retains its independent Tailwind CSS. Neither test needs to disable normal
+ordering to prove that the more specific condition wins.
+
+`node scripts/tailwind-order-projection.mjs` is the read-only replacement for
+before/after changes. With a fresh addon on both revisions, compare its
+JSON record; missing or broken compiles fail rather than looking equal. The
+818-file receipt from the previous step is unchanged after this deletion.
