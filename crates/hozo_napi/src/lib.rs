@@ -1054,11 +1054,29 @@ pub struct CandidateCache {
 // the same authority. Descriptors are build-time data; only compact ranks
 // enter the generated resolver. Unassessed classes remain whole-input
 // barriers in that resolver, not invented rank-zero writes.
-fn builtin_candidate_module(names: &[String], theme: &hozo_ir::Theme) -> String {
+fn builtin_candidate_module(names: &[String], theme: &hozo_ir::Theme) -> napi::Result<String> {
     hozo_parser::builtin_tailwind_context(names.iter().map(String::as_str))
         .and_then(|context| hozo_native::render_final_candidate_module_plan(names, theme, &context))
         .map(|plan| plan.code)
-        .unwrap_or_else(|_| hozo_native::render_candidate_module(names, theme))
+        .map_err(|reason| {
+            napi::Error::from_reason(format!("Cannot order Native candidates: {reason}"))
+        })
+}
+
+#[cfg(test)]
+mod native_candidate_tests {
+    use super::*;
+
+    #[test]
+    fn invalid_builtin_candidate_facts_do_not_publish_an_authored_module() {
+        // The scanner never emits an empty identity. Deliberately violate
+        // the invariant rather than equating a valid unassessed token with
+        // a failed context build.
+        let error = builtin_candidate_module(&[String::new()], &Theme::default()).unwrap_err();
+        assert!(error
+            .reason
+            .contains("invalid or repeated Tailwind candidate identity"));
+    }
 }
 
 #[napi]
@@ -1221,7 +1239,7 @@ impl CandidateCache {
     /// project builds for one platform at a time -- generating the module
     /// a Web build will never import would be wasted work.
     #[napi]
-    pub fn render_native_module(&self, theme: Option<JsTheme>) -> String {
+    pub fn render_native_module(&self, theme: Option<JsTheme>) -> napi::Result<String> {
         builtin_candidate_module(&self.inner.union(), &to_theme(theme))
     }
 
@@ -1244,7 +1262,7 @@ impl CandidateCache {
         let mut plan =
             render(&names, &theme, &context.context).map_err(napi::Error::from_reason)?;
         if !context.ordered && !context.authored {
-            plan.code = builtin_candidate_module(&names, &theme);
+            plan.code = builtin_candidate_module(&names, &theme)?;
         }
         plan.fingerprint = context.fingerprint();
         Ok(plan.into())

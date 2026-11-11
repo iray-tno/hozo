@@ -49,43 +49,14 @@ test('ordinary runtime maps use the same built-in ranks as static compiles', () 
   assert.equal(flatten(resolver(cache.renderNativeModule(theme))('p-4 p-2')).paddingTop, 28)
 })
 
-test('unranked runtime input keeps its entire authored path, not a ranked subset', () => {
-  // A drawable Tailwind 3 reset whose whole-declaration semantics are not
-  // ranked. A Web-only arbitrary property would be diagnosed and omitted,
-  // and therefore would not exercise the drawable barrier at all.
-  const cache = fixture(['p-2', 'p-4', 'filter-none'])
+test('filter-none does not send competing owner states down the authored path', () => {
+  const cache = fixture(['active:p-2', 'hover:p-4', 'filter-none'])
   const resolve = resolver(cache.renderNativeModule())
-  assert.equal(flatten(resolve('p-4 p-2')).paddingTop, 16)
-  assert.equal(flatten(resolve('p-4 filter-none p-2')).paddingTop, 8)
-  assert.equal(flatten(resolve('p-2 filter-none p-4')).paddingTop, 16)
-  assert.equal(flatten(resolve('filter-none')).filter, 'none')
-})
-
-test('uniform fallback ranks need no tuple metadata but competing owner states still do', () => {
-  const uniform = fixture(['hover:opacity-25', 'hover:opacity-75', 'filter-none'])
-  const uniformCode = uniform.renderNativeModule()
-  assert.doesNotMatch(uniformCode, /\{ opacity: [\d.]+ \}, \d+\]/)
-  const resolve = resolver(uniformCode)
-  // filter-none forces the whole input off the compact plan, so this checks
-  // authored tie order in the actual generated fallback.
-  const state = { hovered: true, pressed: true }
-  assert.equal(
-    flatten(resolve('hover:opacity-75 filter-none hover:opacity-25', state)).opacity,
-    0.25,
-  )
-  assert.equal(
-    flatten(resolve('hover:opacity-25 filter-none hover:opacity-75', state)).opacity,
-    0.75,
-  )
-
-  const competing = fixture(['hover:opacity-25', 'active:opacity-75', 'filter-none'])
-  const competingCode = competing.renderNativeModule()
-  assert.match(competingCode, /\{ opacity: 0.75 \}, \d+\]/)
-  assert.equal(
-    flatten(resolver(competingCode)('active:opacity-75 filter-none hover:opacity-25', state))
-      .opacity,
-    0.75,
-  )
+  for (const classes of ['active:p-2 hover:p-4 filter-none', 'hover:p-4 active:p-2 filter-none']) {
+    const style = flatten(resolve(classes, { pressed: true, hovered: true }))
+    assert.equal(style.paddingTop, 8, classes)
+    assert.equal(style.filter, 'none', classes)
+  }
 })
 
 test('the authored negative control remains distinct from default runtime output', () => {

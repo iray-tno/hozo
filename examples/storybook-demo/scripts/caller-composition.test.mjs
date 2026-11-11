@@ -1690,6 +1690,58 @@ test('Web leaves fallback conjunction specificity to the browser', {
   }
 })
 
+test('Tailwind filter resets keep the registers a later condition reads', {
+  skip: !executablePath,
+}, async () => {
+  const reference = '@theme { --blur-sm: 8px; } @tailwind utilities;'
+  const cases = [
+    ['filter', 'blur-sm filter-none hover:sepia'],
+    ['backdropFilter', 'backdrop-blur-sm backdrop-filter-none hover:backdrop-sepia'],
+  ]
+  for (const [property, authored] of cases) {
+    const names = authored.split(' ')
+    const prepared = await prepareTailwindOrder(reference, tailwindPackageDir(), names)
+    const final = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
+    const upstream = (await compile(reference)).build(names)
+    const cache = openCandidateCache()
+    cache.scanFile('filters.ts', JSON.stringify(authored), 1)
+    const sheet = cache.renderCss(undefined, prepared.classOrder(cache.candidates()))
+    const page = await browser.newPage()
+    const observe = async (css, markup) => {
+      await page.setContent(`<style>${css}</style>${markup}`)
+      const target = page.getByRole('button', { name: 'Target' })
+      const read = () => target.evaluate((el, name) => getComputedStyle(el)[name], property)
+      await page.mouse.move(500, 400)
+      const resting = await read()
+      await target.hover()
+      const active = await read()
+      await page.mouse.move(500, 400)
+      return [resting, active, await read()]
+    }
+    try {
+      const raw = (classes) => `<button class="${classes}">Target</button>`
+      const expected = await observe(upstream, raw(authored))
+      assert.deepEqual(expected, ['none', 'blur(8px) sepia(1)', 'none'])
+      for (const order of [names, names.toReversed()]) {
+        const classes = order.join(' ')
+        const source = `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`
+        for (const result of [
+          compiler.compile(source)[0],
+          compiler.prepareWebModule(source).emit(final)[0],
+        ]) {
+          const html = renderToStaticMarkup(
+            evaluate(`module.exports=(${result.jsx})`, { h: createElement }),
+          )
+          assert.deepEqual(await observe(result.css, html), expected, `${property}: ${classes}`)
+        }
+        assert.deepEqual(await observe(sheet, raw(`hozo-candidate-owner ${classes}`)), expected)
+      }
+    } finally {
+      await page.close()
+    }
+  }
+})
+
 test('mixed StyleX/Tailwind inputs match independently ordered source sheets on both targets', {
   skip: !executablePath,
 }, async () => {

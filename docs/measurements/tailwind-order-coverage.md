@@ -47,41 +47,74 @@ Reading it:
 
 ## Ordering outside the shared plan
 
-| Mechanism | Where | What it does | Still needed for |
-| --- | --- | --- | --- |
-| ~~Interaction cascade sort~~ | Deleted ([old path](tailwind-order-old-path.md#deleting-the-interaction-sort)). | | |
-| Condition-weight group sort | `crates/hozo_ir/src/lib.rs` (`group_by_condition`) | Orders a node's condition groups by owner-interaction weight: ADR 011's cross-input rule, and, since the interaction sort went, a single Tailwind input the plan could not rank (Native has no cascade to restore weight). | Nodes with several inputs, and barrier inputs. Not Tailwind ordering: CSS weight, which Native emulates. |
-| Runtime state rank | `crates/hozo_native/src/candidate.rs` (`StateGroup.order`) and `packages/engine/src/class-resolver.ts` | The generated map gives each state group the same interaction cascade key; the resolver sorts by it once per cached string. Already skipped when the plan's ranks cover the whole string. | Runtime strings with any unranked class. |
+| Responsibility | Implementation | Stage 6 treatment |
+| --- | --- | --- |
+| Tailwind rule emission and assessed cascade | Captured or built-in descriptors → `tailwind_order/comparison.rs` (emission) → `priority.rs` (importance, CSS specificity, then emission). `TailwindWritePlan` applies these ranks within each assessed input. | One authority. No per-backend or per-family rule comparator. |
+| Web candidate stylesheet emission | Tailwind's upstream first-rule ordinals, consumed by `PreparedTailwindOrder.classOrder` or `loadClassOrder`, then `CandidateCache.renderCss`. CSS itself resolves specificity. | One projection of upstream ordinals, not a declaration rank. An alphabetical bootstrap/omitted order or a whole-candidate sort cannot prove multi-rule ordering. Verify final ordinary output, not bootstrap output. |
+| Native assessed runtime candidates | `candidate/plan.rs` projects ranks onto emitted objects and real conflict keys. `class-resolver.ts` applies them on a class-string cache miss and selects state matches afterward. | Keep data projection and selection; neither may decide a new Tailwind priority. |
+| Native static specificity and JSX composition | `plan_native_condition_groups` linearizes known weights when needed; unknown weight is not zero. `conditions.rs` preserves authored tiers and [ADR 011](../decisions/011-styling-inputs-keep-their-own-cascade.md) preserves input boundaries. | Keep, including for arbitrary/unranked and mixed inputs. Web needs no parallel weight sort. StyleX keeps its own atomic order; `twMerge` removes classes before ranking and is not cascade. |
+| Native runtime fallback owner ranks | `builtin_owner_interaction_rank` projects known owner specificity and the shared built-in variant positions; `class-resolver.ts` may sort these tuples when the string cannot use the complete plan. It leaves equal ranks in authored order and does not sort a group set containing unknown ranks. Fully ranked namespaces [no longer emit the fallback tuples](tailwind-order-old-path.md#omit-fallback-ranks-when-the-fallback-cannot-run). | Keep necessary specificity/selection. The variant tie policy is still observable on genuinely unassessed input. |
+| Style projection after ordering | Logical edges, implicit line-height, register assembly (transform/filter/shadow/gradient), and authored style/spread precedence. | Keep semantics; never use these projections as a second utility-priority table. |
 
-Not on this list, because they are platform semantics rather than a second
-ordering: `dedupe_last_wins`'s rule that a written value beats a text size's
-fallback (Tailwind's `--tw-leading` register), Native's base / conditional /
-owner-state partition (`crates/hozo_native/src/conditions.rs`), and the
-register and slot composition added for transforms, filters, shadows and
-gradients.
+The parser interaction sort, Web condition-weight sort, duplicate owner
+variant table and process-global switch have been removed. See the
+[deletion receipts](tailwind-order-old-path.md). The distinction was
+observable: with both hover and press active in Chromium and the same
+facts applied to the emitted Native callbacks, the built-in path for
+`active:p-2 hover:p-4 filter-none` selects 16px in static Web/Native but 8px
+from the generated Native fallback. Reversing the first two tokens makes
+both select 8px. Tailwind 4.3.3 generates `filter-none` and selects 8px in
+both orders; Hozo treated that whole-property reset as a barrier.
+Without it the assessed Hozo routes also select 8px in either order.
+[The filter reset now ranks](tailwind-filter-order.md#whole-property-resets),
+and all four paths select 8px in both orders. This does not prove equivalent
+winners on genuinely unassessed input.
 
-## What deleting them needs
+## Proposed Stage 6 gate (#1230)
 
-All three serve the inputs the plan does not rank (the group sort also
-serves nodes with several inputs, which the plan never merges). They can go only
-when no input reaches the old path, which takes two things:
+Apply this per existing workstream. A point is earned by deleting the
+superseded authority, not by renaming it or by shrinking the denominator.
 
-1. **Every barrier closed** -- the table above, and the full list in
-   [known gaps](tailwind-known-gaps.md).
-2. ~~**A context for every compile.**~~ Done. Vite, Metro and Next capture
-   the project's CSS ([default order](tailwind-default-order.md)), and every
-   other compile -- the standalone compiler API, WASM, preview, tests -- ranks
-   with rule descriptors built into Hozo
-   ([built-in order](tailwind-builtin-order.md),
-   [built-in default](tailwind-builtin-order-default.md)), at about 48 KB of
-   gzipped WASM.
+1. **Authority audit:** zero independent production Tailwind precedence
+   policies for the graduated domain. List every remaining rank producer
+   and consumer, which input reaches it, and the removed code/table/route.
+   A retained projection must not assign a different Tailwind winner for
+   the same assessed input. CSS specificity and state delivery are not
+   duplicate Tailwind policies.
+2. **Independent differential:** on the same declared domain and pinned
+   Tailwind, compare actual browser winners with static Web, selected
+   Native styles and generated candidates, in both token orders and with
+   overlapping conditions. Test captured and built-in contexts. Report
+   zero unexplained winner differences; include a negative control that
+   demonstrates the oracle catches a wrong winner.
+3. **Fallback contract:** explicitly test known conjunction specificity,
+   equal-weight authored ties, unknown/opaque input, unranked arbitrary
+   writes and mixed Tailwind/StyleX/author tiers. Equivalent fallback
+   inputs must not choose different winners because one reached a second
+   Tailwind tie policy. An intentionally different composition tier must
+   be named and tested, not treated as parity. Keep all existing refusals
+   and the [stage-5 inventory](tailwind-order-inventory.md); report any
+   new gaps, do not relabel them away.
+4. **Ordinary delivery and cost:** prove production adapters actually use
+   the verified ranks, including after a universe change. Run the existing
+   Web/Native regression suites and the
+   [read-only output receipt](tailwind-order-old-path.md#removing-the-process-wide-switch)
+   for no-behavior-change deletions. No new runtime ordering code for
+   static output, no sort/rank reads on state updates, and review any
+   repeatable cold/build regression under [RFC 007 §7](../rfcs/007-canonical-tailwind-order.md#7-acceptance-and-performance-evidence-before-expansion).
 
-So only the barriers are left. [What the old path still decides](tailwind-order-old-path.md)
-measures the first two mechanisms directly. The useful consolidation is still making the
-old path smaller: each barrier graduated moves inputs off it. This script
-measures how many of this repository's inputs remain; the
-[inventory](tailwind-order-inventory.md) counts the barriers left among all
-of Tailwind's classes and variants, per domain.
+This is a proposed acceptance gate, not a score change. A real capture with
+no `text-brand` rule still emits a Native colour token but leaves it
+unassessed. With hover and press both true, `active:p-2 hover:p-4 text-brand`
+selects 16px statically and 8px dynamically; the opposite token order selects
+8px on both. A known conjunction still wins on both paths. Deleting the
+runtime variant tie alone would expose another difference:
+`hover:p-2 active:p-4 hover:p-6 text-brand` currently selects 16px in both,
+but static groups the last hover write into its first guard, whereas a
+stable specificity-only runtime sort would leave the last hover write
+after active (24px). Reconcile both behaviors before removing the reachable
+fallback. Preserve Native specificity; do not require all arbitrary syntax
+to rank or force-delete a necessary operation.
 
 ## Progress
 

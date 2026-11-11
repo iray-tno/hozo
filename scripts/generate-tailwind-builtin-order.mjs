@@ -94,9 +94,15 @@ function cssEscape(value) {
   return out
 }
 
+// These static utilities compile but are not offered as completions.
+const nonCompletionProbes = ['filter-none', 'backdrop-filter-none']
+
 // Utility roots.
 const forms = new Map()
-for (const [name] of design.getClassList()) {
+for (const name of new Set([
+  ...design.getClassList().map(([name]) => name),
+  ...nonCompletionProbes,
+])) {
   const compiled = design
     .parseCandidate(name)
     .map((candidate) => ({ candidate, rules: design.compileAstNodes(candidate) }))

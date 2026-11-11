@@ -114,6 +114,15 @@ test('a more specific conjunction wins over a later-ranked single state', () => 
   )
 })
 
+test('a whole filter reset does not reverse overlapping hover and active rules', () => {
+  for (const classes of ['active:p-2 hover:p-4 filter-none', 'hover:p-4 active:p-2 filter-none']) {
+    const source = `import {Pressable} from '@hozo/core';const el=<Pressable className="${classes}"/>`
+    const [web] = compiler.compile(source)
+    assert.match(web!.css, /:hover[\s\S]*:active/)
+    assert.equal(flatten(props(source).style({ pressed: true, hovered: true })).paddingTop, 8)
+  }
+})
+
 test('a Tailwind barrier keeps Native specificity and lets CSS arbitrate independently', () => {
   const source = `import {Button} from '@hozo/core';export const Scene=({children})=><Button className="hover:focus:p-2 active:p-4 columns-(--layout)">{children}</Button>`
   const [web] = compiler.compile(source)

@@ -18,7 +18,12 @@ import path from 'node:path'
 
 import { converter, formatHex } from 'culori'
 import { __unstable__loadDesignSystem } from 'tailwindcss'
-import { describeTailwindOrder, orderingHash, type PreparedTailwindOrder } from './ordering.ts'
+import {
+  describeTailwindOrder,
+  orderByFirstRule,
+  orderingHash,
+  type PreparedTailwindOrder,
+} from './ordering.ts'
 import { assertStaticStylesheet, ExecutableStylesheetError } from './static-css.ts'
 
 export interface ThemeColor {
@@ -240,18 +245,7 @@ export async function loadClassOrder(
 ): Promise<string[]> {
   const design = await designSystemFor(css, base, options)
   const order = new Map(design.getClassOrder([...candidates]))
-  // `bigint`, which is Tailwind's own key and wider than a `number` can
-  // hold: the variant chain is packed into the high bits. Subtracting them
-  // would be a `bigint` where `sort` wants a `number`, and narrowing one
-  // would collapse exactly the bits that carry the variant.
-  const rank = (name: string) => order.get(name) ?? null
-  return [...candidates].sort((a, b) => {
-    const left = rank(a)
-    const right = rank(b)
-    if (left === null) return right === null ? 0 : 1
-    if (right === null) return -1
-    return left < right ? -1 : left > right ? 1 : 0
-  })
+  return orderByFirstRule(candidates, (name) => order.get(name) ?? null)
 }
 
 /**

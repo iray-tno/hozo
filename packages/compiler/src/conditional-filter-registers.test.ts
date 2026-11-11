@@ -46,13 +46,15 @@ test('literal backdrop filters use the register order, including the Safari pref
   }
 })
 
-test('one condition, the same functions, a whole-chain reset or a drop shadow keep literal output', () => {
-  for (const classes of [
-    'blur-sm grayscale',
-    'blur-sm md:blur-lg',
-    'md:blur-sm grayscale lg:filter-none',
-    'md:blur-sm drop-shadow-md',
-  ]) {
+test('a responsive reset turns off a chain composed by earlier conditions', () => {
+  const output = css('md:blur-sm grayscale lg:filter-none')
+  assert.match(output, /--hozo-grayscale: grayscale\(100%\);/)
+  assert.match(output, /@media \(width >= 768px\)[\s\S]*--hozo-blur: blur\(8px\);/)
+  assert.match(output, /@media \(width >= 1024px\) \{\s*\.hozo-0 \{\s*filter: none;\s*\}/)
+})
+
+test('one condition, the same functions or a drop shadow keep literal output', () => {
+  for (const classes of ['blur-sm grayscale', 'blur-sm md:blur-lg', 'md:blur-sm drop-shadow-md']) {
     assert.doesNotMatch(css(classes), /--hozo-(blur|grayscale|drop)/, classes)
   }
 })
