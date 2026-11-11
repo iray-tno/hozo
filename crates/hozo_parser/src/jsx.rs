@@ -164,6 +164,7 @@ pub(crate) struct Scope<'r, 'a> {
     pub rest_exclusions: &'r crate::rest::RestExclusions,
     /// Module-level string constants, by reference offset.
     pub constants: &'r crate::rest::ConstantStrings,
+    pub helper_import_refs: &'r crate::rest::ImportReferences,
     /// Functions the project declares join classes as `clsx` does (#964).
     pub class_helpers: &'r [dynamic_class::ClassHelper],
     pub tailwind_units: std::cell::RefCell<hozo_ir::TailwindUnitsBuilder>,
@@ -226,6 +227,7 @@ fn class_expression(
     let joiners = dynamic_class::Joiners {
         module_record: scope.module_record,
         helpers: scope.class_helpers,
+        import_refs: scope.helper_import_refs,
         constants: scope.constants,
         units: &scope.tailwind_units,
     };
@@ -305,6 +307,7 @@ fn capture_class_expression(
     let joiners = dynamic_class::Joiners {
         module_record: scope.module_record,
         helpers: scope.class_helpers,
+        import_refs: scope.helper_import_refs,
         constants: scope.constants,
         units: &scope.tailwind_units,
     };

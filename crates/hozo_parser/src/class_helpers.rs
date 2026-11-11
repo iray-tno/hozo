@@ -183,11 +183,19 @@ fn summarize_helpers_internal(source: &str, require_merge: bool) -> Vec<String> 
     if has_custom_tw_merge(module, &ret.program) {
         return Vec::new();
     }
-    let joiners = joiner_locals(module);
-    if joiners.is_empty() {
+    let imports = joiner_imports(module);
+    if imports.is_empty() {
         return Vec::new();
     }
-    let mergers = merger_locals(module);
+    let bindings = crate::rest::analyze_with_imports(&ret.program, &imports);
+    let joiners = bindings.imports.keys().copied().collect();
+    let merger_imports = merger_imports(module);
+    let mergers: BTreeSet<_> = bindings
+        .imports
+        .iter()
+        .filter(|(_, import)| merger_imports.contains(import))
+        .map(|(reference, _)| *reference)
+        .collect();
     if require_merge && mergers.is_empty() {
         return Vec::new();
     }
@@ -290,7 +298,7 @@ fn summarize_helpers_internal(source: &str, require_merge: bool) -> Vec<String> 
     exported.into_keys().collect()
 }
 
-fn joiner_locals(module: &ModuleRecord) -> BTreeSet<String> {
+fn joiner_imports(module: &ModuleRecord) -> Vec<u32> {
     module
         .import_entries
         .iter()
@@ -307,11 +315,11 @@ fn joiner_locals(module: &ModuleRecord) -> BTreeSet<String> {
                 is_builtin_joiner(entry.module_request.name.as_str(), &imported)
             })
         })
-        .map(|entry| entry.local_name.name.to_string())
+        .map(|entry| entry.local_name.span.start)
         .collect()
 }
 
-fn merger_locals(module: &ModuleRecord) -> BTreeSet<String> {
+fn merger_imports(module: &ModuleRecord) -> BTreeSet<u32> {
     module
         .import_entries
         .iter()
@@ -320,7 +328,7 @@ fn merger_locals(module: &ModuleRecord) -> BTreeSet<String> {
             entry.module_request.name.as_str() == TW_MERGE_MODULE
                 && imported_name(&entry.import_name).is_some_and(|imported| imported == "twMerge")
         })
-        .map(|entry| entry.local_name.name.to_string())
+        .map(|entry| entry.local_name.span.start)
         .collect()
 }
 
@@ -337,8 +345,8 @@ fn rest_name(params: &FormalParameters) -> Option<String> {
 fn joins(
     params: &FormalParameters,
     body: &FunctionBody,
-    joiners: &BTreeSet<String>,
-    mergers: &BTreeSet<String>,
+    joiners: &BTreeSet<u32>,
+    mergers: &BTreeSet<u32>,
     require_merge: bool,
 ) -> bool {
     let Some(rest) = rest_name(params) else {
@@ -354,8 +362,8 @@ fn joins(
 
 fn arrow_joins(
     arrow: &ArrowFunctionExpression,
-    joiners: &BTreeSet<String>,
-    mergers: &BTreeSet<String>,
+    joiners: &BTreeSet<u32>,
+    mergers: &BTreeSet<u32>,
     require_merge: bool,
 ) -> bool {
     let Some(rest) = rest_name(&arrow.params) else {
@@ -373,8 +381,8 @@ fn arrow_joins(
 
 fn expression_joins(
     expression: &Expression,
-    joiners: &BTreeSet<String>,
-    mergers: &BTreeSet<String>,
+    joiners: &BTreeSet<u32>,
+    mergers: &BTreeSet<u32>,
     require_merge: bool,
 ) -> bool {
     match expression.without_parentheses() {
@@ -389,14 +397,14 @@ fn expression_joins(
     }
 }
 
-fn calls_any(expression: &Expression, targets: &BTreeSet<String>) -> bool {
+fn calls_any(expression: &Expression, targets: &BTreeSet<u32>) -> bool {
     let Expression::CallExpression(call) = expression.without_parentheses() else {
         return false;
     };
     let Expression::Identifier(callee) = &call.callee else {
         return false;
     };
-    if targets.contains(callee.name.as_str()) {
+    if targets.contains(&callee.span.start) {
         return true;
     }
     match call.arguments.as_slice() {
@@ -408,14 +416,14 @@ fn calls_any(expression: &Expression, targets: &BTreeSet<String>) -> bool {
 }
 
 /// `J(...rest)`, `J(rest)` or `J(<another such call>)`, with `J` a joiner.
-fn hands_on(expression: &Expression, rest: &str, joiners: &BTreeSet<String>) -> bool {
+fn hands_on(expression: &Expression, rest: &str, joiners: &BTreeSet<u32>) -> bool {
     let Expression::CallExpression(call) = expression.without_parentheses() else {
         return false;
     };
     let Expression::Identifier(callee) = &call.callee else {
         return false;
     };
-    if !joiners.contains(callee.name.as_str()) {
+    if !joiners.contains(&callee.span.start) {
         return false;
     }
     match call.arguments.as_slice() {
@@ -500,6 +508,16 @@ export default (...c) => clsx(c)";
     fn tw_join_wrappers_do_not_claim_clsx_dictionary_semantics() {
         let source = "import { twJoin } from 'tailwind-merge'; export const cn = (...inputs) => twJoin(inputs)";
         assert!(summarize_class_helpers(source).is_empty());
+    }
+
+    #[test]
+    fn wrappers_only_follow_the_imported_callee() {
+        let source = "import { twMerge as merge } from 'tailwind-merge';
+export const argument = (...merge) => merge(merge)
+export const recursive = function merge(...inputs) { return merge(inputs) }
+export const valid = (...inputs) => merge(inputs)";
+        assert_eq!(summarize_class_helpers(source), ["valid"]);
+        assert_eq!(summarize_class_helper_merges(source), ["valid"]);
     }
 
     #[test]

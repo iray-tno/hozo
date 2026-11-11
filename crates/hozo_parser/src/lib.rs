@@ -527,7 +527,9 @@ fn parse(
         registry.attach(&mut stylex, &ret.module_record, bindings);
     }
     let stylex_scan_spans = stylex.scan_spans.clone();
-    let bindings_facts = rest::analyze(&ret.program);
+    let helper_imports =
+        dynamic_class::helper_import_offsets(&ret.module_record, features.class_helpers);
+    let bindings_facts = rest::analyze_with_imports(&ret.program, &helper_imports);
     let runtime_class_lists = class_literals::collect_runtime_class_lists(
         &ret.program,
         source_text,
@@ -536,6 +538,7 @@ fn parse(
     let scope = jsx::Scope {
         rest_exclusions: &bindings_facts.rest,
         constants: &bindings_facts.constants,
+        helper_import_refs: &bindings_facts.imports,
         module_record: &ret.module_record,
         class_helpers: features.class_helpers,
         tailwind_units: Default::default(),

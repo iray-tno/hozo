@@ -172,6 +172,45 @@ import { cn } from '@/lib/utils'
 export const A = () => <View className={${expression}} />`
 }
 
+test('ordinary and prepared lowering preserve shadowed helper calls and compile the import alias', async () => {
+  const compiler = createTwMergeCompiler()
+  for (const specifier of ['tailwind-merge', '@/lib/utils']) {
+    const imported = specifier === 'tailwind-merge' ? 'twMerge' : 'cn'
+    const imports = `import { View } from '@hozo/core'; import { ${imported} as merge } from '${specifier}';`
+    const input = `${imports}
+      export const Local = (merge) => <View className={merge('p-4', 'p-2')} />
+      export const Imported = () => <View className={merge('p-4', 'p-2')} />`
+    const web = compiler.prepareWebModule(input)
+    const native = compiler.prepareNativeModule(input)
+    const candidates = [...new Set([...web.candidates, ...native.candidates])]
+    const { snapshot } = await prepareTailwindOrder(
+      '@import "tailwindcss/theme.css";',
+      tailwindPackageDir(),
+      candidates,
+    )
+    const context = prepareTailwindContext(JSON.stringify(snapshot))
+    for (const [local, imported] of [
+      compiler.compile(input),
+      compiler.compileNative(input),
+      web.emit(context),
+      native.emit(context).components,
+    ]) {
+      const calls: string[][] = []
+      render(local.jsx, {
+        View: 'View',
+        hozoStyles: {},
+        hozoClasses: (classes: unknown) => classes,
+        merge: (...args: string[]) => {
+          calls.push(args)
+          return 'p-8'
+        },
+      })
+      assert.deepEqual(calls, [['p-4', 'p-2']])
+      assert.doesNotMatch(imported.jsx, /\bmerge\(/)
+    }
+  }
+})
+
 test('same-group conditional merges keep guards small and select the real winning padding', () => {
   const compiler = createTwMergeCompiler()
   const classes = Array.from({ length: 10 }, (_, index) => `p-${index + 1}`)

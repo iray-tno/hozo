@@ -135,6 +135,13 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
         return TextForwardingSummary::default();
     }
     let module = &ret.module_record;
+    let helper_imports = crate::dynamic_class::helper_import_offsets(module, &[]);
+    let helper_refs = if helper_imports.is_empty() {
+        Default::default()
+    } else {
+        crate::rest::analyze_with_imports(&ret.program, &helper_imports).imports
+    };
+    let import_refs = &helper_refs;
 
     let mut exported_as: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for entry in &module.local_export_entries {
@@ -168,6 +175,7 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
                 &Scope {
                     params: &no_props,
                     module,
+                    import_refs,
                     constants: &module_constants,
                 },
                 &mut found,
@@ -201,9 +209,13 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
                 let Some(params) = read_params(&function.params) else {
                     continue;
                 };
-                if let Some(shape) =
-                    read_component(&params, &body.statements, module, &module_constants)
-                {
+                if let Some(shape) = read_component(
+                    &params,
+                    &body.statements,
+                    module,
+                    import_refs,
+                    &module_constants,
+                ) {
                     record(id.name.as_str(), shape);
                 }
             }
@@ -220,7 +232,8 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
                     let Some(init) = &binding.init else {
                         continue;
                     };
-                    if let Some(shape) = read_initializer(init, module, &module_constants, None, 0)
+                    if let Some(shape) =
+                        read_initializer(init, module, import_refs, &module_constants, None, 0)
                     {
                         record(id.name.as_str(), shape);
                     }
@@ -504,6 +517,7 @@ struct Scope<'a> {
     params: &'a Params,
     module: &'a ModuleRecord<'a>,
     constants: &'a BTreeMap<String, Named>,
+    import_refs: &'a crate::rest::ImportReferences,
 }
 
 fn read_classes(expr: &Expression, scope: &Scope) -> Option<Classes> {
@@ -708,6 +722,7 @@ fn react_wrapper(callee: &Expression, module: &ModuleRecord) -> Option<ReactWrap
 fn read_initializer(
     expression: &Expression,
     module: &ModuleRecord,
+    import_refs: &crate::rest::ImportReferences,
     constants: &BTreeMap<String, Named>,
     wrapper: Option<ReactWrapper>,
     depth: usize,
@@ -715,7 +730,7 @@ fn read_initializer(
     match expression.without_parentheses() {
         Expression::ArrowFunctionExpression(arrow) => {
             let params = read_render_params(&arrow.params, module, constants, wrapper, None)?;
-            read_arrow(arrow, &params, module, constants)
+            read_arrow(arrow, &params, module, import_refs, constants)
         }
         Expression::FunctionExpression(function) if wrapper.is_some() => {
             if function.r#async || function.generator {
@@ -732,6 +747,7 @@ fn read_initializer(
                 &params,
                 &function.body.as_ref()?.statements,
                 module,
+                import_refs,
                 constants,
             )
         }
@@ -756,6 +772,7 @@ fn read_initializer(
             read_initializer(
                 call.arguments[0].as_expression()?,
                 module,
+                import_refs,
                 constants,
                 Some(wrapper),
                 depth + 1,
@@ -822,15 +839,20 @@ fn read_arrow(
     arrow: &ArrowFunctionExpression,
     params: &Params,
     module: &ModuleRecord,
+    import_refs: &crate::rest::ImportReferences,
     module_constants: &BTreeMap<String, Named>,
 ) -> Option<ForwardingComponent> {
     if arrow.r#async {
         return None;
     }
     match &arrow.body {
-        ArrowFunctionBody::FunctionBody(body) => {
-            read_component(params, &body.statements, module, module_constants)
-        }
+        ArrowFunctionBody::FunctionBody(body) => read_component(
+            params,
+            &body.statements,
+            module,
+            import_refs,
+            module_constants,
+        ),
         concise => {
             let Expression::JSXElement(element) = concise.as_expression()?.without_parentheses()
             else {
@@ -841,6 +863,7 @@ fn read_arrow(
                 &Scope {
                     params,
                     module,
+                    import_refs,
                     constants: module_constants,
                 },
             )?;
@@ -853,6 +876,7 @@ fn read_component(
     params: &Params,
     statements: &[Statement],
     module: &ModuleRecord,
+    import_refs: &crate::rest::ImportReferences,
     module_constants: &BTreeMap<String, Named>,
 ) -> Option<ForwardingComponent> {
     let mut constants = module_constants.clone();
@@ -887,6 +911,7 @@ fn read_component(
                 &Scope {
                     params,
                     module,
+                    import_refs,
                     constants: &constants,
                 },
                 &mut found,
@@ -903,6 +928,7 @@ fn read_component(
         let scope = Scope {
             params,
             module,
+            import_refs,
             constants: &constants,
         };
         let guard = read_comparison(&branch.test, params)?;
@@ -915,6 +941,7 @@ fn read_component(
     let scope = Scope {
         params,
         module,
+        import_refs,
         constants: &constants,
     };
     if let Some((switch, following)) = switch {
@@ -1243,12 +1270,10 @@ fn read_join(call: &CallExpression, scope: &Scope) -> Option<Classes> {
     let Expression::Identifier(callee) = &call.callee else {
         return None;
     };
-    if scope.params.is_local(callee.name.as_str()) {
-        return None;
-    }
+    let import = scope.import_refs.get(&callee.span.start)?;
     let kind = scope.module.import_entries.iter().find_map(|entry| {
         let from = entry.module_request.name.as_str();
-        if entry.local_name.name != callee.name.as_str() {
+        if entry.local_name.span.start != *import {
             return None;
         }
         if JOIN_MODULES.contains(&from)
