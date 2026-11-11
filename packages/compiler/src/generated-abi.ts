@@ -55,6 +55,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoRubyText: '@hozo/core/generated/ruby',
   hozoScrollable: '@hozo/core/generated/scrollable',
   HozoScrollView: '@hozo/core/generated/scroll-view',
+  hozoShadowStyles: '@hozo/core/generated/shadow-slots',
   HozoSpaced: '@hozo/core/generated/spaced',
   hozoSpreadStyles: '@hozo/core/generated/spread-styles',
   HozoStepper: '@hozo/core/generated/stepper',

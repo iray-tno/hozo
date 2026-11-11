@@ -42,6 +42,7 @@ const reads = {
     'examples/storybook-demo/tsconfig.json',
   ],
   '@hozo/compiler#test': [
+    'packages/engine/src/shadow-slots.ts',
     'packages/engine/src/gradient-slots.ts',
     'packages/engine/src/filter-slots.ts',
     'crates/hozo_web/src/css.rs',

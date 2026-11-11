@@ -498,6 +498,9 @@ pub(crate) fn filter_entry(
     Some(("filter", format!("'{}'", chain.join(" "))))
 }
 
+pub(crate) const RING_COLOR: &str = "currentcolor";
+pub(crate) const RING_OFFSET_COLOR: &str = "#fff";
+
 /// Joins whichever ring/shadow utilities a rule carries into one
 /// `boxShadow` string, in the same layer order the Web backend uses so both
 /// platforms stack them identically.
@@ -537,9 +540,10 @@ pub(crate) fn box_shadow_entry(
     // Tailwind's default ring colour. Unquoted here because the whole
     // `boxShadow` value is one string.
     let paint = |c: Option<&Color>| {
-        c.map_or("currentcolor".to_string(), |c| {
-            resolve_color(c).trim_matches('\'').to_string()
-        })
+        c.filter(|c| !c.is_initial())
+            .map_or(RING_COLOR.to_string(), |c| {
+                resolve_color(c).trim_matches('\'').to_string()
+            })
     };
 
     let ring_offset = props.iter().find_map(|p| match p {
@@ -592,7 +596,7 @@ pub(crate) fn box_shadow_entry(
                 StyleProperty::RingOffsetColor(c) => Some(c),
                 _ => None,
             })
-            .unwrap_or_else(|| "#fff".to_string()),
+            .unwrap_or_else(|| RING_OFFSET_COLOR.to_string()),
         ));
     }
     if let Some(width) = ring {
@@ -621,21 +625,37 @@ fn repaint_shadow(shadow: &str, color: Option<&str>) -> String {
     let Some(paint) = color else {
         return shadow.to_string();
     };
-    shadow
-        .split(',')
-        .map(|layer| match layer.rfind("rgb(") {
-            // The colour's extent, not everything after it -- a
-            // `drop-shadow(...)` layer has the wrapper's closing bracket
-            // behind the colour, and truncating there left the filter one
-            // bracket short of parsing.
-            Some(cut) => {
-                let end = close_paren(layer, cut + "rgb(".len() - 1);
-                format!("{}{paint}{}", &layer[..cut], &layer[end + 1..])
-            }
+    split_shadow_layers(shadow)
+        .map(|layer| match shadow_paint_parts(layer) {
+            Some((head, tail)) => format!("{head}{paint}{tail}"),
             None => layer.trim().to_string(),
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// Split layers, not commas within a CSS colour or another function.
+pub(crate) fn split_shadow_layers(value: &str) -> impl Iterator<Item = &str> {
+    let mut depth = 0u32;
+    value.split(move |ch| match ch {
+        '(' => {
+            depth += 1;
+            false
+        }
+        ')' => {
+            depth = depth.saturating_sub(1);
+            false
+        }
+        ',' => depth == 0,
+        _ => false,
+    })
+}
+
+/// Keep the suffix, e.g. the closing bracket of `drop-shadow(...)`.
+pub(crate) fn shadow_paint_parts(layer: &str) -> Option<(&str, &str)> {
+    let cut = layer.rfind("rgb(")?;
+    let end = close_paren(layer, cut + "rgb(".len() - 1);
+    Some((&layer[..cut], &layer[end + 1..]))
 }
 
 /// The index of the `)` closing the `(` at `open`.
