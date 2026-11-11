@@ -94,6 +94,7 @@ interface TemplateEntry {
   keys: readonly string[]
   style: StyleObject
   name: string
+  ownerRank: number | undefined
 }
 
 interface Resolved {
@@ -103,13 +104,10 @@ interface Resolved {
   raw: StyleObject[]
   /** Only materialized for a mixed compiler boundary, using the same selection. */
   deferredBases?: (StyleObject[] | undefined)[]
-  groups: StateGroup[]
-  /** Parallel to groups: retain the candidate name for missing-fact warnings. */
-  groupClasses: string[]
   /** State classes in this string, named if it is resolved without a state. */
   stateClasses: string[]
-  /** Rank-free cached template: state updates only select applicable entries. */
-  ordered?: TemplateEntry[]
+  /** Cached in final order. Fallback orders all resting writes before it. */
+  template?: { entries: TemplateEntry[]; appendToBase: boolean }
 }
 
 /**
@@ -224,24 +222,23 @@ export function createClassResolver(
 
   function resolve(value: string): Resolved {
     const base: StyleObject[] = []
-    const groups: StateGroup[] = []
-    const groupClasses: string[] = []
+    const groups: TemplateEntry[] = []
     const stateClasses: string[] = []
     const decided: StyleObject[] = []
     // Build transient ranked entries only for the generated-plan ABI. A
     // single unassessed object makes this whole string use the old path.
     let ranked: { rank: number; entry: TemplateEntry }[] | undefined = ranks ? [] : undefined
     const take = ranks
-      ? (name: string, index: number, style: StyleObject, keys: readonly string[]) => {
+      ? (index: number, entry: TemplateEntry) => {
           if (!ranked) return
-          const rank = ranks![name]?.[index]
+          const rank = ranks![entry.name]?.[index]
           if (rank === undefined) {
             ranked = undefined
             return
           }
           if (!Number.isSafeInteger(rank) || rank < 0)
             throw new Error('Invalid Hozo class plan rank')
-          ranked.push({ rank, entry: { name, style, keys } })
+          ranked.push({ rank, entry })
         }
       : undefined
     for (const name of value.split(/\s+/)) {
@@ -251,7 +248,7 @@ export function createClassResolver(
       const style = styles[name]
       if (style) {
         base.push(style)
-        take?.(name, 0, style, [])
+        take?.(0, { name, keys: [], style, ownerRank: undefined })
         continue
       }
       const conditional = states[name]
@@ -259,13 +256,13 @@ export function createClassResolver(
         let needsState = false
         for (let index = 0; index < conditional.length; index++) {
           const group = conditional[index]!
-          take?.(name, index, group[1], group[0])
-          if ((negativePredicates?.get(group[0])?.keys ?? group[0]).every(isAmbient)) {
-            if (matches(group[0], name, ambient)) decided.push(group[1])
+          const entry = { name, keys: group[0], style: group[1], ownerRank: group[2] }
+          take?.(index, entry)
+          if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
+            if (matches(entry.keys, name, ambient)) decided.push(entry.style)
             continue
           }
-          groups.push(group)
-          groupClasses.push(name)
+          groups.push(entry)
           needsState = true
         }
         if (needsState) stateClasses.push(name)
@@ -291,28 +288,27 @@ export function createClassResolver(
       return {
         base: compose ? compose(raw) : raw,
         raw,
-        groups,
-        groupClasses,
         stateClasses,
-        ordered,
+        template: groups.length ? { entries: ordered, appendToBase: false } : undefined,
       }
     }
     // Build-time Tailwind owner-state rank, sorted once per cached class string,
     // never on every state update. Mixed/unranked domains are left alone; ties
     // retain authored/caller order. Keep warning provenance beside each group.
-    if (groups.length > 1 && groups.every((group) => group[2] !== undefined)) {
-      if (groups.some((group, index) => index > 0 && groups[index - 1]![2]! > group[2]!)) {
-        const sorted = groups
-          .map((group, index) => ({ group, name: groupClasses[index]! }))
-          .sort((a, b) => a.group[2]! - b.group[2]!)
-        for (const [index, entry] of sorted.entries()) {
-          groups[index] = entry.group
-          groupClasses[index] = entry.name
-        }
-      }
+    if (
+      groups.length > 1 &&
+      groups.every((group) => group.ownerRank !== undefined) &&
+      groups.some((group, index) => index > 0 && groups[index - 1]!.ownerRank! > group.ownerRank!)
+    ) {
+      groups.sort((a, b) => a.ownerRank! - b.ownerRank!)
     }
     base.push(...decided)
-    return { base: compose ? compose(base) : base, raw: base, groups, groupClasses, stateClasses }
+    return {
+      base: compose ? compose(base) : base,
+      raw: base,
+      stateClasses,
+      template: groups.length ? { entries: groups, appendToBase: true } : undefined,
+    }
   }
 
   function restingWithoutEffects(resolved: Resolved, deferred: number): StyleObject[] {
@@ -333,8 +329,8 @@ export function createClassResolver(
       cache.set(value, resolved)
     }
     if (deferred) deferred &= hozoClasses.effectMask ?? 0
-    if (resolved.groups.length === 0)
-      return deferred ? restingWithoutEffects(resolved, deferred) : resolved.base
+    const template = resolved.template
+    if (!template) return deferred ? restingWithoutEffects(resolved, deferred) : resolved.base
     if (state === undefined) {
       for (const name of resolved.stateClasses) {
         warn(
@@ -349,25 +345,22 @@ export function createClassResolver(
     // A group can name an ambient fact beside the element's own, as
     // `rtl:hover:` does; the element supplies only its part.
     const facts = { ...ambient, ...state }
-    if (resolved.ordered) {
-      const all: StyleObject[] = []
-      let active = false
-      for (const entry of resolved.ordered) {
-        if (!entry.keys.length) all.push(entry.style)
-        else if (matches(entry.keys, entry.name, facts)) {
-          all.push(entry.style)
-          active = true
+    // Fully ranked writes may interleave with resting styles. The fallback
+    // template has only state entries, so delay copying its resting prefix
+    // until an actual state matches. Both routes select by the same loop.
+    const all: StyleObject[] = []
+    let active = false
+    for (const entry of template.entries) {
+      if (!entry.keys.length) all.push(entry.style)
+      else if (matches(entry.keys, entry.name, facts)) {
+        if (!active && template.appendToBase) {
+          for (const style of resolved.raw) all.push(style)
         }
+        all.push(entry.style)
+        active = true
       }
-      if (!active) return deferred ? restingWithoutEffects(resolved, deferred) : resolved.base
-      return compose ? compose(all, deferred) : all
     }
-    const active = resolved.groups.filter(([keys], index) =>
-      matches(keys, resolved.groupClasses[index]!, facts),
-    )
-    if (active.length === 0)
-      return deferred ? restingWithoutEffects(resolved, deferred) : resolved.base
-    const all = [...resolved.raw, ...active.map(([, style]) => style)]
+    if (!active) return deferred ? restingWithoutEffects(resolved, deferred) : resolved.base
     // A state style can carry a transform, which `compose` folds into one;
     // so it runs over the whole list, and the result is per render rather
     // than cached -- it changes with the state.

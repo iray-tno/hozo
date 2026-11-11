@@ -46,6 +46,38 @@ test('build-time owner-state rank is consumed once per cache entry, with tie and
   }
 })
 
+test('ranked and fallback state templates keep their respective order and original style identities', () => {
+  const base = { opacity: 1 }
+  const hovered = { opacity: 0.5 }
+  const ambient = { paddingLeft: 16 }
+  const barrier = { color: 'red' }
+  const styles = { base, barrier }
+  const states = {
+    hover: [[['hovered'], hovered, 257]],
+    rtl: [[['rtl'], ambient]],
+  } as const
+  const plan = createClassResolver({
+    schema: 1,
+    styles,
+    states,
+    ambient: { rtl: true },
+    ordering: { schema: 1, ranks: { hover: [0], base: [1], rtl: [2] } },
+  })
+  const active = { hovered: true }
+  const inactive = { hovered: false }
+  const assertStyles = (actual: object[], expected: object[]) => {
+    assert.equal(actual.length, expected.length)
+    for (const [index, style] of expected.entries()) assert.equal(actual[index], style)
+  }
+  assertStyles(plan('rtl base hover', active), [hovered, base, ambient])
+  assertStyles(plan('rtl base hover barrier', active), [base, barrier, ambient, hovered])
+  for (const value of ['rtl base hover', 'rtl base hover barrier']) {
+    const resting = plan(value, inactive)
+    plan(value, active)
+    assert.equal(plan(value, inactive), resting)
+  }
+})
+
 const STYLES = {
   'p-4': { paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16 },
   'bg-blue-500': { backgroundColor: '#3b82f6' },
