@@ -146,6 +146,8 @@ const reads = {
     'packages/primitives/src/link.native.tsx',
     'packages/engine/src/generated/class-resolver.ts',
     'packages/engine/src/generated/transform-slots.ts',
+    'packages/engine/src/generated/shadow-slots.ts',
+    'packages/engine/src/shadow-slots.ts',
     'crates/hozo_ir/src/theme.rs',
     'crates/hozo_parser/src/tailwind.rs',
     'Cargo.toml',

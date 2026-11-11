@@ -28,6 +28,7 @@ import { compile } from 'tailwindcss'
 import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
 import { hozoTextMetricStyles } from '../../../packages/engine/src/class-resolver.ts'
 import { hozoGapSpreadStyles } from '../../../packages/engine/src/gap-styles.ts'
+import { hozoShadowStyles } from '../../../packages/engine/src/generated/shadow-slots.ts'
 import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 import { nativeDisabledProps } from '../../../packages/primitives/src/native-disabled.ts'
@@ -172,7 +173,7 @@ uiCache.scanFile('radius-callers.ts', JSON.stringify(radiusCandidates.join(' '))
 const uiCandidates = uiCache.renderCss(uiTheme)
 const { hozoClasses: resolveUiClasses } = evaluate(
   uiCache.renderNativeModule(uiTheme).replace(/^import .*$/gm, ''),
-  { createClassResolver, hozoTextMetricStyles },
+  { createClassResolver, hozoTextMetricStyles, hozoShadowStyles },
 )
 
 for (const { file, name, slots, source, variants, classes } of uiCases) {

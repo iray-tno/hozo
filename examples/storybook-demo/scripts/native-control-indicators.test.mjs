@@ -13,6 +13,7 @@ import { build, transformSync } from 'esbuild'
 import React, { act } from 'react'
 import { create } from 'react-test-renderer'
 import * as classResolverRuntime from '../../../packages/engine/src/generated/class-resolver.ts'
+import * as shadowRuntime from '../../../packages/engine/src/generated/shadow-slots.ts'
 import * as transformRuntime from '../../../packages/engine/src/generated/transform-slots.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 
@@ -120,6 +121,7 @@ const resolverFor = (isRTL) => {
   // helper names made this host harness drift from the factory's public ABI.
   const generatedRequire = (id) => {
     if (id === '@hozo/core/generated/class-resolver') return classResolverRuntime
+    if (id === '@hozo/core/generated/shadow-slots') return shadowRuntime
     if (id === '@hozo/core/generated/transform-slots') return transformRuntime
     if (id === 'react-native') return { I18nManager: { isRTL } }
     throw new Error(`Unexpected generated candidate import: ${id}`)
