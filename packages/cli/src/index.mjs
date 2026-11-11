@@ -35,6 +35,10 @@ const COMMANDS = {
     summary: 'Generate or --check the Universal Links and App Links verification files',
     run: links,
   },
+  explain: {
+    summary: 'Explain a diagnostic code: what it means, an example, and the message',
+    run: explain,
+  },
 }
 
 // Names a later RFC specifies (RFC 011 §7). Reserved so no other command
@@ -129,6 +133,12 @@ async function links(argv, io) {
     )
   }
   return command.runVerificationCli(argv, process.cwd(), lines(io), 'hozo links')
+}
+
+async function explain(argv, io) {
+  const { runExplain } = await import('./explain.mjs')
+  const { exit, error } = runExplain(argv, io)
+  return error ? fail(io, 'hozo explain', new CliError(error.message, error.code), argv) : exit
 }
 
 /** Run `hozo` with `argv` (no `node`, no script path). Resolves to the exit code. */

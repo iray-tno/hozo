@@ -366,6 +366,14 @@ pub enum DiagnosticCode {
     /// concepts whose absence changes nothing observable here: a link on
     /// this platform leaves the app whatever they say.
     PropHasNoNativeEquivalent,
+    /// Something React Native could express that Hozo does not lower there
+    /// yet, so it is left out of the Native output.
+    ///
+    /// The other half of `WebOnlyPropertyOnNative`, and kept apart from it
+    /// on purpose: that one says the platform cannot, this one says Hozo
+    /// has not, and a gap filed as impossible is a gap nobody revisits. A
+    /// Tailwind variant with no React Native signal wired yet, such as
+    /// `contrast-less:`, is one; the same class still works on Web.
     NotWiredOnNative,
     /// A Hozo primitive sits inside something the compiler carries but
     /// doesn't read -- an expression container, or an unmodeled component's

@@ -236,22 +236,36 @@ export function diagnosticCodesWithoutCase(): string[] {
   return declaredDiagnosticCodes().filter((code) => !PROVOCATIONS[code] && !UNREACHABLE[code])
 }
 
-export function compareDiagnostic(code: string): DiagnosticResult {
-  const reason = UNREACHABLE[code]
-  if (reason) return { code, verdict: 'UNREACHABLE', raised: [], reason }
-  const provocation = PROVOCATIONS[code]
-  if (!provocation) return { code, verdict: 'NO_CASE', raised: [] }
+interface Raised {
+  backend: 'web' | 'native'
+  code: string
+  severity: string
+  message: string
+}
 
-  const source =
-    provocation.module ?? `${IMPORTS}export function C() { return (${provocation.source}) }\n`
+function caseSource(provocation: Provocation): string {
+  return (
+    provocation.module ??
+    `${IMPORTS}export function C() { return (${provocation.source}) }
+`
+  )
+}
+
+/** Every diagnostic a case raises, with the backend that raised it. */
+function raise(provocation: Provocation): Raised[] {
+  const source = caseSource(provocation)
   const backend = provocation.backend ?? 'both'
-  const raised = new Set<string>()
-  const collect = (results: { diagnostics: { code: string }[] }[]) => {
-    for (const diagnostic of results[0]?.diagnostics ?? []) raised.add(diagnostic.code)
+  const raised: Raised[] = []
+  const collect = (
+    from: 'web' | 'native',
+    results: { diagnostics: { code: string; severity: string; message: string }[] }[],
+  ) => {
+    for (const { code, severity, message } of results[0]?.diagnostics ?? [])
+      raised.push({ backend: from, code, severity, message })
   }
   if (backend !== 'native') {
     try {
-      collect(compile(source))
+      collect('web', compile(source))
     } catch {
       // A build-stopping error is one way for a diagnostic to arrive, and
       // the integrations throw on it. Nothing to collect, and the other
@@ -260,20 +274,61 @@ export function compareDiagnostic(code: string): DiagnosticResult {
   }
   if (backend !== 'web') {
     try {
-      collect(compileNative(source))
+      collect('native', compileNative(source))
     } catch {
       // As above.
     }
     try {
       // What the module compile says about the module as a whole.
-      collect([createCompiler().compileNativeModule(source)])
+      collect('native', [createCompiler().compileNativeModule(source)])
     } catch {
       // As above.
     }
   }
+  return raised
+}
+
+export function compareDiagnostic(code: string): DiagnosticResult {
+  const reason = UNREACHABLE[code]
+  if (reason) return { code, verdict: 'UNREACHABLE', raised: [], reason }
+  const provocation = PROVOCATIONS[code]
+  if (!provocation) return { code, verdict: 'NO_CASE', raised: [] }
+  const raised = new Set(raise(provocation).map((diagnostic) => diagnostic.code))
   return {
     code,
     verdict: raised.has(code) ? 'FIRES' : 'SILENT',
     raised: [...raised],
+  }
+}
+
+/** What `hozo explain` shows for a code: its case, and what the compiler says about it. */
+export type DiagnosticExample =
+  | {
+      /** The case as written: JSX inside a component, or a whole module. */
+      jsx?: string
+      module?: string
+      backend: 'web' | 'native' | 'both'
+      /** The case's diagnostics with this code, once per distinct message and backend. */
+      emitted: Omit<Raised, 'code'>[]
+    }
+  | { unreachable: string }
+
+export function diagnosticExample(code: string): DiagnosticExample | undefined {
+  const reason = UNREACHABLE[code]
+  if (reason) return { unreachable: reason }
+  const provocation = PROVOCATIONS[code]
+  if (!provocation) return undefined
+  const seen = new Set<string>()
+  const emitted = raise(provocation)
+    .filter((diagnostic) => diagnostic.code === code)
+    .map(({ backend, severity, message }) => ({ backend, severity, message }))
+    .filter((entry) => {
+      const key = JSON.stringify(entry)
+      return !seen.has(key) && seen.add(key)
+    })
+  return {
+    ...(provocation.module ? { module: provocation.module } : { jsx: provocation.source }),
+    backend: provocation.backend ?? 'both',
+    emitted,
   }
 }

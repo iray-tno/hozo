@@ -136,6 +136,8 @@
         "$TURBO_ROOT$/crates/hozo_native/src/spread_style.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/text.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/lib.rs",
+        "$TURBO_ROOT$/scripts/diagnostic-catalog.mjs",
+        "$TURBO_ROOT$/packages/compiler/diagnostics.json",
         "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_units.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_order.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_order/comparison.rs",
