@@ -2,13 +2,13 @@
 // `tailwind-merge` across static, conditional, and runtime-fallback cases (#1676).
 
 import assert from 'node:assert/strict'
-import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
-import zlib from 'node:zlib'
 
-import { createCompiler } from '@hozo/compiler'
-import { twMerge } from 'tailwind-merge'
+import { createCompiler, prepareTailwindContext } from '@hozo/compiler'
+import { twJoin, twMerge } from 'tailwind-merge'
+
+import { prepareTailwindOrder, tailwindPackageDir } from '../../tailwind/src/theme.ts'
 
 import { ALL_CANDIDATES } from './candidates.ts'
 
@@ -152,106 +152,285 @@ test('Part 1: conditional cn(a, cond && b) negates overridden earlier utilities 
   assert.match(native.styles, /hozo0_hover/)
 })
 
-test('Part 2: cn(staticBase, className) emits per-group conflict guards and matches twMerge(base, caller) with 0 mismatches', () => {
-  const compiler = createTwMergeCompiler()
-  const base = 'px-3 py-1 uppercase text-sm hover:bg-blue-500 active:opacity-80'
-  const src = `
-    import { Pressable } from '@hozo/core'
-    import { cn } from '@/lib/utils'
-    export const Button = ({ className }: { className?: string }) => (
-      <Pressable className={cn('${base}', className)} />
-    )
-  `
-  const [web] = compiler.compile(src)
-  const [native] = compiler.compileNative(src)
+// Execute generated JSX so disappearing predicates and retained calls are
+// checked for their observable behavior, including errors and evaluation order.
+function render(jsx: string, scope: Record<string, unknown>) {
+  const { transformSync } = require('esbuild')
+  const { code } = transformSync(`function render() { return (${jsx}) }`, {
+    loader: 'jsx',
+    jsxFactory: 'h',
+  })
+  return new Function('h', ...Object.keys(scope), `${code}; return render()`)(
+    (_type: unknown, props: unknown) => props,
+    ...Object.values(scope),
+  )
+}
 
-  // Both Web and Native eliminate the runtime `cn(...)` call and keep hover/active states.
+function source(expression: string) {
+  return `import { View } from '@hozo/core'
+import { cn } from '@/lib/utils'
+export const A = () => <View className={${expression}} />`
+}
+
+test('same-group conditional merges keep guards small and select the real winning padding', () => {
+  const compiler = createTwMergeCompiler()
+  const classes = Array.from({ length: 10 }, (_, index) => `p-${index + 1}`)
+  const args = classes.map((name, index) => `flags[${index}] && '${name}'`).join(', ')
+  const input = source(`cn(${args})`)
+  const [web] = compiler.compile(input)
+  const [native] = compiler.compileNative(input)
   assert.doesNotMatch(web.jsx, /\bcn\(/)
   assert.doesNotMatch(native.jsx, /\bcn\(/)
-  assert.match(native.styles, /hozo0_hover_cond_/)
-  assert.match(native.styles, /hozo0_pressed_cond_/)
-
-  // Extract every generated conflict test `/.../....test(className ?? "")` from the compiled JSX
-  // and verify that for a comprehensive list of caller `className` inputs, each base token's
-  // survival matches `twMerge(base, caller)`.
-  const baseTokens = base.split(' ')
-  const callerInputs = [
-    '',
-    'px-2',
-    'p-4',
-    'pl-6',
-    'py-2',
-    'pt-4',
-    'm-2',
-    'lowercase',
-    'capitalize',
-    'normal-case',
-    'text-lg',
-    'text-red-500',
-    'hover:bg-red-500',
-    'bg-red-500',
-    'focus:bg-red-500',
-    'active:opacity-50',
-    'opacity-50',
-    'px-2 lowercase hover:bg-emerald-600',
-    'p-0 normal-case text-xl active:opacity-100',
-  ]
-
-  // Check each individual single-token base to verify its exact generated regex against `twMerge`.
-  const mismatches: string[] = []
-  for (const token of baseTokens) {
-    const [singleWeb] = compiler.compile(`
-      import { Pressable } from '@hozo/core'
-      import { cn } from '@/lib/utils'
-      export const B = ({ className }: { className?: string }) => (
-        <Pressable className={cn('${token}', className)} />
-      )
-    `)
-    const match = singleWeb.jsx.match(/(\/\(\?:[\s\S]*?\/)\.test\(\(className\)\)/)
-    assert.ok(match, `expected conflict regex for ${token} in ${singleWeb.jsx}`)
-    // Evaluate the regex literal
-    const regex = new Function(`return ${match[1]}`)() as RegExp
-
-    for (const caller of callerInputs) {
-      const merged = twMerge(token, caller)
-      const expectedDropped = !merged.split(/\s+/).includes(token)
-      const actualDropped = regex.test(caller)
-      if (actualDropped !== expectedDropped) {
-        mismatches.push(
-          `base=${token} caller=${JSON.stringify(caller)}: regex.test=${actualDropped}, twMerge=${JSON.stringify(merged)} (expectedDropped=${expectedDropped})`,
-        )
-      }
-    }
+  assert.ok(web.jsx.length + web.css.length < 10_000)
+  assert.ok(native.jsx.length < 10_000)
+  const hozoStyles = new Function(`return (${native.styles})`)()
+  for (const active of [[], [0], [0, 3, 6], [1, 9]]) {
+    const flags = classes.map((_, index) => active.includes(index))
+    const { style } = render(native.jsx, { View: 'View', hozoStyles, flags })
+    const merged = twMerge(...classes.filter((_, index) => flags[index]))
+    const expected = merged ? 4 * Number(merged.slice(2)) : undefined
+    assert.equal(Object.assign({}, ...[style].flat(Infinity)).paddingTop, expected)
   }
-
-  assert.equal(mismatches.length, 0, `Expected 0 mismatches:\n${mismatches.join('\n')}`)
 })
 
-test('Bundle size measurement: compiled conflict checks are a tiny fraction of shipping tailwind-merge (~8 KB gzip)', () => {
+test('a merge that exceeds the guard expansion budget retains every original evaluation', () => {
   const compiler = createTwMergeCompiler()
-  const [web] = compiler.compile(`
-    import { Pressable } from '@hozo/core'
-    import { cn } from '@/lib/utils'
-    export const Button = ({ className }: { className?: string }) => (
-      <Pressable className={cn('px-3 py-1 uppercase hover:bg-blue-500', className)} />
+  const classes = Array.from({ length: 16 }, (_, index) => `p-${index + 1}`)
+  const args = classes.map((name, index) => `choose(${index}) && '${name}'`).join(', ')
+  const input = source(`cn(${args})`)
+  for (const jsx of [compiler.compile(input)[0].jsx, compiler.compileNative(input)[0].jsx]) {
+    assert.match(jsx, /\bcn\(/)
+    const evaluations: number[] = []
+    const results: string[] = []
+    render(jsx, {
+      View: 'View',
+      hozoClasses: (value: unknown) => value,
+      choose: (index: number) => {
+        evaluations.push(index)
+        return index < 7
+      },
+      cn: (...values: Parameters<typeof twMerge>) => {
+        const result = twMerge(...values)
+        results.push(result)
+        return result
+      },
+    })
+    assert.deepEqual(
+      evaluations,
+      classes.map((_, index) => index),
     )
-  `)
+    assert.deepEqual(results, [twMerge(...classes.slice(0, 7))])
+  }
+})
 
-  // Measure the generated conflict check snippet vs the tailwind-merge bundle
-  const twMergeBundlePath = require.resolve('tailwind-merge')
-  const twMergeRaw = fs.readFileSync(twMergeBundlePath)
-  const twMergeGzip = zlib.gzipSync(twMergeRaw)
+const mergeCases = [
+  ['overflow-x-auto', 'overflow-hidden', 'line-clamp-2'],
+  ['touch-pan-x', 'touch-none', 'touch-pan-y'],
+  ['ordinal', 'normal-nums', 'slashed-zero'],
+  ['shadow-[1px_2px_red]', 'shadow-blue-500'],
+  ['shadow-[0.5px_-2px_red]', 'shadow-blue-500'],
+  ['text-[日本語]', 'text-red-500'],
+  ['text-[LENGTH:12px]', 'text-red-500'],
+]
 
-  const checkRaw = Buffer.from(web.jsx, 'utf8')
-  const checkGzip = zlib.gzipSync(checkRaw)
-
-  // `tailwind-merge` is ~24 KB minified / ~7-8 KB gzipped; the compiled component is a few hundred bytes.
-  assert.ok(
-    twMergeGzip.byteLength > 6000,
-    `expected tailwind-merge gzip (${twMergeGzip.byteLength} B) > 6000 B`,
+test('multi-token merging and arbitrary validators match the real merger on both backends', () => {
+  const compiler = createTwMergeCompiler()
+  for (const args of mergeCases) {
+    const input = source(`cn(${args.map((arg) => JSON.stringify(arg)).join(',')})`)
+    const expected = source(JSON.stringify(twMerge(...args)))
+    assert.equal(compiler.compile(input)[0].css, compiler.compile(expected)[0].css, input)
+    assert.equal(
+      compiler.compileNative(input)[0].styles,
+      compiler.compileNative(expected)[0].styles,
+      input,
+    )
+  }
+  const nested = source(`cn(cn('overflow-x-auto', 'overflow-hidden'), 'line-clamp-2')`)
+  assert.equal(
+    compiler.compile(nested)[0].css,
+    compiler.compile(
+      source(
+        JSON.stringify(twMerge(twMerge('overflow-x-auto', 'overflow-hidden'), 'line-clamp-2')),
+      ),
+    )[0].css,
   )
-  assert.ok(
-    checkGzip.byteLength < 600,
-    `expected compiled component JSX gzip (${checkGzip.byteLength} B) < 600 B`,
+})
+
+function checkEvaluation(web: string, native: string) {
+  for (const jsx of [web, native]) {
+    const calls: string[] = []
+    const scope = {
+      View: 'View',
+      hozoStyles: {},
+      first: () => {
+        calls.push('first')
+        return true
+      },
+      second: () => {
+        calls.push('second')
+        return false
+      },
+    }
+    render(jsx, scope)
+    assert.deepEqual(calls, ['first', 'second'], jsx)
+    const failure = new Error('authored predicate failed')
+    assert.throws(
+      () =>
+        render(jsx, {
+          ...scope,
+          first: () => {
+            throw failure
+          },
+        }),
+      (error) => error === failure,
+    )
+  }
+}
+
+const predicateSource = source(`cn(first() && 'p-4', second() && 'p-6', 'p-2')`)
+
+test('eliminating classes preserves predicate side effects, errors, and order on Web and Native', () => {
+  const compiler = createTwMergeCompiler()
+  checkEvaluation(
+    compiler.compile(predicateSource)[0].jsx,
+    compiler.compileNative(predicateSource)[0].jsx,
   )
+})
+
+test('a root that cannot wrap retains the whole merger and each predicate evaluation', () => {
+  const compiler = createTwMergeCompiler()
+  const input = predicateSource.replace(
+    '<View className',
+    '<View accessibilityLabel={before()} className',
+  )
+  for (const jsx of [compiler.compile(input)[0].jsx, compiler.compileNative(input)[0].jsx]) {
+    const calls: string[] = []
+    assert.match(jsx, /cn\(/)
+    render(jsx, {
+      View: 'View',
+      hozoStyles: {},
+      hozoClasses: (classes: unknown) => classes,
+      before: () => {
+        calls.push('prop')
+        return 'label'
+      },
+      first: () => {
+        calls.push('first')
+        return true
+      },
+      second: () => {
+        calls.push('second')
+        return false
+      },
+      cn: twMerge,
+    })
+    assert.deepEqual(
+      calls.filter((call) => call !== 'prop'),
+      ['first', 'second'],
+      jsx,
+    )
+    // Cross-prop evaluation ordering is tracked separately in #1879.
+    assert.equal(calls.filter((call) => call === 'prop').length, 1, jsx)
+  }
+})
+
+const opaqueSource = source(`cn('p-4 text-red-500 bg-red-500 overflow-x-auto', className)`)
+
+function checkOpaque(web: string, native: string) {
+  for (const jsx of [web, native]) {
+    assert.match(jsx, /cn\(/)
+    assert.doesNotMatch(jsx, /hozo-conflict-/)
+    for (const className of [
+      '',
+      'p-button',
+      'text-[length:12px]',
+      'bg-[url(foo.png)]',
+      'overflow-hidden line-clamp-2',
+    ]) {
+      const calls: unknown[][] = []
+      render(jsx, {
+        View: 'View',
+        hozoStyles: {},
+        hozoClasses: (classes: unknown) => classes,
+        className,
+        cn: (...args: string[]) => {
+          calls.push(args)
+          return twMerge(...args)
+        },
+      })
+      assert.deepEqual(calls, [['p-4 text-red-500 bg-red-500 overflow-x-auto', className]])
+    }
+  }
+}
+
+test('opaque lists keep the real merger for custom classes, arbitrary values, and non-transitive conflicts', () => {
+  const compiler = createTwMergeCompiler()
+  checkOpaque(compiler.compile(opaqueSource)[0].jsx, compiler.compileNative(opaqueSource)[0].jsx)
+})
+
+test('twJoin retains array flattening rather than coercing an opaque array to a comma-separated string', () => {
+  const compiler = createTwMergeCompiler()
+  const input = source(`twJoin('p-4', caller)`).replace(
+    "import { cn } from '@/lib/utils'",
+    "import { twJoin } from 'tailwind-merge'",
+  )
+  const caller = ['px-2', ['font-bold', false, 'text-sm']]
+  for (const jsx of [compiler.compile(input)[0].jsx, compiler.compileNative(input)[0].jsx]) {
+    const calls: unknown[][] = []
+    render(jsx, {
+      View: 'View',
+      hozoStyles: {},
+      hozoClasses: (classes: unknown) => classes,
+      caller,
+      twJoin: (...args: Parameters<typeof twJoin>) => {
+        calls.push(args)
+        return twJoin(...args)
+      },
+    })
+    assert.deepEqual(calls, [['p-4', caller]])
+  }
+  const known = source(`twJoin('p-4', 'px-2')`).replace(
+    "import { cn } from '@/lib/utils'",
+    "import { twJoin } from 'tailwind-merge'",
+  )
+  assert.doesNotMatch(compiler.compile(known)[0].jsx, /twJoin\(/)
+  assert.equal(
+    compiler.compile(known)[0].css,
+    compiler.compile(source(JSON.stringify(twJoin('p-4', 'px-2'))))[0].css,
+  )
+})
+
+test('prepared Web and Native routes preserve the same merge and evaluation boundaries', async () => {
+  const compiler = createTwMergeCompiler()
+  const inputs = [
+    predicateSource,
+    opaqueSource,
+    ...mergeCases.map((args) => source(`cn(${args.map((arg) => JSON.stringify(arg)).join(',')})`)),
+  ]
+  const expected = mergeCases.map((args) => source(JSON.stringify(twMerge(...args))))
+  const modules = [...inputs, ...expected].map((input) => ({
+    web: compiler.prepareWebModule(input),
+    native: compiler.prepareNativeModule(input),
+  }))
+  const candidates = [
+    ...new Set(modules.flatMap(({ web, native }) => [...web.candidates, ...native.candidates])),
+  ]
+  const { snapshot } = await prepareTailwindOrder(
+    '@import "tailwindcss/theme.css";',
+    tailwindPackageDir(),
+    candidates,
+  )
+  const context = prepareTailwindContext(JSON.stringify(snapshot))
+  const results = modules.map(({ web, native }) => ({
+    web: web.emit(context)[0],
+    native: native.emit(context).components[0],
+  }))
+  checkEvaluation(results[0].web.jsx, results[0].native.jsx)
+  checkOpaque(results[1].web.jsx, results[1].native.jsx)
+  mergeCases.forEach((args, index) => {
+    const actual = results[index + 2]
+    const reference = results[inputs.length + index]
+    assert.equal(actual.web.css, reference.web.css, args.join(' '))
+    assert.equal(actual.native.styles, reference.native.styles, args.join(' '))
+  })
 })

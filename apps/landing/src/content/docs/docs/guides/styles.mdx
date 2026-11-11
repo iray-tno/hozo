@@ -52,24 +52,31 @@ a caller's `className`, falls back alone and the rest still compiles.
 A project's own helper is not one of them, even when it only wraps those
 libraries, as a `cn` in `@/lib/utils` often does. The compiler reads one
 file at a time, so it cannot see what `cn` does, and the whole call takes the
-runtime fallback below. On the Web the classes still apply. On React Native,
-`hover:`, `active:`, `disabled:` and `focus-visible:` cannot be carried by
-the fallback, so the component loses its state styles.
+runtime fallback below.
 
 So Hozo follows the import to the helper's file and reads it. A
 function that only hands its arguments to `clsx`, `classnames`, `cx`,
-`twJoin` or `twMerge` is then read argument by argument (#964, #1676).
+or `twMerge` is then read argument by argument (#964, #1676). Direct `twJoin`
+calls compile when all class tokens are known and supported. Its opaque
+arguments and wrappers stay at runtime to preserve array flattening;
+`twJoin` does not share `clsx`'s object-dictionary semantics.
 
 When the call uses `twMerge` — or a helper such as shadcn/ui's `cn` that
 hands its result to `twMerge` — Hozo applies `tailwind-merge`'s conflict
 resolution at compile time. Static conflicts (`twMerge('p-4', 'px-2')`) and
 conditional overrides (`cn('px-3', active && 'px-2')`) are resolved into the
-compiled rules and guards. When a static base is followed by a caller's
-`className` (`cn('px-3 py-1 hover:bg-blue-500', className)`), Hozo emits a
-small per-conflict-group check so a caller's conflicting utility drops the
-base group while `hover:` and `active:` still compile on React Native. Custom
-mergers built with `extendTailwindMerge` or `createTailwindMerge` stay at
-runtime so their custom conflict groups run as configured.
+compiled rules and guards. This requires every possible class token to be
+known and supported by the compiler. If any argument contains an opaque
+caller class list (`cn('px-3 py-1 hover:bg-blue-500', className)`) or an
+unsupported token, the whole merge stays at runtime. Custom classes and
+ambiguous arbitrary values cannot be classified by prefix alone, and a
+token removed by a later token must not suppress an earlier class.
+On Native, a `Pressable` can apply runtime `hover:` and `active:` candidates
+from the project map using its own interaction state. Runtime variant support
+depends on what the candidate map can represent and what state the component
+supplies. Custom mergers built with `extendTailwindMerge` or
+`createTailwindMerge` also stay at runtime so their configured conflict groups
+remain authoritative.
 
 Anything else can be declared, and a declaration wins over what was found:
 

@@ -31,11 +31,10 @@ pub(crate) use evaluation::{capture_evaluation, capture_template_parts};
 /// than doing full scope resolution. Rare in practice; falls back safely if
 /// the name isn't imported from one of these packages at all.
 ///
-/// Not `tailwind-merge` (#1668). It drops an earlier class that a later one
-/// conflicts with, so `twMerge('px-3', className)` with a caller's `px-2`
-/// pads by `px-2`. Read as a join, the `px-3` compiles to a rule that a
-/// caller's Tailwind utility, layered, can never beat. The whole call stays
-/// at runtime, where the real `twMerge` decides.
+/// `tailwind-merge` has separate contracts below. Known merger inputs use
+/// right-to-left conflict elimination; an opaque input keeps the whole call
+/// at runtime. Treating it as a join would give compiled base rules priority
+/// over the caller's conflicting utility (#1668, #1878).
 const RECOGNIZED_CX_MODULES: [&str; 2] = ["clsx", "classnames"];
 const TW_MERGE_MODULE: &str = "tailwind-merge";
 
@@ -49,6 +48,7 @@ const HOZO_CX_NAME: &str = "cx";
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum HelperKind {
     Join,
+    StrictJoin,
     Merge,
 }
 
@@ -76,9 +76,8 @@ pub struct Decomposed {
     /// The optional guarded-template proof is irrelevant to other legacy
     /// failures; do not decompose ordinary opaque branches a second time.
     pub guarded_template: bool,
-    /// True when a `ClassConflict` guard references a non-identifier fallback
-    /// (e.g. a function call), requiring a single-evaluation capture plan.
-    pub non_repeatable_conflict: bool,
+    /// Authored predicates still run even when merging removes all their classes.
+    pub evaluation_refs: Vec<ExprRef>,
     /// Per-declaration token metadata for `twMerge` conflict resolution.
     pub(crate) declaration_tokens: Vec<Option<crate::tw_merge::ClassifiedToken>>,
     pub(crate) declaration_guards: Vec<Option<ConditionExpr>>,
@@ -299,7 +298,7 @@ fn is_recognized_cx_identifier(
             if module == TW_MERGE_MODULE {
                 return match imported {
                     "twMerge" => Some(HelperKind::Merge),
-                    "twJoin" => Some(HelperKind::Join),
+                    "twJoin" => Some(HelperKind::StrictJoin),
                     _ => None,
                 };
             }
@@ -600,7 +599,7 @@ fn decompose(
                     out.declarations.extend(part.declarations);
                     out.declaration_tokens.extend(part.declaration_tokens);
                     out.declaration_guards.extend(part.declaration_guards);
-                    out.non_repeatable_conflict |= part.non_repeatable_conflict;
+                    out.evaluation_refs.extend(part.evaluation_refs);
                     out.fallback.extend(part.fallback);
                     out.consumed.extend(part.consumed);
                     out.unsupported_variants.extend(part.unsupported_variants);
@@ -666,7 +665,7 @@ fn decompose(
                     );
                 }
             } else {
-                decompose_merge_call(
+                decompose_closed_call(
                     call,
                     condition,
                     guard,
@@ -717,7 +716,17 @@ fn conjoin_condition_with_guard(condition: Condition, guard: ConditionExpr) -> C
     }
 }
 
-fn decompose_merge_call(
+fn guard_nodes(guard: &ConditionExpr) -> usize {
+    match guard {
+        ConditionExpr::Not(inner) => 1 + guard_nodes(inner),
+        ConditionExpr::And(left, right) | ConditionExpr::Or(left, right) => {
+            1 + guard_nodes(left) + guard_nodes(right)
+        }
+        _ => 1,
+    }
+}
+
+fn decompose_closed_call(
     call: &CallExpression,
     condition: Option<ConditionExpr>,
     guard: Option<Span>,
@@ -725,47 +734,29 @@ fn decompose_merge_call(
     module_record: &Joiners,
     capture_templates: bool,
 ) {
+    let merge_conflicts =
+        is_recognized_cx_call(&call.callee, module_record) == Some(HelperKind::Merge);
     let whole_span = guard.unwrap_or(call.span);
     let mut sub = Decomposed::default();
-    let mut arg_ranges = Vec::with_capacity(call.arguments.len());
-    let mut arg_is_repeatable = Vec::with_capacity(call.arguments.len());
-
     for arg in &call.arguments {
-        let decl_start = sub.declarations.len();
-        let fb_start = sub.fallback.len();
-        let target = classify_argument(arg);
-        let repeatable = matches!(target, Target::Identifier(_));
         decompose(
-            target,
+            classify_argument(arg),
             None,
             None,
             &mut sub,
             module_record,
             capture_templates,
         );
-        let decl_end = sub.declarations.len();
-        let fb_end = sub.fallback.len();
-
-        // If an argument partially compiled and partially fell back (e.g. a
-        // ternary where one branch is opaque, or a literal with a custom
-        // class alongside a Tailwind utility), keep the whole call at runtime
-        // so `twMerge` sees every token in order.
-        let arg_decls = decl_end - decl_start;
-        let arg_fbs = fb_end - fb_start;
-        if arg_decls > 0 && arg_fbs > 0 {
-            fall_back_to(out, whole_span);
-            return;
-        }
-        // An opaque fallback before a static Tailwind utility (`cn(className, 'px-2')`)
-        // would require compiled `px-2` to override an arbitrary runtime token's
-        // shorthands/modifiers; keep that call at runtime when earlier fallbacks
-        // precede later static declarations.
-        if arg_decls > 0 && fb_start > 0 {
-            fall_back_to(out, whole_span);
-            return;
-        }
-        arg_ranges.push((decl_start..decl_end, fb_start..fb_end));
-        arg_is_repeatable.push(repeatable);
+    }
+    // An opaque list can contain custom tokens, ambiguous arbitrary values,
+    // or tokens removed by other tokens in that list. A prefix regex cannot
+    // reproduce the merger's right-to-left decisions; keep the real call.
+    if !sub.fallback.is_empty() {
+        fall_back_to(out, whole_span);
+        return;
+    }
+    for authored_guard in sub.declaration_guards.iter().flatten() {
+        evaluation::collect_guards(authored_guard, &mut sub.evaluation_refs);
     }
 
     let n = sub.declarations.len();
@@ -775,12 +766,23 @@ fn decompose_merge_call(
     // Part 1: Static & conditional conflict resolution (including intra-literal
     // conflicts like `twMerge('px-3 px-2')` and cross-argument conflicts like
     // `cn('px-3', active && 'px-2')`).
-    for i in 0..n {
+    let mut effective_guards = sub.declaration_guards.clone();
+    // IR conditions are trees. Bound the added nodes before cloning them so a
+    // short source expression cannot grow exponentially through cross-group conflicts.
+    let mut remaining_guard_nodes = 1024usize;
+    for i in (0..n).rev() {
+        if !merge_conflicts {
+            continue;
+        }
         let Some(ref earlier_tok) = sub.declaration_tokens[i] else {
             continue;
         };
         let mut overriding_conds: Vec<ConditionExpr> = Vec::new();
         for j in (i + 1)..n {
+            // A removed intermediate token cannot suppress an earlier token.
+            if dropped[j] {
+                continue;
+            }
             // Declarations expanded from the same utility token (e.g. `px-3` ->
             // paddingLeft + paddingRight) share the same `StyleSource` and must
             // not override each other.
@@ -795,7 +797,15 @@ fn decompose_merge_call(
             if !crate::tw_merge::overrides(later_tok, earlier_tok) {
                 continue;
             }
-            match &sub.declaration_guards[j] {
+            // Any surviving token that removes a later member of the same
+            // group also removes this one, so its authored guard suffices.
+            // Across different groups this implication need not hold.
+            let later_guard = if later_tok.class_group_id == earlier_tok.class_group_id {
+                &sub.declaration_guards[j]
+            } else {
+                &effective_guards[j]
+            };
+            match later_guard {
                 None => {
                     dropped[i] = true;
                     break;
@@ -806,6 +816,13 @@ fn decompose_merge_call(
                 }
                 Some(later_guard) => {
                     if !overriding_conds.contains(later_guard) {
+                        let Some(remaining) =
+                            remaining_guard_nodes.checked_sub(guard_nodes(later_guard) + 2)
+                        else {
+                            fall_back_to(out, whole_span);
+                            return;
+                        };
+                        remaining_guard_nodes = remaining;
                         overriding_conds.push(later_guard.clone());
                     }
                 }
@@ -827,44 +844,11 @@ fn decompose_merge_call(
                 }
             }
         }
-    }
-
-    // Part 2: Runtime fallback `className` conflict guards (`cn('px-3 py-1', className)`).
-    for (arg_idx, (decl_range, _)) in arg_ranges.iter().enumerate() {
-        for later_arg_idx in (arg_idx + 1)..arg_ranges.len() {
-            let (_, ref fb_range) = arg_ranges[later_arg_idx];
-            if fb_range.is_empty() {
-                continue;
-            }
-            let repeatable = arg_is_repeatable[later_arg_idx];
-            for fb_idx in fb_range.clone() {
-                let fb_ref = sub.fallback[fb_idx];
-                for i in decl_range.clone() {
-                    if dropped[i] {
-                        continue;
-                    }
-                    let Some(ref earlier_tok) = sub.declaration_tokens[i] else {
-                        continue;
-                    };
-                    let pattern = crate::tw_merge::conflict_regex_for_target(
-                        &earlier_tok.modifier_id,
-                        &earlier_tok.class_group_id,
-                    );
-                    let group_key = earlier_tok.class_id();
-                    let conflict_guard = ConditionExpr::Not(Box::new(
-                        ConditionExpr::ClassConflict(Box::new(hozo_ir::ClassConflictGuard {
-                            reference: fb_ref,
-                            capture: None,
-                            group: group_key,
-                            pattern,
-                        })),
-                    ));
-                    extra_guards[i].push(conflict_guard);
-                    if !repeatable {
-                        out.non_repeatable_conflict = true;
-                    }
-                }
-            }
+        for extra in &extra_guards[i] {
+            effective_guards[i] = Some(match effective_guards[i].take() {
+                None => extra.clone(),
+                Some(own) => ConditionExpr::And(Box::new(own), Box::new(extra.clone())),
+            });
         }
     }
 
@@ -885,7 +869,7 @@ fn decompose_merge_call(
         if let Some(g) = combined_guard {
             decl.condition = conjoin_condition_with_guard(decl.condition, g);
         }
-        let effective_guard = match (&condition, &sub.declaration_guards[i]) {
+        let effective_guard = match (&condition, &effective_guards[i]) {
             (None, g) => g.clone(),
             (Some(c), None) => Some(c.clone()),
             (Some(c), Some(g)) => {
@@ -906,7 +890,7 @@ fn decompose_merge_call(
     out.unsupported_variants.extend(sub.unsupported_variants);
     out.compiled.extend(sub.compiled);
     out.guarded_template |= sub.guarded_template;
-    out.non_repeatable_conflict |= sub.non_repeatable_conflict;
+    out.evaluation_refs.extend(sub.evaluation_refs);
 }
 
 #[cfg(test)]
@@ -1279,7 +1263,78 @@ const el = <View className={{{expression}}} />
     }
 
     #[test]
-    fn tw_merge_resolves_static_and_conditional_conflicts_and_guards_runtime_fallback() {
+    fn only_surviving_tokens_suppress_earlier_tokens_under_each_guard() {
+        fn holds(expr: &ConditionExpr, source: &str, a: bool, b: bool) -> bool {
+            match expr {
+                ConditionExpr::Ref(reference) => {
+                    match &source[reference.0.start as usize..reference.0.end as usize] {
+                        "a" => a,
+                        "b" => b,
+                        other => panic!("unexpected predicate {other}"),
+                    }
+                }
+                ConditionExpr::Not(inner) => !holds(inner, source, a, b),
+                ConditionExpr::And(left, right) => {
+                    holds(left, source, a, b) && holds(right, source, a, b)
+                }
+                ConditionExpr::Or(left, right) => {
+                    holds(left, source, a, b) || holds(right, source, a, b)
+                }
+                other => panic!("unexpected guard {other:?}"),
+            }
+        }
+        fn applies(condition: &Condition, source: &str, a: bool, b: bool) -> bool {
+            match condition {
+                Condition::Always => true,
+                Condition::Expr(expr) => holds(expr, source, a, b),
+                Condition::All(items) => items.iter().all(|item| applies(item, source, a, b)),
+                other => panic!("unexpected condition {other:?}"),
+            }
+        }
+        for (expression, left_nested) in [
+            (
+                "twMerge('overflow-x-auto', a && 'overflow-hidden', b && 'line-clamp-2')",
+                false,
+            ),
+            (
+                "twMerge('overflow-x-auto', twMerge(a && 'overflow-hidden', b && 'line-clamp-2'))",
+                false,
+            ),
+            (
+                "twMerge(twMerge('overflow-x-auto', a && 'overflow-hidden'), b && 'line-clamp-2')",
+                true,
+            ),
+        ] {
+            let source = format!("import {{ View }} from '@hozo/core'; import {{ twMerge }} from 'tailwind-merge'; const el = <View className={{{expression}}} />");
+            let decomposed = decompose_source(&source);
+            assert!(decomposed.fallback.is_empty());
+            for a in [false, true] {
+                for b in [false, true] {
+                    let actual: std::collections::BTreeSet<_> = decomposed
+                        .declarations
+                        .iter()
+                        .zip(&decomposed.declaration_tokens)
+                        .filter(|(decl, _)| applies(&decl.condition, &source, a, b))
+                        .map(|(_, token)| token.as_ref().unwrap().class_group_id.as_str())
+                        .collect();
+                    let mut expected = std::collections::BTreeSet::new();
+                    if !a || (b && !left_nested) {
+                        expected.insert("overflow-x");
+                    }
+                    if a && !b {
+                        expected.insert("overflow");
+                    }
+                    if b {
+                        expected.insert("line-clamp");
+                    }
+                    assert_eq!(actual, expected, "{expression}, a={a}, b={b}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn tw_merge_resolves_known_conflicts_and_keeps_opaque_calls() {
         let static_override = decompose_source(
             r#"
             import { View } from '@hozo/core'
@@ -1314,6 +1369,6 @@ const el = <View className={{{expression}}} />
             &[merge_helper("@/lib/utils", "cn")],
         );
         assert_eq!(runtime_fallback.fallback.len(), 1);
-        assert_eq!(runtime_fallback.declarations.len(), 3);
+        assert!(runtime_fallback.declarations.is_empty());
     }
 }

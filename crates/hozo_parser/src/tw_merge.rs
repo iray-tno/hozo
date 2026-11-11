@@ -1,7 +1,7 @@
 //! Compile-time `tailwind-merge` (`twMerge`) classification, conflict resolution,
-//! and runtime `className` conflict-guard regex synthesis (#1676).
+//! for enumerable class lists (#1676).
 //!
-//! All class-group tries, validators, and conflict tables come from
+//! Class-group tries, validator identities, and conflict tables come from
 //! `tw_merge_table`, generated directly from `tailwind-merge`'s
 //! `getDefaultConfig()`.
 
@@ -9,7 +9,6 @@ use crate::tw_merge_table::{
     TrieNode, Validator, CONFLICTING_CLASS_GROUPS, CONFLICTING_CLASS_GROUP_MODIFIERS,
     ORDER_SENSITIVE_MODIFIERS, POSTFIX_LOOKUP_CLASS_GROUPS, ROOT_INDEX, TRIE_NODES,
 };
-use std::collections::BTreeSet;
 
 const ARBITRARY_PROPERTY_PREFIX: &str = "arbitrary..";
 
@@ -377,7 +376,7 @@ fn get_is_arbitrary_value(
         return false;
     };
     match label {
-        Some(l) => test_label(&l.to_ascii_lowercase()),
+        Some(l) => test_label(l),
         None => test_value(rest),
     }
 }
@@ -391,7 +390,7 @@ fn get_is_arbitrary_variable(
         return false;
     };
     match label {
-        Some(l) => test_label(&l.to_ascii_lowercase()),
+        Some(l) => test_label(l),
         None => should_match_no_label,
     }
 }
@@ -476,6 +475,20 @@ fn is_number(value: &str) -> bool {
 fn is_integer(value: &str) -> bool {
     if !is_number(value) {
         return false;
+    }
+    let trimmed = value.trim();
+    for prefix in ["0x", "0X", "0b", "0B", "0o", "0O"] {
+        if let Some(digits) = trimmed.strip_prefix(prefix) {
+            let radix = match prefix.as_bytes()[1] {
+                b'x' | b'X' => 16,
+                b'b' | b'B' => 2,
+                _ => 8,
+            };
+            let number = digits.chars().fold(0.0_f64, |n, c| {
+                n * f64::from(radix) + f64::from(c.to_digit(radix).unwrap())
+            });
+            return number.is_finite();
+        }
     }
     let Ok(n) = value.trim().parse::<f64>() else {
         return false;
@@ -585,7 +598,7 @@ fn has_length_unit_token(value: &str) -> bool {
         return true;
     }
     let bytes = value.as_bytes();
-    for i in 0..bytes.len() {
+    for (i, _) in value.char_indices() {
         let prev_is_word = i > 0 && (bytes[i - 1].is_ascii_alphanumeric() || bytes[i - 1] == b'_');
         if !prev_is_word {
             for fn_prefix in ["calc(", "min(", "max(", "clamp("] {
@@ -626,25 +639,22 @@ fn is_length_only(value: &str) -> bool {
 
 fn parse_shadow_coord(s: &str) -> Option<&str> {
     let s = s.strip_prefix('-').unwrap_or(s);
-    if let Some(rest) = s.strip_prefix('0') {
-        let next_non_alpha = rest.is_empty() || !rest.as_bytes()[0].is_ascii_alphabetic();
-        if next_non_alpha {
-            return Some(rest);
-        }
-    }
     let bytes = s.as_bytes();
     let mut i = 0;
     while i < bytes.len() && bytes[i].is_ascii_digit() {
         i += 1;
     }
+    let integer_digits = i;
     if i < bytes.len() && bytes[i] == b'.' {
         i += 1;
-    }
-    let frac_start = i;
-    while i < bytes.len() && bytes[i].is_ascii_digit() {
-        i += 1;
-    }
-    if i == frac_start {
+        let frac_start = i;
+        while i < bytes.len() && bytes[i].is_ascii_digit() {
+            i += 1;
+        }
+        if i == frac_start {
+            return None;
+        }
+    } else if integer_digits == 0 {
         return None;
     }
     let unit_start = i;
@@ -652,7 +662,7 @@ fn parse_shadow_coord(s: &str) -> Option<&str> {
         i += 1;
     }
     if i == unit_start {
-        return None;
+        return s.strip_prefix('0');
     }
     Some(&s[i..])
 }
@@ -692,240 +702,6 @@ fn is_image(value: &str) -> bool {
         )
 }
 
-/// Returns all `class_group_id`s whose presence in a later argument overrides
-/// `target_group_id` (including `target_group_id` itself).
-pub fn overriding_groups_for(target_group_id: &str) -> Vec<&'static str> {
-    let mut result = BTreeSet::new();
-    for &(later_group, conflicts) in CONFLICTING_CLASS_GROUPS {
-        if later_group == target_group_id || conflicts.contains(&target_group_id) {
-            result.insert(later_group);
-        }
-    }
-    for &(later_group, conflicts) in CONFLICTING_CLASS_GROUP_MODIFIERS {
-        if later_group == target_group_id || conflicts.contains(&target_group_id) {
-            result.insert(later_group);
-        }
-    }
-    result.into_iter().collect()
-}
-
-fn escape_regex(literal: &str) -> String {
-    let mut out = String::with_capacity(literal.len());
-    for ch in literal.chars() {
-        if matches!(
-            ch,
-            '\\' | '.'
-                | '+'
-                | '*'
-                | '?'
-                | '('
-                | ')'
-                | '['
-                | ']'
-                | '{'
-                | '}'
-                | '^'
-                | '$'
-                | '|'
-                | '/'
-        ) {
-            out.push('\\');
-        }
-        out.push(ch);
-    }
-    out
-}
-
-fn collect_patterns_for_groups(
-    node: &TrieNode,
-    prefix: &str,
-    targets: &BTreeSet<&str>,
-    exact: &mut BTreeSet<String>,
-    prefixes: &mut BTreeSet<String>,
-    has_leading_validators: &mut bool,
-) {
-    #[allow(clippy::collapsible_if)]
-    if let Some(group_id) = node.class_group_id {
-        if targets.contains(group_id) && !prefix.is_empty() {
-            exact.insert(escape_regex(prefix));
-        }
-    }
-    for &(group_id, _) in node.validators {
-        if targets.contains(group_id) {
-            if prefix.is_empty() {
-                *has_leading_validators = true;
-            } else {
-                prefixes.insert(escape_regex(prefix));
-            }
-        }
-    }
-    for &(key, child_idx) in node.children {
-        let next_prefix = if prefix.is_empty() {
-            key.to_string()
-        } else {
-            format!("{prefix}-{key}")
-        };
-        collect_patterns_for_groups(
-            &TRIE_NODES[child_idx],
-            &next_prefix,
-            targets,
-            exact,
-            prefixes,
-            has_leading_validators,
-        );
-    }
-}
-
-/// Synthesizes a compact JS regex pattern matching any token in a runtime
-/// `className` string that `twMerge` would treat as overriding `(modifier_id, target_group_id)`.
-pub fn conflict_regex_for_target(modifier_id: &str, target_group_id: &str) -> String {
-    let (variant_part, is_important) = match modifier_id.strip_suffix('!') {
-        Some(v) => (v, true),
-        None => (modifier_id, false),
-    };
-    let variant_prefix = if variant_part.is_empty() {
-        String::new()
-    } else {
-        let parts: Vec<&str> = variant_part.split(':').collect();
-        if parts.len() == 1 {
-            format!("{}:", escape_regex(parts[0]))
-        } else {
-            // Multiple modifiers can appear in any order in the caller's class string.
-            let joined = parts
-                .iter()
-                .map(|p| escape_regex(p))
-                .collect::<Vec<_>>()
-                .join("|");
-            format!("(?:(?:{joined}):){{{}}}", parts.len())
-        }
-    };
-
-    if let Some(prop) = target_group_id.strip_prefix(ARBITRARY_PROPERTY_PREFIX) {
-        let base_pat = format!("\\[{}:[^\\]\\s]+\\]", escape_regex(prop));
-        return wrap_token_regex(&variant_prefix, &base_pat, is_important);
-    }
-
-    let mut target_set: BTreeSet<&str> =
-        overriding_groups_for(target_group_id).into_iter().collect();
-    target_set.insert(target_group_id);
-
-    let mut exact = BTreeSet::new();
-    let mut prefixes = BTreeSet::new();
-    let mut has_leading_validators = false;
-    collect_patterns_for_groups(
-        &TRIE_NODES[ROOT_INDEX],
-        "",
-        &target_set,
-        &mut exact,
-        &mut prefixes,
-        &mut has_leading_validators,
-    );
-
-    let mut branches = Vec::new();
-    if !prefixes.is_empty() {
-        let mut exact_too = Vec::new();
-        let mut only_prefix = Vec::new();
-        for p in &prefixes {
-            if exact.remove(p) {
-                exact_too.push(p.as_str());
-            } else {
-                only_prefix.push(p.as_str());
-            }
-        }
-        if !exact_too.is_empty() {
-            branches.push(format!("(?:{})(?:-[^\\s/!]+)?", exact_too.join("|")));
-        }
-        if !only_prefix.is_empty() {
-            branches.push(format!("(?:{})-[^\\s/!]+", only_prefix.join("|")));
-        }
-    }
-    if !exact.is_empty() {
-        let exact_vec: Vec<&str> = exact.iter().map(String::as_str).collect();
-        branches.push(exact_vec.join("|"));
-    }
-    if has_leading_validators && target_set.contains("container-named") {
-        branches.push("@container(?:-(?:size|normal))?\\/[^\\s!]+".to_string());
-    }
-
-    // Special disambiguations where two groups share a prefix (e.g. `text-*` font-size vs text-color).
-    if target_group_id == "font-size" {
-        return wrap_token_regex(
-            &variant_prefix,
-            "text-(?:xs|sm|base|lg|xl|\\d+(?:\\.\\d+)?(?:xs|sm|md|lg|xl)|\\[(?:length:[^\\]\\s]+|\\d[^\\]\\s]*)\\]|\\(length:[^)\\s]+\\))",
-            is_important,
-        );
-    }
-    if target_group_id == "text-color" {
-        return wrap_token_regex(
-            &variant_prefix,
-            "text-(?!(?:xs|sm|base|lg|xl|\\d+(?:\\.\\d+)?(?:xs|sm|md|lg|xl)|left|center|right|justify|start|end|wrap|nowrap|balance|pretty|clip|ellipsis)(?:$|\\s|\\/|!))[^\\s/!]+",
-            is_important,
-        );
-    }
-    if target_group_id == "leading" && target_set.contains("font-size") {
-        return wrap_token_regex(
-            &variant_prefix,
-            "(?:leading-[^\\s/!]+|text-(?:xs|sm|base|lg|xl|\\d+(?:\\.\\d+)?(?:xs|sm|md|lg|xl)|\\[(?:length:[^\\]\\s]+|\\d[^\\]\\s]*)\\]|\\(length:[^)\\s]+\\))(?:\\/[^\\s!]+)?)",
-            is_important,
-        );
-    }
-    if target_group_id == "border-w" || target_group_id.starts_with("border-w-") {
-        let mut bw_branches = Vec::new();
-        for g in &target_set {
-            match *g {
-                "border-w" => bw_branches.push(
-                    "border(?:-(?:\\d+|\\[(?:length:)?[^\\]\\s]+\\]|\\(length:[^)\\s]+\\)))?",
-                ),
-                "border-w-x" => bw_branches.push(
-                    "border-x(?:-(?:\\d+|\\[(?:length:)?[^\\]\\s]+\\]|\\(length:[^)\\s]+\\)))?",
-                ),
-                "border-w-y" => bw_branches.push(
-                    "border-y(?:-(?:\\d+|\\[(?:length:)?[^\\]\\s]+\\]|\\(length:[^)\\s]+\\)))?",
-                ),
-                "border-w-s" => bw_branches.push(
-                    "border-s(?:-(?:\\d+|\\[(?:length:)?[^\\]\\s]+\\]|\\(length:[^)\\s]+\\)))?",
-                ),
-                "border-w-e" => bw_branches.push(
-                    "border-e(?:-(?:\\d+|\\[(?:length:)?[^\\]\\s]+\\]|\\(length:[^)\\s]+\\)))?",
-                ),
-                "border-w-t" => bw_branches.push(
-                    "border-t(?:-(?:\\d+|\\[(?:length:)?[^\\]\\s]+\\]|\\(length:[^)\\s]+\\)))?",
-                ),
-                "border-w-r" => bw_branches.push(
-                    "border-r(?:-(?:\\d+|\\[(?:length:)?[^\\]\\s]+\\]|\\(length:[^)\\s]+\\)))?",
-                ),
-                "border-w-b" => bw_branches.push(
-                    "border-b(?:-(?:\\d+|\\[(?:length:)?[^\\]\\s]+\\]|\\(length:[^)\\s]+\\)))?",
-                ),
-                "border-w-l" => bw_branches.push(
-                    "border-l(?:-(?:\\d+|\\[(?:length:)?[^\\]\\s]+\\]|\\(length:[^)\\s]+\\)))?",
-                ),
-                _ => {}
-            }
-        }
-        if !bw_branches.is_empty() {
-            return wrap_token_regex(&variant_prefix, &bw_branches.join("|"), is_important);
-        }
-    }
-
-    let base_pat = if branches.len() == 1 {
-        branches.pop().unwrap()
-    } else {
-        format!("(?:{})", branches.join("|"))
-    };
-    wrap_token_regex(&variant_prefix, &base_pat, is_important)
-}
-
-fn wrap_token_regex(variant_prefix: &str, base_pat: &str, is_important: bool) -> String {
-    if is_important {
-        format!(
-            "(?:^|\\s){variant_prefix}(?:!(?:-?(?:{base_pat}))|-?(?:{base_pat})(?:\\/[^\\s!]+)?!)(?=$|\\s)"
-        )
-    } else {
-        format!("(?:^|\\s){variant_prefix}-?(?:{base_pat})(?:\\/[^\\s!]+)?(?=$|\\s)")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -951,10 +727,23 @@ mod tests {
     }
 
     #[test]
-    fn synthesizes_conflict_regexes() {
-        let px_re = conflict_regex_for_target("", "px");
-        assert!(px_re.contains("p"), "{px_re}");
-        let hover_bg = conflict_regex_for_target("hover", "bg-color");
-        assert!(hover_bg.contains("hover:"), "{hover_bg}");
+    fn arbitrary_values_keep_unicode_labels_and_shadow_coordinates() {
+        assert_eq!(
+            merge_class_list("text-[日本語] text-red-500"),
+            "text-red-500"
+        );
+        assert_eq!(
+            merge_class_list("shadow-[1px_2px_red] shadow-blue-500"),
+            "shadow-[1px_2px_red] shadow-blue-500"
+        );
+        assert_eq!(
+            merge_class_list("shadow-[0.5px_-2px_red] shadow-blue-500"),
+            "shadow-[0.5px_-2px_red] shadow-blue-500"
+        );
+        assert!(!get_is_arbitrary_value(
+            "[LENGTH:12px]",
+            is_label_length,
+            is_length_only
+        ));
     }
 }

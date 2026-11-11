@@ -794,7 +794,7 @@ export function cn(...inputs: ClassValue[]) { return clsx(inputs) }
   )
 })
 
-test("shadcn/ui's cn compiles with conflict guards so a caller's utility overrides it (#1676)", async () => {
+test("shadcn/ui's cn keeps the real merger for an opaque caller class list (#1878)", async () => {
   const card = `import { View } from '@hozo/core'
 import { cn } from '@/lib/utils'
 export const Card = ({ className }) => <View className={cn('px-3 uppercase', className)} />
@@ -807,9 +807,8 @@ export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
   const server = await serve(root, {}, { '@/lib/utils': path.join(root, 'lib', 'utils.ts') })
   const result = await server.transformRequest('/Card.tsx')
   assert.ok(result, 'the module was not transformed')
-  // Compiled with per-conflict-group guards rather than falling back to runtime cn().
-  assert.doesNotMatch(result.code, /\bcn\(/)
-  assert.match(result.code, /hozo-conflict-/)
+  assert.match(result.code, /\bcn\(/)
+  assert.doesNotMatch(result.code, /hozo-conflict-/)
   const companion = readFileSync(path.join(root, 'Card.tsx.hozo.css'), 'utf8')
-  assert.match(companion, /:not\(:where\(\.hozo-conflict-/)
+  assert.doesNotMatch(companion, /hozo-conflict-/)
 })
