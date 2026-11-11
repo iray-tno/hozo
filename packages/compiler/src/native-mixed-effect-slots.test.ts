@@ -42,6 +42,7 @@ function selected(tag: 'View' | 'Pressable', literal: string) {
     'hozoStyles',
     'hozoClasses',
     'hozoShadowStyles',
+    'hozoGradientStyles',
     'hozoAuthoredStyle',
     'classes',
     'style',
@@ -49,7 +50,15 @@ function selected(tag: 'View' | 'Pressable', literal: string) {
   )
   const compiled = new Function(`return (${result.styles})`)()
   return (resolver: ClassResolver, classes: string, hovered = false, style?: unknown) => {
-    const value = evaluate(compiled, resolver, hozoShadowStyles, hozoAuthoredStyle, classes, style)
+    const value = evaluate(
+      compiled,
+      resolver,
+      hozoShadowStyles,
+      hozoGradientStyles,
+      hozoAuthoredStyle,
+      classes,
+      style,
+    )
     return [
       typeof value === 'function' ? value({ hovered, pressed: false, focused: false }) : value,
     ].flat(Infinity)
@@ -109,10 +118,67 @@ test('deferred cached base retains original identities and does not mutate the n
   const { resolve } = moduleFor(['shadow-sm', 'shadow-red-500', 'ring-2'])
   const names = 'shadow-sm shadow-red-500 ring-2'
   const ordinary = resolve(names)
-  const deferred = resolve(names, undefined, 'shadow')
+  const deferred = resolve(names, undefined, 1)
   assert.notEqual(deferred, ordinary)
-  assert.equal(resolve(names, undefined, 'shadow'), deferred)
+  assert.equal(resolve(names, undefined, 1), deferred)
   assert.equal(resolve(names), ordinary)
   assert.ok(deferred.every((style) => resolve.shadowSlots?.has(style)))
   assert.equal(ordinary.length, deferred.length + 1)
+})
+
+test('mixed gradients read static and dynamic constructors and stops in either direction', () => {
+  const dynamicStops = moduleFor(['to-blue-500', 'to-80%'])
+  const staticImage = selected('View', 'bg-linear-to-r from-red-500 from-25%')
+  assert.equal(
+    Object.assign({}, ...staticImage(dynamicStops.resolve, 'to-blue-500 to-80%')).backgroundImage,
+    'linear-gradient(to right, #fb2c36 25%, #2b7fff 80%)',
+  )
+  const dynamicImage = moduleFor(['bg-linear-to-r'])
+  assert.doesNotMatch(dynamicImage.code, /generated\/gradient-slots/)
+  const staticStops = selected('View', 'from-red-500 to-blue-500')
+  assert.equal(
+    Object.assign({}, ...staticStops(dynamicImage.resolve, 'bg-linear-to-r')).backgroundImage,
+    'linear-gradient(to right, #fb2c36 0%, #2b7fff 100%)',
+  )
+  assert.equal(
+    Object.assign(
+      {},
+      ...staticStops(dynamicImage.resolve, 'bg-linear-to-r', false, { backgroundImage: 'none' }),
+    ).backgroundImage,
+    'none',
+  )
+})
+
+test('shadow and gradient can defer together while preserving owner states and ordinary caches', () => {
+  const names = [
+    'ring-2',
+    'hover:shadow-green-500',
+    'bg-linear-to-r',
+    'hover:bg-linear-to-b',
+    'to-blue-500',
+  ]
+  const { resolve } = moduleFor(names)
+  const read = selected('Pressable', 'shadow-sm bg-linear-to-r from-red-500')
+  const classes = names.join(' ')
+  const rest = Object.assign({}, ...read(resolve, classes))
+  assert.match(rest.boxShadow, /^0 0 0 2px currentcolor, 0 1px 3px 0 rgb\(/)
+  assert.equal(rest.backgroundImage, 'linear-gradient(to right, #fb2c36 0%, #2b7fff 100%)')
+  const active = Object.assign({}, ...read(resolve, classes, true))
+  assert.match(active.boxShadow, /^0 0 0 2px currentcolor, 0 1px 3px 0 #00c950,/)
+  assert.equal(active.backgroundImage, 'linear-gradient(to bottom, #fb2c36 0%, #2b7fff 100%)')
+  const premature = Object.assign(
+    (value: unknown, state: Parameters<ClassResolver>[1]) => resolve(value, state),
+    resolve,
+  )
+  assert.notEqual(
+    Object.assign({}, ...read(premature, classes, true)).backgroundImage,
+    active.backgroundImage,
+  )
+  assert.deepEqual(Object.assign({}, ...read(resolve, classes)), rest)
+  const idle = { hovered: false }
+  const ordinary = resolve(classes, idle)
+  const deferred = resolve(classes, idle, 3)
+  assert.notEqual(deferred, ordinary)
+  assert.equal(resolve(classes, idle, 3), deferred)
+  assert.equal(resolve(classes, idle), ordinary)
 })

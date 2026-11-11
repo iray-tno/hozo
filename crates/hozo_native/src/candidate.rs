@@ -4,6 +4,10 @@
 //! for class strings the compiler cannot resolve ahead of time.
 
 use super::*;
+
+// Shared by generated resolver pipelines and the JSX sites that defer them.
+pub(super) const DEFER_SHADOW: u8 = 1;
+pub(super) const DEFER_GRADIENT: u8 = 2;
 mod plan;
 use plan::CandidatePlanBuilder;
 pub use plan::{
@@ -410,7 +414,11 @@ fn render_candidate_module_impl(
             "].map(style => { const {lineHeight, ...rest} = style; return [style, rest] }))\n\n",
         );
     }
-    if needs_gradient_slots {
+    let has_gradient_slots = !gradients.is_empty()
+        || states
+            .iter()
+            .any(|(_, groups)| groups.iter().any(|group| group.gradient.is_some()));
+    if has_gradient_slots {
         write_composition_table(
             &mut out,
             "gradients",
@@ -442,11 +450,11 @@ fn render_candidate_module_impl(
     let mut pipeline = String::new();
     let mut input = "resolved";
     if needs_gradient_slots {
-        pipeline.push_str(&format!("const gradient = resolved.some(style => gradients.has(style)) ? hozoGradientStyles(resolved, gradients, {}) : resolved; ", crate::gradients::defaults()));
+        pipeline.push_str(&format!("const gradient = !(deferred & {DEFER_GRADIENT}) && resolved.some(style => gradients.has(style)) ? hozoGradientStyles(resolved, gradients, {}) : resolved; ", crate::gradients::defaults()));
         input = "gradient";
     }
     if needs_shadow_slots {
-        pipeline.push_str(&format!("const shadow = deferred !== 'shadow' && {input}.some(style => shadows.has(style)) ? hozoShadowStyles({input}, shadows, {}) : {input}; ", crate::shadows::defaults()));
+        pipeline.push_str(&format!("const shadow = !(deferred & {DEFER_SHADOW}) && {input}.some(style => shadows.has(style)) ? hozoShadowStyles({input}, shadows, {}) : {input}; ", crate::shadows::defaults()));
         input = "shadow";
     }
     if needs_filter_slots {
@@ -463,10 +471,12 @@ fn render_candidate_module_impl(
         pipeline.push_str(&format!("const transformed = {input}.some(style => transforms.has(style)) ? hozoTransformStyles({input}, transforms) : {input}; "));
         input = "transformed";
     }
+    let effect_mask = u8::from(needs_shadow_slots) * DEFER_SHADOW
+        + u8::from(needs_gradient_slots) * DEFER_GRADIENT;
     let compose = if pipeline.is_empty() {
         None
     } else {
-        let args = if needs_shadow_slots {
+        let args = if effect_mask != 0 {
             "(resolved, deferred)"
         } else {
             "resolved"
@@ -508,6 +518,12 @@ fn render_candidate_module_impl(
     }
     if shadow_slots != 0 {
         out.push_str("hozoClasses.shadowSlots = shadows\n");
+    }
+    if has_gradient_slots {
+        out.push_str("hozoClasses.gradientSlots = gradients\n");
+    }
+    if effect_mask != 0 {
+        out.push_str(&format!("hozoClasses.effectMask = {effect_mask}\n"));
     }
     // Always, empty or not: this module stands in for `@hozo/engine/project`,
     // and a component importing the name from there would get `undefined`

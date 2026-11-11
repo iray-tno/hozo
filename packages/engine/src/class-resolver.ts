@@ -1,3 +1,4 @@
+import type { GradientSlots } from './gradient-slots.ts'
 import type { ShadowSlots } from './shadow-slots.ts'
 
 /** A React Native style object, as the compiler emits it. */
@@ -59,16 +60,18 @@ export type StateGroup = readonly [readonly string[], StyleObject, number?]
  * in a state is reported as it always was; with it, that class applies
  * when its state holds, after the unconditional ones.
  */
-type DeferredEffect = 'shadow'
-type Composer = (styles: StyleObject[], deferred?: DeferredEffect) => StyleObject[]
+type Composer = (styles: StyleObject[], deferred?: number) => StyleObject[]
 
 export type ClassResolver = ((
   value: unknown,
   state?: ClassState,
-  deferred?: DeferredEffect,
+  deferred?: number,
 ) => StyleObject[]) & {
-  /** @internal Compiler-generated identities for a mixed shadow boundary. */
+  /** @internal Compiler-generated identities for mixed effect boundaries. */
   shadowSlots?: ReadonlyMap<StyleObject, ShadowSlots>
+  gradientSlots?: ReadonlyMap<StyleObject, GradientSlots>
+  /** @internal Bit mask of this namespace's installed deferrable composers. */
+  effectMask?: number
 }
 
 /** @internal Generated-data ABI, not a utility parser or a public cascade API. */
@@ -95,7 +98,7 @@ interface Resolved {
   /** The same, before `compose`, for composing again with state styles. */
   raw: StyleObject[]
   /** Only materialized for a mixed compiler boundary, using the same selection. */
-  deferredShadow?: StyleObject[]
+  deferredBases?: (StyleObject[] | undefined)[]
   groups: StateGroup[]
   /** Parallel to groups: retain the candidate name for missing-fact warnings. */
   groupClasses: string[]
@@ -308,8 +311,9 @@ export function createClassResolver(
     return { base: compose ? compose(base) : base, raw: base, groups, groupClasses, stateClasses }
   }
 
-  function restingWithoutShadow(resolved: Resolved): StyleObject[] {
-    return (resolved.deferredShadow ??= compose ? compose(resolved.raw, 'shadow') : resolved.raw)
+  function restingWithoutEffects(resolved: Resolved, deferred: number): StyleObject[] {
+    const bases = (resolved.deferredBases ??= [])
+    return (bases[deferred] ??= compose ? compose(resolved.raw, deferred) : resolved.raw)
   }
 
   const hozoClasses: ClassResolver = (value, state, deferred) => {
@@ -324,9 +328,9 @@ export function createClassResolver(
       resolved = resolve(value)
       cache.set(value, resolved)
     }
-    if (deferred && !hozoClasses.shadowSlots) deferred = undefined
+    if (deferred) deferred &= hozoClasses.effectMask ?? 0
     if (resolved.groups.length === 0)
-      return deferred ? restingWithoutShadow(resolved) : resolved.base
+      return deferred ? restingWithoutEffects(resolved, deferred) : resolved.base
     if (state === undefined) {
       for (const name of resolved.stateClasses) {
         warn(
@@ -336,7 +340,7 @@ export function createClassResolver(
             'className so it compiles to a real style variant.',
         )
       }
-      return deferred ? restingWithoutShadow(resolved) : resolved.base
+      return deferred ? restingWithoutEffects(resolved, deferred) : resolved.base
     }
     // A group can name an ambient fact beside the element's own, as
     // `rtl:hover:` does; the element supplies only its part.
@@ -351,13 +355,14 @@ export function createClassResolver(
           active = true
         }
       }
-      if (!active) return deferred ? restingWithoutShadow(resolved) : resolved.base
+      if (!active) return deferred ? restingWithoutEffects(resolved, deferred) : resolved.base
       return compose ? compose(all, deferred) : all
     }
     const active = resolved.groups.filter(([keys], index) =>
       matches(keys, resolved.groupClasses[index]!, facts),
     )
-    if (active.length === 0) return deferred ? restingWithoutShadow(resolved) : resolved.base
+    if (active.length === 0)
+      return deferred ? restingWithoutEffects(resolved, deferred) : resolved.base
     const all = [...resolved.raw, ...active.map(([, style]) => style)]
     // A state style can carry a transform, which `compose` folds into one;
     // so it runs over the whole list, and the result is per render rather
