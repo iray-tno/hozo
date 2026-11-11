@@ -59,7 +59,12 @@ the assembled piece has not gone out of true. The other names stay plain.
    it moves to `@hozo/cli`, it is not rewritten.
 5. **Exit codes**: `0` passed, `1` findings at or above `--fail-on`, `2` usage
    or environment error, including a change the command could not make. Same
-   on every command.
+   on every command. The split is the one a CI step branches on: `1` means
+   fix the code, `2` means fix the invocation or the install. Today's audit
+   exits `1` for both, so a typo in a flag reads as failing code. Finer
+   reasons are not more exit codes: each error carries a string code on
+   stderr and in the JSON (`{"error": {"code": "unknown-option", …}}`), which
+   `explain` can look up.
 6. **Never fail silently.** A check that cannot run says why and what it
    skipped, and the rest of the report still prints.
 
@@ -167,4 +172,5 @@ needs its own RFC.
 - Draft (2026-11-05): first version.
 - Draft (2026-11-12): `init`, `npm create hozo` and `mcp` moved to later RFCs;
   `add` reserved for `@hozo/ui` as source; a change a command could not make
-  exits `2`; the candidate-scan check stated as a file-to-root comparison.
+  exits `2`, and finer reasons are string codes in the JSON; the
+  candidate-scan check stated as a file-to-root comparison.
