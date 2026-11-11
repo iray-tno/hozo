@@ -7,7 +7,9 @@ judged. `scripts/tailwind-order-inventory.mjs` counts it.
 
 ## Method
 
-- Every default Tailwind 4.3.3 class (no arbitrary values) is compiled
+- Every class in Tailwind 4.3.3's default completion list (no arbitrary
+  values), plus the verified non-completion probes `filter-none` and
+  `backdrop-filter-none`, is compiled
   beside `p-1`, ordered by Tailwind's own theme as a captured project is.
   The planner reports whether the class's block is ranked, or the barrier
   that keeps it in authored order.
@@ -78,3 +80,8 @@ a row.
 | [`outline-none`, `outline-hidden`](tailwind-border-style-order.md#outline-none-and-outline-hidden) | 0 | 0 | 2 | 1 | 0 |
 | [`drop-shadow-none`, `via-none`](tailwind-register-reset-order.md) | 0 | 0 | **0** | 1 | 0 |
 | [`container`](tailwind-container-order.md) | 0 | 0 | 0 | **0** | 0 |
+| [Whole-property filter resets](tailwind-filter-order.md#whole-property-resets) | 0 | 0 | 0 | 0 | 0 |
+
+The last row adds two probes to domain 3's denominator, rather than
+graduating two classes that the earlier completion-only rows counted.
+This is not an exhaustive list of utilities outside the completion list.

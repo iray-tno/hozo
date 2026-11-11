@@ -141,11 +141,11 @@ test('generated dynamic candidate modules execute the same resets and restore ax
   // Tailwind ranks the reset last, even when an axis was authored after it.
   assert.deepEqual(flatten(resolve('translate-y-3 translate-none translate-x-2')).transform, [])
   assert.deepEqual(flatten(resolve('translate-x-2 translate-none translate-y-3')).transform, [])
-  // A drawable unranked neighbour keeps the old whole-string path. Its
-  // register restoration remains supported; ranking must not delete it.
+  // A filter reset is ranked too; it does not send the transform back to
+  // authored order.
   assert.deepEqual(
     flatten(resolve('translate-y-3 translate-none translate-x-2 filter-none')).transform,
-    [{ translateX: 8 }, { translateY: 12 }],
+    [],
   )
   assert.equal(resolve('rotate-45 scale-95 rotate-none'), resolve('rotate-45 scale-95 rotate-none'))
 })

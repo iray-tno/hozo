@@ -58,17 +58,17 @@ Reading it:
 
 The parser interaction sort, Web condition-weight sort, duplicate owner
 variant table and process-global switch have been removed. See the
-[deletion receipts](tailwind-order-old-path.md). The remaining distinction is
-not hypothetical: with both hover and press active in Chromium and the same
+[deletion receipts](tailwind-order-old-path.md). The distinction was
+observable: with both hover and press active in Chromium and the same
 facts applied to the emitted Native callbacks, the built-in path for
 `active:p-2 hover:p-4 filter-none` selects 16px in static Web/Native but 8px
 from the generated Native fallback. Reversing the first two tokens makes
 both select 8px. Tailwind 4.3.3 generates `filter-none` and selects 8px in
-both orders; Hozo currently treats that whole-property reset as a barrier.
+both orders; Hozo treated that whole-property reset as a barrier.
 Without it the assessed Hozo routes also select 8px in either order.
-Removing the runtime state sort outright changes the first dynamic winner;
-adding it to static would change the first static winner. Neither is a
-behavior-preserving deletion.
+[The filter reset now ranks](tailwind-filter-order.md#whole-property-resets),
+and all four paths select 8px in both orders. This does not prove equivalent
+winners on genuinely unassessed input.
 
 ## Proposed Stage 6 gate (#1230)
 
@@ -103,11 +103,8 @@ superseded authority, not by renaming it or by shrinking the denominator.
    static output, no sort/rank reads on state updates, and review any
    repeatable cold/build regression under [RFC 007 §7](../rfcs/007-canonical-tailwind-order.md#7-acceptance-and-performance-evidence-before-expansion).
 
-This is a proposed acceptance gate, not a score change. The smallest next
-correction is to assess the exact `filter-none` declaration in the shared
-plan and prove reset versus function writes across both orders and
-conditions. That would fix the concrete case, not settle the whole barrier
-contract. For genuinely unassessed writes, reconcile the bounded runtime
+This is a proposed acceptance gate, not a score change. For genuinely
+unassessed writes, reconcile the bounded runtime
 variant tie with static authored ties before removing either path. Preserve
 Native specificity; do not require all arbitrary syntax to rank or
 force-delete a necessary operation.

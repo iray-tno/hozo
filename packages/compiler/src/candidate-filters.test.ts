@@ -81,15 +81,19 @@ test('reset revival keeps registers, without altering other property composers',
     'blur-sm',
     'filter-none',
     'sepia',
+    'hover:sepia',
     'translate-x-2',
     'translate-y-3',
     'text-sm',
     'leading-8',
   ])
   assert.equal(flatten(resolve('blur-sm filter-none')).filter, 'none')
-  assert.equal(flatten(resolve('blur-sm filter-none sepia')).filter, 'blur(8px) sepia(100%)')
+  assert.equal(flatten(resolve('blur-sm filter-none sepia')).filter, 'none')
+  assert.equal(flatten(resolve('filter-none sepia blur-sm')).filter, 'none')
   const value = flatten(
-    resolve('blur-sm filter-none sepia translate-x-2 translate-y-3 leading-8 text-sm'),
+    resolve('blur-sm filter-none hover:sepia translate-x-2 translate-y-3 leading-8 text-sm', {
+      hovered: true,
+    }),
   )
   assert.equal(value.filter, 'blur(8px) sepia(100%)')
   assert.equal(value.lineHeight, 32)
@@ -134,7 +138,7 @@ test('single-function namespaces retain direct replacement, even across states a
   assert.equal(flatten(resolve('blur-sm hover:blur-lg', { hovered: true })).filter, 'blur(16px)')
   assert.equal(flatten(resolve('blur-sm hover:blur-lg', { hovered: false })).filter, 'blur(8px)')
   assert.equal(flatten(resolve('blur-sm filter-none')).filter, 'none')
-  assert.equal(flatten(resolve('filter-none blur-sm')).filter, 'blur(8px)')
+  assert.equal(flatten(resolve('filter-none blur-sm')).filter, 'none')
   assert.equal(count(), 0)
 })
 

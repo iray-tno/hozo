@@ -64,7 +64,14 @@ function domain(css) {
 }
 
 const compiler = createCompiler()
-const classes = [...new Set(design.getClassList().map(([name]) => name))]
+// These real resets compile but are not in Tailwind's completion list.
+const classes = [
+  ...new Set([
+    ...design.getClassList().map(([name]) => name),
+    'filter-none',
+    'backdrop-filter-none',
+  ]),
+]
 const instances = []
 for (const variant of design.getVariants()) {
   if (!variant.values?.length) instances.push(variant.name)

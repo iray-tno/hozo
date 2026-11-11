@@ -1094,10 +1094,10 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         ScaleNone | Scale3d => "scale",
         RotateNone => "rotate",
         TransformNone | TransformEmpty | TransformGpu => "transform",
-        // Each filter function writes its register, read by one shared
-        // `filter`/`backdrop-filter`. `filter-none` writes the declaration
-        // itself, and a drop shadow pairs its register with a colour and a
-        // size register, so both stay barriers.
+        // A reset writes the declaration itself without clearing registers.
+        // Each ordinary function owns the register the declaration reads.
+        Filter(crate::FilterFunction::None, _) => "filter",
+        BackdropFilter(crate::FilterFunction::None, _) => "backdrop-filter",
         // A drop shadow is two registers in Tailwind: the size rule sets
         // `--tw-drop-shadow-size` (which reads the colour) and the colour
         // rule `--tw-drop-shadow-color`; each owns its own. `drop-shadow-none`
@@ -1647,7 +1647,7 @@ mod tests {
     }
 
     #[test]
-    fn each_filter_function_owns_its_register_and_filter_none_does_not() {
+    fn filter_functions_own_their_registers_and_resets_own_the_declaration() {
         use crate::FilterFunction;
         for (write, register) in [
             (
@@ -1672,9 +1672,23 @@ mod tests {
         let none = StyleProperty::Filter(FilterFunction::DropShadow, String::new());
         assert!(crate::scalar_tailwind_property(&none));
         assert!(covers("--tw-drop-shadow", &none));
-        assert!(!crate::scalar_tailwind_property(&StyleProperty::Filter(
-            FilterFunction::None,
-            "none".into()
+        for (reset, declaration) in [
+            (
+                StyleProperty::Filter(FilterFunction::None, String::new()),
+                "filter",
+            ),
+            (
+                StyleProperty::BackdropFilter(FilterFunction::None, String::new()),
+                "backdrop-filter",
+            ),
+        ] {
+            assert!(crate::scalar_tailwind_property(&reset));
+            assert!(covers(declaration, &reset));
+            assert!(!covers("--tw-blur", &reset));
+            assert!(!covers("--tw-backdrop-blur", &reset));
+        }
+        assert!(!crate::scalar_tailwind_property(&StyleProperty::FilterRaw(
+            "contrast(.75)".into()
         )));
     }
 
