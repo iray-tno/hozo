@@ -1185,6 +1185,21 @@ const GRADIENT_REGISTERS: &[(&str, Option<&str>)] = &[
     ("gradient-to-position", Some("100%")),
 ];
 
+const SHADOW_REGISTERS: &[(&str, Option<&str>)] = &[
+    ("shadow", Some("0 0 #0000")),
+    ("shadow-color", None),
+    ("inset-shadow", Some("0 0 #0000")),
+    ("inset-shadow-color", None),
+    ("ring-shadow", Some("0 0 #0000")),
+    ("ring-color", None),
+    ("inset-ring-shadow", Some("0 0 #0000")),
+    ("inset-ring-color", None),
+    ("ring-inset", None),
+    ("ring-offset-width", Some("0px")),
+    ("ring-offset-color", Some("#fff")),
+    ("ring-offset-shadow", Some("0 0 #0000")),
+];
+
 fn render_register_css(required: Option<&std::collections::BTreeSet<&str>>) -> String {
     const REGISTERS: &[(&str, Option<&str>)] = &[
         ("translate-x", Some("0")),
@@ -1215,21 +1230,10 @@ fn render_register_css(required: Option<&std::collections::BTreeSet<&str>>) -> S
         ("backdrop-opacity", None),
         ("backdrop-saturate", None),
         ("backdrop-sepia", None),
-        ("shadow", Some("0 0 #0000")),
-        ("shadow-color", None),
-        ("inset-shadow", Some("0 0 #0000")),
-        ("inset-shadow-color", None),
-        ("ring-shadow", Some("0 0 #0000")),
-        ("ring-color", None),
-        ("inset-ring-shadow", Some("0 0 #0000")),
-        ("inset-ring-color", None),
-        ("ring-inset", None),
-        ("ring-offset-width", Some("0px")),
-        ("ring-offset-color", Some("#fff")),
-        ("ring-offset-shadow", Some("0 0 #0000")),
     ];
     REGISTERS
         .iter()
+        .chain(SHADOW_REGISTERS)
         .chain(GRADIENT_REGISTERS)
         .filter(|(name, _)| required.is_none_or(|required| required.contains(*name)))
         .map(|(name, initial)| {
@@ -1292,7 +1296,11 @@ pub fn register_candidate_slots(
     if gradients {
         required.extend(GRADIENT_REGISTERS.iter().map(|(name, _)| *name));
     }
-    axes || gradients
+    let shadows = register_shadows(groups, theme, true);
+    if shadows {
+        required.extend(SHADOW_REGISTERS.iter().map(|(name, _)| *name));
+    }
+    axes || gradients || shadows
 }
 
 fn register_axes(
@@ -2748,6 +2756,14 @@ pub fn register_split_shadows(
     groups: &mut [(Condition, Vec<StyleProperty>)],
     theme: &Theme,
 ) -> bool {
+    register_shadows(groups, theme, false)
+}
+
+fn register_shadows(
+    groups: &mut [(Condition, Vec<StyleProperty>)],
+    theme: &Theme,
+    candidate: bool,
+) -> bool {
     fn slot(p: &StyleProperty) -> u16 {
         match p {
             StyleProperty::BoxShadow(_) => 1,
@@ -2775,7 +2791,8 @@ pub fn register_split_shadows(
             None => written.push((condition, slots)),
         }
     }
-    if !written.windows(2).any(|pair| pair[0].1 != pair[1].1) {
+    if written.is_empty() || (!candidate && !written.windows(2).any(|pair| pair[0].1 != pair[1].1))
+    {
         return false;
     }
     let color = |c: &Color| {
@@ -2791,6 +2808,19 @@ pub fn register_split_shadows(
         if !props.iter().any(|p| slot(p) != 0) {
             continue;
         }
+        // In the candidate cascade colour, offset and inset modifiers are
+        // writers only. In particular a ring offset cannot create a shadow
+        // on its own or take precedence over a caller's box-shadow.
+        let reads = !candidate
+            || props.iter().any(|p| {
+                matches!(
+                    p,
+                    StyleProperty::BoxShadow(_)
+                        | StyleProperty::InsetShadow(_)
+                        | StyleProperty::RingWidth(_)
+                        | StyleProperty::InsetRingWidth(_)
+                )
+            });
         let mut rewritten = Vec::with_capacity(props.len() + 2);
         for property in props.drain(..) {
             match &property {
@@ -2840,12 +2870,14 @@ pub fn register_split_shadows(
                 _ => rewritten.push(property),
             }
         }
-        rewritten.push(StyleProperty::Arbitrary(
-            "box-shadow".to_string(),
-            "var(--hozo-inset-shadow), var(--hozo-inset-ring-shadow), \
-             var(--hozo-ring-offset-shadow), var(--hozo-ring-shadow), var(--hozo-shadow)"
-                .to_string(),
-        ));
+        if reads {
+            rewritten.push(StyleProperty::Arbitrary(
+                "box-shadow".to_string(),
+                "var(--hozo-inset-shadow), var(--hozo-inset-ring-shadow), \
+                 var(--hozo-ring-offset-shadow), var(--hozo-ring-shadow), var(--hozo-shadow)"
+                    .to_string(),
+            ));
+        }
         *props = rewritten;
     }
     true

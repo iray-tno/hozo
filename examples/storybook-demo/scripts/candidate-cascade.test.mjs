@@ -345,8 +345,14 @@ test('runtime gradient candidates agree with independent Tailwind through update
   }
 })
 
-async function compareRuntimeEffect({ names, active, childClass, property, normalize = (x) => x }) {
-  const input = '@tailwind utilities;'
+async function compareRuntimeEffect({
+  names,
+  active,
+  childClass,
+  property,
+  normalize = (x) => x,
+  input = '@tailwind utilities;',
+}) {
   const design = await __unstable__loadDesignSystem(input)
   const order = design.getClassOrder(names)
   assert.ok(order.every(([, rank]) => rank !== null))
@@ -428,6 +434,42 @@ test('runtime backdrop functions agree with Tailwind through candidate and owner
     active,
     childClass,
     property: 'backdrop-filter',
+  })
+})
+
+test('runtime shadow and ring layers agree with Tailwind across independent conditions', {
+  skip: !executablePath,
+}, async () => {
+  const active = [
+    'shadow-sm',
+    'inset-shadow-sm',
+    'hover:shadow-none',
+    'focus:ring-2',
+    'ring-offset-2',
+    'ring-offset-black',
+    'ring-[#0f0]',
+    'hover:focus:ring-inset',
+  ]
+  const childClass = 'ring-1'
+  const input = `@theme {
+    --color-black: #000;
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --inset-shadow-sm: inset 0 2px 4px rgb(0 0 0 / 0.05);
+  } @tailwind utilities;`
+  await compareRuntimeEffect({
+    names: [...active, childClass],
+    active,
+    childClass,
+    input,
+    property: 'box-shadow',
+    // A zero transparent placeholder is equivalent to an absent layer;
+    // don't drop other geometry or normalize visible colours.
+    normalize: (value) =>
+      value
+        .split(/,(?![^()]*\))/)
+        .map((layer) => layer.trim())
+        .filter((layer) => !/^rgba\(0, 0, 0, 0\) 0px 0px 0px 0px(?: inset)?$/.test(layer))
+        .join(', ') || 'none',
   })
 })
 
