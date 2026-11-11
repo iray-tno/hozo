@@ -364,6 +364,22 @@ const PACKAGES = {
     files: ['src'],
     keywords: ['react-native', 'migration', 'audit', 'compiler', 'conformance'],
   },
+  cli: {
+    // `hozo`, the one command (RFC 011). Plain ESM like migration-audit:
+    // nothing to build, and each command is imported only when it runs.
+    dependencyOverrides: { '@hozo/migration-audit': 'workspace:^' },
+    description: "The `hozo` command: one entry point for Hozo's command-line tools.",
+    exports: { '.': './src/index.mjs' },
+    bin: { hozo: './src/cli.mjs' },
+    excludeMjsTests: true,
+    files: ['src'],
+    keywords: ['react-native', 'cli', 'migration', 'audit', 'compiler'],
+    initial: {
+      name: '@hozo/cli',
+      type: 'module',
+      scripts: { test: 'node --test src/*.test.mjs' },
+    },
+  },
   storybook: {
     // Same reason as the Next loader: Storybook reads `preset.js` itself.
     exports: { '.': './preset.js', './preset': './preset.js' },

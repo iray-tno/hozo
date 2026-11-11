@@ -222,10 +222,11 @@ test('explicit missing/malformed/executable/outside font data fails concisely be
     encoding: 'utf8',
     cwd: root,
   })
-  assert.equal(executable.status, 1)
+  assert.equal(executable.status, 2)
+  // The first line is the deprecated binary's notice (RFC 011).
   assert.match(
-    executable.stderr,
-    /^hozo-migration-audit: Cannot assess explicit font availability:/,
+    executable.stderr.split('\n')[1],
+    /^hozo-migration-audit: Cannot assess explicit font availability:.* \[invalid-font-availability\]/,
   )
   assert.doesNotMatch(executable.stderr, /\n\s+at /)
   assert.deepEqual(snapshot(root), before)

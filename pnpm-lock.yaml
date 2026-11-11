@@ -834,6 +834,12 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
 
+  packages/cli:
+    dependencies:
+      '@hozo/migration-audit':
+        specifier: workspace:^
+        version: link:../migration-audit
+
   packages/compiler:
     dependencies:
       ignore:

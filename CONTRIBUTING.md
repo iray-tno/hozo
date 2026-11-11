@@ -30,6 +30,7 @@ itself (`pnpm docs:layout`).
 packages/
   behaviors/               Hozo's accessibility and internationalisation behaviours (FocusScope, RovingFocus, LiveRegion, Portal, DismissableLayer, FloatingPositioner), shared by Web and React Native.
   canvas/                  A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.
+  cli/                     The `hozo` command: one entry point for Hozo's command-line tools.
   compiler/                JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).
   core/                    Zero-setup facade over Hozo's canonical authoring packages.
   engine/                  Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
