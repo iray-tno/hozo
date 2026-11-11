@@ -909,7 +909,7 @@ ${sampleSections || 'No suspicious samples were produced.'}
 ${
   report.corpus.reproduceCommand
     ? `The corpus runner fetches and verifies ${report.corpus.repository} at commit \`${report.corpus.commit}\`. From a Hozo checkout with dependencies installed, run:\n\n\`${report.corpus.reproduceCommand}\``
-    : `Check out \`${report.corpus.commit}\` from ${report.corpus.repository}, build \`@hozo/compiler\`, then run:\n\n\`npx @hozo/migration-audit --root <checkout> ${sourceArguments} --name "${report.corpus.name}" --repository ${report.corpus.repository} --expected-commit ${report.corpus.commit} --output hozo-audit.md\``
+    : `Check out \`${report.corpus.commit}\` from ${report.corpus.repository}, build \`@hozo/compiler\`, then run:\n\n\`npx @hozo/cli dry-fit --root <checkout> ${sourceArguments} --name "${report.corpus.name}" --repository ${report.corpus.repository} --expected-commit ${report.corpus.commit} --output hozo-audit.md\``
 }
 `
 }

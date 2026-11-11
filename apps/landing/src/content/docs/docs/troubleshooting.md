@@ -47,7 +47,7 @@ Run the audit over the whole project and read its findings, each with a file,
 a line and a code:
 
 ```sh
-npx @hozo/migration-audit . --format json
+npx @hozo/cli dry-fit . --format json
 ```
 
 See [Reading what the compiler says](../guides/diagnostics/). If that does not

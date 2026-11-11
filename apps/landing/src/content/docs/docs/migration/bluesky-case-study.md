@@ -7,7 +7,7 @@ sidebar:
 
 To test Hozo against a real production React Native codebase rather than synthetic benchmarks, the repository pins a checkout of **Bluesky's [`bluesky-social/social-app`](https://github.com/bluesky-social/social-app)** (`007c893de107c2ecbf2188d618196075f19c8f5a`) and runs two reproducible measurements against it:
 
-1. **`pnpm measure:bluesky`** — a read-only static compiler audit over all 1,660 authored JS/TS files using [`@hozo/migration-audit`](../migration-audit/).
+1. **`pnpm measure:bluesky`** — a read-only static compiler audit over all 1,660 authored JS/TS files, run as [`hozo dry-fit`](../migration-audit/).
 2. **`pnpm measure:bluesky:rnw-free`** — a production Expo Webpack build experiment that compiles app-owned `.ts`/`.tsx` through Hozo and blocks `react-native` and `react-native-web` module resolution to map the exact dependency boundary.
 
 Both reports are committed in [`docs/measurements/`](https://github.com/iray-tno/hozo/tree/main/docs/measurements) (`bluesky-social-app.md` and `bluesky-rnw-free-build.md`) so any change to compiler coverage or diagnostics shows up as a diff.

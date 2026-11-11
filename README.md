@@ -81,7 +81,7 @@ plugins: [hozo({ css: 'src/theme.css' }), react()]
 
 If something stops you, [Troubleshooting](https://iray-tno.github.io/hozo/docs/troubleshooting/)
 lists what others hit first. For an existing React Native app,
-`npx @hozo/migration-audit .` reports what Hozo would change before you
+`npx @hozo/cli dry-fit .` reports what Hozo would change before you
 change anything.
 
 ## Status

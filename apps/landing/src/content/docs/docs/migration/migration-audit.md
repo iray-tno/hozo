@@ -1,19 +1,19 @@
 ---
-title: "Migration Audit (@hozo/migration-audit)"
+title: "Migration Audit (hozo dry-fit)"
 description: "Read-only compiler analysis, baseline comparison, CI failure gates, and automated import moves for migrating React Native apps."
 sidebar:
   order: 1
 ---
 
-`@hozo/migration-audit` analyzes an existing React Native codebase by running Hozo's Web and Native compiler lowerers over the checkout without installing anything into the target project or executing its code.
+`hozo dry-fit`, from [`@hozo/cli`](https://www.npmjs.com/package/@hozo/cli), analyzes an existing React Native codebase by running Hozo's Web and Native compiler lowerers over the checkout without installing anything into the target project or executing its code.
 
 ```sh
-npx @hozo/migration-audit .
-npx @hozo/migration-audit --root ../my-react-native-app --output hozo-audit.md
-npx @hozo/migration-audit . --format json --output hozo-audit.json
-npx @hozo/migration-audit . --compare previous-audit.json --fail-on new-errors
-npx @hozo/migration-audit . --fix            # print import moves as a unified diff
-npx @hozo/migration-audit . --fix --write    # apply import moves to tracked files
+npx @hozo/cli dry-fit .
+npx @hozo/cli dry-fit --root ../my-react-native-app --output hozo-audit.md
+npx @hozo/cli dry-fit . --format json --output hozo-audit.json
+npx @hozo/cli dry-fit . --compare previous-audit.json --fail-on new-errors
+npx @hozo/cli dry-fit . --fix            # print import moves as a unified diff
+npx @hozo/cli dry-fit . --fix --write    # apply import moves to tracked files
 ```
 
 Interactive terminals receive a readable Markdown report that opens with **Next steps** in priority order (parse failures first, then unlowered React Native JSX on Web, compiler errors, missing `@hozo/rn-compat`, remaining `react-native` APIs, warnings grouped by diagnostic code, and optional `--fix` import moves). Piped stdout and `.json` output paths emit complete JSON schema v3 evidence.
@@ -33,7 +33,7 @@ For every `.tsx`, `.jsx`, `.ts`, `.js`, `.mts`, and `.mjs` file in the selected 
 
 When migrating a Web build off `react-native-web`, Hozo moves supported non-JSX APIs (`Platform`, `Dimensions`, `Keyboard`, `StyleSheet`, `PanResponder`, `AccessibilityInfo`, `useColorScheme`, `useWindowDimensions`) from `react-native` to [`@hozo/rn-compat`](../../reference/rn-compat/).
 
-Running `npx @hozo/migration-audit . --fix` uses the compiler's own rewrite pass to print those exact import moves as a zero-context unified diff (`git apply --unidiff-zero`). Adding `--write` applies them to source under a strict safety contract:
+Running `npx @hozo/cli dry-fit . --fix` uses the compiler's own rewrite pass to print those exact import moves as a zero-context unified diff (`git apply --unidiff-zero`). Adding `--write` applies them to source under a strict safety contract:
 
 - **Dry run by default:** without `--fix --write`, the audit never modifies any file inside the checkout.
 - **Only `react-native` → `@hozo/rn-compat` import specifiers:** never rewrites Native-only files (`.native.*`, `.ios.*`, `.android.*`), never rewrites components (`Pressable` and `TextInput` stay untouched in shared source so Native behavior does not change), and never edits `package.json` or lockfiles.
@@ -44,7 +44,7 @@ Running `npx @hozo/migration-audit . --fix` uses the compiler's own rewrite pass
 Save a JSON report from `main` and pass it to `--compare baseline.json` on pull requests:
 
 ```sh
-npx @hozo/migration-audit . --compare baseline.json --fail-on new-errors --output audit-diff.md
+npx @hozo/cli dry-fit . --compare baseline.json --fail-on new-errors --output audit-diff.md
 ```
 
 - **Line-movement resilience:** findings match by relative file, backend, diagnostic code, and compiler subject, so ordinary line shifts in an edited file are counted as `continued` rather than `added`.
@@ -52,6 +52,8 @@ npx @hozo/migration-audit . --compare baseline.json --fail-on new-errors --outpu
 
 | `--fail-on` policy | Exit code behavior |
 | --- | --- |
-| `none` (default) | Informational; exits `0` unless arguments are invalid or the analyzer itself fails (`ANALYSIS_FAILED`). |
+| `none` (default) | Informational; exits `0` unless the analyzer itself fails (`ANALYSIS_FAILED`). |
 | `error` | Exits `1` if any current finding has severity `error` across Source, Web, or Native. Warnings pass. |
 | `new-errors` | Requires `--compare` with a `comparable` baseline; exits `1` only if a new `error` was added or an existing warning escalated to `error`. |
+
+An audit that could not run (an unknown option, a missing checkout, an unreadable baseline) exits `2`, never `1`, and ends its stderr line with a string code such as `[unknown-option]`.

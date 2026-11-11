@@ -483,7 +483,7 @@ export function Syntax() { return <><Animated.View /><SectionList /></> }
     assert.match(markdown, /Real-app measurement: fixture/)
     assert.match(markdown, /DOM style-array invariant holds/)
     assert.match(markdown, /Invalid DOM style-array occurrences \| 0/)
-    assert.match(markdown, /npx @hozo\/migration-audit/)
+    assert.match(markdown, /npx @hozo\/cli dry-fit --root/)
     assert.match(markdown, /RNW cannot yet be removed at the JSX boundary/)
 
     report.lowering.filesWithDirectReactNativeJsxResidueOnWeb = 0

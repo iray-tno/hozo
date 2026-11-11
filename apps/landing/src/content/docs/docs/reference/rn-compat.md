@@ -43,4 +43,4 @@ Canonical UI primitives (`View`, `Text`, `Pressable`, `Image`, `TextInput`, `Scr
 You can import from `@hozo/rn-compat` directly, or let Hozo rewrite existing `react-native` imports during migration:
 
 1. **At build time (Web only):** when `unloweredReactNativeJsx` is set to `'warn'` or `'error'` in your bundler configuration, the Web compiler automatically rewrites supported API imports from `react-native` to `@hozo/rn-compat` (and warns with `RN_COMPAT_NOT_INSTALLED` if the package is not in `package.json`).
-2. **In source (`@hozo/migration-audit --fix`):** running `npx @hozo/migration-audit . --fix --write` writes those exact import moves into your shared source files so the dependency boundary is explicit in Git. See the [Migration Audit guide](../../migration/migration-audit/).
+2. **In source (`hozo dry-fit --fix`):** running `npx @hozo/cli dry-fit . --fix --write` writes those exact import moves into your shared source files so the dependency boundary is explicit in Git. See the [Migration Audit guide](../../migration/migration-audit/).
