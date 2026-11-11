@@ -324,6 +324,19 @@ fn render_candidate_module_impl(
         out.push_str(&format!("  {}: {},\n", quote(name), quote(reason)));
     }
     out.push_str("}\n\n");
+    let ordering = plan.and_then(|plan| {
+        if plan.finalized {
+            plan.prepare_ordering()
+        } else {
+            None
+        }
+    });
+    // Compact ranks are emitted only for drawable entries, and only when
+    // every group in that entry is ranked. When they cover every emitted
+    // entry, no string can reach the authored fallback: refused and unknown
+    // tokens never enter the resolver's rank lookup.
+    let complete =
+        ordering.is_some_and(|ordering| ordering.ranks.len() == supported.len() + states.len());
     // Only when there are any, so a project without state classes keeps the
     // module it had.
     let states_argument = if states.is_empty() {
@@ -335,9 +348,10 @@ fn render_candidate_module_impl(
         let mut owner_ranks = states
             .iter()
             .flat_map(|(_, groups)| groups.iter().filter_map(|group| group.order));
-        let emit_owner_ranks = owner_ranks
-            .next()
-            .is_some_and(|first| owner_ranks.any(|rank| rank != first));
+        let emit_owner_ranks = !complete
+            && owner_ranks
+                .next()
+                .is_some_and(|first| owner_ranks.any(|rank| rank != first));
         out.push_str("const states = {\n");
         for (name, groups) in &states {
             let groups: Vec<String> = groups
@@ -501,13 +515,6 @@ fn render_candidate_module_impl(
         };
         Some(format!("{args} => {{ {pipeline}return {input} }}"))
     };
-    let ordering = plan.and_then(|plan| {
-        if plan.finalized {
-            plan.prepare_ordering()
-        } else {
-            None
-        }
-    });
     if let Some(ordering) = ordering {
         out.push_str(
             "export const hozoClasses = createClassResolver({ schema: 1, styles, unsupported,",

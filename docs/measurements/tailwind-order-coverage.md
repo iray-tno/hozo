@@ -53,7 +53,7 @@ Reading it:
 | Web candidate stylesheet emission | Tailwind's upstream first-rule ordinals, consumed by `PreparedTailwindOrder.classOrder` or `loadClassOrder`, then `CandidateCache.renderCss`. CSS itself resolves specificity. | One projection of upstream ordinals, not a declaration rank. An alphabetical bootstrap/omitted order or a whole-candidate sort cannot prove multi-rule ordering. Verify final ordinary output, not bootstrap output. |
 | Native assessed runtime candidates | `candidate/plan.rs` projects ranks onto emitted objects and real conflict keys. `class-resolver.ts` applies them on a class-string cache miss and selects state matches afterward. | Keep data projection and selection; neither may decide a new Tailwind priority. |
 | Native static specificity and JSX composition | `plan_native_condition_groups` linearizes known weights when needed; unknown weight is not zero. `conditions.rs` preserves authored tiers and [ADR 011](../decisions/011-styling-inputs-keep-their-own-cascade.md) preserves input boundaries. | Keep, including for arbitrary/unranked and mixed inputs. Web needs no parallel weight sort. StyleX keeps its own atomic order; `twMerge` removes classes before ranking and is not cascade. |
-| Native runtime fallback owner ranks | `builtin_owner_interaction_rank` projects known owner specificity and the shared built-in variant positions; `class-resolver.ts` may sort these tuples when the string cannot use the complete plan. It leaves equal ranks in authored order and does not sort a group set containing unknown ranks. | Keep necessary specificity/selection. The variant tie policy is still observable and must be reconciled with comparable static fallback before calling consolidation done. |
+| Native runtime fallback owner ranks | `builtin_owner_interaction_rank` projects known owner specificity and the shared built-in variant positions; `class-resolver.ts` may sort these tuples when the string cannot use the complete plan. It leaves equal ranks in authored order and does not sort a group set containing unknown ranks. Fully ranked namespaces [no longer emit the fallback tuples](tailwind-order-old-path.md#omit-fallback-ranks-when-the-fallback-cannot-run). | Keep necessary specificity/selection. The variant tie policy is still observable on genuinely unassessed input. |
 | Style projection after ordering | Logical edges, implicit line-height, register assembly (transform/filter/shadow/gradient), and authored style/spread precedence. | Keep semantics; never use these projections as a second utility-priority table. |
 
 The parser interaction sort, Web condition-weight sort, duplicate owner
@@ -103,11 +103,18 @@ superseded authority, not by renaming it or by shrinking the denominator.
    static output, no sort/rank reads on state updates, and review any
    repeatable cold/build regression under [RFC 007 §7](../rfcs/007-canonical-tailwind-order.md#7-acceptance-and-performance-evidence-before-expansion).
 
-This is a proposed acceptance gate, not a score change. For genuinely
-unassessed writes, reconcile the bounded runtime
-variant tie with static authored ties before removing either path. Preserve
-Native specificity; do not require all arbitrary syntax to rank or
-force-delete a necessary operation.
+This is a proposed acceptance gate, not a score change. A real capture with
+no `text-brand` rule still emits a Native colour token but leaves it
+unassessed. With hover and press both true, `active:p-2 hover:p-4 text-brand`
+selects 16px statically and 8px dynamically; the opposite token order selects
+8px on both. A known conjunction still wins on both paths. Deleting the
+runtime variant tie alone would expose another difference:
+`hover:p-2 active:p-4 hover:p-6 text-brand` currently selects 16px in both,
+but static groups the last hover write into its first guard, whereas a
+stable specificity-only runtime sort would leave the last hover write
+after active (24px). Reconcile both behaviors before removing the reachable
+fallback. Preserve Native specificity; do not require all arbitrary syntax
+to rank or force-delete a necessary operation.
 
 ## Progress
 

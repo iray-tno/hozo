@@ -186,3 +186,19 @@ higher-rank class still wins across different states. A cache scan of 51
 bytes, 778 → 773 gzip bytes. Two unconditional candidates stayed 450/272
 bytes; a three-candidate map with competing states stayed 644/327 bytes.
 These are standalone generated module sizes, not app bundle results.
+
+## Omit fallback ranks when the fallback cannot run
+
+A finalized candidate namespace omits the old state-tuple rank when compact
+ordering covers every emitted style and every state group. Refused and unknown
+tokens never enter the rank lookup, so neither can send such a namespace
+down the fallback. Reporting-only, conflict-free and partially assessed
+namespaces keep their previous output.
+
+All 15 combinations of the four bounded owner variants now match real
+Tailwind using compact ranks alone, in both built-in and captured contexts.
+Adding the drawable but uncaptured `text-brand` brings back the old tuples.
+For 104 generated opacity candidates, the standalone module was 10,169 →
+9,649 raw bytes, 1,372 → 1,385 gzip bytes. With the uncaptured token the
+module stayed 10,228/1,412 bytes. This removes unused metadata, not a gzip
+or runtime-speed win. The 818-file static projection receipt is unchanged.

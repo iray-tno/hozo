@@ -17,7 +17,11 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 
-import { openCandidateCache } from '@hozo/compiler'
+import {
+  openCandidateCache,
+  prepareBuiltinTailwindContext,
+  prepareFinalTailwindContext,
+} from '@hozo/compiler'
 import { compile } from 'tailwindcss'
 
 import { loadClassOrder, prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
@@ -85,26 +89,62 @@ test('candidates come out in the order Tailwind writes them', async () => {
   assert.deepEqual(ours, await tailwindOrder(candidates))
 })
 
-test('emitted Native fallback rank uses the same owner variant order as real Tailwind', async () => {
+test('fully ranked Native namespaces emit only compact order, not a second owner rank', async () => {
   const variants = ['active', 'focus-visible', 'focus', 'hover']
   const names = Array.from(
     { length: 15 },
     (_, index) => `${variants.filter((_, slot) => (index + 1) & (1 << slot)).join(':')}:opacity-50`,
   )
   const cache = openCandidateCache()
-  cache.scanFile('owner.tsx', JSON.stringify([...names, 'disabled:opacity-50'].join(' ')), 1)
-  const code = cache.renderNativeModule()
-  const states = new Function(
-    'createClassResolver',
-    `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; return states`,
-  )(() => ({})) as Record<string, readonly [readonly string[], object, number?][]>
+  const refused = '[padding:2px]'
+  cache.scanFile(
+    'owner.tsx',
+    JSON.stringify([...names, 'disabled:opacity-50', refused].join(' ')),
+    1,
+  )
+  const readStates = (code: string) =>
+    new Function(
+      'createClassResolver',
+      `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; return states`,
+    )(() => ({})) as Record<string, readonly [readonly string[], object, number?][]>
+  const specificity = (name: string) => name.split(':').length
+  const expected = (await tailwindOrder(names)).sort((a, b) => specificity(a) - specificity(b))
+  const builtin = cache.renderNativeModulePlan(prepareBuiltinTailwindContext(cache.candidates()))
+  const captured = async () => {
+    const prepared = await prepareTailwindOrder(CSS, tailwindPackageDir(), cache.candidates())
+    return cache.renderNativeModulePlan(
+      prepareFinalTailwindContext(JSON.stringify(prepared.snapshot)),
+    )
+  }
+  for (const plan of [builtin, await captured()]) {
+    const states = readStates(plan.code)
+    assert.ok(plan.ordering)
+    assert.equal(plan.entries.find((entry) => entry.candidate === refused)?.kind, 'refused')
+    assert.equal(Object.keys(states).length, 16)
+    assert.ok(
+      Object.values(states)
+        .flat()
+        .every((tuple) => tuple.length === 2),
+    )
+    assert.deepEqual(
+      names.toSorted((a, b) => plan.ordering!.ranks[a]![0]! - plan.ordering!.ranks[b]![0]!),
+      expected,
+    )
+  }
+
+  // A drawable token that the real project CSS did not generate can force
+  // this namespace into fallback. The legacy specificity/order data must
+  // still be present there; a refused utility alone cannot force fallback.
+  cache.scanFile('unassessed.tsx', JSON.stringify('text-brand'), 1)
+  const mixed = await captured()
+  assert.equal(mixed.entries.find((entry) => entry.candidate === 'text-brand')?.kind, 'style')
+  assert.equal(mixed.ordering?.ranks['text-brand'], undefined)
+  const states = readStates(mixed.code)
   const ranked = names.map((name) => {
     const rank = states[name]?.[0]?.[2]
     assert.equal(typeof rank, 'number', name)
     return { name, rank: rank! }
   })
-  const specificity = (name: string) => name.split(':').length
-  const expected = (await tailwindOrder(names)).sort((a, b) => specificity(a) - specificity(b))
   assert.deepEqual(
     ranked.sort((a, b) => a.rank - b.rank).map(({ name }) => name),
     expected,
