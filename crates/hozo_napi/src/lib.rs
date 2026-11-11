@@ -1207,11 +1207,7 @@ impl CandidateCache {
     /// stylesheet in a worse order rather than a missing rule. Without a
     /// project hint, use the compiler's built-in Tailwind descriptors.
     #[napi]
-    pub fn render_css(
-        &self,
-        theme: Option<JsTheme>,
-        order: Option<Vec<String>>,
-    ) -> napi::Result<String> {
+    pub fn render_css(&self, theme: Option<JsTheme>, order: Option<Vec<String>>) -> String {
         let mut names = self.inner.union();
         let theme = to_theme(theme);
         if let Some(order) = order {
@@ -1224,11 +1220,9 @@ impl CandidateCache {
             // and go last, which is where Tailwind puts what it does not
             // recognise.
             names.sort_by_key(|name| rank.get(name.as_str()).copied().unwrap_or(usize::MAX));
-            Ok(hozo_web::render_candidate_stylesheet(&names, &theme))
+            hozo_web::render_candidate_stylesheet(&names, &theme)
         } else {
-            hozo_web::render_builtin_candidate_stylesheet(&names, &theme).map_err(|reason| {
-                napi::Error::from_reason(format!("Cannot order Web candidates: {reason}"))
-            })
+            hozo_web::render_builtin_candidate_stylesheet(&names, &theme)
         }
     }
 

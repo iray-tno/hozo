@@ -237,3 +237,17 @@ benchmark): 256 candidates took 6.46 → 9.29 ms without a hint, and 1,024
 took 24.68 → 37.60 ms. The 1,024-candidate explicit-hint control took
 27.30 → 25.99 ms. Generated raw sizes were unchanged; the difference is
 rule order. No JS resolver or browser-side work was added.
+
+### Avoid full rule construction for Web emission order
+
+The order-only path now shares form selection, variant wrappers and the
+comparator with static planning, but materializes only the emission sort
+keys. It no longer builds or validates an owned descriptor snapshot just
+to discard the selectors and declarations. The resulting CSS is byte
+identical to ordering by the complete built-in descriptors in the
+regression fixture. The static 818-file projection digest did not change.
+
+The same debug sample took 7.96 ms for 256 and 33.41 ms for 1,024 on the
+no-hint path, down from 9.29 and 37.60 ms respectively. Ranking still has
+a build-side cost compared with doing no sort. The 1,024 explicit-hint
+control was 27.65 ms; empty and single-candidate output are unchanged.

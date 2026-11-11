@@ -537,44 +537,36 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
 /// When a project did not supply its own candidate order, use the same
 /// built-in Tailwind descriptors as the static compiler. Order the rules,
 /// not their CSS specificity: the browser still decides which match wins.
-pub fn render_builtin_candidate_stylesheet(
-    class_names: &[String],
-    theme: &Theme,
-) -> Result<String, String> {
+pub fn render_builtin_candidate_stylesheet(class_names: &[String], theme: &Theme) -> String {
     let mut utilities: Vec<_> = class_names
         .iter()
-        .filter_map(|name| hozo_parser::resolve_class_name(name))
+        .filter_map(|name| {
+            hozo_parser::resolve_class_name(name).map(|utility| (name.as_str(), utility))
+        })
         .collect();
     if utilities.len() > 1 {
-        // Reuse the parsed utilities for rendering; building descriptors
-        // and emitting the sheet must not each parse the whole universe.
-        let context = hozo_ir::TailwindOrderContext::new(hozo_ir::builtin_tailwind_snapshot(
-            utilities.iter().map(|utility| {
+        // Reuse the parsed utilities for rendering; ordering and emitting
+        // the sheet must not each parse the whole universe.
+        let ranks: std::collections::HashMap<_, _> =
+            hozo_ir::builtin_tailwind_emission_order(utilities.iter().map(|(name, utility)| {
                 (
-                    utility.class_name.as_str(),
+                    *name,
                     utility
                         .groups
                         .iter()
                         .flat_map(|(_, writes)| writes.iter().cloned())
                         .collect(),
                 )
-            }),
-        ))?;
-        let ranks: std::collections::HashMap<_, _> = context
-            .rules_in_emission_order()
+            }))
+            .into_iter()
             .enumerate()
-            .map(|(rank, (candidate, _))| (candidate.candidate.as_str(), rank))
+            .map(|(rank, name)| (name, rank))
             .collect();
         // Built-in facts describe at most one rule per candidate. An
         // undescribed form still renders in its original order after them.
-        utilities.sort_by_key(|utility| {
-            ranks
-                .get(utility.class_name.as_str())
-                .copied()
-                .unwrap_or(usize::MAX)
-        });
+        utilities.sort_by_cached_key(|(name, _)| ranks.get(name).copied().unwrap_or(usize::MAX));
     }
-    Ok(render_scanned_candidates(utilities.into_iter(), theme))
+    render_scanned_candidates(utilities.into_iter().map(|(_, utility)| utility), theme)
 }
 
 fn render_scanned_candidates(

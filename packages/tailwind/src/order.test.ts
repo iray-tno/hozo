@@ -213,3 +213,19 @@ test('standalone Web candidates use Tailwind emission order without a project or
   assert.doesNotMatch(fallback, /unknown-marker/)
   assert.ok(fallback.indexOf('.p-10') < fallback.indexOf('width >= 480px'))
 })
+
+test('the Web emission-only keys agree byte for byte with full built-in descriptors', () => {
+  const cache = openCandidateCache()
+  cache.scanFile(
+    'candidate.tsx',
+    JSON.stringify(
+      'active:p-2 hover:focus:p-4 text-lg text-red-500 drop-shadow-none drop-shadow-sm transition-colors transition-none min-[480px]:p-1 2xl:block',
+    ),
+    1,
+  )
+  const names = cache.candidates()
+  const full = prepareBuiltinTailwindContext(names)
+    .ruleOrder()
+    .rules.map(({ candidateId }) => names[candidateId]!)
+  assert.equal(cache.renderCss(), cache.renderCss(undefined, full))
+})
