@@ -3,7 +3,7 @@ type Shadow =
   | string
   | { value: string; parts: readonly (string | readonly [string, string])[] }
   | null
-interface ShadowSlots {
+export interface ShadowSlots {
   outer?: Shadow
   outerColor?: string | null
   insetShadow?: Shadow
@@ -32,6 +32,7 @@ export function hozoShadowStyles(
   styles: readonly Input[],
   specs: readonly Spec[] | ReadonlyMap<Style, ShadowSlots>,
   defaults: { ring: string; offset: string },
+  candidates?: ReadonlyMap<Style, ShadowSlots>,
 ): (Style | number)[] {
   const metadata: ReadonlyMap<Style, ShadowSlots> = Array.isArray(specs)
     ? new Map(specs)
@@ -53,7 +54,7 @@ export function hozoShadowStyles(
     }
     const object = style as Style
     result.push(object)
-    const slots = metadata.get(object)
+    const slots = metadata.get(object) ?? candidates?.get(object)
     if (slots) Object.assign(state, slots)
     else if ('boxShadow' in object) state = {}
   }

@@ -986,8 +986,14 @@ pub(super) fn render_node(
         component != "HozoAnimated" && crate::filters::split_across_conditions(&own_declarations);
     let compose_gradients =
         component != "HozoAnimated" && crate::gradients::split_across_conditions(&own_declarations);
-    let compose_shadows =
-        component != "HozoAnimated" && crate::shadows::split_across_conditions(&own_declarations);
+    let mixed_shadows = matches!(node.primitive, Primitive::View | Primitive::Pressable)
+        && component != "HozoAnimated"
+        && !node.props.has_spread()
+        && !node.class_name_fallback.is_empty()
+        && crate::shadows::can_mix(&own_declarations);
+    let compose_shadows = mixed_shadows
+        || (component != "HozoAnimated"
+            && crate::shadows::split_across_conditions(&own_declarations));
     // Copying base effect registers into every condition would overwrite a
     // different active condition's value when the runtime joins the slots.
     let own_declarations = style::fold_base_layers(
@@ -1096,6 +1102,7 @@ pub(super) fn render_node(
     } else {
         String::new()
     };
+    let mixed_shadows = mixed_shadows && !shadow_specs.is_empty();
     let starting_parts = frames.starting;
     let exit_parts = frames.exit;
     if own_declarations
@@ -1185,9 +1192,11 @@ pub(super) fn render_node(
                 let value = captured
                     .as_deref()
                     .unwrap_or_else(|| source_text(source, *expr_ref));
-                match &class_state {
-                    Some(state) => format!("hozoClasses({value}, {state})"),
-                    None => format!("hozoClasses({value})"),
+                match (&class_state, mixed_shadows) {
+                    (Some(state), true) => format!("hozoClasses({value}, {state}, 'shadow')"),
+                    (None, true) => format!("hozoClasses({value}, undefined, 'shadow')"),
+                    (Some(state), false) => format!("hozoClasses({value}, {state})"),
+                    (None, false) => format!("hozoClasses({value})"),
                 }
             })
             .collect()
@@ -1529,6 +1538,17 @@ pub(super) fn render_node(
     // Style attributes a spread could replace are held here and composed
     // with the spreads where those are emitted (`spread_style`).
     let mut held = crate::spread_style::HeldStyles::new(&node.props.passthrough);
+    if mixed_shadows && !shadow_specs.is_empty() {
+        // Resolve class contributions before authored styles; even an opaque
+        // registered RN style ID remains last and can override the result.
+        cx.runtime.need_component("hozoShadowStyles");
+        style_array_parts = vec![format!(
+            "hozoShadowStyles([{}], [{}], {}, hozoClasses.shadowSlots)",
+            style_array_parts.join(", "),
+            shadow_specs,
+            crate::shadows::defaults()
+        )];
+    }
     if (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some() {
         if !authored_style.is_empty() {
             held.emit(
@@ -1540,7 +1560,7 @@ pub(super) fn render_node(
         style_array_parts.extend(authored_style);
     }
 
-    if !shadow_specs.is_empty() {
+    if !mixed_shadows && !shadow_specs.is_empty() {
         cx.runtime.need_component("hozoShadowStyles");
         style_array_parts = vec![format!(
             "hozoShadowStyles([{}], [{}], {})",

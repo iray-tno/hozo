@@ -426,7 +426,7 @@ fn render_candidate_module_impl(
             },
         );
     }
-    if needs_shadow_slots {
+    if shadow_slots != 0 {
         write_composition_table(
             &mut out,
             "shadows",
@@ -446,7 +446,7 @@ fn render_candidate_module_impl(
         input = "gradient";
     }
     if needs_shadow_slots {
-        pipeline.push_str(&format!("const shadow = {input}.some(style => shadows.has(style)) ? hozoShadowStyles({input}, shadows, {}) : {input}; ", crate::shadows::defaults()));
+        pipeline.push_str(&format!("const shadow = deferred !== 'shadow' && {input}.some(style => shadows.has(style)) ? hozoShadowStyles({input}, shadows, {}) : {input}; ", crate::shadows::defaults()));
         input = "shadow";
     }
     if needs_filter_slots {
@@ -466,7 +466,12 @@ fn render_candidate_module_impl(
     let compose = if pipeline.is_empty() {
         None
     } else {
-        Some(format!("resolved => {{ {pipeline}return {input} }}"))
+        let args = if needs_shadow_slots {
+            "(resolved, deferred)"
+        } else {
+            "resolved"
+        };
+        Some(format!("{args} => {{ {pipeline}return {input} }}"))
     };
     let ordering = plan.and_then(|plan| {
         if plan.finalized {
@@ -500,6 +505,9 @@ fn render_candidate_module_impl(
         out.push_str("export const hozoClasses = createClassResolver(styles, unsupported)\n");
     } else {
         out.push_str(&format!("export const hozoClasses = createClassResolver(styles, unsupported, undefined{states_argument})\n"));
+    }
+    if shadow_slots != 0 {
+        out.push_str("hozoClasses.shadowSlots = shadows\n");
     }
     // Always, empty or not: this module stands in for `@hozo/engine/project`,
     // and a component importing the name from there would get `undefined`

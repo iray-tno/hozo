@@ -1,3 +1,5 @@
+import type { ShadowSlots } from './shadow-slots.ts'
+
 /** A React Native style object, as the compiler emits it. */
 export type StyleObject = Record<string, unknown>
 
@@ -57,7 +59,17 @@ export type StateGroup = readonly [readonly string[], StyleObject, number?]
  * in a state is reported as it always was; with it, that class applies
  * when its state holds, after the unconditional ones.
  */
-export type ClassResolver = (value: unknown, state?: ClassState) => StyleObject[]
+type DeferredEffect = 'shadow'
+type Composer = (styles: StyleObject[], deferred?: DeferredEffect) => StyleObject[]
+
+export type ClassResolver = ((
+  value: unknown,
+  state?: ClassState,
+  deferred?: DeferredEffect,
+) => StyleObject[]) & {
+  /** @internal Compiler-generated identities for a mixed shadow boundary. */
+  shadowSlots?: ReadonlyMap<StyleObject, ShadowSlots>
+}
 
 /** @internal Generated-data ABI, not a utility parser or a public cascade API. */
 export interface ClassResolverPlan {
@@ -66,7 +78,7 @@ export interface ClassResolverPlan {
   unsupported?: Record<string, string>
   states?: Record<string, readonly StateGroup[]>
   ambient?: ClassState
-  compose?: (styles: StyleObject[]) => StyleObject[]
+  compose?: Composer
   /** Ordinals from one complete compiler namespace. Missing means barrier. */
   ordering: { schema: 1; ranks: Readonly<Record<string, readonly number[]>> }
 }
@@ -82,6 +94,8 @@ interface Resolved {
   base: StyleObject[]
   /** The same, before `compose`, for composing again with state styles. */
   raw: StyleObject[]
+  /** Only materialized for a mixed compiler boundary, using the same selection. */
+  deferredShadow?: StyleObject[]
   groups: StateGroup[]
   /** Parallel to groups: retain the candidate name for missing-fact warnings. */
   groupClasses: string[]
@@ -121,14 +135,14 @@ export function createClassResolver(plan: ClassResolverPlan): ClassResolver
 export function createClassResolver(
   styles: Record<string, StyleObject>,
   unsupported?: Record<string, string>,
-  compose?: (styles: StyleObject[]) => StyleObject[],
+  compose?: Composer,
   states?: Record<string, readonly StateGroup[]>,
   ambient?: ClassState,
 ): ClassResolver
 export function createClassResolver(
   stylesOrPlan: Record<string, StyleObject> | ClassResolverPlan,
   unsupported: Record<string, string> = {},
-  compose?: (styles: StyleObject[]) => StyleObject[],
+  compose?: Composer,
   states: Record<string, readonly StateGroup[]> = {},
   ambient: ClassState = {},
 ): ClassResolver {
@@ -294,7 +308,11 @@ export function createClassResolver(
     return { base: compose ? compose(base) : base, raw: base, groups, groupClasses, stateClasses }
   }
 
-  return function hozoClasses(value: unknown, state?: ClassState): StyleObject[] {
+  function restingWithoutShadow(resolved: Resolved): StyleObject[] {
+    return (resolved.deferredShadow ??= compose ? compose(resolved.raw, 'shadow') : resolved.raw)
+  }
+
+  const hozoClasses: ClassResolver = (value, state, deferred) => {
     // Falsy is the normal case, not an error: `cond && 'p-4'` yields
     // `false` whenever the condition is off.
     if (typeof value !== 'string' || value === '') {
@@ -306,7 +324,9 @@ export function createClassResolver(
       resolved = resolve(value)
       cache.set(value, resolved)
     }
-    if (resolved.groups.length === 0) return resolved.base
+    if (deferred && !hozoClasses.shadowSlots) deferred = undefined
+    if (resolved.groups.length === 0)
+      return deferred ? restingWithoutShadow(resolved) : resolved.base
     if (state === undefined) {
       for (const name of resolved.stateClasses) {
         warn(
@@ -316,7 +336,7 @@ export function createClassResolver(
             'className so it compiles to a real style variant.',
         )
       }
-      return resolved.base
+      return deferred ? restingWithoutShadow(resolved) : resolved.base
     }
     // A group can name an ambient fact beside the element's own, as
     // `rtl:hover:` does; the element supplies only its part.
@@ -331,17 +351,18 @@ export function createClassResolver(
           active = true
         }
       }
-      if (!active) return resolved.base
-      return compose ? compose(all) : all
+      if (!active) return deferred ? restingWithoutShadow(resolved) : resolved.base
+      return compose ? compose(all, deferred) : all
     }
     const active = resolved.groups.filter(([keys], index) =>
       matches(keys, resolved.groupClasses[index]!, facts),
     )
-    if (active.length === 0) return resolved.base
+    if (active.length === 0) return deferred ? restingWithoutShadow(resolved) : resolved.base
     const all = [...resolved.raw, ...active.map(([, style]) => style)]
     // A state style can carry a transform, which `compose` folds into one;
     // so it runs over the whole list, and the result is per render rather
     // than cached -- it changes with the state.
-    return compose ? compose(all) : all
+    return compose ? compose(all, deferred) : all
   }
+  return hozoClasses
 }

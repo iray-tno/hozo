@@ -59,12 +59,20 @@ pub(super) fn is_slot(property: &StyleProperty) -> bool {
     index(property).is_some()
 }
 
+fn is_whole_override(property: &StyleProperty) -> bool {
+    matches!(property, StyleProperty::Arbitrary(name, _)
+        if name == "box-shadow" || name == "boxShadow")
+}
+
+pub(super) fn can_mix(declarations: &[StyleDeclaration]) -> bool {
+    declarations.iter().any(|d| is_slot(&d.property))
+        && !declarations.iter().any(|d| is_whole_override(&d.property))
+}
+
 pub(super) fn split_across_conditions(declarations: &[StyleDeclaration]) -> bool {
     let mut written: Vec<(&Condition, u16)> = Vec::new();
     for declaration in declarations {
-        if matches!(&declaration.property, StyleProperty::Arbitrary(name, _)
-            if name == "box-shadow" || name == "boxShadow")
-        {
+        if is_whole_override(&declaration.property) {
             return false;
         }
         // Folding is sufficient for the base plus one conditional set, or
