@@ -70,9 +70,9 @@ impl<'a> CandidatePlanBuilder<'a> {
         condition: &Condition,
         keys: Vec<String>,
         props: &[StyleProperty],
-        emitted: (&[(String, String)], Option<&crate::gradients::Metadata>),
+        emitted: (&[(String, String)], Vec<String>),
     ) -> CandidatePriorityGroup {
-        let (pairs, gradient) = emitted;
+        let (pairs, composition_keys) = emitted;
         let writes: Vec<_> = props
             .iter()
             .enumerate()
@@ -95,9 +95,7 @@ impl<'a> CandidatePlanBuilder<'a> {
             index,
             state_keys: keys,
             native_keys: pairs.iter().map(|(key, _)| key.clone()).collect(),
-            composition_keys: gradient
-                .map(|metadata| metadata.composition_keys())
-                .unwrap_or_default(),
+            composition_keys,
             // Scalar physical keys need no logical-edge, shorthand-gap or
             // register normalization. This is eligibility, not an order table.
             orderable,
@@ -140,6 +138,7 @@ impl<'a> CandidatePlanBuilder<'a> {
         props: &[StyleProperty],
         pairs: &[(String, String)],
         gradient: Option<&crate::gradients::Metadata>,
+        shadow: Option<&crate::shadows::Metadata>,
     ) {
         self.entry(
             name,
@@ -151,7 +150,7 @@ impl<'a> CandidatePlanBuilder<'a> {
                 &Condition::Always,
                 Vec::new(),
                 props,
-                (pairs, gradient),
+                (pairs, composition_keys(gradient, shadow)),
             )],
         );
     }
@@ -173,7 +172,10 @@ impl<'a> CandidatePlanBuilder<'a> {
                     condition,
                     group.keys.clone(),
                     properties,
-                    (&group.pairs, group.gradient.as_ref()),
+                    (
+                        &group.pairs,
+                        composition_keys(group.gradient.as_ref(), group.shadow.as_ref()),
+                    ),
                 )
             })
             .collect();
@@ -196,6 +198,19 @@ impl<'a> CandidatePlanBuilder<'a> {
             ordering,
         }
     }
+}
+
+fn composition_keys(
+    gradient: Option<&crate::gradients::Metadata>,
+    shadow: Option<&crate::shadows::Metadata>,
+) -> Vec<String> {
+    let mut keys = gradient
+        .map(|metadata| metadata.composition_keys())
+        .unwrap_or_default();
+    if let Some(shadow) = shadow {
+        keys.extend(shadow.composition_keys());
+    }
+    keys
 }
 
 fn ordering(entries: &[CandidatePriorityEntry]) -> Option<CandidateOrdering> {

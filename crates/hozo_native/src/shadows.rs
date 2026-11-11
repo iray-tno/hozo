@@ -16,6 +16,28 @@ const FIELDS: &[&str] = &[
     "ringInset",
 ];
 
+// These fields already write a real boxShadow in a literal style object.
+const DRAWABLE: u16 = (1 << 0) | (1 << 2) | (1 << 4) | (1 << 6) | (1 << 8);
+
+pub(super) struct Metadata {
+    pub code: String,
+    pub slots: u16,
+}
+
+impl Metadata {
+    pub fn composition_keys(&self) -> impl Iterator<Item = String> + '_ {
+        FIELDS
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| self.slots & !DRAWABLE & (1 << index) != 0)
+            .map(|(_, field)| format!("shadow:{field}"))
+    }
+}
+
+pub(super) fn needs_composition(slots: u16) -> bool {
+    slots & !DRAWABLE != 0 || slots.count_ones() > 1
+}
+
 fn index(property: &StyleProperty) -> Option<usize> {
     Some(match property {
         StyleProperty::BoxShadow(_) => 0,
@@ -89,7 +111,7 @@ fn shadow(value: &str) -> String {
     format!("{{ value: {}, parts: [{parts}] }}", style::js_string(value))
 }
 
-pub(super) fn metadata(props: &[StyleProperty], theme: &Theme) -> Option<String> {
+pub(super) fn metadata(props: &[StyleProperty], theme: &Theme) -> Option<Metadata> {
     let mut seen = 0u16;
     let fields: Vec<_> = props
         .iter()
@@ -125,7 +147,10 @@ pub(super) fn metadata(props: &[StyleProperty], theme: &Theme) -> Option<String>
             Some(format!("{}: {value}", FIELDS[index]))
         })
         .collect();
-    (!fields.is_empty()).then(|| format!("{{ {} }}", fields.join(", ")))
+    (!fields.is_empty()).then(|| Metadata {
+        code: format!("{{ {} }}", fields.join(", ")),
+        slots: seen,
+    })
 }
 
 pub(super) fn defaults() -> String {
@@ -146,7 +171,8 @@ pub(super) fn specs(entries: &[StyleEntry], theme: &Theme) -> String {
             } else {
                 theme
             };
-            metadata(props, palette).map(|metadata| format!("[{STYLE_OBJECT}.{name}, {metadata}]"))
+            metadata(props, palette)
+                .map(|metadata| format!("[{STYLE_OBJECT}.{name}, {}]", metadata.code))
         })
         .collect::<Vec<_>>()
         .join(", ")
