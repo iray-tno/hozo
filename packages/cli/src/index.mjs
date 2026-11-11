@@ -27,6 +27,14 @@ const COMMANDS = {
     summary: 'Before adoption: report what Hozo would do with a React Native checkout',
     run: dryFit,
   },
+  manifest: {
+    summary: "Build a component package's hozo.manifest.json, or --check it",
+    run: manifest,
+  },
+  links: {
+    summary: 'Generate or --check the Universal Links and App Links verification files',
+    run: links,
+  },
 }
 
 // Names a later RFC specifies (RFC 011 §7). Reserved so no other command
@@ -90,6 +98,37 @@ async function dryFit(argv, io) {
     if (!(error instanceof AuditInputError)) throw error
     return fail(io, 'hozo dry-fit', error, argv)
   }
+}
+
+/** The `{ log, error }` shape the TypeScript commands write through. */
+const lines = (io) => ({
+  log: (message) => io.stdout.write(`${message}\n`),
+  error: (message) => io.stderr.write(`${message}\n`),
+})
+
+async function manifest(argv, io) {
+  const { runManifestCli } = await import('@hozo/compiler/manifest/cli')
+  return runManifestCli(argv, process.cwd(), lines(io), 'hozo manifest')
+}
+
+async function links(argv, io) {
+  let command
+  try {
+    command = await import('@hozo/navigation/verification/cli')
+  } catch (error) {
+    if (error?.code !== 'ERR_MODULE_NOT_FOUND' || !/@hozo\/navigation/.test(error.message))
+      throw error
+    return fail(
+      io,
+      'hozo links',
+      new CliError(
+        '@hozo/navigation is not installed; links are generated from its config',
+        'missing-package',
+      ),
+      argv,
+    )
+  }
+  return command.runVerificationCli(argv, process.cwd(), lines(io), 'hozo links')
 }
 
 /** Run `hozo` with `argv` (no `node`, no script path). Resolves to the exit code. */

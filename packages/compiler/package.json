@@ -59,6 +59,10 @@
       "types": "./dist/manifest.d.ts",
       "default": "./dist/manifest.js"
     },
+    "./manifest/cli": {
+      "types": "./dist/manifest-command.d.ts",
+      "default": "./dist/manifest-command.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

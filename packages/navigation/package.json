@@ -84,6 +84,10 @@
       "types": "./dist/verification-node.d.ts",
       "default": "./dist/verification-node.js"
     },
+    "./verification/cli": {
+      "types": "./dist/verification-cli.d.ts",
+      "default": "./dist/verification-cli.js"
+    },
     "./hozo-links.schema.json": "./hozo-links.schema.json",
     "./package.json": "./package.json"
   },

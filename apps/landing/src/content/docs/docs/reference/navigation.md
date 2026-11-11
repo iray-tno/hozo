@@ -69,9 +69,9 @@ External URLs remain explicit with `external`, and dynamic CMS strings can opt o
 
 `useDeepLink` normalizes cold-start URLs and runtime arrivals into a single `{ url, path, queryParams, fragment, source }` event. On React Native, it subscribes to incoming link events before reading `Linking.getInitialURL()` so a fast foreground link is never overwritten by a slower cold-start lookup.
 
-## Universal Links & Android App Links (`hozo-links`)
+## Universal Links & Android App Links (`hozo links`)
 
 `@hozo/navigation` generates and verifies both sides of domain-to-app association:
 
-1. **Web `.well-known` files (`hozo-links` CLI or `@hozo/navigation/verification/node`):** generates `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json` from `hozo-links.json`, validating app IDs and canonicalizing SHA-256 certificate fingerprints. Run `pnpm exec hozo-links --check` in CI to catch drift.
+1. **Web `.well-known` files (`hozo links` from `@hozo/cli`, or `@hozo/navigation/verification/node`):** generates `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json` from `hozo-links.json`, validating app IDs and canonicalizing SHA-256 certificate fingerprints. Run `pnpm exec hozo links --check` in CI to catch drift.
 2. **Expo config plugin (`@hozo/navigation/expo-config`):** adds `scheme`, iOS `associatedDomains`, and Android HTTPS `intentFilters` with `autoVerify` in `app.json` idempotently.

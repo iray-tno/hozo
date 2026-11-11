@@ -136,8 +136,10 @@ For a no-code build step, add `hozo-links.json` at the project root:
 }
 ```
 
-Run `pnpm exec hozo-links` to generate the assets and `pnpm exec hozo-links --check` in CI to fail
-when committed assets are missing or stale. Paths in the config are resolved relative to the config
+With `@hozo/cli` installed, run `pnpm exec hozo links` to generate the assets and
+`pnpm exec hozo links --check` in CI to fail when committed assets are missing or stale (exit `1`;
+an unreadable or invalid config exits `2`). The `hozo-links` binary this package ships runs the same
+command and is deprecated. Paths in the config are resolved relative to the config
 file, so the command behaves the same from a workspace root or an individual app.
 
 ### Expo app configuration
