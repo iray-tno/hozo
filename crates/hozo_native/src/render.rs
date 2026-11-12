@@ -989,10 +989,10 @@ pub(super) fn render_node(
     let mixed_shadows = mixed_effect_boundary && crate::shadows::can_mix(&own_declarations);
     let mixed_gradients = mixed_effect_boundary && crate::gradients::can_mix(&own_declarations);
     let mixed_transforms = mixed_effect_boundary && crate::transforms::can_mix(&own_declarations);
-    let mixed_filters = mixed_effect_boundary && crate::filters::can_mix(&own_declarations);
-    let compose_filters = mixed_filters
-        || (component != "HozoAnimated"
-            && crate::filters::split_across_conditions(&own_declarations));
+    let project_filter_slots =
+        component != "HozoAnimated" && crate::filters::can_compose(&own_declarations);
+    let mixed_filters =
+        mixed_effect_boundary && project_filter_slots && crate::filters::can_mix(&own_declarations);
     let compose_gradients = mixed_gradients
         || (component != "HozoAnimated"
             && crate::gradients::split_across_conditions(&own_declarations));
@@ -1004,7 +1004,10 @@ pub(super) fn render_node(
     let own_declarations = style::fold_base_layers(
         own_declarations,
         style::ComposedLayers {
-            filters: compose_filters,
+            // If the emitted objects write identical slots, the conditional
+            // literal already replaces all the base slots. Otherwise the
+            // composer reads them independently, so no base copy is needed.
+            filters: project_filter_slots,
             gradients: compose_gradients,
             shadows: compose_shadows,
         },
@@ -1014,7 +1017,7 @@ pub(super) fn render_node(
     let animates = component == "HozoAnimated";
     let pattern_style_prop = crate::pattern::interaction_style_prop(node.primitive, "className")
         .or_else(|| (node.primitive == Primitive::TextInput).then_some("hozoStyle"));
-    let transform_entry_start = cx.style_entries.len();
+    let own_entry_start = cx.style_entries.len();
     let target = crate::conditions::StyleTarget {
         owner_facts: cx.owner_inputs.facts,
         node,
@@ -1023,6 +1026,7 @@ pub(super) fn render_node(
             && renders_text(component)
             && pattern_style_prop.is_none(),
         pattern_slot: Some("className"),
+        compose_filter_slots: project_filter_slots,
     };
     let state_start = build_style_entries(
         // RN View cannot inherit these fields. Experimental ReferenceView
@@ -1041,7 +1045,7 @@ pub(super) fn render_node(
         cx,
     );
     // Backdrop and label entries below have their own style arrays.
-    let transform_entry_end = cx.style_entries.len();
+    let own_entry_end = cx.style_entries.len();
     let mut backdrop_parts = Vec::new();
     if !layout.backdrop.is_empty() {
         build_style_entries(
@@ -1066,6 +1070,7 @@ pub(super) fn render_node(
             position,
             interaction_context: true,
             pattern_slot: None,
+            compose_filter_slots: false,
         };
         build_style_entries(
             &text_declarations,
@@ -1081,7 +1086,7 @@ pub(super) fn render_node(
     } else {
         None
     };
-    let transform_entries = &cx.style_entries[transform_entry_start..transform_entry_end];
+    let own_entries = &cx.style_entries[own_entry_start..own_entry_end];
     let transform_specs = if mixed_transforms
         || (own_declarations
             .iter()
@@ -1089,24 +1094,26 @@ pub(super) fn render_node(
             && own_declarations
                 .iter()
                 .any(|d| d.condition != Condition::Always))
-        || crate::transforms::split_across_entries(transform_entries)
+        || crate::transforms::split_across_entries(own_entries)
     {
-        crate::transforms::specs(transform_entries, theme)
+        crate::transforms::specs(own_entries, theme)
     } else {
         String::new()
     };
-    let filter_specs = if compose_filters {
-        crate::filters::specs(&cx.style_entries[transform_entry_start..])
+    let filter_specs = if mixed_filters
+        || (project_filter_slots && crate::filters::split_across_entries(own_entries))
+    {
+        crate::filters::specs(own_entries)
     } else {
         String::new()
     };
     let gradient_specs = if compose_gradients {
-        crate::gradients::specs(&cx.style_entries[transform_entry_start..], theme)
+        crate::gradients::specs(&cx.style_entries[own_entry_start..], theme)
     } else {
         String::new()
     };
     let shadow_specs = if compose_shadows {
-        crate::shadows::specs(&cx.style_entries[transform_entry_start..], theme)
+        crate::shadows::specs(&cx.style_entries[own_entry_start..], theme)
     } else {
         String::new()
     };
@@ -2312,6 +2319,7 @@ pub(super) fn render_node(
                 position,
                 interaction_context: false,
                 pattern_slot: Some(slot.class_prop),
+                compose_filter_slots: false,
             };
             let state_start = build_style_entries(
                 field_style.as_deref().unwrap_or(slot_style),

@@ -256,6 +256,7 @@ pub(crate) struct StyleTarget<'a> {
     pub position: SiblingPosition,
     pub interaction_context: bool,
     pub pattern_slot: Option<&'a str>,
+    pub compose_filter_slots: bool,
 }
 
 pub(super) fn build_style_entries(
@@ -304,7 +305,7 @@ pub(super) fn build_style_entries(
     let hozo_ir::NativeConditionGroupPlan {
         mut groups,
         canonical_input,
-    } = hozo_ir::plan_native_condition_groups(declarations);
+    } = hozo_ir::plan_native_condition_groups(declarations, target.compose_filter_slots);
     let mut ordered_states = Vec::new();
     let mut has_interactive = false;
     for (_, props) in &mut groups {

@@ -143,6 +143,23 @@ Native callback, rather than `16px 20px`. A single run or objects writing
 identical transform slots still use literal arrays. This does not alter
 the Native fallback rank or widen run preservation to other registers.
 
+Native filter projection now compares emitted objects too. For ordinary
+filters it no longer copies the base into each condition before deciding
+whether to compose. Equal slot masks still use literals; different masks
+use the existing composer. A repeated hover after active can now preserve
+the active `blur(24px)` and replace only `sepia(50%)` with `sepia(100%)` on
+both static routes. Whole-chain resets, authored raw filters, and drop
+shadows still block this expansion; Native animation frames and slots
+without a composer keep their former grouping.
+
+With the captured `bg-brand` barrier, masking just the generated variant
+bits now agrees with static Native for the repeated filter runs in both
+token orders and for a hover/focus conjunction. Adding `hover:shadow-sm`
+or a base `filter-none` to the same probe still blocks run preservation:
+static and the current resolver produce `sepia(50%)`, while the masked
+resolver produces `sepia(100%)`. Do not remove the runtime tie until those
+paths agree as well.
+
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace
 the runtime tie with stable selector weight once both routes agree. Report

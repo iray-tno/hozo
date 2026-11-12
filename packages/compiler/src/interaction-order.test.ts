@@ -6,6 +6,7 @@ import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { transformSync } from 'esbuild'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
 import { createCompiler, openCandidateCache } from './index.ts'
 
 const variants = [
@@ -15,7 +16,7 @@ const variants = [
   'active:bg-[#444444]',
 ]
 const compiler = createCompiler()
-const flatten = (style) => Object.assign({}, ...style.filter(Boolean))
+const flatten = (style) => Object.assign({}, ...style.flat(Infinity).filter(Boolean))
 function props(source: string, inherited = false, errors: string[] = []) {
   const component = compiler.compileNativeModule(source, undefined, undefined, {
     textInheritance: inherited,
@@ -38,6 +39,7 @@ function props(source: string, inherited = false, errors: string[] = []) {
       HozoPressable: 'owner',
       HozoInheritedPressable: 'owner',
       HozoChip: 'owner',
+      hozoFilterStyles,
       remove: () => {},
       h: (_type, value) => value,
       hozoStyles: runInNewContext(`(${component.styles})`),
@@ -162,12 +164,13 @@ test('authored scalar state writes do not move back into an earlier visit to the
   }
 })
 
-test('fallback still groups same-guard filter registers for the existing composers', () => {
+test('fallback keeps same-guard filter grouping when a whole-chain reset is present', () => {
   const source =
-    'import {Pressable} from "@hozo/core";const el=<Pressable className="hover:blur-sm active:p-4 hover:sepia columns-(--layout)"/>'
+    'import {Pressable} from "@hozo/core";const el=<Pressable className="filter-none hover:blur-sm active:p-4 hover:sepia columns-(--layout)"/>'
   const [web] = compiler.compile(source)
   assert.match(web!.css, /filter: blur\(8px\) sepia\(100%\)/)
   const { style } = props(source, false, ['WEB_ONLY_PROPERTY_ON_NATIVE'])
+  assert.equal(flatten(style({ hovered: false, pressed: true })).filter, 'none')
   assert.equal(flatten(style({ hovered: true, pressed: true })).filter, 'blur(8px) sepia(100%)')
 })
 

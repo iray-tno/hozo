@@ -1738,23 +1738,13 @@ test('static fallback keeps repeated owner guards in authored CSS order', {
   }
 })
 
-test('static fallback composes translate axes across repeated owner guards', {
-  skip: !executablePath,
-}, async () => {
-  const classes =
-    'hover:translate-x-2 active:translate-x-4 active:translate-y-5 hover:translate-y-3 columns-(--layout)'
+async function assertRepeatedOwnerRegisters({ classes, reference, property, values }) {
   const result = compiler.compile(
     `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
   )[0]
   const html = renderToStaticMarkup(
     evaluate(`module.exports=(${result.jsx})`, { h: createElement }),
   )
-  const reference = `
-    button:is(:hover, :active) { translate: var(--x) var(--y); }
-    button:hover { --x: 8px; }
-    button:active { --x: 16px; --y: 20px; }
-    button:hover { --y: 12px; }
-  `
   const page = await browser.newPage()
   try {
     const cdp = await page.context().newCDPSession(page)
@@ -1771,16 +1761,16 @@ test('static fallback composes translate axes across repeated owner guards', {
         selector: 'button',
       })
       assert.ok(nodeId)
-      for (const [forcedPseudoClasses, translate] of [
-        [['active'], '16px 20px'],
-        [['hover'], '8px 12px'],
-        [['hover', 'active'], '16px 12px'],
-        [[], 'none'],
-      ]) {
+      for (const [index, forcedPseudoClasses] of [
+        ['active'],
+        ['hover'],
+        ['hover', 'active'],
+        [],
+      ].entries()) {
         await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses })
         assert.equal(
-          await page.locator('button').evaluate((el) => getComputedStyle(el).translate),
-          translate,
+          await page.locator('button').evaluate((el, name) => getComputedStyle(el)[name], property),
+          values[index],
           forcedPseudoClasses.join(':'),
         )
       }
@@ -1788,6 +1778,39 @@ test('static fallback composes translate axes across repeated owner guards', {
   } finally {
     await page.close()
   }
+}
+
+test('static fallback composes translate axes across repeated owner guards', {
+  skip: !executablePath,
+}, async () => {
+  await assertRepeatedOwnerRegisters({
+    classes:
+      'hover:translate-x-2 active:translate-x-4 active:translate-y-5 hover:translate-y-3 columns-(--layout)',
+    reference: `
+      button:is(:hover, :active) { translate: var(--x) var(--y); }
+      button:hover { --x: 8px; }
+      button:active { --x: 16px; --y: 20px; }
+      button:hover { --y: 12px; }
+    `,
+    property: 'translate',
+    values: ['16px 20px', '8px 12px', '16px 12px', 'none'],
+  })
+})
+
+test('static fallback composes filter functions across repeated owner guards', {
+  skip: !executablePath,
+}, async () => {
+  await assertRepeatedOwnerRegisters({
+    classes: 'blur-sm hover:blur-lg active:blur-xl active:sepia-50 hover:sepia columns-(--layout)',
+    reference: `
+      button { --blur: blur(8px); filter: var(--blur) var(--sepia,); }
+      button:hover { --blur: blur(16px); }
+      button:active { --blur: blur(24px); --sepia: sepia(0.5); }
+      button:hover { --sepia: sepia(1); }
+    `,
+    property: 'filter',
+    values: ['blur(24px) sepia(0.5)', 'blur(16px) sepia(1)', 'blur(24px) sepia(1)', 'blur(8px)'],
+  })
 })
 
 test('Tailwind filter resets keep the registers a later condition reads', {

@@ -10,10 +10,19 @@ function flatten(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
 }
 
-function compiled(classes: string, caller = '', component = 'Pressable') {
+function compiled(
+  classes: string,
+  caller = '',
+  component = 'Pressable',
+  diagnosticCodes: string[] = [],
+) {
   const result = compileNative(`import { ${component} } from '@hozo/core'
 export function C() { return <${component} className="${classes}" ${caller} /> }`)[0]!
-  assert.deepEqual(result.diagnostics, [], JSON.stringify(result.diagnostics))
+  assert.deepEqual(
+    result.diagnostics.map(({ code }) => code),
+    diagnosticCodes,
+    JSON.stringify(result.diagnostics),
+  )
   const start = result.jsx.indexOf('style={') + 7
   assert.ok(start > 6, result.jsx)
   let end = start
@@ -33,10 +42,10 @@ export function C() { return <${component} className="${classes}" ${caller} /> }
   )
   return {
     result,
-    style(md = false, hovered = false, dark = false, composer = hozoFilterStyles) {
+    style(md = false, hovered = false, dark = false, composer = hozoFilterStyles, pressed = false) {
       const value = evaluate(styles, composer, hozoTransformStyles, md, dark)
       return flatten(
-        typeof value === 'function' ? value({ hovered, pressed: false, focused: false }) : value,
+        typeof value === 'function' ? value({ hovered, pressed, focused: false }) : value,
       )
     },
   }
@@ -65,6 +74,20 @@ test('a copied base cannot overwrite another active condition register', () => {
   const probe = compiled('blur-sm md:blur-lg hover:sepia')
   assert.equal(probe.style(false, true).filter, 'blur(8px) sepia(100%)')
   assert.equal(probe.style(true, true).filter, 'blur(16px) sepia(100%)')
+})
+
+test('unranked owner filter runs compose independent functions in authored order', () => {
+  const probe = compiled(
+    'blur-sm hover:blur-lg active:blur-xl active:sepia-50 hover:sepia columns-(--layout)',
+    '',
+    'Pressable',
+    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+  )
+  assert.equal(probe.style().filter, 'blur(8px)')
+  assert.equal(probe.style(false, true).filter, 'blur(16px) sepia(100%)')
+  assert.equal(probe.style(false, false, false, undefined, true).filter, 'blur(24px) sepia(50%)')
+  assert.equal(probe.style(false, true, false, undefined, true).filter, 'blur(24px) sepia(100%)')
+  assert.equal(probe.style(false, true).filter, 'blur(16px) sepia(100%)')
 })
 
 test('whole-chain reset yields to later slot writes without losing registers', () => {

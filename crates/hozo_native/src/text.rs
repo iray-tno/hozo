@@ -179,6 +179,7 @@ pub(super) fn wrap_in_text(
         position,
         interaction_context,
         pattern_slot: None,
+        compose_filter_slots: false,
     };
     build_style_entries(
         text_declarations,
