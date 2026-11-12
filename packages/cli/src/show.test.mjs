@@ -222,14 +222,16 @@ export const C = ({ cls }: { cls: string }) => (
     <Chip className="bg-white hover:bg-black" label="a" />
     <Menu label="m" itemClassName="p-2 focus:bg-black" items={[]} />
     <Chip className={cls} label="b" />
+    <Menu label="n" itemClassName={cls} items={[]} />
+    <View className={cls} />
   </View>
 )
 `,
   })
   const file = path.join(root, 'src/C.tsx')
   const report = JSON.parse((await show(file, '--format', 'json')).stdout)
-  const routes = report.classLists.lists.map(({ line, column, prop, route, component }) =>
-    [`${line}:${column}`, prop, route, component].filter(Boolean).join(' '),
+  const routes = report.classLists.lists.map(({ line, column, prop, route, component, owner }) =>
+    [`${line}:${column}`, prop, route, component, owner].filter(Boolean).join(' '),
   )
   assert.deepEqual(routes, [
     '4:9 className compiled',
@@ -239,7 +241,11 @@ export const C = ({ cls }: { cls: string }) => (
     '6:11 className owner-callback',
     // A slot list: the Menu applies it to each item, with that item's state.
     '7:21 itemClassName owner-callback',
-    '8:5 className runtime',
+    // Unreadable, but the owner still resolves it with its own state, and
+    // a slot list keeps the prop it was written as.
+    '8:5 className runtime Chip',
+    '9:5 itemClassName runtime Menu',
+    '10:5 className runtime',
   ])
   const text = (await show(file)).stdout
   assert.match(text, /\n {2}5:13 className: handed to <Button>, which resolves it\n/)
@@ -247,7 +253,15 @@ export const C = ({ cls }: { cls: string }) => (
     text,
     /\n {2}6:11 className: compiled; its pattern owner applies it with the owner's state; 2 of 2 classes compiled\n/,
   )
+  assert.match(
+    text,
+    /\n {2}8:5 className: resolved at runtime by <Chip>, with the owner's state: the compiler cannot read it\n/,
+  )
+  assert.match(text, /\n {2}10:5 className: resolved at runtime: the compiler cannot read it\n/)
   // The owner callback is the Native backend's; the Web has no such route.
   const web = JSON.parse((await show(file, '--web', '--format', 'json')).stdout)
   assert.equal(web.classLists.lists[2].route, 'compiled-conditional')
+  // Nor an owner resolving a runtime list with its state.
+  const chip = web.classLists.lists.find(({ line }) => line === 8)
+  assert.deepEqual([chip.route, chip.owner], ['runtime', undefined])
 })

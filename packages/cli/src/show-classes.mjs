@@ -136,6 +136,7 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
     const { site } = input
     lists.push({
       offset,
+      element: site.spanStart,
       ...position(source, offset),
       prop: site.classProp,
       route: owned.some(
@@ -154,14 +155,30 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
   const runtime = new Set(
     diagnostics.filter(({ code }) => code === RUNTIME).map(({ spanStart }) => spanStart),
   )
-  for (const offset of runtime)
-    lists.push({
-      offset,
-      ...position(source, offset),
-      prop: 'className',
-      route: 'runtime',
-      classes: [],
-    })
+  for (const offset of runtime) {
+    // A pattern owner given a list it cannot read still resolves it with
+    // its own state on Native (`hozoClasses(className, state)` in the
+    // Chip), so a runtime `hover:` works there and warns on a View. The
+    // Native backend records each list it hands such an owner; the ones not
+    // already reported as compiled are this element's runtime lists, under
+    // the prop they were written as (`itemClassName`, not `className`).
+    const compiled = new Set(
+      lists.filter((list) => list.element === offset).map((list) => list.prop),
+    )
+    const handed = owned.filter(
+      (callback) => callback.spanStart === offset && !compiled.has(callback.classProp),
+    )
+    const owner = /^<([A-Za-z_$][\w.$]*)/.exec(source.slice(offset))?.[1]
+    for (const prop of handed.length ? handed.map((callback) => callback.classProp) : ['className'])
+      lists.push({
+        offset,
+        ...position(source, offset),
+        prop,
+        route: 'runtime',
+        ...(handed.length && owner ? { owner } : {}),
+        classes: [],
+      })
+  }
   // Handed to a component the compiler does not lower: the component
   // resolves it, in its own file's compile or on device.
   for (const list of components)
@@ -174,7 +191,10 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
       classes: [],
     })
   lists.sort((a, b) => a.offset - b.offset)
-  for (const list of lists) delete list.offset
+  for (const list of lists) {
+    delete list.offset
+    delete list.element
+  }
   return { status: 'assessed', lists }
 }
 
@@ -185,6 +205,8 @@ const ROUTES = {
   component: 'handed to <%>, which resolves it',
   runtime: 'resolved at runtime: the compiler cannot read it',
 }
+const OWNED_RUNTIME =
+  "resolved at runtime by <%>, with the owner's state: the compiler cannot read it"
 
 /** The text report's section: each list, and each class not compiled everywhere. */
 export function classListLines(evidence) {
@@ -197,7 +219,7 @@ export function classListLines(evidence) {
     )
     const count = list.classes.length
     lines.push(
-      `  ${list.line}:${list.column} ${list.prop}: ${ROUTES[list.route].replace('%', list.component)}${
+      `  ${list.line}:${list.column} ${list.prop}: ${(list.owner ? OWNED_RUNTIME : ROUTES[list.route]).replace('%', list.owner ?? list.component)}${
         count ? `; ${clean.length} of ${count} class${count === 1 ? '' : 'es'} compiled` : ''
       }`,
     )
