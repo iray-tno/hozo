@@ -2,11 +2,11 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { createCompiler } from '@hozo/compiler'
+import { formatJsx } from '@hozo/compiler/format-jsx'
 import { loadTheme } from '@hozo/tailwind'
 import { codeText, normalizeCodeLines } from '@hozo/typography/code/model'
 import { buildCodeShowcase, CODE_SHOWCASE_SOURCE } from '../src/lib/code-showcase.ts'
 import { buildCodeSnippet, CODE_SNIPPETS, type CodeSnippet } from '../src/lib/code-snippets.ts'
-import { formatJsx } from '../src/scripts/format-jsx.ts'
 
 const css = readFileSync(new URL('../src/styles/global.css', import.meta.url), 'utf8')
 const samples = await buildCodeShowcase(css)

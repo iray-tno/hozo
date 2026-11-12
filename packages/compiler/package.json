@@ -51,6 +51,10 @@
       "types": "./dist/diagnostics.d.ts",
       "default": "./dist/diagnostics.js"
     },
+    "./format-jsx": {
+      "types": "./dist/format-jsx.d.ts",
+      "default": "./dist/format-jsx.js"
+    },
     "./sources": {
       "types": "./dist/sources.d.ts",
       "default": "./dist/sources.js"

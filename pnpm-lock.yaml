@@ -842,6 +842,9 @@ importers:
       '@hozo/migration-audit':
         specifier: workspace:^
         version: link:../migration-audit
+      '@hozo/tailwind':
+        specifier: workspace:^
+        version: link:../tailwind
     devDependencies:
       '@hozo/navigation':
         specifier: workspace:^

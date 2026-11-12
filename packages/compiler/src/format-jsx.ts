@@ -1,11 +1,13 @@
-// Lays out compiled JSX for the REPL's panes, one element per line.
+// Lays out compiled JSX for a person to read, one element per line: the
+// REPL's panes, the site's code showcases and `hozo show`.
 //
 // The compiler writes each component back as a single line on purpose: it
 // replaces a span of the author's file, and output spread over several lines
 // would move every line below it, so stack traces and source maps would stop
-// pointing at the source. The REPL shows that output as it is, which is
-// correct and unreadable. Laying it out is a display concern, so it happens
-// here and nowhere else.
+// pointing at the source. Shown as it is, that output is correct and
+// unreadable. Laying it out is a display concern, so it happens here, after
+// compiling, and never in the compiler's output. It lives in this package so
+// that the REPL and `hozo show` lay out the same output the same way.
 //
 // Deliberately small rather than a formatter. It understands exactly what the
 // compiler emits -- elements, fragments, quoted and braced attribute values,

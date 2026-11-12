@@ -1,6 +1,6 @@
 import { createCompiler } from '@hozo/compiler'
+import { formatJsx } from '@hozo/compiler/format-jsx'
 import { loadTheme } from '@hozo/tailwind'
-import { formatJsx } from '../scripts/format-jsx.ts'
 import { type HighlightedListing, highlightCodeListings } from './code-highlighting.ts'
 
 // Keep the three panes connected: a compiler change must reach the displayed

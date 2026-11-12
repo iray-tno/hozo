@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { formatJsx } from '../src/scripts/format-jsx.ts'
+import { formatJsx } from './format-jsx.ts'
 
 test('nested elements go one per line, and a text-only child stays on its line', () => {
   assert.equal(
