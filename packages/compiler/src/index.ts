@@ -29,6 +29,12 @@ export interface CompileDiagnostic {
 export interface TailwindCompilePlan {
   fingerprint: string
   mode: 'passthrough' | typeof TAILWIND_SCALAR_ORDER_POLICY
+  /**
+   * Native only, absent when empty: the class lists a pattern owner applies
+   * with its own state, in a callback, rather than the element holding them.
+   * The span is the element's, or the slot attribute's for a static slot list.
+   */
+  ownerCallbacks?: { spanStart: number; spanEnd: number; classProp: string }[]
   sites: {
     spanStart: number
     spanEnd: number
@@ -482,6 +488,7 @@ interface NativeCompiler {
     bindings?: StylexExternalBinding[],
     tailwindPlan?: boolean,
   ): CompiledNativeComponent[]
+  componentClassLists(source: string): ComponentClassList[]
   compileNativeModule(
     source: string,
     bindings?: StylexExternalBinding[],
@@ -914,6 +921,13 @@ export interface Compiler {
     evidence?: CompileEvidence,
   ): CompiledNativeComponent[]
   /**
+   * The class props written on an element this compiler does not lower: a
+   * component, handed the class list as a prop, which resolves it itself (in
+   * its own file's compile, or on device). Read from the parse
+   * `compileNative` lowers. What `hozo show` calls a component-resolved list.
+   */
+  componentClassLists(source: string): ComponentClassList[]
+  /**
    * Native lowering plus source imports and foreign primitive bindings from
    * that same parse. Bundler integrations should prefer this over reparsing
    * the file around `compileNative`.
@@ -1019,6 +1033,7 @@ export function createCompiler(
         inner.compileNative(source, bindings, evidence?.tailwindPlan ?? false),
         fontAvailability,
       ),
+    componentClassLists: (source) => inner.componentClassLists(source),
     compileNativeModule: (source, bindings, sourceFile, experiment) => {
       validateNativeOptions(experiment)
       const module = inner.compileNativeModule(source, bindings, sourceFile, experiment)
@@ -1186,6 +1201,18 @@ export interface NativeClassFinding extends NativeClassVerdict {
  */
 export function nativeClassReport(source: string): NativeClassFinding[] {
   return loadNative().nativeClassReport(source) as NativeClassFinding[]
+}
+
+/** A class prop on an element the compiler does not lower. UTF-16 offsets. */
+export interface ComponentClassList {
+  /** The element as written: `Button`, `Tabs.Trigger`. */
+  element: string
+  prop: string
+  /** The attribute. */
+  spanStart: number
+  spanEnd: number
+  /** The element's name. */
+  elementStart: number
 }
 
 /**

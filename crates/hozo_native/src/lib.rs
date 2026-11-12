@@ -107,7 +107,7 @@ pub use owner_style::{
 };
 use render::render_node;
 pub use runtime_classes::{
-    native_class_diagnostics, native_class_report, native_class_verdict,
+    component_class_lists, native_class_diagnostics, native_class_report, native_class_verdict,
     native_classes_drawn_statically, NativeClassFinding, NativeClassKind, NativeClassVerdict,
 };
 use source_evidence::Rendered;
@@ -144,6 +144,19 @@ pub struct LowerOutput {
     /// here at all.
     pub native_imports: Vec<&'static str>,
     pub diagnostics: Vec<Diagnostic>,
+    /// The class lists emitted inside a pattern owner's state callback
+    /// (`class_route`), rather than as a style the element holds itself.
+    /// Inspection evidence (`hozo show`); nothing in the output reads it.
+    pub owner_callbacks: Vec<OwnerCallback>,
+}
+
+/// A class list whose styles its pattern owner resolves with its own state:
+/// the element's span (or the slot's, for a static slot list) and the class
+/// prop it was written as.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OwnerCallback {
+    pub span: hozo_ir::SourceSpan,
+    pub class_prop: &'static str,
 }
 
 /// What the generated module will need from `@hozo/engine`, accumulated
@@ -230,6 +243,8 @@ pub(crate) struct NativeRenderContext<'a> {
     pub owner_style: Option<&'a mut Option<OwnerStyle>>,
     pub owner_inputs: OwnerStyleInputs<'a>,
     pub source_evidence: bool,
+    /// See `LowerOutput::owner_callbacks`.
+    pub owner_callbacks: &'a mut Vec<OwnerCallback>,
 }
 
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
@@ -443,6 +458,7 @@ fn lower_forwarded_capturing(
     // rendered against, and nothing but a dark copy sets it.
     let mut diagnostics = Vec::new();
     let mut runtime = RuntimeNeeds::default();
+    let mut owner_callbacks = Vec::new();
 
     // The root's position is genuinely unknowable here: it's whatever the
     // component's caller renders it into.
@@ -458,6 +474,7 @@ fn lower_forwarded_capturing(
         owner_style,
         owner_inputs,
         source_evidence,
+        owner_callbacks: &mut owner_callbacks,
     };
     let ancestor = AncestorContext {
         inherited: &inherited,
@@ -535,6 +552,7 @@ fn lower_forwarded_capturing(
         runtime_imports,
         native_imports,
         diagnostics,
+        owner_callbacks,
     }
 }
 

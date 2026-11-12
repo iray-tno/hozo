@@ -652,6 +652,35 @@ pub fn native_class_report(source: String) -> Vec<NativeClassFinding> {
         .collect()
 }
 
+#[napi(object)]
+pub struct ComponentClassList {
+    /// The element as written: `Button`, `Tabs.Trigger`.
+    pub element: String,
+    pub prop: String,
+    /// The attribute, in UTF-16 offsets.
+    pub span_start: u32,
+    pub span_end: u32,
+    /// The element's name, in UTF-16 offsets.
+    pub element_start: u32,
+}
+
+fn component_class_lists(
+    source: &str,
+    parsed: &hozo_parser::ParseOutput,
+) -> Vec<ComponentClassList> {
+    let offsets = Utf16Offsets::new(source);
+    hozo_native::component_class_lists(parsed)
+        .into_iter()
+        .map(|list| ComponentClassList {
+            element: list.element.clone(),
+            prop: list.prop.clone(),
+            span_start: offsets.at(list.span.start),
+            span_end: offsets.at(list.span.end),
+            element_start: offsets.at(list.element_span.start),
+        })
+        .collect()
+}
+
 /// The classes the verdict calls missing that the static backend draws on
 /// the element they are written on, which `native_class_report` leaves out.
 #[napi]
@@ -943,6 +972,24 @@ impl Compiler {
             &self.text_forwarding,
             &self.class_helpers,
         ))
+    }
+
+    /// The class props written on an element this compiler does not lower:
+    /// a component, handed the list as a prop to resolve itself. Read from
+    /// the parse `compile_native` lowers, with this compiler's sources.
+    #[napi]
+    pub fn component_class_lists(&self, source: String) -> Vec<ComponentClassList> {
+        let bindings = external_bindings(None);
+        let parsed = parse_native_module(
+            &source,
+            self.sources.as_deref(),
+            Some((&self.stylex, &bindings)),
+            None,
+            false,
+            &self.text_forwarding,
+            &self.class_helpers,
+        );
+        component_class_lists(&source, &parsed)
     }
 
     /// Replaces the class-joining functions both backends read argument by
@@ -1327,6 +1374,14 @@ pub struct CompiledNativeComponent {
     pub diagnostics: Vec<CompileDiagnostic>,
     pub span_start: u32,
     pub span_end: u32,
+}
+
+#[napi(object)]
+pub struct CompiledOwnerCallback {
+    /// The element, or for a static slot list the slot attribute; UTF-16.
+    pub span_start: u32,
+    pub span_end: u32,
+    pub class_prop: String,
 }
 
 #[napi(object)]
@@ -1789,12 +1844,27 @@ fn lower_native_components(
                     })
                     .collect()
             });
+            let tailwind_plan = plans.next().map(|plan| {
+                let mut plan = tailwind_order::compile_plan(plan, &offsets);
+                // Native's own evidence rides with the plan, asked for with it;
+                // absent when empty, so a plan without one reads as the Web's.
+                plan.owner_callbacks = (!output.owner_callbacks.is_empty()).then(|| {
+                    output
+                        .owner_callbacks
+                        .iter()
+                        .map(|callback| CompiledOwnerCallback {
+                            span_start: offsets.at(callback.span.start),
+                            span_end: offsets.at(callback.span.end),
+                            class_prop: callback.class_prop.to_string(),
+                        })
+                        .collect()
+                });
+                plan
+            });
             CompiledNativeComponent {
                 source_copies,
                 owner_style: carrier,
-                tailwind_plan: plans
-                    .next()
-                    .map(|plan| tailwind_order::compile_plan(plan, &offsets)),
+                tailwind_plan,
                 jsx: output.jsx,
                 styles: output.styles,
                 prelude: output.prelude,
