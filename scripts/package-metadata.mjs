@@ -225,8 +225,16 @@ const PACKAGES = {
       './webvtt': './dist/webvtt-index.js',
     },
     native: true,
-    peerOverrides: { 'expo-audio': '>=58.0.11 <59', 'expo-asset': '>=58.0.19 <59' },
-    peerMetadataOverrides: { 'expo-audio': { optional: true }, 'expo-asset': { optional: true } },
+    peerOverrides: {
+      'expo-video': '>=58.0.13 <59',
+      'expo-audio': '>=58.0.11 <59',
+      'expo-asset': '>=58.0.19 <59',
+    },
+    peerMetadataOverrides: {
+      'expo-video': { optional: true },
+      'expo-audio': { optional: true },
+      'expo-asset': { optional: true },
+    },
     keywords: ['react-native', 'react', 'video', 'audio', 'media', 'expo'],
     // Bootstrap a new manifest here rather than hand-writing generated fields.
     initial: {
@@ -238,16 +246,10 @@ const PACKAGES = {
         typecheck: 'tsc -p . --noEmit',
         test: 'tsc -p tsconfig.test.json && node --test --test-concurrency=1 .test-build/*.test.js tests/*.test.mjs',
       },
-      peerDependencies: {
-        react: '^19.0.0',
-        'react-native': '>=0.87',
-        'expo-video': '>=58.0.13 <59',
-      },
-      peerDependenciesMeta: {
-        'react-native': { optional: true },
-        'expo-video': { optional: true },
-        'expo-audio': { optional: true },
-      },
+      // The Expo peers are in `peerOverrides`: these apply only before the
+      // manifest exists.
+      peerDependencies: { react: '^19.0.0', 'react-native': '>=0.87' },
+      peerDependenciesMeta: { 'react-native': { optional: true } },
       devDependencies: {
         '@types/node': '26.2.0',
         '@types/react': '^19.2.18',
@@ -580,6 +582,15 @@ export function applyMetadata(name) {
     ? { ...PACKAGES[name].initial, ...JSON.parse(readFileSync(file, 'utf8')) }
     : PACKAGES[name].initial
   if (!json) throw new Error(`No manifest or initial metadata for @hozo/${name}`)
+  // `initial` is only the first manifest. Once one exists its peers win, so a
+  // peer range edited in `initial` changes nothing: @hozo/media's expo-video
+  // stayed on SDK 57 that way while its other Expo peers moved to 58.
+  if (existsSync(file))
+    for (const [peer, range] of Object.entries(PACKAGES[name].initial?.peerDependencies ?? {}))
+      if ((PACKAGES[name].peerOverrides?.[peer] ?? json.peerDependencies?.[peer]) !== range)
+        throw new Error(
+          `@hozo/${name}: initial.peerDependencies['${peer}'] is ${range}, but the manifest says ${json.peerDependencies?.[peer]}; initial no longer applies, so put the range in peerOverrides`,
+        )
   delete json.private
   const merged = { ...json, ...metadataFor(name) }
   if (PACKAGES[name].initial?.devDependencies) {
