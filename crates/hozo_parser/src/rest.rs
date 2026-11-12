@@ -34,10 +34,14 @@ pub type RestExclusions = HashMap<u32, Vec<String>>;
 /// holds, and the span of that literal in its declaration.
 pub type ConstantStrings = HashMap<u32, (String, Span)>;
 
+/// Reference offset -> import binding offset, for imports a reader can use.
+pub(crate) type ImportReferences = HashMap<u32, u32>;
+
 #[derive(Default)]
 pub struct Bindings {
     pub rest: RestExclusions,
     pub constants: ConstantStrings,
+    pub(crate) imports: ImportReferences,
 }
 
 /// A module-level `const` declarator whose value is a string with no
@@ -86,11 +90,15 @@ fn string_constants<'p, 'a>(
 }
 
 pub fn analyze(program: &Program<'_>) -> Bindings {
+    analyze_with_imports(program, &[])
+}
+
+pub(crate) fn analyze_with_imports(program: &Program<'_>, imports: &[u32]) -> Bindings {
     let mut probe = Probe { found: false };
     probe.visit_program(program);
     let constants = string_constants(program);
     // Most files have neither; they pay for no binding pass.
-    if !probe.found && constants.is_empty() {
+    if !probe.found && constants.is_empty() && imports.is_empty() {
         return Bindings::default();
     }
     let built = SemanticBuilder::new().with_build_nodes(true).build(program);
@@ -101,6 +109,38 @@ pub fn analyze(program: &Program<'_>) -> Bindings {
     let nodes = semantic.nodes();
     let scoping = semantic.scoping();
     let mut out = Bindings::default();
+
+    if !imports.is_empty() {
+        for node in nodes.iter() {
+            let local = match node.kind() {
+                AstKind::ImportSpecifier(specifier) => &specifier.local,
+                AstKind::ImportDefaultSpecifier(specifier) => &specifier.local,
+                _ => continue,
+            };
+            if !imports.contains(&local.span.start) {
+                continue;
+            }
+            let Some(symbol) = local.symbol_id.get() else {
+                continue;
+            };
+            if !scoping.symbol_redeclarations(symbol).is_empty()
+                || scoping
+                    .get_resolved_references(symbol)
+                    .any(|r| r.is_write())
+            {
+                continue;
+            }
+            for reference in scoping
+                .get_resolved_references(symbol)
+                .filter(|r| r.is_read())
+            {
+                out.imports.insert(
+                    nodes.get_node(reference.node_id()).span().start,
+                    local.span.start,
+                );
+            }
+        }
+    }
 
     for (id, value, span) in constants {
         let Some(symbol) = id.symbol_id.get() else {

@@ -65,7 +65,7 @@ export const textFixtureManifest = {
       'crates/hozo_napi/src/prepared_module.rs':
         '34d0e087bcac74727ee004b5b8d547ec9ed3143f373d9037394ecabfac0a5e88',
       'crates/hozo_parser/src/lib.rs':
-        '9d9371535bea4ffd6621fe3e9682d517881135d3d65386fe4ff3289003154faa',
+        '16ca2985b856b6943f8ac9fbfad4689386e7e30250a1761a952d5098263460bb',
       'crates/hozo_parser/src/owner_slots.rs':
         'f1447d3f60cb13a327be0b89ca55053eb403a297b80f7c8f64f2af101c8095a0',
       'crates/hozo_parser/src/important.rs':
@@ -77,7 +77,7 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/tailwind_plan.rs':
         '13d1ba3f117599f4dd90160d27cf933413d2faf005e88c7a013e2d38f67e7a2e',
       'crates/hozo_parser/src/jsx.rs':
-        '960a72a1cadb01f01d67c94ee6919e2d8379cdbd74caeff8884d85d2f79df935',
+        '28fbcf3bbb93b2297e3ca3c219da226ac5819033c57a1bcad917517530741af8',
       'crates/hozo_parser/src/stylex.rs':
         '3a26cde813b2405026a619926a42cda003377c7382436869d5e6d837bbb9861f',
       'crates/hozo_parser/src/tailwind_variants.rs':

@@ -16,7 +16,7 @@ use oxc_ast::ast::{
     JSXExpression, LogicalExpression, LogicalOperator, StringLiteral, TemplateLiteral,
 };
 use oxc_span::{GetSpan, Span};
-use oxc_syntax::module_record::{ImportImportName, ModuleRecord};
+use oxc_syntax::module_record::{ImportEntry, ImportImportName, ModuleRecord};
 
 use crate::tailwind;
 
@@ -25,11 +25,7 @@ pub(crate) use evaluation::{capture_evaluation, capture_template_parts};
 
 /// Import sources whose default export/named exports are trusted to behave
 /// like `clsx` (join truthy string arguments with a space) when recognized
-/// as a call. Not scope-aware: a *local* binding that happens to share the
-/// same name as an import elsewhere in the file (shadowing) is not
-/// detected, since this checks the module's top-level import table rather
-/// than doing full scope resolution. Rare in practice; falls back safely if
-/// the name isn't imported from one of these packages at all.
+/// as a call through the imported binding.
 ///
 /// `tailwind-merge` has separate contracts below. Known merger inputs use
 /// right-to-left conflict elimination; an opaque input keeps the whole call
@@ -125,6 +121,7 @@ pub struct ClassHelper {
 pub(crate) struct Joiners<'r, 'a> {
     pub module_record: &'r ModuleRecord<'a>,
     pub helpers: &'r [ClassHelper],
+    pub import_refs: &'r crate::rest::ImportReferences,
     /// Module-level string constants, by reference offset.
     pub constants: &'r crate::rest::ConstantStrings,
     pub units: &'r std::cell::RefCell<hozo_ir::TailwindUnitsBuilder>,
@@ -269,42 +266,59 @@ fn is_recognized_cx_identifier(
     ident: &IdentifierReference,
     joiners: &Joiners,
 ) -> Option<HelperKind> {
-    let name = ident.name.as_str();
-    joiners
+    let import = joiners.import_refs.get(&ident.span.start)?;
+    let entry = joiners
         .module_record
         .import_entries
         .iter()
-        .find_map(|entry| {
-            if entry.local_name.name.as_str() != name {
-                return None;
-            }
-            let module = entry.module_request.name.as_str();
-            let imported = match &entry.import_name {
-                ImportImportName::Name(n) => n.name.as_str(),
-                ImportImportName::Default(_) => "default",
-                ImportImportName::NamespaceObject => return None,
-            };
-            if let Some(helper) = joiners
-                .helpers
-                .iter()
-                .find(|helper| helper.module == module && helper.name == imported)
-            {
-                return Some(if helper.merge {
-                    HelperKind::Merge
-                } else {
-                    HelperKind::Join
-                });
-            }
-            if module == TW_MERGE_MODULE {
-                return match imported {
-                    "twMerge" => Some(HelperKind::Merge),
-                    "twJoin" => Some(HelperKind::StrictJoin),
-                    _ => None,
-                };
-            }
-            let is_hozo_cx = HOZO_CX_MODULES.contains(&module) && imported == HOZO_CX_NAME;
-            (RECOGNIZED_CX_MODULES.contains(&module) || is_hozo_cx).then_some(HelperKind::Join)
-        })
+        .find(|entry| entry.local_name.span.start == *import)?;
+    helper_import(entry, joiners.helpers)
+}
+
+pub(crate) fn helper_import(
+    entry: &ImportEntry<'_>,
+    helpers: &[ClassHelper],
+) -> Option<HelperKind> {
+    if entry.is_type {
+        return None;
+    }
+    let module = entry.module_request.name.as_str();
+    let imported = match &entry.import_name {
+        ImportImportName::Name(n) => n.name.as_str(),
+        ImportImportName::Default(_) => "default",
+        ImportImportName::NamespaceObject => return None,
+    };
+    if let Some(helper) = helpers
+        .iter()
+        .find(|helper| helper.module == module && helper.name == imported)
+    {
+        return Some(if helper.merge {
+            HelperKind::Merge
+        } else {
+            HelperKind::Join
+        });
+    }
+    if module == TW_MERGE_MODULE {
+        return match imported {
+            "twMerge" => Some(HelperKind::Merge),
+            "twJoin" => Some(HelperKind::StrictJoin),
+            _ => None,
+        };
+    }
+    let is_hozo_cx = HOZO_CX_MODULES.contains(&module) && imported == HOZO_CX_NAME;
+    (RECOGNIZED_CX_MODULES.contains(&module) || is_hozo_cx).then_some(HelperKind::Join)
+}
+
+pub(crate) fn helper_import_offsets(
+    module: &ModuleRecord<'_>,
+    helpers: &[ClassHelper],
+) -> Vec<u32> {
+    module
+        .import_entries
+        .iter()
+        .filter(|entry| helper_import(entry, helpers).is_some())
+        .map(|entry| entry.local_name.span.start)
+        .collect()
 }
 
 /// Re-emits `span` verbatim, once.
@@ -917,6 +931,7 @@ mod tests {
         struct Finder<'a, 'r> {
             module_record: &'r ModuleRecord<'a>,
             helpers: &'r [ClassHelper],
+            import_refs: &'r crate::rest::ImportReferences,
             result: Option<Decomposed>,
         }
         impl<'a> Visit<'a> for Finder<'a, '_> {
@@ -930,6 +945,7 @@ mod tests {
                     let joiners = Joiners {
                         module_record: self.module_record,
                         helpers: self.helpers,
+                        import_refs: self.import_refs,
                         constants: &constants,
                         units: &units,
                     };
@@ -937,9 +953,12 @@ mod tests {
                 }
             }
         }
+        let offsets = helper_import_offsets(&ret.module_record, helpers);
+        let bindings = crate::rest::analyze_with_imports(&ret.program, &offsets);
         let mut finder = Finder {
             module_record: &ret.module_record,
             helpers,
+            import_refs: &bindings.imports,
             result: None,
         };
         finder.visit_program(&ret.program);
