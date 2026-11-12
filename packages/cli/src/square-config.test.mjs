@@ -39,7 +39,10 @@ function project(t, packages, files = {}) {
 
 async function square(root) {
   const io = { stdout: capture(), stderr: capture() }
-  const exit = await run(['square', root, '--format', 'json', '--fail-on', 'warning'], io)
+  const exit = await run(
+    ['square', root, '--setup', '--format', 'json', '--fail-on', 'warning'],
+    io,
+  )
   const report = JSON.parse(io.stdout.output)
   return { exit, check: (id) => report.setup.find((check) => check.id === id) }
 }

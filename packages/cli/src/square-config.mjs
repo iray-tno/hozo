@@ -239,7 +239,13 @@ export function checkCss(project, { names }) {
         path: file,
       })
   }
-  return { findings, summary: [...entries.keys()].join(', ') }
+  // The one stylesheet the code half compiles against, when there is one.
+  const [only] = entries.size === 1 ? entries.keys() : []
+  return {
+    findings,
+    summary: [...entries.keys()].join(', '),
+    css: only && existsSync(path.join(project, only)) ? only : undefined,
+  }
 }
 
 export function checkMetroState(project) {

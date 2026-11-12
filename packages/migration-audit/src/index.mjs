@@ -978,4 +978,5 @@ export {
   evaluateFailurePolicy,
   markdown as renderRealAppMarkdown,
   measure as measureRealApp,
+  validateBaseline,
 }
