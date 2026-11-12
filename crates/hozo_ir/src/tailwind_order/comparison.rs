@@ -27,18 +27,38 @@ fn compare_rules(
     b: &OrderRuleDescriptor,
     b_name: &str,
 ) -> Ordering {
+    compare_sort_keys(
+        (
+            &a.variant_order,
+            &a.property_order,
+            a.declaration_count,
+            a_name,
+        ),
+        (
+            &b.variant_order,
+            &b.property_order,
+            b.declaration_count,
+            b_name,
+        ),
+    )
+}
+
+pub(crate) fn compare_sort_keys<P: Ord>(
+    (a_variants, a_props, a_count, a_name): (&str, &[P], u32, &str),
+    (b_variants, b_props, b_count, b_name): (&str, &[P], u32, &str),
+) -> Ordering {
     // Variant bitsets are validated canonical decimals, potentially wider
     // than u128. Compare their magnitude without parsing, allocation or loss.
-    a.variant_order
+    a_variants
         .len()
-        .cmp(&b.variant_order.len())
-        .then_with(|| a.variant_order.cmp(&b.variant_order))
-        .then_with(|| compare_properties(&a.property_order, &b.property_order))
-        .then_with(|| b.declaration_count.cmp(&a.declaration_count))
+        .cmp(&b_variants.len())
+        .then_with(|| a_variants.cmp(b_variants))
+        .then_with(|| compare_properties(a_props, b_props))
+        .then_with(|| b_count.cmp(&a_count))
         .then_with(|| compare_names(a_name, b_name))
 }
 
-fn compare_properties(a: &[u32], b: &[u32]) -> Ordering {
+fn compare_properties<P: Ord>(a: &[P], b: &[P]) -> Ordering {
     for (a, b) in a.iter().zip(b) {
         if a != b {
             return a.cmp(b);

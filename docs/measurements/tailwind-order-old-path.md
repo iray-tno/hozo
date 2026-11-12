@@ -216,3 +216,53 @@ The N-API test injects an impossible empty candidate identity and verifies
 an error rather than a successful module. This does not remove the
 reachable Native resolver's selector-specificity fallback or change how
 the context-free static APIs handle invariant failures.
+
+## Remove the alphabetical Web candidate default
+
+Without a project order hint, `renderCss` now uses the same built-in rule
+comparator as the static compiler. Rendering reuses the parsed utilities.
+Explicit captured hints still take precedence; undescribed forms still
+render after described forms. The alphabetically sorted cache union is
+still a stable inventory, not a CSS precedence policy.
+
+The real Tailwind 4.3.3 regression includes numeric padding, hover/active,
+and three breakpoints; an explicit alphabetical sheet is the failing
+control. The ordinary Chromium corpus matched Tailwind in all 60
+default-candidate observations. The ordered project and static Web
+routes also matched 60/60. The two Native routes each matched 56/60;
+this Web change does not alter those platform differences.
+
+Scoped debug build timings (median of 30 warm calls; not an app or runtime
+benchmark): 256 candidates took 6.46 → 9.29 ms without a hint, and 1,024
+took 24.68 → 37.60 ms. The 1,024-candidate explicit-hint control took
+27.30 → 25.99 ms. Generated raw sizes were unchanged; the difference is
+rule order. No JS resolver or browser-side work was added.
+
+### Avoid full rule construction for Web emission order
+
+The order-only path now shares form selection, variant wrappers and the
+comparator with static planning, but materializes only the emission sort
+keys. It no longer builds or validates an owned descriptor snapshot just
+to discard the selectors and declarations. The resulting CSS is byte
+identical to ordering by the complete built-in descriptors in the
+regression fixture. The static 818-file projection digest did not change.
+
+The same debug sample took 7.96 ms for 256 and 33.41 ms for 1,024 on the
+no-hint path, down from 9.29 and 37.60 ms respectively. Ranking still has
+a build-side cost compared with doing no sort. The 1,024 explicit-hint
+control was 27.65 ms; empty and single-candidate output are unchanged.
+
+## Share Native selector weight in the fallback
+
+The legacy Native candidate rank no longer counts positive owner selectors
+itself. It uses the same bounded specificity projection as the static
+Native arrays. The variant mask still supplies the historical tiebreaker
+and still refuses unknown shapes; serialized ranks do not change.
+
+The fallback regression now uses two real Tailwind rules for one
+`bg-brand` candidate (theme plus `@utility`). It verifies the exact
+`ambiguous-property-owner` reason and a valid Native colour, rather than
+using an unresolved colour as a stand-in. A positive conjunction beats a
+single state in either order; the [equal-weight and repeated-guard
+counterexamples](tailwind-order-coverage.md#proposed-stage-6-gate-1230)
+still block deleting the variant mask.

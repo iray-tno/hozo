@@ -9,7 +9,7 @@ import {
 } from '@hozo/compiler'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
-import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
+import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 // #1230. No filter function had an ownership entry, so an input with one
 // kept its authored order: `blur-sm blur-lg` took the large blur where
@@ -137,40 +137,51 @@ test('non-completion resets rank in captured and built-in contexts', async () =>
   }
 })
 
-test('a genuinely uncaptured drawable utility retains authored fallback and tuple elision', async () => {
+test('a drawable utility with ambiguous rule ownership retains fallback and tuple elision', async () => {
+  const ambiguous = `${css}
+    @theme { --color-brand: #123456; }
+    @utility bg-brand { background-color: #abcdef; }`
+  const base = tailwindPackageDir()
+  const theme = await loadTheme(ambiguous, base)
   const generate = async (names: string[]) => {
     const cache = openCandidateCache()
     cache.scanFile('fallback.ts', JSON.stringify(names.join(' ')), 0)
-    const plan = cache.renderNativeModulePlan(await context(names))
-    assert.equal(plan.entries.find((entry) => entry.candidate === 'text-brand')?.kind, 'style')
-    assert.equal(plan.ordering?.ranks['text-brand'], undefined)
+    const { snapshot } = await prepareTailwindOrder(ambiguous, base, names)
+    const plan = cache.renderNativeModulePlan(
+      prepareFinalTailwindContext(JSON.stringify(snapshot)),
+      theme,
+    )
+    const entry = plan.entries.find((entry) => entry.candidate === 'bg-brand')
+    assert.equal(entry?.kind, 'style')
+    assert.equal(entry?.groups[0]?.writes[0]?.reason, 'ambiguous-property-owner')
+    assert.equal(plan.ordering?.ranks['bg-brand'], undefined)
     return plan.code
   }
-  const uniform = await generate([
-    'p-2',
-    'p-4',
-    'hover:opacity-25',
-    'hover:opacity-75',
-    'text-brand',
-  ])
+  const uniform = await generate(['p-2', 'p-4', 'hover:opacity-25', 'hover:opacity-75', 'bg-brand'])
   assert.doesNotMatch(uniform, /\{ opacity: [\d.]+ \}, \d+\]/)
   const resolve = runtime(uniform)
+  assert.equal(flatten(resolve('bg-brand')).backgroundColor, '#123456')
   assert.equal(flatten(resolve('p-4 p-2')).paddingTop, 16)
-  assert.equal(flatten(resolve('p-4 text-brand p-2')).paddingTop, 8)
-  assert.equal(flatten(resolve('p-2 text-brand p-4')).paddingTop, 16)
+  assert.equal(flatten(resolve('p-4 bg-brand p-2')).paddingTop, 8)
+  assert.equal(flatten(resolve('p-2 bg-brand p-4')).paddingTop, 16)
   const state = { hovered: true, pressed: true }
-  assert.equal(
-    flatten(resolve('hover:opacity-75 text-brand hover:opacity-25', state)).opacity,
-    0.25,
-  )
-  assert.equal(
-    flatten(resolve('hover:opacity-25 text-brand hover:opacity-75', state)).opacity,
-    0.75,
-  )
-  const competing = await generate(['hover:opacity-25', 'active:opacity-75', 'text-brand'])
+  assert.equal(flatten(resolve('hover:opacity-75 bg-brand hover:opacity-25', state)).opacity, 0.25)
+  assert.equal(flatten(resolve('hover:opacity-25 bg-brand hover:opacity-75', state)).opacity, 0.75)
+  const competing = await generate([
+    'hover:opacity-25',
+    'active:opacity-75',
+    'hover:focus:opacity-50',
+    'bg-brand',
+  ])
   assert.match(competing, /\{ opacity: 0.75 \}, \d+\]/)
   assert.equal(
-    flatten(runtime(competing)('active:opacity-75 text-brand hover:opacity-25', state)).opacity,
+    flatten(runtime(competing)('active:opacity-75 bg-brand hover:opacity-25', state)).opacity,
     0.75,
   )
+  for (const classes of [
+    'hover:focus:opacity-50 bg-brand active:opacity-75',
+    'active:opacity-75 bg-brand hover:focus:opacity-50',
+  ]) {
+    assert.equal(flatten(runtime(competing)(classes, { ...state, focused: true })).opacity, 0.5)
+  }
 })

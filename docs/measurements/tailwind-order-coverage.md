@@ -50,10 +50,10 @@ Reading it:
 | Responsibility | Implementation | Stage 6 treatment |
 | --- | --- | --- |
 | Tailwind rule emission and assessed cascade | Captured or built-in descriptors → `tailwind_order/comparison.rs` (emission) → `priority.rs` (importance, CSS specificity, then emission). `TailwindWritePlan` applies these ranks within each assessed input. | One authority. No per-backend or per-family rule comparator. |
-| Web candidate stylesheet emission | Tailwind's upstream first-rule ordinals, consumed by `PreparedTailwindOrder.classOrder` or `loadClassOrder`, then `CandidateCache.renderCss`. CSS itself resolves specificity. | One projection of upstream ordinals, not a declaration rank. An alphabetical bootstrap/omitted order or a whole-candidate sort cannot prove multi-rule ordering. Verify final ordinary output, not bootstrap output. |
+| Web candidate stylesheet emission | Tailwind's upstream first-rule ordinals with a project hint; otherwise the shared built-in rule comparator over the scanned candidate's descriptors. CSS itself resolves specificity. | One rule-emission authority per context, not a declaration rank. A whole-candidate sort cannot prove multi-rule ordering. Verify final ordinary output, not bootstrap output. |
 | Native assessed runtime candidates | `candidate/plan.rs` projects ranks onto emitted objects and real conflict keys. `class-resolver.ts` applies them on a class-string cache miss and selects state matches afterward. | Keep data projection and selection; neither may decide a new Tailwind priority. |
 | Native static specificity and JSX composition | `plan_native_condition_groups` linearizes known weights when needed; unknown weight is not zero. `conditions.rs` preserves authored tiers and [ADR 011](../decisions/011-styling-inputs-keep-their-own-cascade.md) preserves input boundaries. | Keep, including for arbitrary/unranked and mixed inputs. Web needs no parallel weight sort. StyleX keeps its own atomic order; `twMerge` removes classes before ranking and is not cascade. |
-| Native runtime fallback owner ranks | `builtin_owner_interaction_rank` projects known owner specificity and the shared built-in variant positions; `class-resolver.ts` may sort these tuples when the string cannot use the complete plan. It leaves equal ranks in authored order and does not sort a group set containing unknown ranks. Fully ranked namespaces [no longer emit the fallback tuples](tailwind-order-old-path.md#omit-fallback-ranks-when-the-fallback-cannot-run). | Keep necessary specificity/selection. The variant tie policy is still observable on genuinely unassessed input. |
+| Native runtime fallback owner ranks | `builtin_owner_interaction_rank` uses the same selector weight as the static Native projection, plus the shared built-in variant positions; `class-resolver.ts` may sort these tuples when the string cannot use the complete plan. It leaves equal ranks in authored order and does not sort a group set containing unknown ranks. Fully ranked namespaces [no longer emit the fallback tuples](tailwind-order-old-path.md#omit-fallback-ranks-when-the-fallback-cannot-run). | Keep necessary specificity/selection. The variant tie policy is still observable on genuinely unassessed input. |
 | Style projection after ordering | Logical edges, implicit line-height, register assembly (transform/filter/shadow/gradient), and authored style/spread precedence. | Keep semantics; never use these projections as a second utility-priority table. |
 
 The parser interaction sort, Web condition-weight sort, duplicate owner
@@ -103,13 +103,15 @@ superseded authority, not by renaming it or by shrinking the denominator.
    static output, no sort/rank reads on state updates, and review any
    repeatable cold/build regression under [RFC 007 §7](../rfcs/007-canonical-tailwind-order.md#7-acceptance-and-performance-evidence-before-expansion).
 
-This is a proposed acceptance gate, not a score change. A real capture with
-no `text-brand` rule still emits a Native colour token but leaves it
-unassessed. With hover and press both true, `active:p-2 hover:p-4 text-brand`
+This is a proposed acceptance gate, not a score change. A real Tailwind
+capture of `bg-brand` from both a theme token and an `@utility` of that name
+has ambiguous property ownership. Hozo emits a valid Native background
+colour from the theme but does not give the write a rank. With hover and
+press both true, `active:p-2 hover:p-4 bg-brand`
 selects 16px statically and 8px dynamically; the opposite token order selects
 8px on both. A known conjunction still wins on both paths. Deleting the
 runtime variant tie alone would expose another difference:
-`hover:p-2 active:p-4 hover:p-6 text-brand` currently selects 16px in both,
+`hover:p-2 active:p-4 hover:p-6 bg-brand` currently selects 16px in both,
 but static groups the last hover write into its first guard, whereas a
 stable specificity-only runtime sort would leave the last hover write
 after active (24px). Reconcile both behaviors before removing the reachable

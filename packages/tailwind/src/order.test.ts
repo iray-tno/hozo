@@ -196,3 +196,36 @@ test('prepared and direct Web candidate ordering agree with Tailwind CSS and pre
   ])
   assert.equal(prepared.lookup('uncollected'), null)
 })
+
+test('standalone Web candidates use Tailwind emission order without a project order hint', async () => {
+  const names = ['p-10', 'p-2', 'hover:p-4', 'active:p-2', 'sm:block', 'md:hidden', '2xl:block']
+  const cache = openCandidateCache()
+  cache.scanFile('candidate.tsx', JSON.stringify(names.join(' ')), 1)
+  const upstream = await tailwindOrder(names)
+  const expected = cache.renderCss(undefined, upstream)
+  const alphabetical = cache.renderCss(undefined, cache.candidates())
+  assert.notEqual(alphabetical, expected, 'control must expose the alphabetical cascade')
+  assert.equal(cache.renderCss(), expected)
+
+  cache.scanFile('extra.tsx', JSON.stringify('min-[480px]:p-1 unknown-marker'), 1)
+  const fallback = cache.renderCss()
+  assert.match(fallback, /width >= 480px/)
+  assert.doesNotMatch(fallback, /unknown-marker/)
+  assert.ok(fallback.indexOf('.p-10') < fallback.indexOf('width >= 480px'))
+})
+
+test('the Web emission-only keys agree byte for byte with full built-in descriptors', () => {
+  const cache = openCandidateCache()
+  cache.scanFile(
+    'candidate.tsx',
+    JSON.stringify(
+      'active:p-2 hover:focus:p-4 text-lg text-red-500 drop-shadow-none drop-shadow-sm transition-colors transition-none min-[480px]:p-1 2xl:block',
+    ),
+    1,
+  )
+  const names = cache.candidates()
+  const full = prepareBuiltinTailwindContext(names)
+    .ruleOrder()
+    .rules.map(({ candidateId }) => names[candidateId]!)
+  assert.equal(cache.renderCss(), cache.renderCss(undefined, full))
+})

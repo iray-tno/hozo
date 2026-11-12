@@ -44,7 +44,8 @@ pub use tailwind_portable::portable_tailwind_snapshot;
 // Generated per-root and per-variant facts for a compile with no project CSS.
 mod tailwind_builtin;
 pub use tailwind_builtin::{
-    builtin_owner_interaction_rank, builtin_tailwind_snapshot, builtin_tailwind_version,
+    builtin_owner_interaction_rank, builtin_tailwind_emission_order, builtin_tailwind_snapshot,
+    builtin_tailwind_version,
 };
 
 // ---------------------------------------------------------------------------

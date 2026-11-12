@@ -354,8 +354,8 @@ export interface CandidateCache {
   /// only to compiler-marked dynamic class targets, not their descendants.
   /// `order` is these candidates in the order Tailwind would write
   /// them (see `@hozo/tailwind`'s `loadProjectClassOrder`). The ownership
-  /// marker adds no specificity, so ordering within each copy still matters;
-  /// without an order hint the set is alphabetical and `sm:` lands after `md:`.
+  /// marker adds no specificity, so ordering within each copy still matters.
+  /// Without a project order hint, uses the built-in Tailwind descriptors.
   renderCss(theme?: Theme, order?: readonly string[]): string
   /// Every candidate held, to be handed to Tailwind for an order.
   candidates(): string[]

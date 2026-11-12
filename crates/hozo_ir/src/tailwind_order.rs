@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::OnceLock;
 
 mod comparison;
+pub(crate) use comparison::compare_sort_keys;
 mod priority;
 pub use priority::{TailwindRulePriority, TailwindWriteEvidence};
 

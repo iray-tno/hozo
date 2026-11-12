@@ -37,6 +37,14 @@ test('the sheet Hozo writes today parses and is in Tailwind order', async () => 
   assert.ok(report.comparable >= CANDIDATES.length, 'the comparison lost candidates')
 })
 
+test('the default candidate sheet also uses Tailwind order', async () => {
+  const { cache, held, oracleCss } = await sheets()
+  const report = compareCandidateSheet(cache.renderCss(), oracleCss, held)
+  assert.equal(report.parseError, undefined)
+  assert.equal(report.inOrder, report.comparable)
+  assert.ok(report.comparable >= CANDIDATES.length, 'the comparison lost candidates')
+})
+
 test('a selector CSS rejects is reported, not passed over', async () => {
   // `.2xl\:block` is what Hozo used to write: CSS cannot begin an
   // identifier with a digit, so the rule matched nothing in a browser and
@@ -57,7 +65,11 @@ test('alphabetical order is reported as the divergence it is', async () => {
   // `md:`. Every rule here is a single class, so the order is the cascade
   // and `hidden sm:block md:hidden` stayed visible past `md`.
   const { cache, held, oracleCss } = await sheets()
-  const report = compareCandidateSheet(cache.renderCss(undefined), oracleCss, held)
+  const report = compareCandidateSheet(
+    cache.renderCss(undefined, cache.candidates()),
+    oracleCss,
+    held,
+  )
   assert.notEqual(report.inOrder, report.comparable, 'alphabetical passed as Tailwind order')
   assert.ok(report.firstDivergence, 'a divergence was counted but not named')
   // Still valid CSS, which is the point of asking both questions: the

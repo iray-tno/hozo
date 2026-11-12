@@ -76,7 +76,7 @@ pub fn builtin_owner_interaction_rank(condition: &crate::Condition) -> Option<u3
     use crate::Condition;
     static BITS: std::sync::OnceLock<Option<[u8; 4]>> = std::sync::OnceLock::new();
 
-    fn parts(condition: &Condition, bits: &[u8; 4]) -> Option<(u16, u8)> {
+    fn variant_mask(condition: &Condition, bits: &[u8; 4]) -> Option<u8> {
         let slot = match condition {
             Condition::Hover => 0,
             Condition::Focus => 1,
@@ -85,14 +85,11 @@ pub fn builtin_owner_interaction_rank(condition: &crate::Condition) -> Option<u3
             Condition::All(conditions) if !conditions.is_empty() => {
                 return conditions
                     .iter()
-                    .try_fold((0_u16, 0_u8), |(weight, mask), item| {
-                        let (count, bit) = parts(item, bits)?;
-                        Some((weight.checked_add(count)?, mask | bit))
-                    });
+                    .try_fold(0, |mask, item| Some(mask | variant_mask(item, bits)?));
             }
             _ => return None,
         };
-        Some((1, bits[slot]))
+        Some(bits[slot])
     }
 
     let bits = BITS.get_or_init(|| {
@@ -112,7 +109,10 @@ pub fn builtin_owner_interaction_rank(condition: &crate::Condition) -> Option<u3
         }
         Some(bits)
     });
-    let (weight, mask) = parts(condition, bits.as_ref()?)?;
+    // Keep the legacy variant tie separate from the Native projection's
+    // selector weight. The mask also refuses guards that are not owner states.
+    let mask = variant_mask(condition, bits.as_ref()?)?;
+    let weight = condition.owner_interaction_specificity()?;
     Some(u32::from(weight) * 256 + u32::from(mask))
 }
 
@@ -185,32 +185,67 @@ where
 }
 
 /// One class's variant order, chosen body and rule shape, or `None`.
+/// Emit-order projection for a built-in candidate sheet. These candidates
+/// have one modeled rule each. Unlike static planning this needs neither
+/// declaration nodes nor assessed selector specificity.
+pub fn builtin_tailwind_emission_order<'a, I>(classes: I) -> Vec<&'a str>
+where
+    I: IntoIterator<Item = (&'a str, Vec<crate::StyleProperty>)>,
+{
+    let mut keys: Vec<_> = classes
+        .into_iter()
+        .filter_map(|(name, writes)| {
+            let (form, variants) = form_and_variants(name, &writes)?;
+            crate::tailwind_assessment::root_selector(name)?;
+            Some((name, variant_order(variants, |_| {})?, form))
+        })
+        .collect();
+    keys.sort_by(|(a_name, a_variants, a), (b_name, b_variants, b)| {
+        crate::tailwind_order::compare_sort_keys(
+            (a_variants, a.order, u32::from(a.count), a_name),
+            (b_variants, b.order, u32::from(b.count), b_name),
+        )
+    });
+    keys.into_iter().map(|(name, _, _)| name).collect()
+}
+
 fn describe(
     name: &str,
     writes: &[crate::StyleProperty],
 ) -> Option<(String, Form, crate::OrderRuleShape)> {
     use crate::OrderRuleShape;
-    let segments = split_top_level(name, ':')?;
-    let (utility, variants) = segments.split_last()?;
+    let (form, variants) = form_and_variants(name, writes)?;
+    let mut nodes: Vec<OrderRuleShape> = form.nodes.iter().map(|n| owned(n, &[])).collect();
+    let order = variant_order(variants, |wrapper| {
+        nodes = wrapper.iter().map(|n| owned(n, &nodes)).collect();
+    })?;
+    let selector = crate::tailwind_assessment::root_selector(name)?;
+    Some((order, form, OrderRuleShape::Rule { selector, nodes }))
+}
+
+fn form_and_variants<'a>(
+    name: &'a str,
+    writes: &[crate::StyleProperty],
+) -> Option<(Form, Vec<&'a str>)> {
+    let mut segments = split_top_level(name, ':')?;
+    let utility = segments.pop()?;
     if utility.starts_with('!') || utility.ends_with('!') {
         return None;
     }
     let form = choose_form(root_forms(root_of(utility)?)?, writes)?;
-    let mut nodes: Vec<OrderRuleShape> = form.nodes.iter().map(|n| owned(n, &[])).collect();
+    Some((*form, segments))
+}
+
+fn variant_order(variants: Vec<&str>, mut apply: impl FnMut(&[N])) -> Option<String> {
     let mut bits = Vec::new();
     // Tailwind applies the variant written nearest the utility first, so
     // `md:hover:p-4` is hover inside md.
-    for instance in variants.iter().rev() {
+    for instance in variants.into_iter().rev() {
         let (position, wrapper) = variant(instance)?;
         bits.push(position);
-        nodes = wrapper.iter().map(|n| owned(n, &nodes)).collect();
+        apply(wrapper);
     }
-    let selector = crate::tailwind_assessment::root_selector(name)?;
-    Some((
-        decimal_bitset(&bits),
-        *form,
-        OrderRuleShape::Rule { selector, nodes },
-    ))
+    Some(decimal_bitset(&bits))
 }
 
 /// The utility's root: the whole name for a static utility, otherwise the
