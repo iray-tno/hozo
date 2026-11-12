@@ -514,10 +514,21 @@
     "TAILWIND_VARIANT_NOT_SUPPORTED": {
       "summary": "A Tailwind class Hozo does not compile.\n\nDistinguished from a class that was never Tailwind's -- a project's own `my-card` is not a gap in Hozo and gets no diagnostic, while `group-hover:bg-blue-500` is one. Both are carried into the output; only one of them was expected to do something there.\n\nNamed against Tailwind's own variant list rather than a set of prefixes somebody remembered.",
       "example": {
-        "jsx": "<View className=\"open:p-4\">x</View>",
+        "jsx": "<View className=\"aria-[sort=ascending]:p-4\">x</View>",
         "backend": "both"
       },
-      "emitted": []
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`aria:` is a Tailwind variant Hozo does not compile yet, so `aria-[sort=ascending]:p-4` produces no style. The class is still on the element, so it will work if the project runs its own Tailwind build over it."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`aria:` is a Tailwind variant Hozo does not compile yet, so `aria-[sort=ascending]:p-4` produces no style. The class is still on the element, so it will work if the project runs its own Tailwind build over it."
+        }
+      ]
     },
     "UNREADABLE_ARBITRARY_VALUE": {
       "summary": "A class carries square brackets or a `(--var)` -- Tailwind's arbitrary syntax -- and Hozo couldn't read it.\n\nThis exists because the alternative is so much worse than silence. Hozo's utility parsing ends in a colour catch-all: whatever the specific forms decline becomes a palette token. Before this code existed, `text-[14px]` -- a font size -- came out the other end as `color: var(--hozo-color-[14px])`, and `w-[32px]` was dropped with no trace at all. Neither failed; both produced a page that was simply wrong somewhere the author would have to find by eye.\n\nBrackets are what makes this detectable. A bare unknown class is ordinary -- projects have their own CSS and Hozo must leave it alone -- but a bracket is unambiguously Tailwind asking for something, so failing to read one is worth saying out loud.",

@@ -630,6 +630,18 @@ function unfilledRegisters(value: string): string[] {
   return [...value.matchAll(/var\((--tw-[a-z0-9-]+)/g)].map((m) => m[1])
 }
 
+/**
+ * The initial values of the properties a Tailwind rule assembles entirely
+ * from registers, which can therefore substitute to nothing. Listed, not
+ * guessed: only these are read that way, and all three are not inherited,
+ * so their initial value is what the browser applies.
+ */
+const INITIAL_WHEN_EMPTY: Record<string, string> = {
+  filter: 'none',
+  'backdrop-filter': 'none',
+  '-webkit-backdrop-filter': 'none',
+}
+
 export function normalize(block: string, vars: Map<string, string>): Normalized {
   const declarations = new Map<string, string>()
   const unresolved: string[] = []
@@ -650,6 +662,12 @@ export function normalize(block: string, vars: Map<string, string>): Normalized 
     let value = resolveVars(rawValue, scoped)
     value = evaluateCalc(value)
     value = canonicalizeValue(value)
+    // A declaration that substitutes to nothing is invalid at computed-value
+    // time, so the property takes its initial value. Tailwind's `blur-none`
+    // empties its register and reads `filter: var(--tw-blur,) ...` with
+    // every register empty: what the browser applies is `filter: none`.
+    if (value === '' && rawValue.trim() !== '' && prop in INITIAL_WHEN_EMPTY)
+      value = INITIAL_WHEN_EMPTY[prop]
 
     if (value.includes('var(') || value.includes('calc(')) {
       // A `--tw-*` register with no `@property` default that nothing in
