@@ -10,18 +10,26 @@ import path from 'node:path'
 import { parseVersion, satisfies } from './range.mjs'
 import { checkAdapter, checkCss, checkMetroState, checkScan } from './square-config.mjs'
 
+// The code half (`./square-code.mjs`) is imported only after the setup half
+// has run: it loads the compiler.
+
 export const SCHEMA_VERSION = 1
 
 const help = `Usage: hozo square [project] [options]
 
-After adoption: checks that a project using Hozo is set up as Hozo needs.
+After adoption: checks that a project using Hozo is set up as Hozo needs,
+then compiles its code for Web and Native as \`hozo dry-fit\` does.
 The project is the directory with its package.json (default: the current one).
 
 Options:
-  --setup                     Run only the setup checks
-  --format text|json          Output format (default: text)
-  --fail-on none|error|warning Exit 1 when a finding is at or above this (default: error)
-  --help                      Show this help
+  --setup               Run only the setup checks
+  --format text|json    Output format (default: text)
+  --fail-on <level>     Exit 1 on findings at or above this (default: error):
+                        none, warning, error, or new-errors (code errors not
+                        in the --compare baseline; setup errors still count)
+  --compare <report>    A previous \`hozo square --format json\` or
+                        \`hozo dry-fit\` JSON report to compare the code with
+  --help                Show this help
 
 Setup checks:
   versions  Every installed @hozo/* package is at one version
@@ -34,10 +42,15 @@ Setup checks:
   metro     Metro's saved state is newer than metro.config (else: restart it)
   scan      Every file importing @hozo/* was read by the last candidate scan
 
+Code: the audit \`hozo dry-fit\` runs, against the stylesheet the css check
+found. A fatal setup finding (no adapter) skips it, and says so.
+
 On a project with no @hozo/* dependency, use \`hozo dry-fit\` instead.`
 
 const SEVERITY_RANK = { warning: 1, error: 2 }
-const FAIL_ON = { none: Number.POSITIVE_INFINITY, warning: 1, error: 2 }
+// For setup findings. `new-errors` is about code; a setup error is never in a
+// baseline, so setup counts errors under it.
+const FAIL_ON = { none: Number.POSITIVE_INFINITY, warning: 1, error: 2, 'new-errors': 2 }
 
 /** An invocation `square` cannot run; the caller reports it with exit 2. */
 class SquareInputError extends Error {
@@ -53,7 +66,12 @@ function parseArgs(argv) {
     const argument = argv[index]
     if (argument === '--help' || argument === '-h') return { help: true }
     if (argument === '--setup') options.setupOnly = true
-    else if (argument === '--format' || argument === '--fail-on') {
+    else if (argument === '--compare') {
+      const value = argv[++index]
+      if (value === undefined || value.startsWith('-'))
+        throw new SquareInputError('--compare takes a JSON report', 'missing-value')
+      options.compare = value
+    } else if (argument === '--format' || argument === '--fail-on') {
       const value = argv[++index]
       const allowed = argument === '--format' ? ['text', 'json'] : Object.keys(FAIL_ON)
       if (!allowed.includes(value))
@@ -71,6 +89,10 @@ function parseArgs(argv) {
       throw new SquareInputError(`Unexpected argument ${argument}`, 'unexpected-argument')
     else options.project = argument
   }
+  if (options.failOn === 'new-errors' && !options.compare)
+    throw new SquareInputError('--fail-on new-errors needs --compare <report>', 'missing-compare')
+  if (options.setupOnly && options.compare)
+    throw new SquareInputError('--compare is about code, which --setup skips', 'invalid-option')
   return options
 }
 
@@ -238,13 +260,15 @@ const CHECKS = [
   ['scan', 'The candidate scan reads every file that imports @hozo/*', checkScan],
 ]
 
-function setup(project, declared) {
+/** The setup checks; `found.css` is set to the stylesheet the css check found. */
+function setup(project, declared, found) {
   const graph = hozoCopies(project, declared)
   // What the project has, declared or brought in by another @hozo/* package.
   graph.names = new Set([...declared, ...graph.copies.map((copy) => copy.name)])
   return CHECKS.map(([id, title, check]) => {
     try {
-      const { findings = [], summary, skipped, fatal } = check(project, graph)
+      const { findings = [], summary, skipped, fatal, css } = check(project, graph)
+      if (css) found.css = css
       if (skipped) return { id, title, status: 'skipped', reason: skipped, findings }
       return {
         id,
@@ -268,23 +292,27 @@ function setup(project, declared) {
   })
 }
 
-function failurePolicy(checks, failOn) {
+function failurePolicy(checks, failOn, code) {
   const threshold = FAIL_ON[failOn]
   const counted = checks
     .flatMap((check) => check.findings)
     .filter((finding) => SEVERITY_RANK[finding.severity] >= threshold)
+  const level = failOn === 'new-errors' ? 'error' : failOn
+  const reasons = counted.length
+    ? [`${counted.length} setup finding${counted.length === 1 ? '' : 's'} at or above ${level}.`]
+    : []
+  reasons.push(...(code.reasons ?? []).map((reason) => `Code: ${reason}`))
   return {
     failOn,
-    exitCode: counted.length ? 1 : 0,
-    reasons: counted.length
-      ? [`${counted.length} setup finding${counted.length === 1 ? '' : 's'} at or above ${failOn}.`]
-      : [],
+    // 2 (could not run) outranks 1 (findings): fix the install first.
+    exitCode: Math.max(counted.length ? 1 : 0, code.exitCode ?? 0),
+    reasons,
   }
 }
 
 const MARK = { passed: 'pass', failed: 'FAIL', skipped: 'skip' }
 
-function text(report) {
+function setupText(report) {
   const lines = [`hozo square: ${report.project}`, '', 'Setup']
   for (const check of report.setup) {
     const detail = check.status === 'skipped' ? check.reason : check.summary
@@ -294,11 +322,17 @@ function text(report) {
       if (finding.fix) lines.push(`                Fix: ${finding.fix}`)
     }
   }
-  lines.push('', 'Code', `  skip  ${report.code.reason}`)
+  return `${lines.join('\n')}\n`
+}
+
+function codeText(report, codeLines) {
   const all = report.setup.flatMap((check) => check.findings)
   const count = (severity) => all.filter((finding) => finding.severity === severity).length
+  const audited = report.code.report?.diagnostics.bySeverity ?? {}
+  const total = (severity) => count(severity) + (audited[severity] ?? 0)
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
-  lines.push('', `${plural(count('error'), 'error')}, ${plural(count('warning'), 'warning')}.`)
+  const lines = ['', 'Code', ...codeLines, '']
+  lines.push(`${plural(total('error'), 'error')}, ${plural(total('warning'), 'warning')}.`)
   return `${lines.join('\n')}\n`
 }
 
@@ -306,7 +340,7 @@ function text(report) {
  * Run `hozo square`. Resolves to `{ exit, error? }`, as `runExplain` does:
  * `error` is `{ message, code }` for the caller to report with exit 2.
  */
-export function runSquare(argv, io, cwd = process.cwd()) {
+export async function runSquare(argv, io, cwd = process.cwd()) {
   let options
   try {
     options = parseArgs(argv)
@@ -338,22 +372,55 @@ export function runSquare(argv, io, cwd = process.cwd()) {
       'not-a-hozo-project',
     )
 
-  const checks = setup(project, declared)
-  const report = {
-    schemaVersion: SCHEMA_VERSION,
-    project,
-    setup: checks,
-    // The code half (the audit engine in project mode) lands in a later
-    // change; until then the report says so rather than leaving it out.
-    code: {
+  // The code half's module, and the baseline read before anything runs, so
+  // a wrong path fails at once rather than after the audit.
+  let codeHalf
+  let baseline
+  if (!options.setupOnly) codeHalf = await import('./square-code.mjs')
+  if (options.compare)
+    try {
+      baseline = codeHalf.readBaseline(path.resolve(cwd, options.compare))
+    } catch (error) {
+      if (!(error instanceof codeHalf.BaselineError)) throw error
+      return { exit: 2, error }
+    }
+
+  const found = {}
+  const checks = setup(project, declared, found)
+  const report = { schemaVersion: SCHEMA_VERSION, project, setup: checks }
+  // The setup half prints before the code half loads the compiler, so a
+  // broken install, or an audit that takes a minute, still shows it.
+  if (options.format === 'text') io.stdout.write(setupText(report))
+
+  const fatal = checks.find((check) => check.fatal)
+  let code
+  if (options.setupOnly) code = { status: 'skipped', reason: 'Not run: --setup' }
+  else if (fatal)
+    code = {
       status: 'skipped',
-      reason: options.setupOnly
-        ? 'Not run: --setup'
-        : `Not in this release yet; \`hozo dry-fit ${options.project ?? '.'}\` reports on the code today`,
-    },
-    failurePolicy: failurePolicy(checks, options.failOn),
-  }
-  io.stdout.write(options.format === 'json' ? `${JSON.stringify(report, null, 2)}\n` : text(report))
+      reason: `Not run: the ${fatal.id} check leaves nothing to compile [${fatal.findings[0].code}]`,
+    }
+  else
+    try {
+      code = await codeHalf.checkCode({
+        project,
+        name: manifest.name,
+        css: found.css,
+        failOn: options.failOn,
+        baseline,
+      })
+    } catch (error) {
+      if (!(error instanceof codeHalf.BaselineError)) throw error
+      return { exit: 2, error }
+    }
+  const { exitCode, reasons, ...section } = code
+  report.code = section
+  report.failurePolicy = failurePolicy(checks, options.failOn, code)
+  io.stdout.write(
+    options.format === 'json'
+      ? `${JSON.stringify(report, null, 2)}\n`
+      : codeText(report, codeHalf?.codeLines(section) ?? [`  skip  ${section.reason}`]),
+  )
   if (report.failurePolicy.exitCode)
     io.stderr.write(`hozo square: ${report.failurePolicy.reasons.join(' ')}\n`)
   return { exit: report.failurePolicy.exitCode }

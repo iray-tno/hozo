@@ -148,7 +148,7 @@ async function explain(argv, io) {
 
 async function square(argv, io) {
   const { runSquare } = await import('./square.mjs')
-  const { exit, error } = runSquare(argv, io)
+  const { exit, error } = await runSquare(argv, io)
   return error ? fail(io, 'hozo square', new CliError(error.message, error.code), argv) : exit
 }
 

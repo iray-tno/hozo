@@ -42,7 +42,7 @@ function project(t, manifest, packages = {}) {
 
 async function square(root, ...argv) {
   const io = { stdout: capture(), stderr: capture() }
-  const exit = await run(['square', root, '--format', 'json', ...argv], io)
+  const exit = await run(['square', root, '--setup', '--format', 'json', ...argv], io)
   const report = JSON.parse(io.stdout.output)
   return {
     exit,
@@ -85,7 +85,7 @@ test('a project whose setup is in order passes, and says what it checked', async
 
   // The text report names each check and the totals.
   const io = { stdout: capture(), stderr: capture() }
-  assert.equal(await run(['square', root], io), 0)
+  assert.equal(await run(['square', root, '--setup'], io), 0)
   assert.match(io.stdout.output, /^ {2}pass {2}Every @hozo\/\* package is at one version: 0\.4\.0/m)
   assert.match(io.stdout.output, /\n0 errors, 0 warnings\.\n$/)
 })
@@ -243,20 +243,36 @@ test('a project that cannot be checked exits 2 with a reason', async (t) => {
   assert.match(doctor.stdout.output, /^Usage: hozo square /)
 })
 
-test('square loads no compiler, so a broken install still gets its setup report', async (t) => {
+test('the setup half loads no compiler, so a broken install still gets its setup report', async (t) => {
   const root = project(t, { dependencies: { '@hozo/compiler': '0.4.0' } })
+  // Any compiler module that loads is reported; the audit's own entry fails,
+  // as it does when the native addon is missing.
   const hook = `data:text/javascript,${encodeURIComponent(
-    "import { registerHooks } from 'node:module'; registerHooks({ resolve(s, c, next) { if (/migration-audit|@hozo.(compiler|navigation)/.test(s)) process.stderr.write('loaded ' + s + '\\n'); return next(s, c) } })",
+    "import { registerHooks } from 'node:module'; registerHooks({ resolve(s, c, next) { if (/^@hozo.migration-audit$/.test(s)) throw new Error('addon missing'); if (/@hozo.(compiler|navigation)/.test(s)) process.stderr.write('loaded ' + s + '\\n'); return next(s, c) } })",
   )}`
-  const result = spawnSync(process.execPath, ['--import', hook, cli, 'square', root], {
-    encoding: 'utf8',
-  })
-  assert.equal(result.status, 1)
+  const square = (...argv) =>
+    spawnSync(process.execPath, ['--import', hook, cli, 'square', root, ...argv], {
+      encoding: 'utf8',
+    })
+  const setupOnly = square('--setup')
+  assert.equal(setupOnly.status, 1)
   assert.match(
-    result.stdout,
+    setupOnly.stdout,
     /@hozo\/compiler is in package\.json but not installed \[not-installed\]/,
   )
-  assert.equal(result.stderr, 'hozo square: 1 setup finding at or above error.\n')
+  assert.equal(setupOnly.stderr, 'hozo square: 1 setup finding at or above error.\n')
+
+  // With the code half: the setup report, then why the code was not checked.
+  const both = square()
+  assert.equal(both.status, 2)
+  assert.match(
+    both.stdout,
+    /\[not-installed\][\s\S]*\nCode\n {2}skip {2}@hozo\/migration-audit could not load: addon missing\n/,
+  )
+  assert.equal(
+    both.stderr,
+    'hozo square: 1 setup finding at or above error. Code: The code half could not run [compiler-unavailable].\n',
+  )
 })
 
 test('version ranges: the forms peer dependencies use', () => {
