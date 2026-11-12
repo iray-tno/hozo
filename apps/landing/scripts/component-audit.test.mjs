@@ -15,6 +15,12 @@ const executablePath = [
 ].find((value) => value && existsSync(value))
 if (process.env.CI) assert.ok(executablePath, 'CI must exercise audit failure diagnostics')
 
+// What Analytics.astro adds to a production page: a third-party script, and
+// the beacon it sends. Neither host resolves, so a request that left the
+// browser would fail the audit.
+const TRACKING = `<script async src="https://analytics.invalid/gtag/js"></script>
+  <script>fetch('https://analytics.invalid/g/collect', { method: 'POST', body: 'v=2' })</script>`
+
 test('component audit retains network failures and the original failed verdict before cleanup', {
   skip: !executablePath,
 }, async () => {
@@ -23,7 +29,8 @@ test('component audit retains network failures and the original failed verdict b
     if (request.url === '/bad-status') return response.writeHead(503).end('unavailable')
     response.writeHead(200, { 'content-type': 'text/html' }).end(`
       <astro-island><div>Ready</div><button onclick="this.textContent='Done'">Run</button></astro-island>
-      ${request.url === '/broken' ? '<script src="/aborted.js"></script><img src="/bad-status">' : ''}`)
+      ${request.url === '/broken' ? '<script src="/aborted.js"></script><img src="/bad-status">' : ''}
+      ${request.url === '/tracked' ? TRACKING : ''}`)
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   const base = `http://127.0.0.1:${server.address().port}`
@@ -83,6 +90,18 @@ test('component audit retains network failures and the original failed verdict b
       },
     })
     assert.equal(result.status, 'passed')
+    // Third-party requests are answered empty instead of sent (#1872).
+    const sent = []
+    healthy.on('requestfailed', (request) => sent.push(request.url()))
+    const tracked = await auditComponentPage(healthy, {
+      name: 'tracked',
+      url: `${base}/tracked`,
+      exercise: async (page) => {
+        await page.getByRole('button', { name: 'Run' }).click()
+      },
+    })
+    assert.equal(tracked.status, 'passed')
+    assert.deepEqual(sent, [])
     const sentinel = new Error('the interaction failed')
     await assert.rejects(
       auditComponentPage(healthy, {
