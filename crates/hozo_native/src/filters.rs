@@ -12,37 +12,30 @@ fn opaque_register(property: &StyleProperty) -> bool {
 }
 
 pub(super) fn can_mix(declarations: &[hozo_ir::StyleDeclaration]) -> bool {
-    declarations.iter().any(|d| {
-        matches!(
-            d.property,
-            StyleProperty::Filter(..) | StyleProperty::FilterRaw(_)
-        )
-    }) && !declarations.iter().any(|d| opaque_register(&d.property))
+    declarations.iter().any(|d| slot(&d.property) != 0)
 }
 
-pub(super) fn split_across_conditions(declarations: &[hozo_ir::StyleDeclaration]) -> bool {
-    // Drop-shadow colour/size registers and animation endpoints need their
-    // own composition proof. Keep their existing lowering rather than partly
-    // adopting a chain whose colour or frame we cannot yet reconstruct.
-    if declarations.iter().any(|d| opaque_register(&d.property)) {
-        return false;
+pub(super) fn can_compose(declarations: &[hozo_ir::StyleDeclaration]) -> bool {
+    // Drop-shadow's colour and size registers cannot yet be reconstructed.
+    !declarations.iter().any(|d| opaque_register(&d.property))
+}
+
+fn slot(property: &StyleProperty) -> u32 {
+    match property {
+        StyleProperty::Filter(function, _) => 1 << (*function as u32),
+        StyleProperty::FilterRaw(_) => 1 << 31,
+        _ => 0,
     }
-    let mut written: Vec<(&Condition, u32)> = Vec::new();
-    for declaration in declarations {
-        let bits = match &declaration.property {
-            StyleProperty::Filter(function, _) => 1 << (*function as u32),
-            StyleProperty::FilterRaw(_) => 1 << 31,
-            _ => continue,
-        };
-        match written
-            .iter_mut()
-            .find(|(seen, _)| *seen == &declaration.condition)
-        {
-            Some((_, slots)) => *slots |= bits,
-            None => written.push((&declaration.condition, bits)),
-        }
-    }
-    written.windows(2).any(|pair| pair[0].1 != pair[1].1)
+}
+
+pub(super) fn split_across_entries(entries: &[StyleEntry]) -> bool {
+    let mut writers = entries
+        .iter()
+        .map(|(_, props, _)| props.iter().fold(0, |mask, property| mask | slot(property)))
+        .filter(|&mask| mask != 0);
+    writers
+        .next()
+        .is_some_and(|first| writers.any(|mask| mask != first))
 }
 
 pub(super) struct Metadata {

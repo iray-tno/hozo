@@ -1690,6 +1690,135 @@ test('Web leaves fallback conjunction specificity to the browser', {
   }
 })
 
+test('static fallback keeps repeated owner guards in authored CSS order', {
+  skip: !executablePath,
+}, async () => {
+  const classes = 'hover:p-2 active:p-4 hover:p-6 columns-(--layout)'
+  const result = compiler.compile(
+    `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
+  )[0]
+  const html = renderToStaticMarkup(
+    evaluate(`module.exports=(${result.jsx})`, { h: createElement }),
+  )
+  // This input has an unassessed write: the contract is authored order,
+  // not Tailwind's ranked variant order. Let CSS arbitrate independently.
+  const reference =
+    'button:hover {padding:8px} button:active {padding:16px} button:hover {padding:24px}'
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const [css, markup] of [
+      [reference, '<button>Target</button>'],
+      [result.css, html],
+    ]) {
+      await page.setContent(`<style>${css}</style>${markup}`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', {
+        nodeId: root.nodeId,
+        selector: 'button',
+      })
+      assert.ok(nodeId)
+      for (const [forcedPseudoClasses, padding] of [
+        [['active'], '16px'],
+        [['hover'], '24px'],
+        [['hover', 'active'], '24px'],
+      ]) {
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses })
+        assert.equal(
+          await page.locator('button').evaluate((el) => getComputedStyle(el).paddingTop),
+          padding,
+          forcedPseudoClasses.join(':'),
+        )
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+async function assertRepeatedOwnerRegisters({ classes, reference, property, values }) {
+  const result = compiler.compile(
+    `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
+  )[0]
+  const html = renderToStaticMarkup(
+    evaluate(`module.exports=(${result.jsx})`, { h: createElement }),
+  )
+  const page = await browser.newPage()
+  try {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const [css, markup] of [
+      [reference, '<button>Target</button>'],
+      [result.css, html],
+    ]) {
+      await page.setContent(`<style>${css}</style>${markup}`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', {
+        nodeId: root.nodeId,
+        selector: 'button',
+      })
+      assert.ok(nodeId)
+      for (const [index, forcedPseudoClasses] of [
+        ['active'],
+        ['hover'],
+        ['hover', 'active'],
+        [],
+      ].entries()) {
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses })
+        assert.equal(
+          await page.locator('button').evaluate((el, name) => getComputedStyle(el)[name], property),
+          values[index],
+          forcedPseudoClasses.join(':'),
+        )
+      }
+    }
+  } finally {
+    await page.close()
+  }
+}
+
+test('static fallback composes translate axes across repeated owner guards', {
+  skip: !executablePath,
+}, async () => {
+  await assertRepeatedOwnerRegisters({
+    classes:
+      'hover:translate-x-2 active:translate-x-4 active:translate-y-5 hover:translate-y-3 columns-(--layout)',
+    reference: `
+      button:is(:hover, :active) { translate: var(--x) var(--y); }
+      button:hover { --x: 8px; }
+      button:active { --x: 16px; --y: 20px; }
+      button:hover { --y: 12px; }
+    `,
+    property: 'translate',
+    values: ['16px 20px', '8px 12px', '16px 12px', 'none'],
+  })
+})
+
+test('static fallback composes filter functions across repeated owner guards', {
+  skip: !executablePath,
+}, async () => {
+  for (const [base, resting] of [
+    ['blur-sm', 'blur(8px)'],
+    ['filter-none', 'none'],
+  ]) {
+    await assertRepeatedOwnerRegisters({
+      classes: `${base} hover:blur-lg active:blur-xl active:sepia-50 hover:sepia columns-(--layout)`,
+      reference: `
+      button { filter: ${resting}; }
+      button:is(:hover, :active) { filter: var(--blur) var(--sepia,); }
+      button:hover { --blur: blur(16px); }
+      button:active { --blur: blur(24px); --sepia: sepia(0.5); }
+      button:hover { --sepia: sepia(1); }
+    `,
+      property: 'filter',
+      values: ['blur(24px) sepia(0.5)', 'blur(16px) sepia(1)', 'blur(24px) sepia(1)', resting],
+    })
+  }
+})
+
 test('Tailwind filter resets keep the registers a later condition reads', {
   skip: !executablePath,
 }, async () => {

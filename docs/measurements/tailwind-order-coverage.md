@@ -109,14 +109,65 @@ has ambiguous property ownership. Hozo emits a valid Native background
 colour from the theme but does not give the write a rank. With hover and
 press both true, `active:p-2 hover:p-4 bg-brand`
 selects 16px statically and 8px dynamically; the opposite token order selects
-8px on both. A known conjunction still wins on both paths. Deleting the
-runtime variant tie alone would expose another difference:
-`hover:p-2 active:p-4 hover:p-6 bg-brand` currently selects 16px in both,
-but static groups the last hover write into its first guard, whereas a
-stable specificity-only runtime sort would leave the last hover write
-after active (24px). Reconcile both behaviors before removing the reachable
-fallback. Preserve Native specificity; do not require all arbitrary syntax
-to rank or force-delete a necessary operation.
+8px on both. A known conjunction still wins on both paths. The static
+emitters now preserve repeated guards for physical padding/margin and
+opacity, so `hover:p-2 active:p-4 hover:p-6 bg-brand` selects the authored
+24px on static Web and Native rather than 16px. The generated Native
+resolver still selects 16px because of its variant tie. Register-dependent
+inputs retain their grouping until each composer can consume separate
+writes under the same guard. Reconcile those inputs before deleting the
+reachable fallback tie. Preserve Native specificity; do not require all
+arbitrary syntax to rank or force-delete a necessary operation.
+
+In a diagnostic run using the real captured `bg-brand` barrier, masking
+the variant bits off generated tuples (without changing production code)
+made the runtime agree with static Native on four inputs: both orders of
+hover/active, the repeated hover, and a more-specific hover/focus
+conjunction. This is evidence for the next deletion, not register or mixed
+input parity.
+
+Web transform/filter, gradient, and shadow register detection now compares
+the slots written by each emitted rule, instead of OR-ing writes under
+equal conditions. Two separated rules can share a selector and still
+need independent slots. This removes an assumption in Web projection;
+it does not enable additional split runs or change Native runtime rank
+selection. One-rule, same-slot, and raw-filter controls keep their
+existing paths.
+
+Native transform detection also compares the slots in emitted style
+objects, no longer unioning them by guard. This lets unranked owner states
+keep separate runs for two-dimensional translate axes. For
+`hover:translate-x-2 active:translate-x-4 active:translate-y-5 hover:translate-y-3 columns-(--layout)`,
+overlapping states now produce `16px 12px` in Chromium and in the emitted
+Native callback, rather than `16px 20px`. A single run or objects writing
+identical transform slots still use literal arrays. This does not alter
+the Native fallback rank or widen run preservation to other registers.
+
+Native filter projection now compares emitted objects too. For ordinary
+filters it no longer copies the base into each condition before deciding
+whether to compose. Equal slot masks still use literals; different masks
+use the existing composer. A repeated hover after active can now preserve
+the active `blur(24px)` and replace only `sepia(50%)` with `sepia(100%)` on
+both static routes. An isolated base `filter-none` is also safe: it is
+`none` before and after the states, and its rule has no slots to lose.
+Guarded resets, base resets sharing resting filter slots, raw filters,
+and drop shadows still block the expansion. Native animation frames and
+slots without a composer keep their former grouping.
+
+With the captured `bg-brand` barrier, masking just the generated variant
+bits now agrees with static Native for the repeated filter runs in both
+token orders, for a hover/focus conjunction, and with an isolated base
+`filter-none`. Adding `hover:shadow-sm` to the same probe still blocks
+run preservation: static and the current resolver produce `sepia(50%)`,
+while the masked resolver produces `sepia(100%)`. The runtime tie
+cannot yet be removed across mixed inputs.
+
+For the next stage-6 checkpoint, verify the static authored guard runs
+through the affected register and text-metric projections, then replace
+the runtime tie with stable selector weight once both routes agree. Report
+the deletion per domain with the ranked, barrier, and mixed-input controls
+above; independently verify candidate sheet emission where a utility
+emits multiple rules. A static-only repair is not a completed domain.
 
 ## Progress
 

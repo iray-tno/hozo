@@ -5634,7 +5634,7 @@ impl Condition {
 pub fn group_by_condition(
     declarations: &[StyleDeclaration],
 ) -> Vec<(Condition, Vec<StyleProperty>)> {
-    plan_native_condition_groups(declarations).groups
+    plan_native_condition_groups(declarations, false).groups
 }
 
 /// CSS handles selector specificity itself. Preserve source order between
@@ -5642,7 +5642,7 @@ pub fn group_by_condition(
 pub fn group_by_condition_for_css(
     declarations: &[StyleDeclaration],
 ) -> Vec<(Condition, Vec<StyleProperty>)> {
-    let (groups, needs_composition) = condition_groups(declarations);
+    let (groups, needs_composition) = condition_groups(declarations, true);
     if needs_composition {
         coalesce_adjacent_conditions(groups)
     } else {
@@ -5660,8 +5660,13 @@ pub struct NativeConditionGroupPlan {
     pub canonical_input: bool,
 }
 
-pub fn plan_native_condition_groups(declarations: &[StyleDeclaration]) -> NativeConditionGroupPlan {
-    let (mut groups, needs_composition) = condition_groups(declarations);
+/// Only callers that compose the selected filter style objects can preserve
+/// separate filter runs. Other slots and animation frames use whole strings.
+pub fn plan_native_condition_groups(
+    declarations: &[StyleDeclaration],
+    compose_filter_slots: bool,
+) -> NativeConditionGroupPlan {
+    let (mut groups, needs_composition) = condition_groups(declarations, compose_filter_slots);
     let canonical_input = has_canonical_tailwind_input(declarations);
     if needs_composition {
         // An input whose shared order was assessed is already linearized.
@@ -5678,33 +5683,55 @@ pub fn plan_native_condition_groups(declarations: &[StyleDeclaration]) -> Native
     }
 }
 
-fn condition_groups(declarations: &[StyleDeclaration]) -> (Vec<ConditionGroup>, bool) {
+fn condition_groups(
+    declarations: &[StyleDeclaration],
+    compose_filter_slots: bool,
+) -> (Vec<ConditionGroup>, bool) {
     let mut groups: Vec<ConditionGroup> = Vec::new();
     let mut source = None;
     let mut start = 0;
     let mut ordered = false;
     let mut unranked_tailwind = false;
-    for decl in declarations {
+    let mut preserve_runs = false;
+    let mut compatible_filter_runs = None;
+    let mut can_split_filters = || {
+        compose_filter_slots
+            && *compatible_filter_runs.get_or_insert_with(|| filter_runs_can_split(declarations))
+    };
+    for (index, decl) in declarations.iter().enumerate() {
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
         // backwards across that rule, losing JSX tie order.
         let next_ordered = matches!(decl.source, StyleSource::TailwindOrdered { .. });
-        unranked_tailwind |= matches!(decl.source, StyleSource::TailwindUtility { .. });
-        if source != Some(decl.source.input())
-            || ordered != next_ordered
-            || (next_ordered
-                && groups
-                    .last()
-                    .is_some_and(|(condition, _)| *condition != decl.condition))
+        let authored = matches!(decl.source, StyleSource::TailwindUtility { .. });
+        unranked_tailwind |= authored;
+        let next_source = Some(decl.source.input());
+        if source != next_source || ordered != next_ordered {
+            source = next_source;
+            start = groups.len();
+            // Preserve consecutive guard runs only for values that both
+            // backends can emit or compose as independent writes.
+            preserve_runs = authored
+                && independent_owner_guard_runs(&declarations[index..], &mut can_split_filters);
+        } else if next_ordered
+            && groups
+                .last()
+                .is_some_and(|(condition, _)| *condition != decl.condition)
         {
-            source = Some(decl.source.input());
             start = groups.len();
         }
         ordered = next_ordered;
-        match groups[start..]
-            .iter_mut()
-            .find(|(condition, _)| *condition == decl.condition)
-        {
+        let region = &mut groups[start..];
+        let existing = if preserve_runs && decl.condition != Condition::Always {
+            region
+                .last_mut()
+                .filter(|(condition, _)| *condition == decl.condition)
+        } else {
+            region
+                .iter_mut()
+                .find(|(condition, _)| *condition == decl.condition)
+        };
+        match existing {
             Some((_, props)) => props.push(decl.property.clone()),
             None => groups.push((decl.condition.clone(), vec![decl.property.clone()])),
         }
@@ -5712,6 +5739,79 @@ fn condition_groups(declarations: &[StyleDeclaration]) -> (Vec<ConditionGroup>, 
     // A single input is already in its frontend's order unless a Tailwind
     // barrier kept that input in authored order.
     (groups, start != 0 || unranked_tailwind)
+}
+
+fn filter_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
+    let mut base_reset = false;
+    let mut base_slots = false;
+    for d in declarations {
+        match d.property {
+            StyleProperty::FilterRaw(_)
+            | StyleProperty::DropShadowColor(_)
+            | StyleProperty::Filter(FilterFunction::DropShadow, _) => return false,
+            StyleProperty::Filter(FilterFunction::None, _) => {
+                // An isolated base reset is just a resting value; a guarded
+                // reset can compete with the same run's register reader.
+                if d.condition != Condition::Always || base_slots {
+                    return false;
+                }
+                base_reset = true;
+            }
+            StyleProperty::Filter(..) if d.condition == Condition::Always => {
+                // Retain the existing whole-rule reset when resting
+                // functions and a reset share the input.
+                if base_reset {
+                    return false;
+                }
+                base_slots = true;
+            }
+            _ => {}
+        }
+    }
+    true
+}
+
+fn independent_owner_guard_runs(
+    declarations: &[StyleDeclaration],
+    can_split_filters: &mut impl FnMut() -> bool,
+) -> bool {
+    let input = declarations[0].source.input();
+    declarations
+        .iter()
+        .take_while(|item| {
+            item.source.input() == input
+                && !matches!(item.source, StyleSource::TailwindOrdered { .. })
+        })
+        .all(|item| {
+            if !matches!(item.source, StyleSource::TailwindUtility { .. }) {
+                return false;
+            }
+            if item.condition == Condition::Always {
+                return true;
+            }
+            if !item
+                .condition
+                .owner_interaction_specificity()
+                .is_some_and(|weight| weight > 0)
+            {
+                return false;
+            }
+            match item.property {
+                StyleProperty::Opacity(_)
+                | StyleProperty::PaddingTop(_)
+                | StyleProperty::PaddingRight(_)
+                | StyleProperty::PaddingBottom(_)
+                | StyleProperty::PaddingLeft(_)
+                | StyleProperty::MarginTop(_)
+                | StyleProperty::MarginRight(_)
+                | StyleProperty::MarginBottom(_)
+                | StyleProperty::MarginLeft(_)
+                | StyleProperty::TranslateX(_)
+                | StyleProperty::TranslateY(_) => true,
+                StyleProperty::Filter(..) => can_split_filters(),
+                _ => false,
+            }
+        })
 }
 
 fn linearize_native_specificity(groups: &mut [ConditionGroup]) {
@@ -6068,7 +6168,7 @@ mod grouping_tests {
             style(Condition::Pressed, 2, 0.2),
             style(all.clone(), 3, 0.3),
         ];
-        let known = plan_native_condition_groups(&declarations);
+        let known = plan_native_condition_groups(&declarations, false);
         assert!(!known.canonical_input);
         assert_eq!(
             known.groups,
@@ -6081,7 +6181,7 @@ mod grouping_tests {
             ],
         );
         declarations.push(style(Condition::Dark, 4, 0.4));
-        let unknown = plan_native_condition_groups(&declarations);
+        let unknown = plan_native_condition_groups(&declarations, false);
         assert_eq!(unknown.groups, group_by_condition_for_css(&declarations));
         assert_eq!(unknown.groups.len(), 4);
         assert_eq!(unknown.groups[0].0, all);

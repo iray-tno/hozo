@@ -19,12 +19,16 @@ function styleExpression(jsx: string): string {
   throw new Error(`Missing style expression: ${jsx}`)
 }
 
-function compiledStyle(classes: string, component = 'View') {
+function compiledStyle(classes: string, component = 'View', diagnosticCodes: string[] = []) {
   const source = `import { ${component} } from '@hozo/core'
 export function C() { return <${component} ${component === 'Pressable' ? 'accessibilityRole="button"' : ''} className="${classes}" /> }`
   const result = compileNative(source)[0]
   assert.ok(result)
-  assert.deepEqual(result.diagnostics, [], JSON.stringify(result.diagnostics))
+  assert.deepEqual(
+    result.diagnostics.map(({ code }) => code),
+    diagnosticCodes,
+    JSON.stringify(result.diagnostics),
+  )
   const styles = new Function(`return (${result.styles})`)()
   const evaluate = new Function(
     'hozoStyles',
@@ -349,6 +353,28 @@ test('compiled axes written under different conditions compose instead of replac
 test('axes under one condition keep the plain style array', () => {
   const compiled = compiledStyle('translate-x-8 translate-y-2 rotate-45')
   assert.doesNotMatch(compiled.result.jsx, /hozoTransformStyles/)
+})
+
+test('unranked owner-state runs compose each translate axis in authored order', () => {
+  const compiled = compiledStyle(
+    'hover:translate-x-2 active:translate-x-4 active:translate-y-5 hover:translate-y-3 columns-(--layout)',
+    'Pressable',
+    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+  )
+  const style = compiled.value() as (state: object) => unknown
+  assert.deepEqual(flatten(style({ hovered: true, pressed: true })).transform, [
+    { translateX: 16 },
+    { translateY: 12 },
+  ])
+  assert.deepEqual(flatten(style({ hovered: true, pressed: false })).transform, [
+    { translateX: 8 },
+    { translateY: 12 },
+  ])
+  assert.deepEqual(flatten(style({ hovered: false, pressed: true })).transform, [
+    { translateX: 16 },
+    { translateY: 20 },
+  ])
+  assert.equal(flatten(style({ hovered: false, pressed: false })).transform, undefined)
 })
 
 test('Web keeps each axis in a register when the axes sit under different conditions', () => {

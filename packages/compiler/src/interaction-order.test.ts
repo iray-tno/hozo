@@ -6,6 +6,7 @@ import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { transformSync } from 'esbuild'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
 import { createCompiler, openCandidateCache } from './index.ts'
 
 const variants = [
@@ -15,7 +16,7 @@ const variants = [
   'active:bg-[#444444]',
 ]
 const compiler = createCompiler()
-const flatten = (style) => Object.assign({}, ...style.filter(Boolean))
+const flatten = (style) => Object.assign({}, ...style.flat(Infinity).filter(Boolean))
 function props(source: string, inherited = false, errors: string[] = []) {
   const component = compiler.compileNativeModule(source, undefined, undefined, {
     textInheritance: inherited,
@@ -38,6 +39,7 @@ function props(source: string, inherited = false, errors: string[] = []) {
       HozoPressable: 'owner',
       HozoInheritedPressable: 'owner',
       HozoChip: 'owner',
+      hozoFilterStyles,
       remove: () => {},
       h: (_type, value) => value,
       hozoStyles: runInNewContext(`(${component.styles})`),
@@ -138,6 +140,42 @@ test('a Tailwind barrier keeps Native specificity and lets CSS arbitrate indepen
       }
     }
   }
+})
+
+test('authored scalar state writes do not move back into an earlier visit to the guard', () => {
+  for (const [classes, key, hover, press, both] of [
+    ['hover:p-2 active:p-4 hover:p-6', 'paddingTop', 24, 16, 24],
+    ['active:p-2 hover:p-4 active:p-6', 'paddingTop', 16, 24, 24],
+    ['hover:m-2 active:m-4 hover:m-6', 'marginTop', 24, 16, 24],
+    ['hover:opacity-25 active:opacity-50 hover:opacity-75', 'opacity', 0.75, 0.5, 0.75],
+  ] as const) {
+    const source = `import {Pressable} from '@hozo/core';const el=<Pressable className="${classes} columns-(--layout)"/>`
+    const { style } = props(source, false, ['WEB_ONLY_PROPERTY_ON_NATIVE'])
+    assert.equal(flatten(style({ hovered: true, pressed: false }))[key], hover)
+    assert.equal(flatten(style({ hovered: false, pressed: true }))[key], press)
+    assert.equal(flatten(style({ hovered: true, pressed: true }))[key], both)
+    const [web] = compiler.compile(source)
+    assert.match(
+      web!.css,
+      classes.startsWith('hover:')
+        ? /:hover[\s\S]*:active[\s\S]*:hover/
+        : /:active[\s\S]*:hover[\s\S]*:active/,
+    )
+  }
+})
+
+test('fallback keeps same-guard filter grouping when a reset shares resting slots', () => {
+  const source =
+    'import {Pressable} from "@hozo/core";const el=<Pressable className="blur-sm filter-none hover:blur-sm active:p-4 hover:sepia columns-(--layout)"/>'
+  const [web] = compiler.compile(source)
+  assert.match(
+    web!.css,
+    /\.hozo-0:hover \{[^}]*--hozo-blur: blur\(8px\);[^}]*--hozo-sepia: sepia\(100%\);/,
+  )
+  assert.equal(web!.css.match(/\.hozo-0:hover \{/g)?.length, 1)
+  const { style } = props(source, false, ['WEB_ONLY_PROPERTY_ON_NATIVE'])
+  assert.equal(flatten(style({ hovered: false, pressed: true })).filter, 'none')
+  assert.equal(flatten(style({ hovered: true, pressed: true })).filter, 'blur(8px) sepia(100%)')
 })
 
 test('constant/helper class expressions and secondary slots retain Tailwind provenance', () => {
