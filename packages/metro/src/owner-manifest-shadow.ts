@@ -224,7 +224,7 @@ export class MetroOwnerShadowSession {
       generated &&
       !origin &&
       name === serializerAsyncRequire &&
-      context.originModulePath === generated.root + '/.'
+      context.originModulePath === `${generated.root}/.`
     const fromRoot =
       generatedDependency || serializerDependency
         ? generated.root
