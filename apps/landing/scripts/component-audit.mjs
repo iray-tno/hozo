@@ -2,6 +2,21 @@ import assert from 'node:assert/strict'
 import { observePageRequests } from '../../../scripts/browser-audit-diagnostics.mjs'
 
 export async function auditComponentPage(page, { name, url, exercise }) {
+  // The audited build is a production build, so it carries the site's
+  // analytics tags. A component audit judges the components, not the network
+  // to a third party: its requests are answered empty, here, rather than
+  // sent. Sending them recorded a visit per audited page, and one dropped
+  // POST to Google Analytics failed the audit on radio-group (#1872).
+  // Answered rather than aborted, because an aborted script is itself a
+  // console error, and those fail the audit too. It stays for the page's
+  // life: a beacon still in flight when the audit returns would otherwise
+  // leave the browser after all.
+  const origin = new URL(url).origin
+  const offline = (route) =>
+    new URL(route.request().url()).origin === origin
+      ? route.fallback()
+      : route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } })
+  await page.route('**/*', offline)
   const requests = observePageRequests(page)
   const errors = []
   const onError = (error) => errors.push(String(error))
