@@ -44,6 +44,10 @@ const COMMANDS = {
     summary: 'Explain a diagnostic code: what it means, an example, and the message',
     run: explain,
   },
+  show: {
+    summary: 'Print what a file compiles to on the Web and on Native, with its diagnostics',
+    run: show,
+  },
 }
 
 // Names a later RFC specifies (RFC 011 §7). Reserved so no other command
@@ -150,6 +154,12 @@ async function square(argv, io) {
   const { runSquare } = await import('./square.mjs')
   const { exit, error } = runSquare(argv, io)
   return error ? fail(io, 'hozo square', new CliError(error.message, error.code), argv) : exit
+}
+
+async function show(argv, io) {
+  const { runShow } = await import('./show.mjs')
+  const { exit, error } = await runShow(argv, io)
+  return error ? fail(io, 'hozo show', new CliError(error.message, error.code), argv) : exit
 }
 
 /** Run `hozo` with `argv` (no `node`, no script path). Resolves to the exit code. */

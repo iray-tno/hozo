@@ -46,7 +46,8 @@
   },
   "dependencies": {
     "@hozo/migration-audit": "workspace:^",
-    "@hozo/compiler": "workspace:^"
+    "@hozo/compiler": "workspace:^",
+    "@hozo/tailwind": "workspace:^"
   },
   "peerDependencies": {
     "@hozo/navigation": "workspace:^"

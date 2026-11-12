@@ -379,6 +379,8 @@ const PACKAGES = {
     dependencyOverrides: {
       '@hozo/compiler': 'workspace:^',
       '@hozo/migration-audit': 'workspace:^',
+      // `hozo show` reads the project's theme the way the audit does.
+      '@hozo/tailwind': 'workspace:^',
     },
     peerOverrides: { '@hozo/navigation': 'workspace:^' },
     peerMetadataOverrides: { '@hozo/navigation': { optional: true } },
