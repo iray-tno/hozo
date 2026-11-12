@@ -141,11 +141,17 @@ try {
       page.locator('table tbody tr').filter({
         has: page.getByRole('rowheader', { name: className, exact: true }),
       })
-    assert.equal(await page.locator('table tbody tr').count(), 11)
+    assert.equal(await page.locator('table tbody tr').count(), 12)
     assert.match(await row('hover:bg-emerald-600').innerText(), /Compiled[\s\S]*Compiled/)
     assert.match(await row('dark:bg-stone-800').innerText(), /useHozoDark/)
     assert.match(await row('print:hidden').innerText(), /Compiled[\s\S]*Build error/)
-    assert.match(await row('peer-checked:bg-emerald-700').innerText(), /not compiled yet/)
+    // `checked:` compiles, so a sibling's state is what Native refuses.
+    assert.match(await row('peer-checked:bg-emerald-700').innerText(), /Compiled[\s\S]*Build error/)
+    // A variant neither backend compiles yet: a warning on both.
+    assert.match(
+      await row('aria-[sort=ascending]:bg-emerald-700').innerText(),
+      /not compiled yet[\s\S]*not compiled yet/,
+    )
 
     // The numbers are the snapshot's.
     const measured = await page
