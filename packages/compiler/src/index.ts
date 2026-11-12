@@ -253,6 +253,8 @@ export interface ClassHelper {
   module: string
   name: string
   merge?: boolean
+  /** @internal Default table identity established from the resolved merger entry. */
+  mergeConfig?: string
 }
 
 /** One package's text forwarding: the specifier callers import from, and its components. */

@@ -812,3 +812,42 @@ export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
   const companion = readFileSync(path.join(root, 'Card.tsx.hozo.css'), 'utf8')
   assert.doesNotMatch(companion, /hozo-conflict-/)
 })
+
+test('Vite compiles a merger only when its resolved entry matches the generated rules', async () => {
+  const require = createRequire(new URL('../../tailwind-conformance/package.json', import.meta.url))
+  const card = `import { View } from '@hozo/core'
+import { twMerge } from 'tailwind-merge'
+export const Card = () => <View className={twMerge('ps-8', 'px-2')} />`
+  for (const [entry, verified] of [
+    [require.resolve('tailwind-merge'), true],
+    [require.resolve('tailwind-merge-legacy'), false],
+  ] as const) {
+    // Resolve a raw ESM entry, so the test assesses the shipped bytes rather
+    // than Vite's generated dependency cache.
+    const esm = path.join(path.dirname(entry), 'bundle-mjs.mjs')
+    const root = project({ 'Card.tsx': card, 'merger.mjs': readFileSync(esm, 'utf8') })
+    const server = await serve(root, {}, { 'tailwind-merge': path.join(root, 'merger.mjs') })
+    const output = await server.transformRequest('/Card.tsx')
+    assert.ok(output)
+    assert.equal(/\btwMerge\(/.test(output.code), !verified, output.code)
+    if (verified) {
+      const css = readFileSync(path.join(root, 'Card.tsx.hozo.css'), 'utf8')
+      assert.match(css, /padding-inline-start: 8px/)
+      assert.doesNotMatch(css, /padding-inline-start: 32px/)
+    }
+  }
+
+  const entry = require.resolve('tailwind-merge')
+  const root = project({ 'Card.tsx': card })
+  const server = await serve(root, {}, {}, [
+    {
+      name: 'external-merger',
+      enforce: 'pre',
+      resolveId(id) {
+        if (id === 'tailwind-merge') return { id: entry, external: true }
+      },
+    },
+  ])
+  const output = await server.transformRequest('/Card.tsx')
+  assert.match(output?.code ?? '', /\btwMerge\(/)
+})

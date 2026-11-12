@@ -47,7 +47,7 @@ export function cn(...inputs: ClassValue[]) { return clsx(inputs) }
 `
 
 /** A project with a `cn` behind a tsconfig `@/` alias, on disk. */
-async function detected(options: Parameters<typeof withHozo>[1]) {
+async function detected(options: Parameters<typeof withHozo>[1], utils = UTILS, source = ITEM) {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-metro-found-'))
   try {
     mkdirSync(path.join(root, 'src', 'lib'), { recursive: true })
@@ -55,9 +55,9 @@ async function detected(options: Parameters<typeof withHozo>[1]) {
       path.join(root, 'tsconfig.json'),
       JSON.stringify({ compilerOptions: { baseUrl: '.', paths: { '@/*': ['./src/*'] } } }),
     )
-    writeFileSync(path.join(root, 'src', 'lib', 'utils.ts'), UTILS)
+    writeFileSync(path.join(root, 'src', 'lib', 'utils.ts'), utils)
     const item = path.join(root, 'src', 'Item.tsx')
-    writeFileSync(item, ITEM)
+    writeFileSync(item, source)
     const upstream = path.join(root, 'upstream.cjs')
     writeFileSync(upstream, 'module.exports = { transform: (params) => params.src }\n')
     await withHozo(
@@ -65,7 +65,7 @@ async function detected(options: Parameters<typeof withHozo>[1]) {
       { root, ...options },
     )
     const output = (await transform({
-      src: ITEM,
+      src: source,
       filename: item,
       options: { projectRoot: root, platform: 'ios' },
     })) as string
@@ -85,4 +85,18 @@ test('a cn that wraps clsx is found through the tsconfig alias, with no declarat
   })
   assert.doesNotMatch(refused.output, /hozo\w*_pressed:/)
   assert.notEqual(found.key, refused.key)
+})
+
+test('Metro keeps an enumerated merger without resolved rule evidence', async () => {
+  const helper = `import { twMerge } from 'tailwind-merge'
+export const cn = (...inputs) => twMerge(inputs)`
+  const source = `import { View } from '@hozo/core'
+import { cn } from '@/lib/utils'
+export const Item = () => <View className={cn('ps-8', 'px-2')} />`
+  const result = await detected(
+    { classHelpers: [{ module: '@/lib/utils', name: 'cn' }] },
+    helper,
+    source,
+  )
+  assert.match(result.output, /hozoClasses\(cn\('ps-8', 'px-2'\)\)/)
 })

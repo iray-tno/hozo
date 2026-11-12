@@ -1,6 +1,7 @@
 // Project-wide source discovery and candidate-cache reconciliation, shared
 // by the Vite and Metro integrations.
 
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
@@ -19,6 +20,7 @@ import {
 import { withOwnerPackageCandidates } from './owner-package-candidates.ts'
 import type { OwnerPackageContributions } from './owner-package-contributions.ts'
 import { StylexModuleCache, type StylexResolutionRequest } from './stylex-project.ts'
+import { TAILWIND_MERGE_CONFIG, TAILWIND_MERGE_ENTRY_DIGESTS } from './tw-merge-config.ts'
 import { gitIgnoredSync, walkFiles } from './walk.ts'
 
 export { readBoundedUtf8File } from './bounded-data.ts'
@@ -260,22 +262,18 @@ export interface HozoProjectOptions {
    * The project's own functions that join class strings as `clsx` does,
    * such as shadcn/ui's `cn` in `@/lib/utils` (#964).
    *
-   * A call to one is read argument by argument, so a component's own
-   * classes compile and only what cannot be read, such as a caller's
-   * `className`, falls back. Without it the whole call falls back, and on
-   * React Native that drops `hover:`, `active:`, `disabled:` and
-   * `focus-visible:`.
+   * A pure joiner is read argument by argument, so a component's own classes
+   * compile and an opaque argument can fall back on its own.
    *
    * `module` is the specifier as callers write it, and `name` the name
    * they import (`default` for a default import). `recognize: false`
    * keeps a function from being read this way even when it is found
    * automatically.
    *
-   * Declaring one is a promise that it only joins its truthy string
-   * arguments. A helper that also resolves conflicts, as shadcn/ui's `cn`
-   * does through `tailwind-merge`, is not found automatically (#1668).
-   * Declared, its classes compile, and a caller's Tailwind utility no
-   * longer overrides them.
+   * A declaration without `merge` promises a pure join when discovery has
+   * no evidence about the helper. For a merger, the bundler must establish
+   * that the resolved implementation matches the generated conflict table.
+   * The merger stays at runtime while that evidence is missing.
    */
   classHelpers?: readonly ClassHelperOption[]
 }
@@ -285,14 +283,15 @@ export interface ClassHelperOption {
   name: string
   /** `false` to keep this function from being read as a class joiner. */
   recognize?: boolean
-  /** `true` when the helper resolves conflicts with `twMerge` (#1676). */
+  /** `true` when the helper resolves conflicts. Compilation needs resolved rules. */
   merge?: boolean
 }
 
 /**
  * The class-joining functions the compiler is given (#964): the ones found
  * in the project's source, plus the declared ones, minus the declared
- * `recognize: false`. Declarations win, so a wrong guess can be undone.
+ * `recognize: false`. A recognized merger keeps its resolved-rule evidence
+ * even when the project also declares the helper.
  */
 export function resolveClassHelpers(
   declared: readonly ClassHelperOption[] = [],
@@ -301,17 +300,34 @@ export function resolveClassHelpers(
   const key = (helper: { module: string; name: string }) => `${helper.module}\u0000${helper.name}`
   const refused = new Set(declared.filter((h) => h.recognize === false).map(key))
   const out = new Map<string, ClassHelper>()
-  for (const helper of [...found, ...declared.filter((h) => h.recognize !== false)]) {
-    if (!refused.has(key(helper))) {
-      const entry: ClassHelper = { module: helper.module, name: helper.name }
-      if (helper.merge) entry.merge = true
-      out.set(key(helper), entry)
-    }
+  for (const helper of found) {
+    if (!refused.has(key(helper))) out.set(key(helper), helper)
+  }
+  for (const helper of declared) {
+    if (refused.has(key(helper))) continue
+    const discovered = out.get(key(helper))
+    const entry: ClassHelper = { module: helper.module, name: helper.name }
+    if (helper.merge || discovered?.merge) entry.merge = true
+    if (discovered?.mergeConfig) entry.mergeConfig = discovered.mergeConfig
+    out.set(key(helper), entry)
   }
   return [...out.values()]
 }
 
-const SCRIPT = /.(?:[cm]?[jt]sx?)$/
+const SCRIPT = /\.(?:[cm]?[jt]sx?)$/
+const TW_MERGE_MODULE = 'tailwind-merge'
+
+function mergeConfigForEntry(file: string | undefined, onDependency?: (file: string) => void) {
+  if (!file || !path.isAbsolute(file) || /[?#]/.test(file)) return undefined
+  onDependency?.(file)
+  try {
+    const digest = createHash('sha256').update(readFileSync(file)).digest('hex')
+    if (TAILWIND_MERGE_ENTRY_DIGESTS.includes(digest)) return TAILWIND_MERGE_CONFIG
+  } catch {
+    // A resolver may return a missing or virtual file. Preserve the call.
+  }
+  return undefined
+}
 const summaries = new Map<string, { modifiedMs: number; exports: string[]; merges: Set<string> }>()
 
 /** What a helper file exports as joiners, read again only when it changes. */
@@ -347,13 +363,24 @@ export async function findClassHelpers(
   const found: ClassHelper[] = []
   for (const { specifier, imported } of classHelperCandidates(source)) {
     const resolved = await resolve(specifier, importer)
-    const file = resolved?.split('?')[0]
-    if (!file || !SCRIPT.test(file)) continue
-    onDependency?.(file)
-    const summary = helperExports(file)
+    if (specifier === TW_MERGE_MODULE && imported === 'twMerge') {
+      const helper: ClassHelper = { module: specifier, name: imported, merge: true }
+      const config = mergeConfigForEntry(resolved, onDependency)
+      if (config) helper.mergeConfig = config
+      found.push(helper)
+      continue
+    }
+    if (!resolved || !path.isAbsolute(resolved) || /[?#]/.test(resolved) || !SCRIPT.test(resolved))
+      continue
+    onDependency?.(resolved)
+    const summary = helperExports(resolved)
     if (summary.exports.includes(imported)) {
       const helper: ClassHelper = { module: specifier, name: imported }
-      if (summary.merges.has(imported)) helper.merge = true
+      if (summary.merges.has(imported)) {
+        helper.merge = true
+        const config = mergeConfigForEntry(await resolve(TW_MERGE_MODULE, resolved), onDependency)
+        if (config) helper.mergeConfig = config
+      }
       found.push(helper)
     }
   }
@@ -937,11 +964,14 @@ export function projectClassHelpers(
     if (!source.includes('className')) continue
     const found: ClassHelper[] = []
     for (const { specifier, imported } of classHelperCandidates(source)) {
+      if (specifier === TW_MERGE_MODULE && imported === 'twMerge') continue
       const target = resolve(specifier, importer)
       if (target && SCRIPT.test(target)) {
         const summary = helperExports(target)
         if (summary.exports.includes(imported)) {
           const helper: ClassHelper = { module: specifier, name: imported }
+          // Metro's startup scan has no resolved package edge for the merger.
+          // Record the contract so a declaration cannot turn it into a joiner.
           if (summary.merges.has(imported)) helper.merge = true
           found.push(helper)
         }

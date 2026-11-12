@@ -72,8 +72,11 @@ pub struct Decomposed {
     /// The optional guarded-template proof is irrelevant to other legacy
     /// failures; do not decompose ordinary opaque branches a second time.
     pub guarded_template: bool,
-    /// Authored predicates still run even when merging removes all their classes.
+    /// Authored predicates still run when their branch emits no classes.
     pub evaluation_refs: Vec<ExprRef>,
+    /// A closed helper may disappear entirely, so its predicates are collected
+    /// from the expression before utility expansion or conflict elimination.
+    capture_predicates: bool,
     /// Per-declaration token metadata for `twMerge` conflict resolution.
     pub(crate) declaration_tokens: Vec<Option<crate::tw_merge::ClassifiedToken>>,
     pub(crate) declaration_guards: Vec<Option<ConditionExpr>>,
@@ -113,6 +116,7 @@ pub struct CompiledToken {
 pub struct ClassHelper {
     pub module: String,
     pub name: String,
+    /// The caller has verified the resolved merger uses this compiler's default table.
     pub merge: bool,
 }
 
@@ -292,6 +296,9 @@ pub(crate) fn helper_import(
         .iter()
         .find(|helper| helper.module == module && helper.name == imported)
     {
+        if module == TW_MERGE_MODULE && imported == "twMerge" && !helper.merge {
+            return None;
+        }
         return Some(if helper.merge {
             HelperKind::Merge
         } else {
@@ -300,7 +307,6 @@ pub(crate) fn helper_import(
     }
     if module == TW_MERGE_MODULE {
         return match imported {
-            "twMerge" => Some(HelperKind::Merge),
             "twJoin" => Some(HelperKind::StrictJoin),
             _ => None,
         };
@@ -554,7 +560,10 @@ fn decompose(
             let mut parts = Vec::new();
             if capture_templates {
                 for expression in &template.expressions {
-                    let mut part = Decomposed::default();
+                    let mut part = Decomposed {
+                        capture_predicates: out.capture_predicates,
+                        ..Decomposed::default()
+                    };
                     decompose(
                         classify_expression(expression),
                         condition.clone(),
@@ -633,6 +642,9 @@ fn decompose(
             }
         }
         Target::Logical(logical) => {
+            if out.capture_predicates {
+                out.evaluation_refs.push(to_expr_ref(logical.left.span()));
+            }
             let guarded = and_ref(&condition, logical.left.span());
             let guard = guard.or(Some(logical.span));
             decompose(
@@ -645,6 +657,9 @@ fn decompose(
             );
         }
         Target::Conditional(cond) => {
+            if out.capture_predicates {
+                out.evaluation_refs.push(to_expr_ref(cond.test.span()));
+            }
             let guard = guard.or(Some(cond.span));
             let when_true = and_ref(&condition, cond.test.span());
             decompose(
@@ -751,7 +766,10 @@ fn decompose_closed_call(
     let merge_conflicts =
         is_recognized_cx_call(&call.callee, module_record) == Some(HelperKind::Merge);
     let whole_span = guard.unwrap_or(call.span);
-    let mut sub = Decomposed::default();
+    let mut sub = Decomposed {
+        capture_predicates: true,
+        ..Decomposed::default()
+    };
     for arg in &call.arguments {
         decompose(
             classify_argument(arg),
@@ -769,10 +787,6 @@ fn decompose_closed_call(
         fall_back_to(out, whole_span);
         return;
     }
-    for authored_guard in sub.declaration_guards.iter().flatten() {
-        evaluation::collect_guards(authored_guard, &mut sub.evaluation_refs);
-    }
-
     let n = sub.declarations.len();
     let mut dropped = vec![false; n];
     let mut extra_guards: Vec<Vec<ConditionExpr>> = vec![Vec::new(); n];
@@ -1325,7 +1339,8 @@ const el = <View className={{{expression}}} />
             ),
         ] {
             let source = format!("import {{ View }} from '@hozo/core'; import {{ twMerge }} from 'tailwind-merge'; const el = <View className={{{expression}}} />");
-            let decomposed = decompose_source(&source);
+            let decomposed =
+                decompose_with_helpers(&source, &[merge_helper("tailwind-merge", "twMerge")]);
             assert!(decomposed.fallback.is_empty());
             for a in [false, true] {
                 for b in [false, true] {
@@ -1354,23 +1369,25 @@ const el = <View className={{{expression}}} />
 
     #[test]
     fn tw_merge_resolves_known_conflicts_and_keeps_opaque_calls() {
-        let static_override = decompose_source(
+        let static_override = decompose_with_helpers(
             r#"
             import { View } from '@hozo/core'
             import { twMerge } from 'tailwind-merge'
             const el = <View className={twMerge('px-3 py-1', 'px-2')} />
             "#,
+            &[merge_helper("tailwind-merge", "twMerge")],
         );
         assert!(static_override.fallback.is_empty());
         // py-1 (2 decls) + px-2 (2 decls) = 4 decls; px-3 was dropped.
         assert_eq!(static_override.declarations.len(), 4);
 
-        let cond_override = decompose_source(
+        let cond_override = decompose_with_helpers(
             r#"
             import { View } from '@hozo/core'
             import { twMerge } from 'tailwind-merge'
             const el = <View className={twMerge('px-3', active && 'px-2')} />
             "#,
+            &[merge_helper("tailwind-merge", "twMerge")],
         );
         assert!(cond_override.fallback.is_empty());
         assert_eq!(cond_override.declarations.len(), 4);

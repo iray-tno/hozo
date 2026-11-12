@@ -25,8 +25,9 @@ where the direction is column. Write `flex-row`. The compiler warns with
 
 A project helper named in a `className` is followed to its file and read
 when it wraps `clsx`, `classnames`, `cx` or `twMerge` (including
-shadcn/ui's `cn`). A merge compiles only when all possible class tokens are
-known and supported. A caller's opaque `className` keeps the whole merge at
+shadcn/ui's `cn`). A merge compiles only when the build verifies the rules of
+the resolved merger and all possible class tokens are known and supported.
+A caller's opaque `className` keeps the whole merge at
 runtime. Check that the class appears in the project candidate map and that
 the component supplies the required state. For example, `Pressable` supplies
 its own hover state to the resolver. A helper behind an alias the bundler
