@@ -16,10 +16,11 @@ const executablePath = [
 if (process.env.CI) assert.ok(executablePath, 'CI must exercise audit failure diagnostics')
 
 // What Analytics.astro adds to a production page: a third-party script, and
-// the beacon it sends. Neither host resolves, so a request that left the
-// browser would fail the audit.
-const TRACKING = `<script async src="https://analytics.invalid/gtag/js"></script>
-  <script>fetch('https://analytics.invalid/g/collect', { method: 'POST', body: 'v=2' })</script>`
+// the beacon it sends. The third party is a second local server, on another
+// origin, which counts what reaches it and answers 418: a request that left
+// the browser is counted there, whatever the browser then reports about it.
+const tracking = (third) => `<script async src="${third}/gtag/js"></script>
+  <script>fetch('${third}/g/collect', { method: 'POST', body: 'v=2' })</script>`
 
 test('component audit retains network failures and the original failed verdict before cleanup', {
   skip: !executablePath,
@@ -30,9 +31,16 @@ test('component audit retains network failures and the original failed verdict b
     response.writeHead(200, { 'content-type': 'text/html' }).end(`
       <astro-island><div>Ready</div><button onclick="this.textContent='Done'">Run</button></astro-island>
       ${request.url === '/broken' ? '<script src="/aborted.js"></script><img src="/bad-status">' : ''}
-      ${request.url === '/tracked' ? TRACKING : ''}`)
+      ${request.url === '/tracked' ? tracking(thirdParty) : ''}`)
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const reached = []
+  const third = createServer((request, response) => {
+    reached.push(request.url)
+    response.writeHead(418).end()
+  })
+  await new Promise((resolve) => third.listen(0, '127.0.0.1', resolve))
+  const thirdParty = `http://127.0.0.1:${third.address().port}`
   const base = `http://127.0.0.1:${server.address().port}`
   let browser
   try {
@@ -91,13 +99,7 @@ test('component audit retains network failures and the original failed verdict b
     })
     assert.equal(result.status, 'passed')
     // Third-party requests are answered empty instead of sent (#1872).
-    const sent = []
-    const failed = (request) => sent.push(`${request.url()} ${request.failure()?.errorText}`)
-    healthy.on('requestfailed', failed)
-    const beacon = healthy.waitForEvent(
-      'requestfinished',
-      (request) => request.url() === 'https://analytics.invalid/g/collect',
-    )
+    const beacon = healthy.waitForResponse(`${thirdParty}/g/collect`)
     const tracked = await auditComponentPage(healthy, {
       name: 'tracked',
       url: `${base}/tracked`,
@@ -106,13 +108,10 @@ test('component audit retains network failures and the original failed verdict b
       },
     })
     assert.equal(tracked.status, 'passed')
-    // Answered rather than sent, including a beacon still in flight when
-    // the audit returned.
-    // Finished, not just answered: the next audit's navigation would abort a
-    // request still reading its response, which is not one that was sent.
-    assert.equal((await (await beacon).response())?.status(), 204)
-    healthy.off('requestfailed', failed)
-    assert.deepEqual(sent, [])
+    // Answered by the audit (204), not by the third party (418), including a
+    // beacon still in flight when the audit returned; and nothing reached it.
+    assert.equal((await beacon).status(), 204)
+    assert.deepEqual(reached, [])
     const sentinel = new Error('the interaction failed')
     await assert.rejects(
       auditComponentPage(healthy, {
@@ -145,7 +144,9 @@ test('component audit retains network failures and the original failed verdict b
       await browser?.close()
     } finally {
       server.closeAllConnections()
+      third.closeAllConnections()
       await new Promise((resolve) => server.close(resolve))
+      await new Promise((resolve) => third.close(resolve))
     }
   }
 })
