@@ -91,6 +91,8 @@ const PACKAGES = {
       './analysis': './dist/analysis.js',
       './canvas': './dist/canvas.js',
       './diagnostics': './dist/diagnostics.js',
+      // Dependency-free: the REPL bundles it for the browser.
+      './format-jsx': './dist/format-jsx.js',
       './sources': './dist/sources.js',
       './manifest': './dist/manifest.js',
       './manifest/cli': './dist/manifest-command.js',

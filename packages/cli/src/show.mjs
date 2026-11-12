@@ -7,6 +7,8 @@
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
+// The REPL's layout; this entry loads no addon.
+import { formatJsx } from '@hozo/compiler/format-jsx'
 import { checkCss } from './square-config.mjs'
 
 export const SCHEMA_VERSION = 1
@@ -149,13 +151,18 @@ function text(report) {
   const section = (title, body) =>
     lines.push('', title, body.trim() === '' ? '  (nothing)' : indent(body.trimEnd()))
   if (report.web) {
-    section('Web JSX', joined(report.web.map((component) => component.jsx)))
+    // Laid out as the REPL lays it out; JSON keeps the compiler's one line.
+    section('Web JSX', joined(report.web.map((component) => formatJsx(component.jsx))))
     section('Web CSS', joined(report.web.map((component) => component.css)))
   }
   if (report.native) {
     section(
       'React Native JSX',
-      joined(report.native.map((component) => [...component.prelude, component.jsx].join('\n'))),
+      joined(
+        report.native.map((component) =>
+          [...component.prelude, formatJsx(component.jsx)].join('\n'),
+        ),
+      ),
     )
     section(
       'React Native StyleSheet',

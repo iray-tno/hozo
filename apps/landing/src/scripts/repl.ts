@@ -11,8 +11,8 @@ import 'prismjs/components/prism-jsx'
 import 'prismjs/components/prism-typescript'
 import 'prismjs/components/prism-tsx'
 
+import { formatJsx } from '@hozo/compiler/format-jsx'
 import { prismCodeLines } from '../lib/prism-code-lines.ts'
-import { formatJsx } from './format-jsx.ts'
 import { createReplOutput } from './repl-output.tsx'
 
 interface ReplDiagnostic {
@@ -171,7 +171,7 @@ async function compile() {
     const native = JSON.parse(compileNative(text)) as NativeComponent[]
 
     // Laid out for reading. The compiler writes each component as one line,
-    // which is right for a build and not for a person; see `format-jsx.ts`.
+    // which is right for a build and not for a person; see `@hozo/compiler/format-jsx`.
     const webJsxCode = joined(web.map((one) => formatJsx(one.jsx)))
     const webCssCode = joined(web.map((one) => one.css))
     const nativeJsxCode = joined(

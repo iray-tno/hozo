@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { createCompiler } from '@hozo/compiler'
+import { formatJsx } from '@hozo/compiler/format-jsx'
 import { run } from './index.mjs'
 
 const capture = () => {
@@ -61,6 +62,13 @@ test('without a project theme, show prints what the REPL prints', async (t) => {
   assert.equal(report.native[0].styles, native.styles)
   // `bg-brand` is not in Tailwind's default theme: no value to compile in.
   assert.doesNotMatch(report.web[0].css, /#123456/)
+
+  // The text report lays the JSX out as the REPL's panes do.
+  const text = (await show(path.join(root, 'src/Card.tsx'))).stdout
+  const indented = (code) => code.replace(/^/gm, '  ')
+  assert.ok(text.includes(`\nWeb JSX\n${indented(formatJsx(web.jsx))}\n\n`), text)
+  assert.ok(text.includes(`\nReact Native JSX\n${indented(formatJsx(native.jsx))}\n\n`), text)
+  assert.ok(formatJsx(web.jsx).split('\n').length > 1)
 })
 
 test("with the project's stylesheet, its theme compiles in", async (t) => {
