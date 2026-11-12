@@ -53,6 +53,8 @@ Options:
   --repository <url>         Canonical repository URL recorded in the report
   --expected-commit <sha>    Fail unless the checkout is at this commit
   --reproduce-command <cmd>  Command recorded in the Markdown report
+  --file-signal <name>=<re>  Count authored files whose source matches <re>, reported as
+                            corpusSignals.<name>; repeat to add more
   --output <path>            Write the report to this path instead of stdout
   --format json|markdown     Override format (default: Markdown in a terminal, JSON in a pipe)
   --details                 Include every finding in Markdown (JSON is always complete)
@@ -67,6 +69,26 @@ Options:
 JS/TS (.tsx/.jsx/.ts/.js/.mts/.mjs) source is observed. Dependencies, declarations,
 generated output and symlinked directories stay outside authored counts. Non-TSX
 compiler capability is not evidence of full integration lowering.`
+
+// A corpus-specific count, such as the pinned Bluesky corpus's files that
+// read ALF's `atoms`, given on the command line rather than as a function,
+// so a corpus runner can call the same command a user does.
+function fileSignal(value) {
+  const at = value.indexOf('=')
+  const name = value.slice(0, at)
+  if (at < 1 || !/^[A-Za-z][\w-]*$/.test(name))
+    throw new AuditInputError(
+      `--file-signal needs <name>=<regex>, got ${value}`,
+      'invalid-file-signal',
+    )
+  let pattern
+  try {
+    pattern = new RegExp(value.slice(at + 1))
+  } catch (error) {
+    throw new AuditInputError(`--file-signal ${name}: ${error.message}`, 'invalid-file-signal')
+  }
+  return [name, (source) => pattern.test(source)]
+}
 
 function parseArgs(argv) {
   const options = {}
@@ -114,7 +136,10 @@ function parseArgs(argv) {
     else if (key === '--fail-on' && ['none', 'error', 'new-errors'].includes(value))
       options.failOn = value
     else if (key === '--reproduce-command') options.reproduceCommand = value
-    else if (key === '--format' && (value === 'json' || value === 'markdown'))
+    else if (key === '--file-signal') {
+      const [name, signal] = fileSignal(value)
+      ;(options.fileSignals ??= {})[name] = signal
+    } else if (key === '--format' && (value === 'json' || value === 'markdown'))
       options.format = value
     else throw new AuditInputError(`Unknown option or value: ${key} ${value}`, 'unknown-option')
   }
@@ -884,7 +909,7 @@ ${sampleSections || 'No suspicious samples were produced.'}
 ${
   report.corpus.reproduceCommand
     ? `The corpus runner fetches and verifies ${report.corpus.repository} at commit \`${report.corpus.commit}\`. From a Hozo checkout with dependencies installed, run:\n\n\`${report.corpus.reproduceCommand}\``
-    : `Check out \`${report.corpus.commit}\` from ${report.corpus.repository}, build \`@hozo/compiler\`, then run:\n\n\`npx @hozo/migration-audit --root <checkout> ${sourceArguments} --name "${report.corpus.name}" --repository ${report.corpus.repository} --expected-commit ${report.corpus.commit} --output hozo-audit.md\``
+    : `Check out \`${report.corpus.commit}\` from ${report.corpus.repository}, build \`@hozo/compiler\`, then run:\n\n\`npx @hozo/cli dry-fit --root <checkout> ${sourceArguments} --name "${report.corpus.name}" --repository ${report.corpus.repository} --expected-commit ${report.corpus.commit} --output hozo-audit.md\``
 }
 `
 }

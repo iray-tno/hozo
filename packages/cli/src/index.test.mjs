@@ -85,9 +85,9 @@ test('exit codes: 1 is findings, 2 is a command that could not run', async (t) =
 
 test('help and version load no command, and the binary sets the exit code', () => {
   // A resolve hook that reports any import of a command's package: `--help`
-  // must not load the audit, and with it the compiler addon.
+  // must not load the audit, the compiler and its addon, or navigation.
   const hook = `data:text/javascript,${encodeURIComponent(
-    "import { registerHooks } from 'node:module'; registerHooks({ resolve(s, c, next) { if (s.includes('migration-audit')) process.stderr.write('loaded ' + s + '\\n'); return next(s, c) } })",
+    "import { registerHooks } from 'node:module'; registerHooks({ resolve(s, c, next) { if (/migration-audit|@hozo.(compiler|navigation)/.test(s)) process.stderr.write('loaded ' + s + '\\n'); return next(s, c) } })",
   )}`
   for (const argv of [[], ['--help'], ['--version']]) {
     const result = spawnSync(process.execPath, ['--import', hook, cli, ...argv], {
@@ -105,4 +105,70 @@ test('help and version load no command, and the binary sets the exit code', () =
   assert.match(dryFitHelp.stdout, /^Usage:\n {2}hozo dry-fit <checkout> \[options\]/)
   const unknown = spawnSync(process.execPath, [cli, 'squre'], { encoding: 'utf8' })
   assert.equal(unknown.status, 2)
+})
+
+// The deprecated binaries' stdout, which `hozo` must reproduce (RFC 011 §4).
+const compilerDist = fileURLToPath(new URL('../../compiler/dist/manifest-cli.js', import.meta.url))
+const linksDist = fileURLToPath(
+  new URL('../../navigation/dist/verification-cli.js', import.meta.url),
+)
+
+test('`manifest` and `links` write what their deprecated binaries write', (t) => {
+  const root = fixture(t, {
+    'pkg/src/index.tsx':
+      "import { Text } from '@hozo/core'\nexport const Label = () => <Text>Hi</Text>\n",
+    'pkg/package.json': JSON.stringify({ exports: { '.': './src/index.tsx' } }),
+    'links.json': JSON.stringify({
+      outputDirectory: 'static',
+      android: [
+        {
+          packageName: 'com.example.app',
+          sha256CertFingerprints: ['0123456789abcdef'.repeat(4)],
+        },
+      ],
+    }),
+  })
+  const hozo = (...argv) =>
+    spawnSync(process.execPath, [cli, ...argv], { cwd: root, encoding: 'utf8' })
+  const old = (file, ...argv) =>
+    spawnSync(process.execPath, [file, ...argv], { cwd: root, encoding: 'utf8' })
+  const notice = (name, stderr) => {
+    const [first, ...rest] = stderr.split('\n')
+    assert.match(first, new RegExp(`^${name} is deprecated; run \`hozo `))
+    return rest.join('\n')
+  }
+
+  // Manifest: stale is 1 in both, then written, then current.
+  const staleNew = hozo('manifest', 'pkg', '--check')
+  const staleOld = old(compilerDist, 'pkg', '--check')
+  assert.equal(staleNew.status, 1)
+  assert.equal(staleOld.status, 1)
+  assert.match(staleNew.stderr, /Run: hozo manifest pkg/)
+  assert.match(notice('hozo-manifest', staleOld.stderr), /Run: hozo-manifest pkg/)
+  assert.equal(hozo('manifest', 'pkg').status, 0)
+  const current = [hozo('manifest', 'pkg', '--check'), old(compilerDist, 'pkg', '--check')]
+  assert.deepEqual(
+    current.map(({ status }) => status),
+    [0, 0],
+  )
+  assert.equal(current[0].stdout, current[1].stdout)
+  assert.equal(hozo('manifest', 'pkg', '--chek').status, 2)
+
+  // Links: the same files, the same lines.
+  const written = [hozo('links', '-c', 'links.json'), old(linksDist, '-c', 'links.json')]
+  assert.deepEqual(
+    written.map(({ status }) => status),
+    [0, 0],
+  )
+  assert.match(written[0].stdout, /^wrote: /)
+  assert.equal(written[1].stdout, written[0].stdout.replaceAll('wrote:', 'unchanged:'))
+  assert.equal(notice('hozo-links', written[1].stderr), '')
+  const checked = [
+    hozo('links', '--check', '-c', 'links.json'),
+    old(linksDist, '--check', '-c', 'links.json'),
+  ]
+  assert.equal(checked[0].stdout, checked[1].stdout)
+  const bad = hozo('links', '-c', 'missing.json')
+  assert.equal(bad.status, 2)
+  assert.match(bad.stderr, /^hozo links: .* \[config-not-found\]\n$/)
 })

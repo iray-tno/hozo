@@ -11,9 +11,11 @@ npx @hozo/cli dry-fit --help                     # every option
 | Command | Alias | Does |
 | --- | --- | --- |
 | `hozo dry-fit` | `migration-audit` | Before adoption: lowers a checkout without installing anything and reports what Hozo would do. Options and report as [`@hozo/migration-audit`](../migration-audit/README.md) |
+| `hozo manifest` | | Builds a component package's `hozo.manifest.json`, or `--check`s it. See [`@hozo/compiler`](../compiler/README.md#a-component-packages-manifest) |
+| `hozo links` | | Generates or `--check`s the Universal Links and App Links verification files from `hozo-links.json`. Needs `@hozo/navigation` installed. See [`@hozo/navigation`](../navigation/README.md) |
 
-`hozo-migration-audit` still works for one minor release, with the same stdout and JSON; it adds one
-deprecation line on stderr.
+`hozo-migration-audit`, `hozo-manifest` and `hozo-links` still work for one minor release, with the
+same stdout; each adds one deprecation line on stderr.
 
 ## Exit codes
 

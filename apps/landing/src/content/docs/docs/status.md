@@ -3,7 +3,7 @@ title: "What Hozo does not do yet"
 description: "The honest list: what is partial, manual or untested."
 ---
 
-- **Migration is mostly manual.** `npx @hozo/migration-audit . --fix`
+- **Migration is mostly manual.** `npx @hozo/cli dry-fit . --fix`
   moves the React Native APIs Hozo owns (`Platform`, `Keyboard`, …) to
   `@hozo/rn-compat` in source; components and everything else are still
   changed by hand.

@@ -15,7 +15,8 @@ const corpora = {
     checkout: 'social-app',
     // Retain the original lexical atoms-reference count for this pinned corpus,
     // not as evidence that an arbitrary application's identifier came from ALF.
-    fileSignals: { filesUsingAlfAtoms: (source) => /\batoms(?:\.|\[)/.test(source) },
+    // A pattern, not a function: it travels to `hozo dry-fit --file-signal`.
+    fileSignals: { filesUsingAlfAtoms: String.raw`\batoms(?:\.|\[)` },
   },
 }
 
@@ -71,25 +72,37 @@ run(
 )
 
 const artifact = path.join(root, 'artifacts', 'measurements', `${key}.md`)
-// Import only after building the compiler, just as the CLI subprocess did.
-const { measureRealApp, renderRealAppMarkdown } = await import(
-  '../packages/migration-audit/src/index.mjs'
-)
-const report = await measureRealApp({
-  root: checkout,
-  source: spec.source,
-  name: spec.name,
-  repository: spec.repository,
-  expectedCommit: spec.commit,
-  reproduceCommand: `pnpm measure:${key === 'bluesky-social-app' ? 'bluesky' : key}`,
-  fileSignals: spec.fileSignals,
-})
-mkdirSync(path.dirname(artifact), { recursive: true })
-writeFileSync(artifact, renderRealAppMarkdown(report))
 const structuredArtifact = artifact.replace(/\.md$/, '.json')
-writeFileSync(structuredArtifact, `${JSON.stringify(report, null, 2)}\n`)
+mkdirSync(path.dirname(artifact), { recursive: true })
+// The audit runs as `hozo dry-fit`, the command a user runs on their own
+// checkout, so the corpus measures the CLI and not a private entry point.
+run(process.execPath, [
+  path.join(root, 'packages', 'cli', 'src', 'cli.mjs'),
+  'dry-fit',
+  checkout,
+  '--source',
+  spec.source,
+  '--name',
+  spec.name,
+  '--repository',
+  spec.repository,
+  '--expected-commit',
+  spec.commit,
+  '--reproduce-command',
+  `pnpm measure:${key === 'bluesky-social-app' ? 'bluesky' : key}`,
+  ...Object.entries(spec.fileSignals ?? {}).flatMap(([name, pattern]) => [
+    '--file-signal',
+    `${name}=${pattern}`,
+  ]),
+  '--format',
+  'json',
+  '--output',
+  structuredArtifact,
+])
+// The Markdown is rendered from that JSON, so both artifacts describe one run.
+const { renderRealAppMarkdown } = await import('../packages/migration-audit/src/index.mjs')
+writeFileSync(artifact, renderRealAppMarkdown(JSON.parse(readFileSync(structuredArtifact, 'utf8'))))
 console.log(`Wrote ${artifact}`)
-console.log(`Wrote ${structuredArtifact}`)
 
 const baseline = path.join(root, 'docs', 'measurements', `${key}.md`)
 if (existsSync(baseline) && readFileSync(artifact, 'utf8') === readFileSync(baseline, 'utf8')) {

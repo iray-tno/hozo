@@ -6,21 +6,25 @@ reports parse failures, diagnostics, React Native JSX left in Web output, and st
 wrong-output invariants. It reads the checkout and writes nothing to it unless asked; see
 [What it writes](#what-it-writes).
 
+The command is `hozo dry-fit` from [`@hozo/cli`](../cli/README.md); this package is its engine and its
+library API (`measureRealApp`, `compareReports`, `runCli`). The `hozo-migration-audit` binary it still
+ships runs the same command and is deprecated.
+
 ```sh
-npx @hozo/migration-audit .
-npx @hozo/migration-audit --root ../my-react-native-app --output hozo-audit.md
-npx @hozo/migration-audit . --source app --source components --format json
-npx @hozo/migration-audit . --details --output hozo-audit.md
-npx @hozo/migration-audit . --css app/globals.css --preflight auto
-npx @hozo/migration-audit . --primitive-source @acme/ui
-npx @hozo/migration-audit . --source packages/app --include 'packages/**/*.{tsx,jsx,ts}' --exclude '**/*.test.*'
-npx @hozo/migration-audit . --native-platform ios
-npx @hozo/migration-audit . --font-availability hozo-font-availability.json
-npx @hozo/migration-audit . --compare previous-audit.json --output changes.md
-npx @hozo/migration-audit . --fail-on error --output hozo-audit.json
-npx @hozo/migration-audit . --compare previous-audit.json --fail-on new-errors --output changes.md
-npx @hozo/migration-audit . --fix            # print the import moves as a diff
-npx @hozo/migration-audit . --fix --write    # apply them
+npx @hozo/cli dry-fit .
+npx @hozo/cli dry-fit --root ../my-react-native-app --output hozo-audit.md
+npx @hozo/cli dry-fit . --source app --source components --format json
+npx @hozo/cli dry-fit . --details --output hozo-audit.md
+npx @hozo/cli dry-fit . --css app/globals.css --preflight auto
+npx @hozo/cli dry-fit . --primitive-source @acme/ui
+npx @hozo/cli dry-fit . --source packages/app --include 'packages/**/*.{tsx,jsx,ts}' --exclude '**/*.test.*'
+npx @hozo/cli dry-fit . --native-platform ios
+npx @hozo/cli dry-fit . --font-availability hozo-font-availability.json
+npx @hozo/cli dry-fit . --compare previous-audit.json --output changes.md
+npx @hozo/cli dry-fit . --fail-on error --output hozo-audit.json
+npx @hozo/cli dry-fit . --compare previous-audit.json --fail-on new-errors --output changes.md
+npx @hozo/cli dry-fit . --fix            # print the import moves as a diff
+npx @hozo/cli dry-fit . --fix --write    # apply them
 ```
 
 Without `--source`, the tool scans nonempty `src/` and `app/` directories (both when present),
@@ -390,8 +394,9 @@ policy is not migration readiness, runtime correctness or a full compatibility a
 
 The CLI writes the complete JSON/Markdown report **before** returning a policy failure, so CI
 can upload evidence on failed steps. Invalid arguments/baseline input fail before analysis or
-output. Exit `0` means the selected policy passed; `1` means a failed/blocked policy or input/tool
-failure. A failed/blocked policy also emits a brief stderr explanation without polluting JSON stdout.
+output. Exit `0` means the selected policy passed; `1` means a failed/blocked policy; `2` means the
+audit could not run (invalid arguments or baseline, unreadable input), with a string code such as
+`[unknown-option]` at the end of the stderr line. A failed/blocked policy also emits a brief stderr explanation without polluting JSON stdout.
 
 `failurePolicy` version 1 records mode, status, exit code, reasons and uncapped finding indices.
 `errorFindings` and `analysisFailures` index current `findings`; `newErrorFindings` index the

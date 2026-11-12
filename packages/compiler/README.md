@@ -146,10 +146,13 @@ A caller's build compiles the caller's file alone, so it cannot see what a compo
 A package computes that from its own source and ships it, the way it ships `.d.ts` files:
 
 ```sh
-hozo-manifest path/to/package           # writes hozo.manifest.json
-hozo-manifest path/to/package --check   # exits 1 when it is stale
-hozo-manifest path/to/package --entry src/index.ts   # when the published entry is built output
+hozo manifest path/to/package           # writes hozo.manifest.json
+hozo manifest path/to/package --check   # exits 1 when it is stale, 2 when it cannot be built
+hozo manifest path/to/package --entry src/index.ts   # when the published entry is built output
 ```
+
+`hozo` is the binary of `@hozo/cli`. The `hozo-manifest` binary this package ships runs the same
+command and is deprecated.
 
 The package names the file in its `package.json` as `"hozo": { "manifest": "./hozo.manifest.json" }`, and lists it in `files` and `exports`.
 

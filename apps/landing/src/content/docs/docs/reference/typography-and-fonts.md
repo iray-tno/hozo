@@ -87,4 +87,4 @@ export const fonts = defineFonts({
    When `fontAvailability` is provided, the compiler checks literal managed font declarations and emits `FONT_FAMILY_NOT_REGISTERED` or `FONT_VARIANT_NOT_REGISTERED` when a component requests a weight, style, or platform that your manifest does not provide.
 2. **Expo (`@hozo/typography/fonts/expo`):** pass `createExpoFontOptions(fonts)` to the official `expo-font` plugin in `app.config.ts`.
 3. **Bare React Native (`@hozo/typography/fonts/native`):** call `createNativeFontPlan(fonts, 'ios' | 'android')` to inspect or assert the exact `files` and `families` descriptors your native project must link.
-4. **Migration Audit (`@hozo/migration-audit`):** export `JSON.stringify(createFontAvailability(fonts))` and pass `--font-availability hozo-font-availability.json` to audit an entire repository for unregistered font variants.
+4. **Migration Audit (`hozo dry-fit`):** export `JSON.stringify(createFontAvailability(fonts))` and pass `--font-availability hozo-font-availability.json` to audit an entire repository for unregistered font variants.

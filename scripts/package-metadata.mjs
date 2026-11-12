@@ -93,6 +93,7 @@ const PACKAGES = {
       './diagnostics': './dist/diagnostics.js',
       './sources': './dist/sources.js',
       './manifest': './dist/manifest.js',
+      './manifest/cli': './dist/manifest-command.js',
     },
     // Builds the manifest a component package ships (#950).
     bin: { 'hozo-manifest': './dist/manifest-cli.js' },
@@ -281,6 +282,7 @@ const PACKAGES = {
       './tanstack-router/typed': './dist/tanstack-typed.js',
       './verification': './dist/verification.js',
       './verification/node': './dist/verification-node.js',
+      './verification/cli': './dist/verification-cli.js',
       './hozo-links.schema.json': './hozo-links.schema.json',
     },
     // Pure verification data can use the default build everywhere, while
@@ -292,6 +294,7 @@ const PACKAGES = {
       './tanstack-router/typed',
       './verification',
       './verification/node',
+      './verification/cli',
     ],
     files: ['dist', 'hozo-links.schema.json'],
     native: true,
@@ -367,7 +370,14 @@ const PACKAGES = {
   cli: {
     // `hozo`, the one command (RFC 011). Plain ESM like migration-audit:
     // nothing to build, and each command is imported only when it runs.
-    dependencyOverrides: { '@hozo/migration-audit': 'workspace:^' },
+    // `@hozo/navigation` is an optional peer: `hozo links` serves projects that
+    // already use it, and a required one would pull React into a CLI.
+    dependencyOverrides: {
+      '@hozo/compiler': 'workspace:^',
+      '@hozo/migration-audit': 'workspace:^',
+    },
+    peerOverrides: { '@hozo/navigation': 'workspace:^' },
+    peerMetadataOverrides: { '@hozo/navigation': { optional: true } },
     description: "The `hozo` command: one entry point for Hozo's command-line tools.",
     exports: { '.': './src/index.mjs' },
     bin: { hozo: './src/cli.mjs' },
@@ -378,6 +388,7 @@ const PACKAGES = {
       name: '@hozo/cli',
       type: 'module',
       scripts: { test: 'node --test src/*.test.mjs' },
+      devDependencies: { '@hozo/navigation': 'workspace:^' },
     },
   },
   storybook: {

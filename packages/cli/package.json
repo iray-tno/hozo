@@ -45,6 +45,18 @@
     "test": "node --test src/*.test.mjs"
   },
   "dependencies": {
-    "@hozo/migration-audit": "workspace:^"
+    "@hozo/migration-audit": "workspace:^",
+    "@hozo/compiler": "workspace:^"
+  },
+  "peerDependencies": {
+    "@hozo/navigation": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@hozo/navigation": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@hozo/navigation": "workspace:^"
   }
 }

@@ -483,7 +483,7 @@ export function Syntax() { return <><Animated.View /><SectionList /></> }
     assert.match(markdown, /Real-app measurement: fixture/)
     assert.match(markdown, /DOM style-array invariant holds/)
     assert.match(markdown, /Invalid DOM style-array occurrences \| 0/)
-    assert.match(markdown, /npx @hozo\/migration-audit/)
+    assert.match(markdown, /npx @hozo\/cli dry-fit --root/)
     assert.match(markdown, /RNW cannot yet be removed at the JSX boundary/)
 
     report.lowering.filesWithDirectReactNativeJsxResidueOnWeb = 0
@@ -636,6 +636,10 @@ function fixture(t, files) {
 }
 
 const simpleSource = 'export function App() { return <div /> }\n'
+const capture = () => ({
+  isTTY: false,
+  write() {},
+})
 // The deprecated binary's first stderr line; everything after it is unchanged.
 const withoutDeprecation = (stderr) => {
   assert.match(stderr, /^hozo-migration-audit is deprecated; run `hozo dry-fit`/)
@@ -818,6 +822,37 @@ test('Bluesky-style corpus signals are opt-in and do not leak into generic outpu
   report.lowering.parseOrCompileFailures = 1
   assert.match(renderRealAppMarkdown(report), /The corpus has parse or compile failures/)
   assert.doesNotMatch(renderRealAppMarkdown(report), /The corpus parses cleanly/)
+})
+
+// The corpus runner passes its signals to `hozo dry-fit` as patterns, so the
+// command-line form has to count what the function form counts.
+test('--file-signal counts what a function signal counts', async (t) => {
+  const root = fixture(t, {
+    'src/App.tsx':
+      'const atoms = { box: {} }; export function App() { return <div style={atoms.box} /> }',
+    'src/Other.tsx': 'export function Other() { return <div /> }',
+  })
+  const stdout = capture()
+  const report = await runCli(
+    [root, '--file-signal', String.raw`filesUsingAlfAtoms=\batoms(?:\.|\[)`, '--format', 'json'],
+    { stdout },
+  )
+  assert.deepEqual(report.corpusSignals, { filesUsingAlfAtoms: 1 })
+  for (const [value, pattern] of [
+    ['atoms', /needs <name>=<regex>/],
+    ['=atoms', /needs <name>=<regex>/],
+    ['1st=atoms', /needs <name>=<regex>/],
+    ['bad=(', /bad: /],
+  ]) {
+    await assert.rejects(
+      () => runCli([root, '--file-signal', value], { stdout: capture() }),
+      (error) =>
+        error instanceof AuditInputError &&
+        error.code === 'invalid-file-signal' &&
+        pattern.test(error.message),
+      value,
+    )
+  }
 })
 
 test('full Canvas findings exceed sample limits and details preserve all messages', async (t) => {

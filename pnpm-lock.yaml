@@ -836,9 +836,16 @@ importers:
 
   packages/cli:
     dependencies:
+      '@hozo/compiler':
+        specifier: workspace:^
+        version: link:../compiler
       '@hozo/migration-audit':
         specifier: workspace:^
         version: link:../migration-audit
+    devDependencies:
+      '@hozo/navigation':
+        specifier: workspace:^
+        version: link:../navigation
 
   packages/compiler:
     dependencies:
