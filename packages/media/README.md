@@ -15,7 +15,7 @@ function Clip({ src }: { src: string }) {
 ```
 
 Install `@hozo/media` for either platform. Native additionally needs Expo modules
-and `npx expo install expo-video` (tested with Expo SDK 57's `expo-video` 57.0.5).
+and `npx expo install expo-video` (Expo SDK 58: the peer range is `>=58.0.13 <59`).
 For an existing bare React Native app, install/configure Expo modules first.
 The Web entry never imports Expo or React Native. The optional native peer
 does not implement a fallback player: an app that uses Native Video must install
@@ -196,7 +196,7 @@ function Sound({ src }: { src: string }) {
 ```
 
 Native Audio additionally needs Expo modules and `npx expo install expo-audio`
-(SDK 57, 57.0.5). The `/audio` entry does not import `expo-video`; the root
+(Expo SDK 58: `>=58.0.11 <59`). The `/audio` entry does not import `expo-video`; the root
 Video entry does not import `expo-audio`. Web imports neither Native engine.
 Both optional peers must be installed when their respective Native entry is
 used; this is not a silent fallback. Adding the native module requires a new
@@ -293,7 +293,7 @@ function BundledSound() {
 
 For a numeric Native Metro asset, keep that same hook and select the opt-in
 Expo adapter instead. Install `expo-asset` with `npx expo install expo-asset`
-when using this entry (tested with SDK 57 / 57.0.18):
+when using this entry (Expo SDK 58: `>=58.0.19 <59`):
 
 ```tsx
 import { useMediaSource } from '@hozo/media/source'

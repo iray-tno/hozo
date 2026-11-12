@@ -106,7 +106,7 @@
   "peerDependencies": {
     "react": "^19.0.0",
     "react-native": ">=0.87",
-    "expo-video": ">=57.0.5 <58",
+    "expo-video": ">=58.0.13 <59",
     "expo-audio": ">=58.0.11 <59",
     "expo-asset": ">=58.0.19 <59"
   },
