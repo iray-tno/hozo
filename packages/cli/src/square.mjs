@@ -43,7 +43,9 @@ Setup checks:
   scan      Every file importing @hozo/* was read by the last candidate scan
 
 Code: the audit \`hozo dry-fit\` runs, against the stylesheet the css check
-found. A fatal setup finding (no adapter) skips it, and says so.
+found. A fatal setup finding (no adapter) skips it, and says so. It compiles
+with the compiler this CLI brings; when the project builds with another
+version, a warning says so (run \`npx @hozo/cli@<that version> square\`).
 
 On a project with no @hozo/* dependency, use \`hozo dry-fit\` instead.`
 
@@ -265,6 +267,7 @@ function setup(project, declared, found) {
   const graph = hozoCopies(project, declared)
   // What the project has, declared or brought in by another @hozo/* package.
   graph.names = new Set([...declared, ...graph.copies.map((copy) => copy.name)])
+  found.compiler = projectCompiler(graph.copies)
   return CHECKS.map(([id, title, check]) => {
     try {
       const { findings = [], summary, skipped, fatal, css } = check(project, graph)
@@ -290,6 +293,26 @@ function setup(project, declared, found) {
       }
     }
   })
+}
+
+/**
+ * The compiler the project builds with: its own `@hozo/compiler` (a bundler
+ * adapter brings it in), else the version its `@hozo/*` packages release at,
+ * which is the compiler's too. The highest when they disagree: the version
+ * the versions check tells the project to move to.
+ */
+function projectCompiler(copies) {
+  const published = copies.filter(({ manifest }) => !manifest.private)
+  const own = published.filter((copy) => copy.name === '@hozo/compiler')
+  const from = own.length ? own : published
+  if (!from.length) return undefined
+  const [version] = from
+    .map((copy) => copy.manifest.version)
+    .sort((a, b) => {
+      const [x, y] = [parseVersion(a), parseVersion(b)]
+      return x && y ? y[0] - x[0] || y[1] - x[1] || y[2] - x[2] : 0
+    })
+  return { version, from: own.length ? '@hozo/compiler' : 'its @hozo/* packages' }
 }
 
 function failurePolicy(checks, failOn, code) {
@@ -329,7 +352,11 @@ function codeText(report, codeLines) {
   const all = report.setup.flatMap((check) => check.findings)
   const count = (severity) => all.filter((finding) => finding.severity === severity).length
   const audited = report.code.report?.diagnostics.bySeverity ?? {}
-  const total = (severity) => count(severity) + (audited[severity] ?? 0)
+  const measured = report.code.findings ?? []
+  const total = (severity) =>
+    count(severity) +
+    (audited[severity] ?? 0) +
+    measured.filter((finding) => finding.severity === severity).length
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
   const lines = ['', 'Code', ...codeLines, '']
   lines.push(`${plural(total('error'), 'error')}, ${plural(total('warning'), 'warning')}.`)
@@ -406,6 +433,7 @@ export async function runSquare(argv, io, cwd = process.cwd()) {
         project,
         name: manifest.name,
         css: found.css,
+        compiler: found.compiler,
         failOn: options.failOn,
         baseline,
       })

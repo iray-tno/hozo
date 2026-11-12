@@ -43,7 +43,7 @@ export function readBaseline(file) {
  * Run the audit on `project`. `failOn` is square's; the audit has no warning
  * level, so `warning` asks it for errors and counts the warnings here.
  */
-export async function checkCode({ project, name, css, failOn, baseline }) {
+export async function checkCode({ project, name, css, compiler, failOn, baseline }) {
   let audit
   try {
     audit = await import('@hozo/migration-audit')
@@ -72,15 +72,36 @@ export async function checkCode({ project, name, css, failOn, baseline }) {
   const mode = failOn === 'none' || failOn === 'new-errors' ? failOn : 'error'
   report.failurePolicy = audit.evaluateFailurePolicy(report, mode)
 
+  // The audit compiles with the compiler this CLI brings, which `npx` may
+  // fetch at another version than the project builds with. Its findings
+  // are then that compiler's, not the build's: said, not silently compared.
+  const measuredWith = report.toolchain.compilerVersion
+  const findings =
+    compiler && measuredWith !== compiler.version
+      ? [
+          {
+            code: 'compiler-version-mismatch',
+            severity: 'warning',
+            message: `Measured with @hozo/compiler ${measuredWith}, while the project builds with ${compiler.version} (${compiler.from}); a finding here may not be the build's`,
+            fix: `Run the CLI at the project's version: npx @hozo/cli@${compiler.version} square`,
+          },
+        ]
+      : []
+
   const { bySeverity } = report.diagnostics
   const errors = bySeverity.error ?? 0
   const warnings = bySeverity.warning ?? 0
   const reasons = [...report.failurePolicy.reasons]
   if (failOn === 'warning' && warnings)
     reasons.push(`${warnings} current warning finding${warnings === 1 ? '' : 's'}.`)
+  if (failOn === 'warning' && findings.length)
+    reasons.push(`Measured with another compiler than the project's.`)
   const files = report.scope.authoredFiles
   return {
-    status: errors || warnings || report.failurePolicy.status !== 'passed' ? 'failed' : 'passed',
+    status:
+      errors || warnings || findings.length || report.failurePolicy.status !== 'passed'
+        ? 'failed'
+        : 'passed',
     summary: `${files} file${files === 1 ? '' : 's'} on Web and Native: ${plural(errors, 'error')}, ${plural(warnings, 'warning')}${
       report.comparison?.status === 'comparable'
         ? `; ${plural(report.failurePolicy.newErrors ?? newErrors(report.comparison), 'new error')} since the baseline`
@@ -88,6 +109,8 @@ export async function checkCode({ project, name, css, failOn, baseline }) {
           ? `; not comparable with the baseline (${report.comparison.status})`
           : ''
     }`,
+    compiler: { measuredWith, project: compiler?.version ?? null },
+    findings,
     report,
     // `blocked` (new-errors against a baseline the engine cannot fully
     // compare, as when a file was added) exits 1, as dry-fit does: a CI step
@@ -119,6 +142,10 @@ const unable = (reason, code) => ({
 export function codeLines(code) {
   if (code.status === 'skipped') return [`  skip  ${code.reason}`]
   const lines = [`  ${code.status === 'passed' ? 'pass' : 'FAIL'}  ${code.summary}`]
+  for (const finding of code.findings) {
+    lines.push(`        ${finding.severity.padEnd(7)} ${finding.message} [${finding.code}]`)
+    lines.push(`                Fix: ${finding.fix}`)
+  }
   const shown = ['error', 'warning'].flatMap((severity) =>
     code.report.findings.filter((finding) => finding.severity === severity),
   )

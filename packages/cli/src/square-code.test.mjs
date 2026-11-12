@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -15,19 +16,19 @@ const capture = () => {
   return stream
 }
 
+// The compiler the audit loads: a project at its version builds with it.
+const COMPILER = createRequire(import.meta.url)('@hozo/compiler/package.json').version
+
 /** A project with `@hozo/core` installed and the given files. */
-function project(t, files) {
+function project(t, files, version = COMPILER) {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-square-code-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const write = (file, contents) => {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
     writeFileSync(path.join(root, file), contents)
   }
-  write('package.json', JSON.stringify({ name: 'app', dependencies: { '@hozo/core': '0.4.0' } }))
-  write(
-    'node_modules/@hozo/core/package.json',
-    JSON.stringify({ name: '@hozo/core', version: '0.4.0' }),
-  )
+  write('package.json', JSON.stringify({ name: 'app', dependencies: { '@hozo/core': version } }))
+  write('node_modules/@hozo/core/package.json', JSON.stringify({ name: '@hozo/core', version }))
   for (const [file, contents] of Object.entries(files)) write(file, contents)
   return { root, write }
 }
@@ -66,6 +67,45 @@ test('the code half compiles the project and embeds the audit report', async (t)
   assert.equal((await square(root, '--fail-on', 'none')).exit, 0)
 })
 
+test('a project on another compiler version is told whose compiler measured it', async (t) => {
+  // An older release than the one this CLI brings, as `npx` fetches the latest.
+  const { root } = project(t, { 'src/App.tsx': CLEAN }, '0.0.1')
+  const text = await square(root)
+  // A warning: the findings are still reported, against the CLI's compiler.
+  assert.equal(text.exit, 0, text.stderr)
+  assert.match(
+    text.stdout,
+    new RegExp(
+      `\\n {8}warning Measured with @hozo/compiler ${COMPILER.replaceAll('.', '\\.')}, while the project builds with 0\\.0\\.1 \\(its @hozo/\\* packages\\); a finding here may not be the build's \\[compiler-version-mismatch\\]\\n {16}Fix: Run the CLI at the project's version: npx @hozo/cli@0\\.0\\.1 square\\n`,
+    ),
+  )
+  assert.match(text.stdout, /\n0 errors, 1 warning\.\n$/)
+
+  const json = JSON.parse((await square(root, '--format', 'json')).stdout)
+  assert.deepEqual(json.code.compiler, { measuredWith: COMPILER, project: '0.0.1' })
+  assert.equal(json.code.findings[0].code, 'compiler-version-mismatch')
+  const strict = await square(root, '--fail-on', 'warning')
+  assert.equal(strict.exit, 1)
+  assert.match(strict.stderr, /Code: Measured with another compiler than the project's\./)
+
+  // The project's own @hozo/compiler, when an adapter brings one, is the one compared.
+  const { root: matched, write } = project(t, { 'src/App.tsx': CLEAN }, '0.0.1')
+  write(
+    'node_modules/@hozo/core/package.json',
+    JSON.stringify({
+      name: '@hozo/core',
+      version: '0.0.1',
+      dependencies: { '@hozo/compiler': COMPILER },
+    }),
+  )
+  write(
+    'node_modules/@hozo/compiler/package.json',
+    JSON.stringify({ name: '@hozo/compiler', version: COMPILER }),
+  )
+  const own = JSON.parse((await square(matched, '--format', 'json', '--fail-on', 'none')).stdout)
+  assert.deepEqual(own.code.findings, [])
+})
+
 test('--compare: only an error the baseline did not have fails new-errors', async (t) => {
   const { root, write } = project(t, { 'src/App.tsx': CLEAN, 'src/Card.tsx': HOVER })
   const baselines = mkdtempSync(path.join(tmpdir(), 'hozo-square-baseline-'))
@@ -93,9 +133,16 @@ test('--compare: only an error the baseline did not have fails new-errors', asyn
   assert.match(added.stdout, /2 errors, 0 warnings; 1 new error since the baseline\n/)
   assert.equal(added.stderr, 'hozo square: Code: 1 added or severity-escalated error finding(s).\n')
 
-  // A new file with an error has no baseline boundary to compare, so the
-  // engine cannot call it new or old: new-errors fails closed, as dry-fit does.
+  // A new file is compared like any other: its error is new.
   write('src/App.tsx', CLEAN)
+  write('src/Other.tsx', HOVER.replace('Card', 'Other').replace('p-2', 'm-3'))
+  const another = await square(root, '--compare', squareBaseline, '--fail-on', 'new-errors')
+  assert.equal(another.exit, 1)
+  assert.match(another.stdout, /2 errors, 0 warnings; 1 new error since the baseline\n/)
+
+  // A new file with the very finding an existing file has may be that file
+  // moved or copied: the engine calls it neither new nor old, and
+  // new-errors fails closed, as dry-fit does.
   write('src/Other.tsx', HOVER.replace('Card', 'Other'))
   const grown = await square(root, '--compare', squareBaseline, '--fail-on', 'new-errors')
   assert.equal(grown.exit, 1)
