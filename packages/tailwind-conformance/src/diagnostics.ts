@@ -131,7 +131,10 @@ const PROVOCATIONS: Record<string, Provocation> = {
   // `TAILWIND_VARIANT_CANNOT_MATCH`, which is a variant that *is* built and
   // can never apply to this element -- the difference is which side is at
   // fault.
-  TAILWIND_VARIANT_NOT_SUPPORTED: { source: '<View className="open:p-4">x</View>' },
+  // `open:` compiles since 700e8c9d; an arbitrary ARIA value does not yet.
+  TAILWIND_VARIANT_NOT_SUPPORTED: {
+    source: '<View className="aria-[sort=ascending]:p-4">x</View>',
+  },
   // Built, correct, and unable to ever apply: a `div` cannot be required.
   TAILWIND_VARIANT_CANNOT_MATCH: { source: '<View className="required:p-4">x</View>' },
   VISITED_STYLE_IGNORED: { source: '<Link href="/a" className="visited:p-4">x</Link>' },

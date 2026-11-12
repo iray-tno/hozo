@@ -69,6 +69,11 @@ const VARIANTS: { variant: string; className: string; element: (className: strin
   { variant: 'print:', className: 'print:hidden', element: button },
   { variant: 'before:', className: 'before:content-none', element: button },
   { variant: 'peer-checked:', className: 'peer-checked:bg-emerald-700', element: button },
+  {
+    variant: 'aria-[…]:',
+    className: 'aria-[sort=ascending]:bg-emerald-700',
+    element: button,
+  },
 ]
 
 function button(className: string) {

@@ -100,10 +100,10 @@
     "skipped": 0
   },
   "candidateSheet": {
-    "rules": 40630,
+    "rules": 45562,
     "parses": true,
-    "comparable": 20310,
-    "inOrder": 20310
+    "comparable": 22705,
+    "inOrder": 22705
   },
   "refusalAudit": {
     "refusals": 10363,

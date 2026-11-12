@@ -113,9 +113,16 @@ function hozoDeclarations(candidate: string): string {
   // between the two sides of this function. A responsive candidate like
   // `md:flex-row` is unaffected: every rule it produces is at the same
   // depth, so the minimum keeps all of them.
-  const depth = Math.min(...rules.map((rule) => rule.atRules.length))
+  //
+  // A cascade layer is not a condition: it decides what wins, not when the
+  // rule applies. A divider width's implied `solid` sits in `@layer base`
+  // so that a written divider style beats it, as Tailwind's
+  // `--tw-border-style` does, and it still applies to the same children.
+  const conditions = (rule: { atRules: string[] }) =>
+    rule.atRules.filter((atRule) => !atRule.startsWith('@layer')).length
+  const depth = Math.min(...rules.map(conditions))
   return rules
-    .filter((rule) => rule.atRules.length === depth)
+    .filter((rule) => conditions(rule) === depth)
     .map((rule) => rule.declarations)
     .join('')
 }
