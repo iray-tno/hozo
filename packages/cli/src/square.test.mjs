@@ -74,7 +74,8 @@ test('a project whose setup is in order passes, and says what it checked', async
   assert.equal(exit, 0)
   assert.equal(report.schemaVersion, 1)
   assert.deepEqual(
-    report.setup.map(({ id, status, summary }) => [id, status, summary]),
+    // The package checks; a project with no bundler skips the config ones.
+    report.setup.slice(0, 2).map(({ id, status, summary }) => [id, status, summary]),
     [
       ['versions', 'passed', '0.4.0 (2 packages)'],
       ['peers', 'passed', '2 installed peers checked'],
@@ -92,7 +93,7 @@ test('a project whose setup is in order passes, and says what it checked', async
 test('versions: a package left behind, a nested copy, and one not installed', async (t) => {
   const root = project(
     t,
-    { dependencies: { '@hozo/core': '0.4.0', '@hozo/ui': '0.3.0', '@hozo/vite': '0.4.0' } },
+    { dependencies: { '@hozo/core': '0.4.0', '@hozo/ui': '0.3.0', '@hozo/svg': '0.4.0' } },
     {
       'node_modules/@hozo/core': { version: '0.4.0' },
       // `ui` brings its own older `core`: two versions in one bundle.
@@ -108,7 +109,7 @@ test('versions: a package left behind, a nested copy, and one not installed', as
   const versions = check('versions')
   assert.equal(versions.status, 'failed')
   assert.deepEqual(codes(versions), ['not-installed', 'version-mismatch', 'version-mismatch'])
-  assert.match(versions.findings[0].message, /^@hozo\/vite is in package\.json but not installed/)
+  assert.match(versions.findings[0].message, /^@hozo\/svg is in package\.json but not installed/)
   const nested = versions.findings.find((finding) => finding.package === '@hozo/core')
   assert.match(nested.message, /required by @hozo\/ui/)
   assert.equal(nested.fix, 'Install every @hozo/* package at 0.4.0')

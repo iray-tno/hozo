@@ -8,6 +8,7 @@
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { parseVersion, satisfies } from './range.mjs'
+import { checkAdapter, checkCss, checkMetroState, checkScan } from './square-config.mjs'
 
 export const SCHEMA_VERSION = 1
 
@@ -26,6 +27,12 @@ Setup checks:
   versions  Every installed @hozo/* package is at one version
   peers     What each @hozo/* package needs beside it (react-native, react,
             Expo's modules, ...) is installed within the range it declares
+  adapter   Each bundler config (Vite, Astro, Next.js, Metro, Storybook) uses
+            its Hozo adapter; on Vite, hozo() comes before React's plugin
+  css       The stylesheet Hozo reads imports Tailwind, and @hozo/ui's theme
+            when @hozo/ui is installed
+  metro     Metro's saved state is newer than metro.config (else: restart it)
+  scan      Every file importing @hozo/* was read by the last candidate scan
 
 On a project with no @hozo/* dependency, use \`hozo dry-fit\` instead.`
 
@@ -225,14 +232,29 @@ function checkPeers(project, { copies }) {
 const CHECKS = [
   ['versions', 'Every @hozo/* package is at one version', checkVersions],
   ['peers', 'Peer dependencies are installed and in range', checkPeers],
+  ['adapter', 'The bundler config uses its Hozo adapter', checkAdapter],
+  ['css', 'The stylesheet Hozo reads imports Tailwind and the themes it needs', checkCss],
+  ['metro', "Metro's saved state matches its config", checkMetroState],
+  ['scan', 'The candidate scan reads every file that imports @hozo/*', checkScan],
 ]
 
 function setup(project, declared) {
   const graph = hozoCopies(project, declared)
+  // What the project has, declared or brought in by another @hozo/* package.
+  graph.names = new Set([...declared, ...graph.copies.map((copy) => copy.name)])
   return CHECKS.map(([id, title, check]) => {
     try {
-      const { findings, summary } = check(project, graph)
-      return { id, title, status: findings.length ? 'failed' : 'passed', summary, findings }
+      const { findings = [], summary, skipped, fatal } = check(project, graph)
+      if (skipped) return { id, title, status: 'skipped', reason: skipped, findings }
+      return {
+        id,
+        title,
+        status: findings.length ? 'failed' : 'passed',
+        summary,
+        findings,
+        // A finding that leaves nothing for the code half to compile.
+        ...(fatal ? { fatal: true } : {}),
+      }
     } catch (error) {
       // A check that throws is reported and skipped; the others still run.
       return {
