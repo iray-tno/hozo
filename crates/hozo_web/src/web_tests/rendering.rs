@@ -1804,11 +1804,16 @@ fn a_branch_on_a_component_reaches_it_through_its_class_name() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.jsx.contains("className={["), "{}", output.jsx);
+    // A spread of a binding no longer refuses the class plan (#1879): the
+    // guard is read once, from the plan, and still reaches `className`.
     assert!(
-        output.jsx.contains("(small) && 'hozo-cond-"),
+        output
+            .jsx
+            .contains("(__hozoClassPlan131[0]) && 'hozo-cond-"),
         "{}",
         output.jsx
     );
+    assert_eq!(output.jsx.matches("(small)").count(), 1, "{}", output.jsx);
     assert!(!output.jsx.contains("data-hozo-cond"), "{}", output.jsx);
 }
 

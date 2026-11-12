@@ -1591,7 +1591,7 @@ fn build_node(
                                 .declarations
                                 .iter()
                                 .any(|d| has_authored_guard(&d.condition)))
-                            && root_capture::can_wrap(el, attr.span)
+                            && root_capture::can_wrap(el, attr.span, primitive)
                         {
                             if let Some(mut evaluation) = capture_class_expression(
                                 &container.expression,
@@ -2511,6 +2511,14 @@ fn build_node(
             declaration.source = declaration.source.with_tailwind_input(slot.span.start);
         }
     }
+    root_capture::plan_attributes(
+        el,
+        primitive,
+        &mut props,
+        &mut style,
+        &class_name_fallback,
+        expression_container,
+    );
     validate_semantic_children(primitive, &children, diagnostics);
     validate_focusable_disabled(&props, to_span(el.span()), diagnostics);
     validate_flex_direction(primitive, &style, to_span(el.span()), diagnostics);

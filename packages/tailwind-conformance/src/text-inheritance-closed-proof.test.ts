@@ -180,6 +180,9 @@ export const Scene=({own})=><View style={{color:'#123456',fontSize:20}}><Label o
   }
 })
 
+// The label is computed before the element: the style is the one evaluated
+// value this proof is about. A second would put the element in an evaluation
+// plan (#1879), which is not a closed leaf.
 test('StrictMode and parent-driven updates retain a closed leaf host and state', () => {
   resetTextCounts()
   const compiled = compileTextGraph(
@@ -188,7 +191,7 @@ test('StrictMode and parent-driven updates retain a closed leaf host and state',
       label: `import {Text} from '@hozo/core';import {memo,useState} from 'react';let evaluations=0;let initialized=0;
 export const getEvaluations=()=>evaluations;export const getInitializations=()=>initialized;
 function opacity(){evaluations++;return 0.5}
-export const Label=memo(function Label({tick}){const [state]=useState(()=>++initialized);return <Text testID="label" accessibilityLabel={String(state)+tick} style={${CLOSED_STYLE.replace('opacity:0.5', 'opacity:opacity()')}}>Label</Text>})`,
+export const Label=memo(function Label({tick}){const [state]=useState(()=>++initialized);const label=String(state)+tick;return <Text testID="label" accessibilityLabel={label} style={${CLOSED_STYLE.replace('opacity:0.5', 'opacity:opacity()')}}>Label</Text>})`,
     },
     [],
     'reference-intent',

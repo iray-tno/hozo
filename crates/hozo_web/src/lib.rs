@@ -1000,8 +1000,9 @@ fn is_textarea(node: &Node) -> bool {
     )
 }
 
-fn source_text(source: &str, expr_ref: hozo_ir::ExprRef) -> &str {
-    &source[expr_ref.0.start as usize..expr_ref.0.end as usize]
+fn source_text(source: &str, expr_ref: hozo_ir::ExprRef) -> std::borrow::Cow<'_, str> {
+    // Reads a captured attribute's plan slot while its element renders.
+    hozo_ir::attribute_capture::text(source, expr_ref.0.start as usize, expr_ref.0.end as usize)
 }
 
 /// The tag name as the author wrote it, read off the element's own span.
@@ -1042,21 +1043,29 @@ fn written_tag(source: &str, span: hozo_ir::SourceSpan) -> Option<&str> {
 /// `true`, which is what JSX means by it.
 fn attribute_value_source(source: &str, span: hozo_ir::ExprRef) -> String {
     attribute_value_slice(source, span)
-        .unwrap_or("true")
-        .to_string()
+        .map_or_else(|| "true".to_string(), std::borrow::Cow::into_owned)
 }
 
-fn attribute_value_slice(source: &str, span: hozo_ir::ExprRef) -> Option<&str> {
-    let text = source_text(source, span);
+/// Read off the source itself, then substituted: the value's range is the
+/// source's, and a captured value (#1879) is replaced only as a whole.
+fn attribute_value_slice(
+    source: &str,
+    span: hozo_ir::ExprRef,
+) -> Option<std::borrow::Cow<'_, str>> {
+    let text = &source[span.0.start as usize..span.0.end as usize];
     let (_, value) = text.split_once('=')?;
     let value = value.trim();
-    Some(
-        value
-            .strip_prefix('{')
-            .and_then(|rest| rest.strip_suffix('}'))
-            .unwrap_or(value)
-            .trim(),
-    )
+    let value = value
+        .strip_prefix('{')
+        .and_then(|rest| rest.strip_suffix('}'))
+        .unwrap_or(value)
+        .trim();
+    let start = value.as_ptr() as usize - source.as_ptr() as usize;
+    Some(hozo_ir::attribute_capture::text(
+        source,
+        start,
+        start + value.len(),
+    ))
 }
 fn render_condition_expr(source: &str, expr: &hozo_ir::ConditionExpr) -> String {
     use hozo_ir::ConditionExpr;
@@ -1114,7 +1123,9 @@ fn meter_value_text(node: &Node, source: &str) -> Option<String> {
                 value
                     .strip_prefix('{')
                     .and_then(|inner| inner.strip_suffix('}'))
-                    .map(|inner| inner.trim().to_string())
+                    .map(|inner| {
+                        hozo_ir::attribute_capture::slice(source, inner.trim()).into_owned()
+                    })
                     .or_else(|| {
                         value
                             .strip_prefix('"')?
@@ -1231,6 +1242,9 @@ fn push_rules_using(
 fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
     let source = cx.source;
     let theme = cx.theme;
+    // Every copy of an attribute this element's plan evaluates reads the
+    // plan's value instead, for as long as the element renders (#1879).
+    let _captured = hozo_ir::attribute_capture::enter(node.root_class_evaluation(), source);
     let class_name = cx.allocator.alloc();
     let mut attr_copies = cx.tag_decisions.is_some().then(Vec::new);
 
@@ -1940,7 +1954,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                 &mut attrs,
                 &mut attr_copies,
                 source,
-                source_text(source, on_press),
+                &source_text(source, on_press),
                 &prefix,
                 "}",
             );
@@ -1966,7 +1980,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                 &mut attrs,
                 &mut attr_copies,
                 source,
-                source_text(source, on_press),
+                &source_text(source, on_press),
                 " {...hozoInteractive(",
                 &suffix,
             );
@@ -1988,7 +2002,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                 &mut attrs,
                 &mut attr_copies,
                 source,
-                source_text(source, on_press),
+                &source_text(source, on_press),
                 &format!(" {name}={{"),
                 "}",
             );
@@ -2027,7 +2041,9 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                 .iter()
                 .find(|prop| prop.name.as_deref() == Some("tabIndex"));
             if let Some(prop) = authored_tab {
-                let value = attribute_value_slice(source, prop.span).unwrap_or("true");
+                let value = attribute_value_slice(source, prop.span)
+                    .unwrap_or(std::borrow::Cow::Borrowed("true"));
+                let value = value.as_ref();
                 source_evidence::expression(
                     &mut attrs,
                     &mut attr_copies,
@@ -2091,7 +2107,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                 &mut attrs,
                 &mut attr_copies,
                 source,
-                source_text(source, value),
+                &source_text(source, value),
                 &format!(" {name}={{"),
                 "}",
             );
@@ -2360,7 +2376,9 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                     continue; // Emitted once above, guarded by disabled.
                 }
                 if let Some(name @ ("onClick" | "onAuxClick")) = prop.name.as_deref() {
-                    let value = attribute_value_slice(source, prop.span).unwrap_or("true");
+                    let value = attribute_value_slice(source, prop.span)
+                        .unwrap_or(std::borrow::Cow::Borrowed("true"));
+                    let value = value.as_ref();
                     source_evidence::expression(
                         &mut attrs,
                         &mut attr_copies,
@@ -2406,6 +2424,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
         // element. A fallback component owns the same conversion itself.
         if !is_hozo_component && prop.name.as_deref() == Some("style") {
             if let Some(value) = attribute_value_slice(source, prop.span) {
+                let value = value.as_ref();
                 source_evidence::expression(
                     &mut attrs,
                     &mut attr_copies,
@@ -2425,6 +2444,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
         // actually needs normalization.
         if !is_hozo_component && prop.is_spread {
             let text = source_text(source, prop.span);
+            let text: &str = &text;
             let value = text
                 .strip_prefix("{...")
                 .and_then(|rest| rest.strip_suffix('}'))
@@ -2505,6 +2525,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
         if prop.is_spread && prop.nested.is_empty() {
             if let Some(destructure) = omit_later_names(prop, &node.props.passthrough) {
                 let text = source_text(source, prop.span);
+                let text: &str = &text;
                 let value = text
                     .strip_prefix("{...")
                     .and_then(|rest| rest.strip_suffix('}'))

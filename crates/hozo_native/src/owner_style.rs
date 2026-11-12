@@ -183,7 +183,7 @@ pub fn lower_owner_style_with_inputs(
         && root
             .class_name_fallback
             .iter()
-            .all(|expression| binding_only(source_text(source, *expression)))
+            .all(|expression| binding_only(&source_text(source, *expression)))
         && !root
             .style
             .iter()

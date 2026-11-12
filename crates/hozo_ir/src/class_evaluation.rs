@@ -74,12 +74,18 @@ pub enum ClassEvaluationStep {
         consequent: Vec<Self>,
         alternate: Vec<Self>,
     },
+    /// Another attribute's whole value, evaluated here so that it runs once
+    /// and in the order it was written (#1879). The backends emit an
+    /// element's attributes in an order of their own, and copy some values
+    /// more than once (`disabled` is `aria-disabled` and `data-hozo-disabled`
+    /// both); every copy of this span reads the captured value instead.
+    Attribute(ExprRef),
 }
 
 impl ClassEvaluationStep {
     fn width(&self) -> usize {
         match self {
-            Self::Value(_) | Self::TemplateValue(_) => 1,
+            Self::Value(_) | Self::TemplateValue(_) | Self::Attribute(_) => 1,
             Self::Branch {
                 consequent,
                 alternate,
@@ -93,7 +99,9 @@ impl ClassEvaluationStep {
 
     fn references(&self, out: &mut Vec<ExprRef>) {
         match self {
-            Self::Value(reference) | Self::TemplateValue(reference) => out.push(*reference),
+            Self::Value(reference)
+            | Self::TemplateValue(reference)
+            | Self::Attribute(reference) => out.push(*reference),
             Self::Branch {
                 test,
                 consequent,
@@ -111,7 +119,9 @@ impl ClassEvaluationStep {
         let text =
             |reference: ExprRef| &source[reference.0.start as usize..reference.0.end as usize];
         match self {
-            Self::Value(reference) => format!("({})", text(*reference)),
+            Self::Value(reference) | Self::Attribute(reference) => {
+                format!("({})", text(*reference))
+            }
             Self::TemplateValue(reference) => format!("`${{({})}}`", text(*reference)),
             Self::Branch {
                 test,
@@ -152,6 +162,43 @@ impl ClassEvaluation {
         for step in &self.steps {
             step.references(&mut out);
         }
+        out
+    }
+
+    /// The attribute values this plan evaluates, with the expression each
+    /// copy of one reads instead (`__hozoClassPlan12[3]`).
+    pub fn attributes(&self, source: &str) -> Vec<(SourceSpan, String)> {
+        let name = self.name(source);
+        let mut index = 0;
+        let mut out = Vec::new();
+        fn walk(
+            steps: &[ClassEvaluationStep],
+            name: &str,
+            index: &mut usize,
+            out: &mut Vec<(SourceSpan, String)>,
+        ) {
+            for step in steps {
+                match step {
+                    ClassEvaluationStep::Attribute(reference) => {
+                        out.push((reference.0, format!("{name}[{index}]")));
+                        *index += 1;
+                    }
+                    ClassEvaluationStep::Value(_) | ClassEvaluationStep::TemplateValue(_) => {
+                        *index += 1
+                    }
+                    ClassEvaluationStep::Branch {
+                        consequent,
+                        alternate,
+                        ..
+                    } => {
+                        *index += 1;
+                        walk(consequent, name, index, out);
+                        walk(alternate, name, index, out);
+                    }
+                }
+            }
+        }
+        walk(&self.steps, &name, &mut index, &mut out);
         out
     }
 

@@ -97,6 +97,9 @@ pub(super) fn render_node(
 
     let resolved_node = resolve_first_that_works(node);
     let node = resolved_node.as_ref().unwrap_or(node);
+    // Every copy of an attribute this element's plan evaluates reads the
+    // plan's value instead, for as long as the element renders (#1879).
+    let _captured = hozo_ir::attribute_capture::enter(node.root_class_evaluation(), source);
     let base_name = cx.allocator.alloc();
     let mut style_array_parts: Vec<String> = Vec::new();
     // Held separately from `style_array_parts` because they can only be
@@ -1211,9 +1214,7 @@ pub(super) fn render_node(
                 let captured = node
                     .root_class_evaluation()
                     .map(|evaluation| evaluation.value(source, *expr_ref));
-                let value = captured
-                    .as_deref()
-                    .unwrap_or_else(|| source_text(source, *expr_ref));
+                let value = captured.unwrap_or_else(|| source_text(source, *expr_ref).into_owned());
                 match (&class_state, deferred_effects) {
                     (Some(state), 0) => format!("hozoClasses({value}, {state})"),
                     (None, 0) => format!("hozoClasses({value})"),
@@ -1463,7 +1464,9 @@ pub(super) fn render_node(
                     value
                         .strip_prefix('{')
                         .and_then(|inner| inner.strip_suffix('}'))
-                        .map(|inner| inner.trim().to_string())
+                        .map(|inner| {
+                            hozo_ir::attribute_capture::slice(source, inner.trim()).into_owned()
+                        })
                         .or_else(|| {
                             // `max="100"`, which JSX gives as a string.
                             value
@@ -1550,9 +1553,12 @@ pub(super) fn render_node(
             let inner = value.strip_prefix('{')?.strip_suffix('}')?;
             Some(if project_authored_gap {
                 cx.runtime.need_component("hozoAuthoredStyle");
-                format!("hozoAuthoredStyle({})", inner.trim())
+                format!(
+                    "hozoAuthoredStyle({})",
+                    hozo_ir::attribute_capture::slice(source, inner.trim())
+                )
             } else {
-                inner.trim().to_string()
+                hozo_ir::attribute_capture::slice(source, inner.trim()).into_owned()
             })
         })
         .collect();
@@ -2229,7 +2235,7 @@ pub(super) fn render_node(
         value
             .strip_prefix('{')
             .and_then(|inner| inner.strip_suffix('}'))
-            .map(|inner| inner.trim().to_string())
+            .map(|inner| hozo_ir::attribute_capture::slice(source, inner.trim()).into_owned())
     };
     for slot in node.primitive.class_slots() {
         let mut parts: Vec<String> = Vec::new();
