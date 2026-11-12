@@ -21,6 +21,26 @@ impl Rendered {
         if start == end {
             return;
         }
+        // A captured attribute (#1879) is written as its plan slot, and
+        // the source on either side of it is still copied as itself.
+        let mut cursor = start;
+        for span in hozo_ir::attribute_capture::spans_within(start, end) {
+            let (from, to) = (span.start as usize, span.end as usize);
+            if from < cursor {
+                continue;
+            }
+            self.copy_verbatim(source, cursor, from);
+            self.text
+                .push_str(&hozo_ir::attribute_capture::text(source, from, to));
+            cursor = to;
+        }
+        self.copy_verbatim(source, cursor, end);
+    }
+
+    fn copy_verbatim(&mut self, source: &str, start: usize, end: usize) {
+        if start == end {
+            return;
+        }
         let emitted_start = self.text.len();
         self.text.push_str(&source[start..end]);
         if let Some(copies) = &mut self.copies {

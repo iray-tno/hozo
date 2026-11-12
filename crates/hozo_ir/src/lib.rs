@@ -6,6 +6,7 @@
 //! shape, not its parsing shape -- `hozo_parser` builds this from
 //! TSX/Tailwind source.
 
+pub mod attribute_capture;
 mod class_evaluation;
 mod colors;
 pub use class_evaluation::{

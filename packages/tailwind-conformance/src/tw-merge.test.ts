@@ -590,7 +590,9 @@ test('eliminating classes preserves predicate side effects, errors, and order on
   )
 })
 
-test('a root that cannot wrap retains the whole merger and each predicate evaluation', () => {
+// An evaluated prop before the class no longer refuses the root's plan: it
+// is evaluated in the plan ahead of the predicates (#1879).
+test('an evaluated prop before the merger runs first, then each predicate once', () => {
   const compiler = createTwMergeCompiler()
   const input = predicateSource.replace(
     '<View className',
@@ -598,7 +600,7 @@ test('a root that cannot wrap retains the whole merger and each predicate evalua
   )
   for (const jsx of [compiler.compile(input)[0].jsx, compiler.compileNative(input)[0].jsx]) {
     const calls: string[] = []
-    assert.match(jsx, /cn\(/)
+    assert.match(jsx, /__hozoClassPlan/)
     render(jsx, {
       View: 'View',
       hozoStyles: {},
@@ -617,13 +619,7 @@ test('a root that cannot wrap retains the whole merger and each predicate evalua
       },
       cn: twMerge,
     })
-    assert.deepEqual(
-      calls.filter((call) => call !== 'prop'),
-      ['first', 'second'],
-      jsx,
-    )
-    // Cross-prop evaluation ordering is tracked separately in #1879.
-    assert.equal(calls.filter((call) => call === 'prop').length, 1, jsx)
+    assert.deepEqual(calls, ['prop', 'first', 'second'], jsx)
   }
 })
 

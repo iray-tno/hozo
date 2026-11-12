@@ -559,8 +559,9 @@ fn lower_forwarded_capturing(
 /// Byte-slices `source` at an `ExprRef`'s span. Spans come from oxc's own
 /// tokenizer over this same `source`, so they're always on UTF-8 character
 /// boundaries -- not re-validated here.
-fn source_text(source: &str, expr_ref: ExprRef) -> &str {
-    &source[expr_ref.0.start as usize..expr_ref.0.end as usize]
+fn source_text(source: &str, expr_ref: ExprRef) -> std::borrow::Cow<'_, str> {
+    // Reads a captured attribute's plan slot while its element renders.
+    hozo_ir::attribute_capture::text(source, expr_ref.0.start as usize, expr_ref.0.end as usize)
 }
 
 /// Re-emits a `ConditionExpr` as a JS boolean expression by splicing the

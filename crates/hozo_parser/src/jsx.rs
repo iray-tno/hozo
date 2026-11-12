@@ -2511,6 +2511,13 @@ fn build_node(
             declaration.source = declaration.source.with_tailwind_input(slot.span.start);
         }
     }
+    root_capture::plan_attributes(
+        el,
+        &mut props,
+        &mut style,
+        &class_name_fallback,
+        expression_container,
+    );
     validate_semantic_children(primitive, &children, diagnostics);
     validate_focusable_disabled(&props, to_span(el.span()), diagnostics);
     validate_flex_direction(primitive, &style, to_span(el.span()), diagnostics);
