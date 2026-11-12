@@ -157,14 +157,15 @@ slots without a composer keep their former grouping.
 With the captured `bg-brand` barrier, masking just the generated variant
 bits now agrees with static Native for the repeated filter runs in both
 token orders, for a hover/focus conjunction, with an isolated base
-`filter-none`, and with `hover:shadow-sm` with or without an adjacent
-`hover:ring-2`. Plain outer shadows replace one another; a shadow with
-ring or colour modifiers stays a literal only when all guarded shadow
-writes still land in a single style object. If the shadow and ring
-straddle the active filter run, static and the current resolver still
+`filter-none`, and with `hover:shadow-sm` and `hover:ring-2` even
+when an active filter rule separates them. Plain outer shadows replace
+one another. When all guarded shadow slots belong to one guard in one
+input region, only those slots rejoin that guard's first rule. The
+independent filter rules remain in order and Native retains its shadow
+literal. With `active:ring-2` instead of `hover:ring-2`, different
+guards write the shadow slots: static and the current resolver still
 produce `sepia(50%)`, while the masked resolver produces `sepia(100%)`.
-That case needs the shadow projection to preserve both physical writes
-before the runtime tie can go.
+That case needs to keep the shadow slots separate for state selection.
 
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace

@@ -164,6 +164,22 @@ test('shadow and ring in one guard run do not move an unrelated filter', () => {
   assert.ok(!probe.result.runtimeImports.includes('hozoShadowStyles'))
 })
 
+test('only the shadow slots coalesce across repeated visits to their one guard', () => {
+  const probe = compiled(
+    'hover:shadow-sm hover:blur-lg active:blur-xl active:sepia-50 hover:sepia hover:ring-2 columns-(--layout)',
+    '',
+    'Pressable',
+    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+  )
+  const both = probe.style(false, true, false, undefined, true)
+  assert.equal(both.filter, 'blur(24px) sepia(100%)')
+  assert.match(String(both.boxShadow), /^0 0 0 2px currentcolor, 0 1px 3px 0 /)
+  const active = probe.style(false, false, false, undefined, true)
+  assert.equal(active.filter, 'blur(24px) sepia(50%)')
+  assert.equal(active.boxShadow, undefined)
+  assert.ok(!probe.result.runtimeImports.includes('hozoShadowStyles'))
+})
+
 test('transform composition and caller style keep their own precedence', () => {
   const probe = compiled('blur-sm translate-x-2 md:sepia md:translate-y-3')
   assert.deepEqual(probe.style(true), {

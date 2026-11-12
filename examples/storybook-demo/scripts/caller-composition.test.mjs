@@ -1805,6 +1805,7 @@ test('static fallback composes filter functions across repeated owner guards', {
     ['filter-none', 'none', ''],
     ['', 'none', 'hover:shadow-sm'],
     ['shadow-sm', 'none', 'hover:shadow-md hover:ring-2 hover:shadow-red-500'],
+    ['hover:shadow-sm', 'none', 'hover:ring-2'],
   ]) {
     await assertRepeatedOwnerRegisters({
       classes: `${base} hover:blur-lg active:blur-xl active:sepia-50 hover:sepia ${trailing} columns-(--layout)`,
