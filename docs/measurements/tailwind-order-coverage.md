@@ -134,6 +134,15 @@ it does not enable additional split runs or change Native runtime rank
 selection. One-rule, same-slot, and raw-filter controls keep their
 existing paths.
 
+Native transform detection also compares the slots in emitted style
+objects, no longer unioning them by guard. This lets unranked owner states
+keep separate runs for two-dimensional translate axes. For
+`hover:translate-x-2 active:translate-x-4 active:translate-y-5 hover:translate-y-3 columns-(--layout)`,
+overlapping states now produce `16px 12px` in Chromium and in the emitted
+Native callback, rather than `16px 20px`. A single run or objects writing
+identical transform slots still use literal arrays. This does not alter
+the Native fallback rank or widen run preservation to other registers.
+
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace
 the runtime tie with stable selector weight once both routes agree. Report

@@ -46,31 +46,28 @@ pub(super) fn can_mix(declarations: &[hozo_ir::StyleDeclaration]) -> bool {
         .any(|d| slots(&d.property) != 0 || is_control(&d.property))
 }
 
-/// Whether two conditions write different transform slots.
+/// Whether separate style objects write different transform slots.
 ///
 /// Each condition's style object carries a whole `transform` array, and RN
 /// lets the later array replace the earlier one. CSS keeps every slot in its
 /// own property or register instead: `md:translate-x-8 translate-y-2` is
 /// `32px 8px` at md, where the md array alone is `[{ translateX: 32 }]`, and
 /// `md:rotate-45 translate-x-2` keeps the translate. Slots compose them at
-/// runtime. Conditions that all write the same slots (`scale-100
+/// runtime. Objects that all write the same slots (`scale-100
 /// active:scale-95`) replace each other exactly as CSS does, and keep the
 /// plain array.
-pub(crate) fn split_across_conditions<'a>(
-    declarations: impl IntoIterator<Item = (&'a StyleProperty, &'a hozo_ir::Condition)>,
-) -> bool {
-    let mut written: Vec<(&hozo_ir::Condition, u32)> = Vec::new();
-    for (property, condition) in declarations {
-        let bits = slots(property);
-        if bits == 0 {
-            continue;
-        }
-        match written.iter_mut().find(|(seen, _)| *seen == condition) {
-            Some((_, slots)) => *slots |= bits,
-            None => written.push((condition, bits)),
-        }
-    }
-    written.windows(2).any(|pair| pair[0].1 != pair[1].1)
+pub(super) fn split_across_entries(entries: &[StyleEntry]) -> bool {
+    let mut written = entries
+        .iter()
+        .map(|(_, props, _)| {
+            props
+                .iter()
+                .fold(0, |mask, property| mask | slots(property))
+        })
+        .filter(|&mask| mask != 0);
+    written
+        .next()
+        .is_some_and(|first| written.any(|mask| mask != first))
 }
 
 fn array(props: Vec<StyleProperty>, theme: &Theme) -> String {

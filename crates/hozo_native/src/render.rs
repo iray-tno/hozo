@@ -1040,6 +1040,8 @@ pub(super) fn render_node(
         animates.then_some(&mut frames),
         cx,
     );
+    // Backdrop and label entries below have their own style arrays.
+    let transform_entry_end = cx.style_entries.len();
     let mut backdrop_parts = Vec::new();
     if !layout.backdrop.is_empty() {
         build_style_entries(
@@ -1079,6 +1081,7 @@ pub(super) fn render_node(
     } else {
         None
     };
+    let transform_entries = &cx.style_entries[transform_entry_start..transform_entry_end];
     let transform_specs = if mixed_transforms
         || (own_declarations
             .iter()
@@ -1086,10 +1089,9 @@ pub(super) fn render_node(
             && own_declarations
                 .iter()
                 .any(|d| d.condition != Condition::Always))
-        || crate::transforms::split_across_conditions(
-            own_declarations.iter().map(|d| (&d.property, &d.condition)),
-        ) {
-        crate::transforms::specs(&cx.style_entries[transform_entry_start..], theme)
+        || crate::transforms::split_across_entries(transform_entries)
+    {
+        crate::transforms::specs(transform_entries, theme)
     } else {
         String::new()
     };

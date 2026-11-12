@@ -5684,7 +5684,7 @@ fn condition_groups(declarations: &[StyleDeclaration]) -> (Vec<ConditionGroup>, 
     let mut start = 0;
     let mut ordered = false;
     let mut unranked_tailwind = false;
-    let mut preserve_scalar_runs = false;
+    let mut preserve_runs = false;
     for (index, decl) in declarations.iter().enumerate() {
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
@@ -5696,10 +5696,9 @@ fn condition_groups(declarations: &[StyleDeclaration]) -> (Vec<ConditionGroup>, 
         if source != next_source || ordered != next_ordered {
             source = next_source;
             start = groups.len();
-            // Only move to consecutive guard runs when guarded values can
-            // be emitted independently. In particular, filter/transform
-            // registers in the same condition may still need one group.
-            preserve_scalar_runs = authored && scalar_owner_guard_runs(&declarations[index..]);
+            // Preserve consecutive guard runs only for values that both
+            // backends can emit or compose as independent writes.
+            preserve_runs = authored && independent_owner_guard_runs(&declarations[index..]);
         } else if next_ordered
             && groups
                 .last()
@@ -5709,7 +5708,7 @@ fn condition_groups(declarations: &[StyleDeclaration]) -> (Vec<ConditionGroup>, 
         }
         ordered = next_ordered;
         let region = &mut groups[start..];
-        let existing = if preserve_scalar_runs && decl.condition != Condition::Always {
+        let existing = if preserve_runs && decl.condition != Condition::Always {
             region
                 .last_mut()
                 .filter(|(condition, _)| *condition == decl.condition)
@@ -5728,7 +5727,7 @@ fn condition_groups(declarations: &[StyleDeclaration]) -> (Vec<ConditionGroup>, 
     (groups, start != 0 || unranked_tailwind)
 }
 
-fn scalar_owner_guard_runs(declarations: &[StyleDeclaration]) -> bool {
+fn independent_owner_guard_runs(declarations: &[StyleDeclaration]) -> bool {
     let input = declarations[0].source.input();
     declarations
         .iter()
@@ -5754,6 +5753,8 @@ fn scalar_owner_guard_runs(declarations: &[StyleDeclaration]) -> bool {
                                 | StyleProperty::MarginRight(_)
                                 | StyleProperty::MarginBottom(_)
                                 | StyleProperty::MarginLeft(_)
+                                | StyleProperty::TranslateX(_)
+                                | StyleProperty::TranslateY(_)
                         )))
         })
 }

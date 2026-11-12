@@ -1738,6 +1738,58 @@ test('static fallback keeps repeated owner guards in authored CSS order', {
   }
 })
 
+test('static fallback composes translate axes across repeated owner guards', {
+  skip: !executablePath,
+}, async () => {
+  const classes =
+    'hover:translate-x-2 active:translate-x-4 active:translate-y-5 hover:translate-y-3 columns-(--layout)'
+  const result = compiler.compile(
+    `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
+  )[0]
+  const html = renderToStaticMarkup(
+    evaluate(`module.exports=(${result.jsx})`, { h: createElement }),
+  )
+  const reference = `
+    button:is(:hover, :active) { translate: var(--x) var(--y); }
+    button:hover { --x: 8px; }
+    button:active { --x: 16px; --y: 20px; }
+    button:hover { --y: 12px; }
+  `
+  const page = await browser.newPage()
+  try {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const [css, markup] of [
+      [reference, '<button>Target</button>'],
+      [result.css, html],
+    ]) {
+      await page.setContent(`<style>${css}</style>${markup}`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', {
+        nodeId: root.nodeId,
+        selector: 'button',
+      })
+      assert.ok(nodeId)
+      for (const [forcedPseudoClasses, translate] of [
+        [['active'], '16px 20px'],
+        [['hover'], '8px 12px'],
+        [['hover', 'active'], '16px 12px'],
+        [[], 'none'],
+      ]) {
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses })
+        assert.equal(
+          await page.locator('button').evaluate((el) => getComputedStyle(el).translate),
+          translate,
+          forcedPseudoClasses.join(':'),
+        )
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('Tailwind filter resets keep the registers a later condition reads', {
   skip: !executablePath,
 }, async () => {
