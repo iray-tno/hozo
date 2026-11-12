@@ -4,6 +4,7 @@
 // values would otherwise run out of order, or twice, evaluates them first in
 // its plan. These tests execute the generated JSX; a string match cannot tell
 // a value read from the plan from one evaluated again.
+// biome-ignore-all lint/suspicious/noTemplateCurlyInString: Fixtures retain executable authored TSX interpolation.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
@@ -52,6 +53,7 @@ function run(jsx: string, styles: string, calls: string[], values: Record<string
     HozoView: 'HozoView',
     HozoPressable: 'HozoPressable',
     HozoLink: 'HozoLink',
+    HozoChip: 'HozoChip',
     before: call('before'),
     after: call('after'),
     opaque: call('opaque'),
@@ -93,15 +95,24 @@ const ORDERS: [string, string[]][] = [
     '<View style={style()} accessibilityLabel={label()} className={opaque()} />',
     ['style', 'label', 'opaque'],
   ],
+  // A secondary class list joins the element's plan, in its place.
+  ['<Chip label={before()} removeClassName={opaque()} />', ['before', 'opaque']],
+  [
+    "<Chip label={before()} removeClassName={cond() ? `p-2 ${opaque()}` : 'p-2'} />",
+    ['before', 'cond', 'opaque'],
+  ],
+  ["<Chip removeClassName={cond() && 'p-4'} className={opaque()} />", ['cond', 'opaque']],
 ]
 
 for (const [jsx, expected] of ORDERS)
   for (const [backend, compile] of Object.entries(backends))
     test(`${backend}: ${jsx} runs its values once each, as written`, () => {
-      const source = `import { View, Pressable } from '@hozo/core'\nexport const A = () => ${jsx}\n`
+      const source = `import { View, Pressable, Chip } from '@hozo/core'\nexport const A = () => ${jsx}\n`
       const output = compile(source)[0]!
       const calls: string[] = []
-      run(output.jsx, backend === 'native' ? output.styles : '{}', calls)
+      const props = run(output.jsx, backend === 'native' ? output.styles : '{}', calls)
+      // An owner's style callback reads the values already evaluated.
+      for (const value of Object.values(props)) if (typeof value === 'function') value({})
       assert.deepEqual(calls, expected, output.jsx)
     })
 

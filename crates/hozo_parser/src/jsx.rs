@@ -1591,7 +1591,7 @@ fn build_node(
                                 .declarations
                                 .iter()
                                 .any(|d| has_authored_guard(&d.condition)))
-                            && root_capture::can_wrap(el, attr.span, primitive)
+                            && root_capture::can_wrap(el, attr.span)
                         {
                             if let Some(mut evaluation) = capture_class_expression(
                                 &container.expression,
@@ -2513,7 +2513,6 @@ fn build_node(
     }
     root_capture::plan_attributes(
         el,
-        primitive,
         &mut props,
         &mut style,
         &class_name_fallback,

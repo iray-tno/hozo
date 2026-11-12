@@ -36,7 +36,14 @@ pub struct ClassEvaluation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClassCaptureScope {
     Prop,
-    Subtree { expression_container: bool },
+    Subtree {
+        expression_container: bool,
+    },
+    /// A secondary class list whose values its element's plan evaluates,
+    /// in source order with the element's other values (#1879). Its steps
+    /// are the element plan's, so its slots name that plan's, and nothing
+    /// is wrapped where the list is written.
+    Shared,
 }
 
 impl ClassEvaluation {
@@ -260,6 +267,9 @@ impl ClassEvaluation {
     }
 
     pub fn wrap(&self, source: &str, result: &str) -> String {
+        if self.scope == ClassCaptureScope::Shared {
+            return result.to_string();
+        }
         format!(
             "{}{result}))({})",
             self.wrapper_prefix(source),

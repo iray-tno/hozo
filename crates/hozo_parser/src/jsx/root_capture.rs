@@ -12,7 +12,7 @@ use oxc_ast::ast::{
     ObjectPropertyKind, YieldExpression,
 };
 
-pub(super) fn can_wrap(element: &JSXElement, class_attribute: Span, primitive: Primitive) -> bool {
+pub(super) fn can_wrap(element: &JSXElement, class_attribute: Span) -> bool {
     let mut found = false;
     for item in &element.opening_element.attributes {
         if let JSXAttributeItem::Attribute(attribute) = item {
@@ -27,16 +27,12 @@ pub(super) fn can_wrap(element: &JSXElement, class_attribute: Span, primitive: P
         }
         // An evaluated value before the class joins the plan; one the plan
         // cannot hold keeps the legacy route.
-        if !found && !inert_item(item) && captured_value(item, primitive).is_none() {
+        if !found && !inert_item(item) && captured_value(item).is_none() {
             return false;
         }
     }
     let mut skip = vec![class_attribute];
-    skip.extend(
-        attribute_values(element, primitive)
-            .into_iter()
-            .map(|(span, _)| span),
-    );
+    skip.extend(attribute_values(element).into_iter().map(|(span, _)| span));
     let mut safety = Safety { skip, safe: true };
     safety.visit_jsx_element(element);
     found && safety.safe
@@ -83,11 +79,10 @@ const WRITTEN_MORE_THAN_ONCE: &[&str] = &[
 ];
 
 /// The value an attribute's plan step evaluates, if the plan can hold it:
-/// a value that runs code, contains no element of its own (whose lowering
-/// would be lost to the plan's copy of the source), and is not a class list,
-/// which the class plan reads itself. With it, whether a backend writes it
-/// more than once.
-fn captured_value(item: &JSXAttributeItem, primitive: Primitive) -> Option<(Span, bool)> {
+/// a value that runs code and contains no element of its own (whose lowering
+/// would be lost to the plan's copy of the source). With it, whether a
+/// backend writes it more than once.
+fn captured_value(item: &JSXAttributeItem) -> Option<(Span, bool)> {
     let (expression, name) = match item {
         JSXAttributeItem::SpreadAttribute(spread) => (&spread.argument, None),
         JSXAttributeItem::Attribute(attribute) => {
@@ -95,12 +90,10 @@ fn captured_value(item: &JSXAttributeItem, primitive: Primitive) -> Option<(Span
                 return None;
             };
             let name = name.name.as_str();
-            if name == "className"
-                || primitive
-                    .class_slots()
-                    .iter()
-                    .any(|slot| slot.class_prop == name)
-            {
+            // The class plan reads the root list itself. A secondary list
+            // the compiler read is planned from its leaves; one it carries
+            // whole is a value like any other.
+            if name == "className" {
                 return None;
             }
             let Some(JSXAttributeValue::ExpressionContainer(container)) = &attribute.value else {
@@ -119,12 +112,12 @@ fn captured_value(item: &JSXAttributeItem, primitive: Primitive) -> Option<(Span
 }
 
 /// Every attribute value a plan could evaluate, in source order.
-fn attribute_values(element: &JSXElement, primitive: Primitive) -> Vec<(Span, bool)> {
+fn attribute_values(element: &JSXElement) -> Vec<(Span, bool)> {
     element
         .opening_element
         .attributes
         .iter()
-        .filter_map(|item| captured_value(item, primitive))
+        .filter_map(captured_value)
         .collect()
 }
 
@@ -193,6 +186,16 @@ fn contains_element(expression: &Expression) -> bool {
     finder.0
 }
 
+/// One thing an element's plan evaluates, in source order.
+enum Entry {
+    /// A whole attribute value.
+    Value(Span),
+    /// The root class list.
+    Root,
+    /// A secondary class list the compiler read (`props.class_slots[i]`).
+    Slot(usize),
+}
+
 /// Evaluates the element's attribute values once each, in the order they
 /// were written, when a backend would otherwise run them out of order or
 /// more than once (#1879). The backends write attributes grouped by kind,
@@ -200,57 +203,21 @@ fn contains_element(expression: &Expression) -> bool {
 /// first -- and copy some values into several attributes.
 ///
 /// The values join the class plan where there is one, around its steps in
-/// source order; otherwise they make a plan of their own. Every copy of a
-/// captured span then reads its slot (`hozo_ir::attribute_capture`).
+/// source order; otherwise they make a plan of their own. A secondary class
+/// list joins it too, and keeps a view of it (`ClassCaptureScope::Shared`)
+/// instead of a plan written where the list is. Every copy of a captured
+/// span then reads its slot (`hozo_ir::attribute_capture`).
 pub(super) fn plan_attributes(
     element: &JSXElement,
-    primitive: Primitive,
     props: &mut PropSet,
     style: &mut [StyleDeclaration],
     class_name_fallback: &[ExprRef],
     expression_container: bool,
 ) {
-    // A spread StyleX resolved is styling the compiler read, not a value
-    // the output evaluates: only a spread still carried is one.
-    let compiled_spreads: Vec<Span> = element
-        .opening_element
-        .attributes
-        .iter()
-        .filter_map(|item| match item {
-            JSXAttributeItem::SpreadAttribute(spread)
-                if !props
-                    .passthrough
-                    .iter()
-                    .any(|prop| prop.is_spread && prop.span == to_expr_ref(spread.span)) =>
-            {
-                Some(spread.argument.span())
-            }
-            _ => None,
-        })
-        .collect();
-    let values: Vec<(Span, bool)> = attribute_values(element, primitive)
-        .into_iter()
-        .filter(|(span, _)| !compiled_spreads.contains(span))
-        .collect();
-    if values.is_empty() {
-        return;
-    }
     let class_plan = props
         .class_slots
         .iter()
         .position(|slot| slot.slot == hozo_ir::ClassSlot::ROOT && slot.evaluation.is_some());
-    let class_attribute = element
-        .opening_element
-        .attributes
-        .iter()
-        .find_map(|item| match item {
-            JSXAttributeItem::Attribute(attribute)
-                if matches!(&attribute.name, JSXAttributeName::Identifier(name) if name.name == "className") =>
-            {
-                Some(attribute.span)
-            }
-            _ => None,
-        });
     // An opaque class input with no plan of its own is one more value: the
     // backends copy its leaves whole, so they can read slots as well.
     let opaque_class: &[ExprRef] = if class_plan.is_none() {
@@ -258,105 +225,193 @@ pub(super) fn plan_attributes(
     } else {
         &[]
     };
-    let class_runs = class_plan.is_some() || !opaque_class.is_empty();
-    let class_start = class_attribute.map_or(u32::MAX, |span| span.start);
-    let needed = values.len() + usize::from(class_runs) >= 2
-        || values.iter().any(|(_, repeated)| *repeated)
-        || (class_plan.is_some() && values.iter().any(|(span, _)| span.start < class_start));
+    let mut entries = Vec::new();
+    let mut repeated = false;
+    let mut skip = Vec::new();
+    let mut root_start = u32::MAX;
+    for item in &element.opening_element.attributes {
+        if let JSXAttributeItem::SpreadAttribute(spread) = item {
+            // A spread StyleX resolved is styling the compiler read, not a
+            // value the output evaluates: only a spread still carried is one.
+            let carried = props
+                .passthrough
+                .iter()
+                .any(|prop| prop.is_spread && prop.span == to_expr_ref(spread.span));
+            if !carried {
+                continue;
+            }
+        }
+        if let JSXAttributeItem::Attribute(attribute) = item {
+            let name = match &attribute.name {
+                JSXAttributeName::Identifier(name) => name.name.as_str(),
+                _ => "",
+            };
+            if name == "className" {
+                if class_plan.is_some() || !opaque_class.is_empty() {
+                    root_start = attribute.span.start;
+                    entries.push(Entry::Root);
+                    skip.push(attribute.span);
+                }
+                continue;
+            }
+            let read = props.class_slots.iter().position(|slot| {
+                slot.slot != hozo_ir::ClassSlot::ROOT && slot.span == to_span(attribute.span)
+            });
+            if let Some(index) = read {
+                let slot = &props.class_slots[index];
+                if slot.evaluation.is_some() || !slot.fallback.is_empty() {
+                    entries.push(Entry::Slot(index));
+                    skip.push(attribute.span);
+                }
+                continue;
+            }
+        }
+        if let Some((span, more)) = captured_value(item) {
+            repeated |= more;
+            entries.push(Entry::Value(span));
+            skip.push(span);
+        }
+    }
+    let before_root = entries.iter().any(|entry| match entry {
+        Entry::Value(span) => span.start < root_start,
+        Entry::Slot(index) => props.class_slots[*index].span.start < root_start,
+        Entry::Root => false,
+    });
+    let needed = entries.len() >= 2 || repeated || (class_plan.is_some() && before_root);
     if !needed {
         return;
     }
     // The values leave the arrow; whatever stays must keep its meaning there.
-    let mut skip: Vec<Span> = values.iter().map(|(span, _)| *span).collect();
-    if class_plan.is_some() || !opaque_class.is_empty() {
-        skip.extend(class_attribute);
-    }
     let mut safety = Safety { skip, safe: true };
     safety.visit_jsx_element(element);
     if !safety.safe {
         return;
     }
-    let existing = class_plan.and_then(|index| props.class_slots[index].evaluation.as_deref());
-    let class_steps = || -> Vec<hozo_ir::ClassEvaluationStep> {
-        match existing {
-            Some(plan) => plan.steps.clone(),
-            None => opaque_class
-                .iter()
-                .map(|reference| hozo_ir::ClassEvaluationStep::Attribute(*reference))
-                .collect(),
-        }
-    };
+
     let mut steps = Vec::new();
-    let mut shift = 0;
-    let mut class_placed = class_attribute.is_none();
-    for (span, _) in &values {
-        if !class_placed && class_start < span.start {
-            steps.extend(class_steps());
-            class_placed = true;
+    let mut root_offset = 0;
+    let mut slot_offsets = Vec::new();
+    for entry in &entries {
+        match entry {
+            Entry::Value(span) => {
+                steps.push(hozo_ir::ClassEvaluationStep::Attribute(to_expr_ref(*span)))
+            }
+            Entry::Root => {
+                root_offset = steps.len();
+                match class_plan {
+                    Some(index) => steps.extend(
+                        props.class_slots[index]
+                            .evaluation
+                            .as_ref()
+                            .expect("found above")
+                            .steps
+                            .iter()
+                            .cloned(),
+                    ),
+                    None => steps.extend(
+                        opaque_class
+                            .iter()
+                            .map(|reference| hozo_ir::ClassEvaluationStep::Attribute(*reference)),
+                    ),
+                }
+            }
+            Entry::Slot(index) => {
+                let slot = &props.class_slots[*index];
+                match &slot.evaluation {
+                    Some(plan) => {
+                        slot_offsets.push((*index, plan.span, steps.len()));
+                        steps.extend(plan.steps.iter().cloned());
+                    }
+                    None => steps.extend(
+                        slot.fallback
+                            .iter()
+                            .map(|reference| hozo_ir::ClassEvaluationStep::Attribute(*reference)),
+                    ),
+                }
+            }
         }
-        if !class_placed {
-            shift += 1;
-        }
-        steps.push(hozo_ir::ClassEvaluationStep::Attribute(to_expr_ref(*span)));
     }
-    if !class_placed {
-        steps.extend(class_steps());
-    }
-    match class_plan {
+    let span = match class_plan {
         Some(index) => {
             let plan = props.class_slots[index]
                 .evaluation
                 .as_mut()
                 .expect("found above");
-            plan.steps = steps;
+            plan.steps = steps.clone();
             // The class plan's own slots moved past the values before them.
             let span = plan.span;
             for declaration in style.iter_mut() {
-                shift_captures(&mut declaration.condition, span, shift);
+                rebase_captures(&mut declaration.condition, span, span, root_offset);
             }
+            span
         }
-        None => props.class_slots.push(hozo_ir::SlotStyle {
-            slot: hozo_ir::ClassSlot::ROOT,
-            style: Vec::new(),
-            carried: Vec::new(),
-            fallback: Vec::new(),
-            evaluation: Some(Box::new(hozo_ir::ClassEvaluation {
-                span: to_span(element.opening_element.span),
-                steps,
-                scope: hozo_ir::ClassCaptureScope::Subtree {
-                    expression_container,
-                },
-            })),
-            span: to_span(element.opening_element.span),
-        }),
+        None => {
+            let span = to_span(element.opening_element.span);
+            props.class_slots.push(hozo_ir::SlotStyle {
+                slot: hozo_ir::ClassSlot::ROOT,
+                style: Vec::new(),
+                carried: Vec::new(),
+                fallback: Vec::new(),
+                evaluation: Some(Box::new(hozo_ir::ClassEvaluation {
+                    span,
+                    steps: steps.clone(),
+                    scope: hozo_ir::ClassCaptureScope::Subtree {
+                        expression_container,
+                    },
+                })),
+                span,
+            });
+            span
+        }
+    };
+    // A secondary list's guards and values now name the element's plan.
+    for (index, from, offset) in slot_offsets {
+        let slot = &mut props.class_slots[index];
+        for declaration in &mut slot.style {
+            rebase_captures(&mut declaration.condition, from, span, offset);
+        }
+        slot.evaluation = Some(Box::new(hozo_ir::ClassEvaluation {
+            span,
+            steps: steps.clone(),
+            scope: hozo_ir::ClassCaptureScope::Shared,
+        }));
     }
 }
 
-fn shift_captures(condition: &mut Condition, plan: SourceSpan, by: usize) {
-    fn shift(expression: &mut ConditionExpr, plan: SourceSpan, by: usize) {
+/// Moves the captures of the plan at `from` to the plan at `to`, `by` slots on.
+fn rebase_captures(condition: &mut Condition, from: SourceSpan, to: SourceSpan, by: usize) {
+    fn rebase(
+        capture: &mut hozo_ir::ClassPredicateCapture,
+        from: SourceSpan,
+        to: SourceSpan,
+        by: usize,
+    ) {
+        if capture.plan == from {
+            capture.plan = to;
+            capture.index += by;
+        }
+    }
+    fn walk(expression: &mut ConditionExpr, from: SourceSpan, to: SourceSpan, by: usize) {
         match expression {
-            ConditionExpr::Captured(capture) if capture.plan == plan => capture.index += by,
+            ConditionExpr::Captured(capture) => rebase(capture, from, to, by),
             ConditionExpr::ClassConflict(conflict) => {
-                if let Some(capture) = conflict.capture.as_mut().filter(|c| c.plan == plan) {
-                    capture.index += by;
+                if let Some(capture) = conflict.capture.as_mut() {
+                    rebase(capture, from, to, by);
                 }
             }
-            ConditionExpr::Not(inner) => shift(inner, plan, by),
+            ConditionExpr::Not(inner) => walk(inner, from, to, by),
             ConditionExpr::And(a, b) | ConditionExpr::Or(a, b) => {
-                shift(a, plan, by);
-                shift(b, plan, by);
+                walk(a, from, to, by);
+                walk(b, from, to, by);
             }
             _ => {}
         }
     }
-    if by == 0 {
-        return;
-    }
     match condition {
-        Condition::Expr(inner) => shift(inner, plan, by),
+        Condition::Expr(inner) => walk(inner, from, to, by),
         Condition::All(conditions) => {
             for inner in conditions {
-                shift_captures(inner, plan, by);
+                rebase_captures(inner, from, to, by);
             }
         }
         _ => {}

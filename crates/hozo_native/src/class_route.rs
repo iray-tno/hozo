@@ -86,7 +86,15 @@ impl PatternClasses {
             class_prop,
             expressions,
             capture,
-            evaluation: evaluation.map(|evaluation| evaluation.render(source)),
+            // A list whose values its element's plan evaluates reads that
+            // plan's binding from the enclosing arrow (#1879): no second one.
+            evaluation: evaluation.map(|evaluation| {
+                if evaluation.scope == hozo_ir::ClassCaptureScope::Shared {
+                    String::new()
+                } else {
+                    evaluation.render(source)
+                }
+            }),
         })
     }
 
@@ -113,6 +121,14 @@ impl PatternClasses {
         };
         let owner = pattern::interaction_slot(self.primitive, self.class_prop).unwrap();
         if let Some(evaluation) = &self.evaluation {
+            if evaluation.is_empty() {
+                return format!(
+                    " {}={{({name}State) => {{ const {} = {name}State; return [{}]; }}}}",
+                    owner.style_prop,
+                    parameters(self.primitive, self.class_prop),
+                    parts.join(", "),
+                );
+            }
             return format!(
                 " {}={{(({name}) => ({name}State) => {{ const {} = {name}State; return [{}]; }})({evaluation})}}",
                 owner.style_prop,
