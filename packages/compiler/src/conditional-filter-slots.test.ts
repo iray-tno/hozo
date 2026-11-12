@@ -111,6 +111,45 @@ test('whole-chain reset yields to later slot writes without losing registers', (
   assert.equal(probe.style().filter, 'blur(8px)')
 })
 
+test('a plain shadow can share authored owner runs without reordering filter writes', () => {
+  const probe = compiled(
+    'hover:blur-lg active:blur-xl active:sepia-50 hover:sepia hover:shadow-sm columns-(--layout)',
+    '',
+    'Pressable',
+    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+  )
+  const both = probe.style(false, true, false, undefined, true)
+  assert.equal(both.filter, 'blur(24px) sepia(100%)')
+  assert.match(String(both.boxShadow), /^0 1px 3px 0 /)
+  assert.equal(probe.style(false, false, false, undefined, true).boxShadow, undefined)
+  assert.ok(!probe.result.runtimeImports.includes('hozoShadowStyles'))
+})
+
+test('plain box shadows can revisit a guard without loading a slot composer', () => {
+  const probe = compiled(
+    'shadow-sm hover:shadow-md active:shadow-sm hover:shadow-lg columns-(--layout)',
+    '',
+    'Pressable',
+    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+  )
+  assert.match(String(probe.style(false, true, false, undefined, true).boxShadow), /^0 10px 15px /)
+  assert.match(String(probe.style().boxShadow), /^0 1px 3px /)
+  assert.ok(!probe.result.runtimeImports.includes('hozoShadowStyles'))
+})
+
+test('shadow modifiers keep the folded base shadow in the unranked path', () => {
+  const probe = compiled(
+    'shadow-sm hover:shadow-md active:opacity-50 hover:shadow-red-500 columns-(--layout)',
+    '',
+    'Pressable',
+    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+  )
+  const both = probe.style(false, true, false, undefined, true)
+  assert.match(String(both.boxShadow), /^0 4px 6px -1px #fb2c36/)
+  assert.equal(both.opacity, 0.5)
+  assert.ok(!probe.result.runtimeImports.includes('hozoShadowStyles'))
+})
+
 test('transform composition and caller style keep their own precedence', () => {
   const probe = compiled('blur-sm translate-x-2 md:sepia md:translate-y-3')
   assert.deepEqual(probe.style(true), {

@@ -5694,9 +5694,17 @@ fn condition_groups(
     let mut unranked_tailwind = false;
     let mut preserve_runs = false;
     let mut compatible_filter_runs = None;
-    let mut can_split_filters = || {
-        compose_filter_slots
-            && *compatible_filter_runs.get_or_insert_with(|| filter_runs_can_split(declarations))
+    let mut compatible_shadow_runs = None;
+    let mut can_split_effect = |property: &StyleProperty| match property {
+        StyleProperty::Filter(..) => {
+            compose_filter_slots
+                && *compatible_filter_runs
+                    .get_or_insert_with(|| filter_runs_can_split(declarations))
+        }
+        StyleProperty::BoxShadow(_) => {
+            *compatible_shadow_runs.get_or_insert_with(|| shadow_runs_can_split(declarations))
+        }
+        _ => false,
     };
     for (index, decl) in declarations.iter().enumerate() {
         // A later styling input can revisit a condition after another
@@ -5712,7 +5720,7 @@ fn condition_groups(
             // Preserve consecutive guard runs only for values that both
             // backends can emit or compose as independent writes.
             preserve_runs = authored
-                && independent_owner_guard_runs(&declarations[index..], &mut can_split_filters);
+                && independent_owner_guard_runs(&declarations[index..], &mut can_split_effect);
         } else if next_ordered
             && groups
                 .last()
@@ -5771,9 +5779,28 @@ fn filter_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
     true
 }
 
+fn shadow_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
+    // Plain outer shadows replace each other. Modifiers and other layers
+    // share boxShadow and still rely on condition folding on Native.
+    !declarations.iter().any(|d| match &d.property {
+        StyleProperty::ShadowColor(_)
+        | StyleProperty::InsetShadow(_)
+        | StyleProperty::InsetShadowColor(_)
+        | StyleProperty::RingWidth(_)
+        | StyleProperty::RingColor(_)
+        | StyleProperty::InsetRingWidth(_)
+        | StyleProperty::InsetRingColor(_)
+        | StyleProperty::RingOffsetWidth(_)
+        | StyleProperty::RingOffsetColor(_)
+        | StyleProperty::RingInset => true,
+        StyleProperty::Arbitrary(name, _) => matches!(name.as_str(), "box-shadow" | "boxShadow"),
+        _ => false,
+    })
+}
+
 fn independent_owner_guard_runs(
     declarations: &[StyleDeclaration],
-    can_split_filters: &mut impl FnMut() -> bool,
+    can_split_effect: &mut impl FnMut(&StyleProperty) -> bool,
 ) -> bool {
     let input = declarations[0].source.input();
     declarations
@@ -5796,7 +5823,7 @@ fn independent_owner_guard_runs(
             {
                 return false;
             }
-            match item.property {
+            match &item.property {
                 StyleProperty::Opacity(_)
                 | StyleProperty::PaddingTop(_)
                 | StyleProperty::PaddingRight(_)
@@ -5808,8 +5835,7 @@ fn independent_owner_guard_runs(
                 | StyleProperty::MarginLeft(_)
                 | StyleProperty::TranslateX(_)
                 | StyleProperty::TranslateY(_) => true,
-                StyleProperty::Filter(..) => can_split_filters(),
-                _ => false,
+                property => can_split_effect(property),
             }
         })
 }
