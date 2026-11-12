@@ -92,8 +92,12 @@ test('component audit retains network failures and the original failed verdict b
     assert.equal(result.status, 'passed')
     // Third-party requests are answered empty instead of sent (#1872).
     const sent = []
-    healthy.on('requestfailed', (request) => sent.push(request.url()))
-    const beacon = healthy.waitForResponse('https://analytics.invalid/g/collect')
+    const failed = (request) => sent.push(`${request.url()} ${request.failure()?.errorText}`)
+    healthy.on('requestfailed', failed)
+    const beacon = healthy.waitForEvent(
+      'requestfinished',
+      (request) => request.url() === 'https://analytics.invalid/g/collect',
+    )
     const tracked = await auditComponentPage(healthy, {
       name: 'tracked',
       url: `${base}/tracked`,
@@ -104,7 +108,10 @@ test('component audit retains network failures and the original failed verdict b
     assert.equal(tracked.status, 'passed')
     // Answered rather than sent, including a beacon still in flight when
     // the audit returned.
-    assert.equal((await beacon).status(), 204)
+    // Finished, not just answered: the next audit's navigation would abort a
+    // request still reading its response, which is not one that was sent.
+    assert.equal((await (await beacon).response())?.status(), 204)
+    healthy.off('requestfailed', failed)
     assert.deepEqual(sent, [])
     const sentinel = new Error('the interaction failed')
     await assert.rejects(
