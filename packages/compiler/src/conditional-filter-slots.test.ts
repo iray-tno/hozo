@@ -150,6 +150,20 @@ test('shadow modifiers keep the folded base shadow in the unranked path', () => 
   assert.ok(!probe.result.runtimeImports.includes('hozoShadowStyles'))
 })
 
+test('shadow and ring in one guard run do not move an unrelated filter', () => {
+  const probe = compiled(
+    'shadow-sm hover:blur-lg active:blur-xl active:sepia-50 hover:sepia hover:shadow-md hover:ring-2 hover:shadow-red-500 columns-(--layout)',
+    '',
+    'Pressable',
+    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+  )
+  const both = probe.style(false, true, false, undefined, true)
+  assert.equal(both.filter, 'blur(24px) sepia(100%)')
+  assert.match(String(both.boxShadow), /^0 0 0 2px currentcolor, 0 4px 6px -1px #fb2c36/)
+  assert.match(String(probe.style().boxShadow), /^0 1px 3px 0 /)
+  assert.ok(!probe.result.runtimeImports.includes('hozoShadowStyles'))
+})
+
 test('transform composition and caller style keep their own precedence', () => {
   const probe = compiled('blur-sm translate-x-2 md:sepia md:translate-y-3')
   assert.deepEqual(probe.style(true), {

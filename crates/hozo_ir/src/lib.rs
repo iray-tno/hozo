@@ -5701,7 +5701,9 @@ fn condition_groups(
                 && *compatible_filter_runs
                     .get_or_insert_with(|| filter_runs_can_split(declarations))
         }
-        StyleProperty::BoxShadow(_) => {
+        property
+            if matches!(property, StyleProperty::BoxShadow(_)) || is_shadow_modifier(property) =>
+        {
             *compatible_shadow_runs.get_or_insert_with(|| shadow_runs_can_split(declarations))
         }
         _ => false,
@@ -5779,23 +5781,55 @@ fn filter_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
     true
 }
 
-fn shadow_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
-    // Plain outer shadows replace each other. Modifiers and other layers
-    // share boxShadow and still rely on condition folding on Native.
-    !declarations.iter().any(|d| match &d.property {
+fn is_shadow_modifier(property: &StyleProperty) -> bool {
+    matches!(
+        property,
         StyleProperty::ShadowColor(_)
-        | StyleProperty::InsetShadow(_)
-        | StyleProperty::InsetShadowColor(_)
-        | StyleProperty::RingWidth(_)
-        | StyleProperty::RingColor(_)
-        | StyleProperty::InsetRingWidth(_)
-        | StyleProperty::InsetRingColor(_)
-        | StyleProperty::RingOffsetWidth(_)
-        | StyleProperty::RingOffsetColor(_)
-        | StyleProperty::RingInset => true,
-        StyleProperty::Arbitrary(name, _) => matches!(name.as_str(), "box-shadow" | "boxShadow"),
-        _ => false,
-    })
+            | StyleProperty::InsetShadow(_)
+            | StyleProperty::InsetShadowColor(_)
+            | StyleProperty::RingWidth(_)
+            | StyleProperty::RingColor(_)
+            | StyleProperty::InsetRingWidth(_)
+            | StyleProperty::InsetRingColor(_)
+            | StyleProperty::RingOffsetWidth(_)
+            | StyleProperty::RingOffsetColor(_)
+            | StyleProperty::RingInset
+    )
+}
+
+fn shadow_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
+    let mut first = None;
+    let mut left_first_run = false;
+    let mut split_shadow_writers = false;
+    let mut has_modifier = false;
+    for d in declarations {
+        if matches!(&d.property, StyleProperty::Arbitrary(name, _)
+            if matches!(name.as_str(), "box-shadow" | "boxShadow"))
+        {
+            return false;
+        }
+        let run = (
+            d.source.input(),
+            matches!(d.source, StyleSource::TailwindOrdered { .. }),
+            &d.condition,
+        );
+        left_first_run |= first.is_some_and(|first| first != run);
+        let modifier = is_shadow_modifier(&d.property);
+        has_modifier |= modifier;
+        if d.condition != Condition::Always
+            && (modifier || matches!(d.property, StyleProperty::BoxShadow(_)))
+        {
+            first.get_or_insert(run);
+            split_shadow_writers |= left_first_run;
+        }
+        // Plain outer shadows replace each other. Modifiers can stay on
+        // the literal path only if all guarded shadow writes remain in one
+        // object, where the existing base fold still supplies resting slots.
+        if split_shadow_writers && has_modifier {
+            return false;
+        }
+    }
+    true
 }
 
 fn independent_owner_guard_runs(
