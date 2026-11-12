@@ -9,6 +9,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 // The REPL's layout; this entry loads no addon.
 import { formatJsx } from '@hozo/compiler/format-jsx'
+import { classListLines, classLists } from './show-classes.mjs'
 import { checkCss } from './square-config.mjs'
 
 export const SCHEMA_VERSION = 1
@@ -16,9 +17,16 @@ export const SCHEMA_VERSION = 1
 const help = `Usage: hozo show <file> [options]
 
 Prints what a file compiles to: the Web JSX and CSS, the React Native JSX and
-StyleSheet, and each diagnostic with its line and column. The theme is the
-project's, read from the stylesheet its bundler config names (or the usual
-names: src/index.css, global.css, ...), as the build reads it.
+StyleSheet, each class list with what became of its classes, and each
+diagnostic with its line and column. The theme is the project's, read from
+the stylesheet its bundler config names (or the usual names: src/index.css,
+global.css, ...), as the build reads it.
+
+A class list is compiled (some classes perhaps under a condition), or
+resolved at runtime when the compiler cannot read it. A class in it is
+compiled, not-generated (Tailwind has no rule for it in this theme), refused
+or not-wired on Native (with the reason), or passed-through: not a Tailwind
+class, kept on the Web for the project's own CSS.
 
 Options:
   --web | --native       Show one platform (default: both)
@@ -173,6 +181,7 @@ function text(report) {
       ),
     )
   }
+  lines.push('', 'Class lists', ...classListLines(report.classLists))
   lines.push('', 'Diagnostics')
   if (report.diagnostics.length === 0) lines.push('  none')
   for (const diagnostic of report.diagnostics)
@@ -265,6 +274,16 @@ export async function runShow(argv, io, cwd = process.cwd()) {
           spanEnd,
         }),
       ),
+    }),
+    classLists: await classLists({
+      source,
+      root: project ?? path.dirname(file),
+      css: theme.status === 'resolved' ? theme.css : undefined,
+      diagnostics: Object.values(outputs).flatMap((components) =>
+        components.flatMap((component) => component.diagnostics),
+      ),
+      nativeDiagnostics: (outputs.native ?? []).flatMap((component) => component.diagnostics),
+      platforms: options.platforms,
     }),
     diagnostics: mergeDiagnostics(source, outputs),
   }

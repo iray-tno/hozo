@@ -128,3 +128,86 @@ test('--css names the stylesheet, and one that cannot be read exits 2', async (t
     assert.match(result.stderr, new RegExp(`^hozo show: .* \\[${code}\\]\\n$`), argv.join(' '))
   }
 })
+
+const LISTS = `import { View, Text, Pressable } from '@hozo/core'
+export function A({ x }) {
+  return (
+    <View className="p-4 bg-brand bg-nope grid not-a-class">
+      <Text className={x ? 'text-red-500' : 'text-sm'}>a</Text>
+      <Pressable className={x}><Text className="font-bold transition">b</Text></Pressable>
+    </View>
+  )
+}
+`
+
+test('class lists: the route of each, and what became of each class', async (t) => {
+  const root = project(t, {
+    'src/A.tsx': LISTS,
+    'src/index.css': '@import "tailwindcss";\n@theme { --color-brand: #123456; }\n',
+  })
+  const file = path.join(root, 'src/A.tsx')
+  const report = JSON.parse((await show(file, '--format', 'json')).stdout)
+  assert.equal(report.classLists.status, 'assessed')
+  const lists = report.classLists.lists
+  assert.deepEqual(
+    lists.map(({ line, column, route }) => [line, column, route]),
+    [
+      [4, 11, 'compiled'],
+      [5, 13, 'compiled-conditional'],
+      [6, 7, 'runtime'],
+      [6, 38, 'compiled'],
+    ],
+  )
+  const outcome = (list, name) => {
+    const { web, native } = list.classes.find((entry) => entry.class === name)
+    return [web, native]
+  }
+  // Compiled on both; in the project's theme; nowhere in it; refused by
+  // React Native; and not Tailwind's at all.
+  assert.deepEqual(outcome(lists[0], 'p-4'), ['compiled', 'compiled'])
+  assert.deepEqual(outcome(lists[0], 'bg-brand'), ['compiled', 'compiled'])
+  assert.deepEqual(outcome(lists[0], 'bg-nope'), ['not-generated', 'not-generated'])
+  // `grid` alone has no React Native style, but on a View it becomes HozoGrid.
+  assert.deepEqual(outcome(lists[0], 'grid'), ['compiled', 'compiled'])
+  assert.deepEqual(outcome(lists[0], 'not-a-class'), ['passed-through', 'ignored'])
+  assert.match(lists[3].classes.find((entry) => entry.class === 'transition').reason, /transition/)
+  assert.ok(lists[1].classes.every((entry) => entry.conditional))
+  assert.deepEqual(outcome(lists[3], 'transition'), ['compiled', 'refused'])
+
+  // The text names each list, and only the classes not compiled everywhere.
+  const text = (await show(file)).stdout
+  assert.match(
+    text,
+    /\nClass lists\n {2}4:11 className: compiled; 3 of 5 classes compiled\n {4}bg-nope: Web not-generated, Native not-generated -- /,
+  )
+  assert.match(text, /\n {2}6:7 className: resolved at runtime: the compiler cannot read it\n/)
+  assert.doesNotMatch(text, /\n {4}p-4:/)
+
+  // One platform reports that platform only.
+  const web = JSON.parse((await show(file, '--web', '--format', 'json')).stdout)
+  assert.deepEqual(
+    web.classLists.lists[0].classes.find((entry) => entry.class === 'grid'),
+    { class: 'grid', conditional: false, web: 'compiled' },
+  )
+})
+
+test('class lists: a variant the element cannot answer on Native is not-wired there', async (t) => {
+  const root = project(t, {
+    'src/B.tsx': `import { View, Pressable } from '@hozo/core'
+export const B = () => (
+  <View className="p-2 md:hover:p-4">
+    <Pressable className="hover:p-4" onPress={() => {}} />
+  </View>
+)
+`,
+  })
+  const report = JSON.parse((await show(path.join(root, 'src/B.tsx'), '--format', 'json')).stdout)
+  const [view, pressable] = report.classLists.lists
+  const entry = (list, name) => list.classes.find((candidate) => candidate.class === name)
+  assert.equal(entry(view, 'md:hover:p-4').native, 'not-wired')
+  assert.match(entry(view, 'md:hover:p-4').reason, /^`hover:` is wired only on Pressable/)
+  assert.equal(entry(view, 'md:hover:p-4').web, 'compiled')
+  assert.equal(entry(view, 'p-2').native, 'compiled')
+  // A Pressable answers `hover:`; its own list is not blamed for the View's.
+  assert.equal(entry(pressable, 'hover:p-4').native, 'compiled')
+})
