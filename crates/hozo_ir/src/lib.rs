@@ -5684,27 +5684,41 @@ fn condition_groups(declarations: &[StyleDeclaration]) -> (Vec<ConditionGroup>, 
     let mut start = 0;
     let mut ordered = false;
     let mut unranked_tailwind = false;
-    for decl in declarations {
+    let mut preserve_scalar_runs = false;
+    for (index, decl) in declarations.iter().enumerate() {
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
         // backwards across that rule, losing JSX tie order.
         let next_ordered = matches!(decl.source, StyleSource::TailwindOrdered { .. });
-        unranked_tailwind |= matches!(decl.source, StyleSource::TailwindUtility { .. });
-        if source != Some(decl.source.input())
-            || ordered != next_ordered
-            || (next_ordered
-                && groups
-                    .last()
-                    .is_some_and(|(condition, _)| *condition != decl.condition))
+        let authored = matches!(decl.source, StyleSource::TailwindUtility { .. });
+        unranked_tailwind |= authored;
+        let next_source = Some(decl.source.input());
+        if source != next_source || ordered != next_ordered {
+            source = next_source;
+            start = groups.len();
+            // Only move to consecutive guard runs when guarded values can
+            // be emitted independently. In particular, filter/transform
+            // registers in the same condition may still need one group.
+            preserve_scalar_runs = authored && scalar_owner_guard_runs(&declarations[index..]);
+        } else if next_ordered
+            && groups
+                .last()
+                .is_some_and(|(condition, _)| *condition != decl.condition)
         {
-            source = Some(decl.source.input());
             start = groups.len();
         }
         ordered = next_ordered;
-        match groups[start..]
-            .iter_mut()
-            .find(|(condition, _)| *condition == decl.condition)
-        {
+        let region = &mut groups[start..];
+        let existing = if preserve_scalar_runs && decl.condition != Condition::Always {
+            region
+                .last_mut()
+                .filter(|(condition, _)| *condition == decl.condition)
+        } else {
+            region
+                .iter_mut()
+                .find(|(condition, _)| *condition == decl.condition)
+        };
+        match existing {
             Some((_, props)) => props.push(decl.property.clone()),
             None => groups.push((decl.condition.clone(), vec![decl.property.clone()])),
         }
@@ -5712,6 +5726,36 @@ fn condition_groups(declarations: &[StyleDeclaration]) -> (Vec<ConditionGroup>, 
     // A single input is already in its frontend's order unless a Tailwind
     // barrier kept that input in authored order.
     (groups, start != 0 || unranked_tailwind)
+}
+
+fn scalar_owner_guard_runs(declarations: &[StyleDeclaration]) -> bool {
+    let input = declarations[0].source.input();
+    declarations
+        .iter()
+        .take_while(|item| {
+            item.source.input() == input
+                && !matches!(item.source, StyleSource::TailwindOrdered { .. })
+        })
+        .all(|item| {
+            matches!(item.source, StyleSource::TailwindUtility { .. })
+                && (item.condition == Condition::Always
+                    || (item
+                        .condition
+                        .owner_interaction_specificity()
+                        .is_some_and(|weight| weight > 0)
+                        && matches!(
+                            item.property,
+                            StyleProperty::Opacity(_)
+                                | StyleProperty::PaddingTop(_)
+                                | StyleProperty::PaddingRight(_)
+                                | StyleProperty::PaddingBottom(_)
+                                | StyleProperty::PaddingLeft(_)
+                                | StyleProperty::MarginTop(_)
+                                | StyleProperty::MarginRight(_)
+                                | StyleProperty::MarginBottom(_)
+                                | StyleProperty::MarginLeft(_)
+                        )))
+        })
 }
 
 fn linearize_native_specificity(groups: &mut [ConditionGroup]) {

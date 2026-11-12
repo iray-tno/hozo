@@ -321,11 +321,7 @@ mod tests {
             ("focus:p-4", 10, Condition::Focus),
             ("focus:p-4", 10, Condition::Focus),
         ]);
-        assert_eq!(
-            crate::group_by_condition(&declarations).len(),
-            2,
-            "legacy control"
-        );
+        assert_eq!(crate::group_by_condition(&declarations).len(), 3);
         for decl in &mut declarations {
             let StyleSource::TailwindUtility { input, utility } = decl.source else {
                 panic!()

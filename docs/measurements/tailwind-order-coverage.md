@@ -109,14 +109,29 @@ has ambiguous property ownership. Hozo emits a valid Native background
 colour from the theme but does not give the write a rank. With hover and
 press both true, `active:p-2 hover:p-4 bg-brand`
 selects 16px statically and 8px dynamically; the opposite token order selects
-8px on both. A known conjunction still wins on both paths. Deleting the
-runtime variant tie alone would expose another difference:
-`hover:p-2 active:p-4 hover:p-6 bg-brand` currently selects 16px in both,
-but static groups the last hover write into its first guard, whereas a
-stable specificity-only runtime sort would leave the last hover write
-after active (24px). Reconcile both behaviors before removing the reachable
-fallback. Preserve Native specificity; do not require all arbitrary syntax
-to rank or force-delete a necessary operation.
+8px on both. A known conjunction still wins on both paths. The static
+emitters now preserve repeated guards for physical padding/margin and
+opacity, so `hover:p-2 active:p-4 hover:p-6 bg-brand` selects the authored
+24px on static Web and Native rather than 16px. The generated Native
+resolver still selects 16px because of its variant tie. Register-dependent
+inputs retain their grouping until each composer can consume separate
+writes under the same guard. Reconcile those inputs before deleting the
+reachable fallback tie. Preserve Native specificity; do not require all
+arbitrary syntax to rank or force-delete a necessary operation.
+
+In a diagnostic run using the real captured `bg-brand` barrier, masking
+the variant bits off generated tuples (without changing production code)
+made the runtime agree with static Native on four inputs: both orders of
+hover/active, the repeated hover, and a more-specific hover/focus
+conjunction. This is evidence for the next deletion, not register or mixed
+input parity.
+
+For the next stage-6 checkpoint, verify the static authored guard runs
+through the affected register and text-metric projections, then replace
+the runtime tie with stable selector weight once both routes agree. Report
+the deletion per domain with the ranked, barrier, and mixed-input controls
+above; independently verify candidate sheet emission where a utility
+emits multiple rules. A static-only repair is not a completed domain.
 
 ## Progress
 

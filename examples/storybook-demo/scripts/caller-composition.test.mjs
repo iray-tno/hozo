@@ -1690,6 +1690,54 @@ test('Web leaves fallback conjunction specificity to the browser', {
   }
 })
 
+test('static fallback keeps repeated owner guards in authored CSS order', {
+  skip: !executablePath,
+}, async () => {
+  const classes = 'hover:p-2 active:p-4 hover:p-6 columns-(--layout)'
+  const result = compiler.compile(
+    `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
+  )[0]
+  const html = renderToStaticMarkup(
+    evaluate(`module.exports=(${result.jsx})`, { h: createElement }),
+  )
+  // This input has an unassessed write: the contract is authored order,
+  // not Tailwind's ranked variant order. Let CSS arbitrate independently.
+  const reference =
+    'button:hover {padding:8px} button:active {padding:16px} button:hover {padding:24px}'
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const [css, markup] of [
+      [reference, '<button>Target</button>'],
+      [result.css, html],
+    ]) {
+      await page.setContent(`<style>${css}</style>${markup}`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', {
+        nodeId: root.nodeId,
+        selector: 'button',
+      })
+      assert.ok(nodeId)
+      for (const [forcedPseudoClasses, padding] of [
+        [['active'], '16px'],
+        [['hover'], '24px'],
+        [['hover', 'active'], '24px'],
+      ]) {
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses })
+        assert.equal(
+          await page.locator('button').evaluate((el) => getComputedStyle(el).paddingTop),
+          padding,
+          forcedPseudoClasses.join(':'),
+        )
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('Tailwind filter resets keep the registers a later condition reads', {
   skip: !executablePath,
 }, async () => {
