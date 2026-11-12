@@ -184,6 +184,47 @@ pub fn native_classes_drawn_statically(source: &str) -> Vec<String> {
     out
 }
 
+/// The class props written on an element the compiler does not lower: a
+/// component, which is handed the class list as a prop and resolves it
+/// itself, in its own file's compile or on device. Inspection evidence
+/// (`hozo show`), from the parse the backend lowered: whether an element is
+/// a primitive depends on what it was imported from.
+pub fn component_class_lists(
+    parsed: &hozo_parser::ParseOutput,
+) -> Vec<&hozo_parser::RuntimeClassList> {
+    let mut lowered = std::collections::HashSet::new();
+    for root in &parsed.roots {
+        every_lowered(&root.node, &mut lowered);
+    }
+    parsed
+        .runtime_class_lists
+        .iter()
+        .filter(|list| !lowered.contains(&list.element_span.start))
+        .collect()
+}
+
+/// Every lowered element's opening tag, including the primitives nested in
+/// a carried expression or a carried prop, which `lowered_nodes` skips.
+fn every_lowered(node: &Node, out: &mut std::collections::HashSet<u32>) {
+    out.insert(node.opening_tag_span.start);
+    for prop in &node.props.passthrough {
+        for nested in &prop.nested {
+            every_lowered(&nested.node, out);
+        }
+    }
+    for child in &node.children {
+        match child {
+            Child::Node(child) => every_lowered(child, out),
+            Child::Verbatim { nested, .. } => {
+                for entry in nested {
+                    every_lowered(&entry.node, out);
+                }
+            }
+            Child::Text(_) => {}
+        }
+    }
+}
+
 fn lowered_by_span(parsed: &hozo_parser::ParseOutput) -> HashMap<u32, &Node> {
     let mut lowered = HashMap::new();
     for root in &parsed.roots {
@@ -549,5 +590,48 @@ export function Panel({ className, open, onClose }) {
             .collect();
         assert!(report.contains(&"before:block".to_string()), "{report:?}");
         assert!(!report.contains(&"max-h-[85vh]".to_string()), "{report:?}");
+    }
+
+    #[test]
+    fn a_class_prop_on_an_element_the_compiler_carries_is_a_components() {
+        let parsed = hozo_parser::parse_tsx(
+            r#"import { View } from '@hozo/core'
+export const A = () => (
+  <View className="p-4">
+    <Card className="mt-2" />
+    {open && <View className="p-2" />}
+  </View>
+)"#,
+        );
+        let lists: Vec<_> = component_class_lists(&parsed)
+            .into_iter()
+            .map(|list| (list.element.as_str(), list.prop.as_str()))
+            .collect();
+        // The nested View is lowered inside the carried expression.
+        assert_eq!(lists, [("Card", "className")]);
+    }
+
+    #[test]
+    fn a_pattern_owners_callback_is_recorded_and_a_plain_style_is_not() {
+        let source = r#"import { View, Chip } from '@hozo/core'
+export const A = () => (
+  <View className="p-4 hover:p-2">
+    <Chip className="bg-white hover:bg-black" label="a" />
+    <Chip className="bg-white" label="b" />
+  </View>
+)"#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = crate::lower(&parsed.roots[0].node, source, &hozo_ir::Theme::default());
+        let starts: Vec<_> = output
+            .owner_callbacks
+            .iter()
+            .map(|callback| {
+                (
+                    &source[callback.span.start as usize..][..10],
+                    callback.class_prop,
+                )
+            })
+            .collect();
+        assert_eq!(starts, [("<Chip clas", "className")]);
     }
 }

@@ -1645,9 +1645,17 @@ pub(super) fn render_node(
     }
 
     if let Some(route) = &pattern_classes {
+        cx.owner_callbacks.push(crate::OwnerCallback {
+            span: node.span,
+            class_prop: "className",
+        });
         held.emit(&mut props_text, &route.prop(&style_array_parts));
     } else if needs_pressed_fn {
         let callback = if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
+            cx.owner_callbacks.push(crate::OwnerCallback {
+                span: node.span,
+                class_prop: "className",
+            });
             crate::class_route::static_callback(node.primitive, "className", &style_array_parts)
         } else {
             let fields = if needs_focus_visible {
@@ -2368,6 +2376,12 @@ pub(super) fn render_node(
                 |route| route.residuals(),
             );
             parts.splice(state_start..state_start, residuals);
+            if route.is_some() || !pressed.is_empty() {
+                cx.owner_callbacks.push(crate::OwnerCallback {
+                    span: written.span,
+                    class_prop: slot.class_prop,
+                });
+            }
             if let Some(route) = route {
                 parts.extend(pressed);
                 held.emit(&mut props_text, &route.prop(&parts));
@@ -2435,6 +2449,10 @@ pub(super) fn render_node(
                     None,
                 )
                 .expect("registered above");
+                cx.owner_callbacks.push(crate::OwnerCallback {
+                    span: node.span,
+                    class_prop: slot.class_prop,
+                });
                 held.emit(&mut props_text, &route.prop(&[]));
             } else {
                 parts.push(crate::class_route::residual(

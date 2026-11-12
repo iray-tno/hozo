@@ -22,8 +22,11 @@ diagnostic with its line and column. The theme is the project's, read from
 the stylesheet its bundler config names (or the usual names: src/index.css,
 global.css, ...), as the build reads it.
 
-A class list is compiled (some classes perhaps under a condition), or
-resolved at runtime when the compiler cannot read it. A class in it is
+A class list is compiled (some classes perhaps under a condition); compiled
+into a callback its pattern owner (Chip, Menu, ...) applies with its own
+state, on Native; handed to a component the compiler does not lower, which
+resolves it; or resolved at runtime when the compiler cannot read it. A class
+in it is
 compiled, not-generated (Tailwind has no rule for it in this theme), refused
 or not-wired on Native (with the reason), or passed-through: not a Tailwind
 class, kept on the Web for the project's own CSS.

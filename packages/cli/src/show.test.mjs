@@ -211,3 +211,43 @@ export const B = () => (
   // A Pressable answers `hover:`; its own list is not blamed for the View's.
   assert.equal(entry(pressable, 'hover:p-4').native, 'compiled')
 })
+
+test('class lists: what a pattern owner applies, and what a component is handed', async (t) => {
+  const root = project(t, {
+    'src/C.tsx': `import { View, Chip, Menu } from '@hozo/core'
+import { Button } from '@hozo/ui'
+export const C = ({ cls }: { cls: string }) => (
+  <View className="p-4">
+    <Button className="mt-2">Save</Button>
+    <Chip className="bg-white hover:bg-black" label="a" />
+    <Menu label="m" itemClassName="p-2 focus:bg-black" items={[]} />
+    <Chip className={cls} label="b" />
+  </View>
+)
+`,
+  })
+  const file = path.join(root, 'src/C.tsx')
+  const report = JSON.parse((await show(file, '--format', 'json')).stdout)
+  const routes = report.classLists.lists.map(({ line, column, prop, route, component }) =>
+    [`${line}:${column}`, prop, route, component].filter(Boolean).join(' '),
+  )
+  assert.deepEqual(routes, [
+    '4:9 className compiled',
+    // `@hozo/ui`'s Button is a component here, not the Button primitive.
+    '5:13 className component Button',
+    // The Chip hands its own pressed/hovered state to the callback.
+    '6:11 className owner-callback',
+    // A slot list: the Menu applies it to each item, with that item's state.
+    '7:21 itemClassName owner-callback',
+    '8:5 className runtime',
+  ])
+  const text = (await show(file)).stdout
+  assert.match(text, /\n {2}5:13 className: handed to <Button>, which resolves it\n/)
+  assert.match(
+    text,
+    /\n {2}6:11 className: compiled; its pattern owner applies it with the owner's state; 2 of 2 classes compiled\n/,
+  )
+  // The owner callback is the Native backend's; the Web has no such route.
+  const web = JSON.parse((await show(file, '--web', '--format', 'json')).stdout)
+  assert.equal(web.classLists.lists[2].route, 'compiled-conditional')
+})

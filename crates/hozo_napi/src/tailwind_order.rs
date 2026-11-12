@@ -1,6 +1,8 @@
 //! RFC 007 binding/compile-plan evidence. Compilation plans its existing IR;
 //! separate inspection must not become an adapter's extra parser pass.
-use super::{external_bindings, CompileDiagnostic, Compiler, StylexExternalBinding};
+use super::{
+    external_bindings, CompileDiagnostic, CompiledOwnerCallback, Compiler, StylexExternalBinding,
+};
 use hozo_ir::{TailwindOrderContext, TailwindOrderSnapshot, TailwindRuleBinding, Utf16Offsets};
 use napi_derive::napi;
 
@@ -9,6 +11,9 @@ pub struct TailwindCompilePlan {
     pub fingerprint: String,
     pub mode: String,
     pub sites: Vec<TailwindCompileSite>,
+    /// Native only: the class lists a pattern owner applies with its own
+    /// state, in a callback, rather than the element holding them.
+    pub owner_callbacks: Option<Vec<CompiledOwnerCallback>>,
 }
 
 #[napi(object)]
@@ -153,6 +158,7 @@ pub fn compile_plan(
             "passthrough"
         }
         .into(),
+        owner_callbacks: None,
         sites: plan
             .sites
             .into_iter()

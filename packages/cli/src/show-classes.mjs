@@ -34,6 +34,8 @@ function literalClasses(source, offset) {
 export async function classLists({ source, root, css, diagnostics, nativeDiagnostics, platforms }) {
   let sites
   let refusal
+  let owned = []
+  let components
   try {
     const [{ loadProjectTailwindSnapshot }, compiler] = await Promise.all([
       import('@hozo/tailwind'),
@@ -47,6 +49,13 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
       .compile(source, undefined, { tailwindPlan: true })
       .flatMap((component) => component.tailwindPlan?.sites ?? [])
     refusal = compiler.tailwindClassesNativeRefusal
+    // Which lists a pattern owner resolves with its own state, as the
+    // Native backend emitted them; and which are handed to a component.
+    if (platforms.includes('native'))
+      owned = planned
+        .compileNative(source, undefined, { tailwindPlan: true })
+        .flatMap((component) => component.tailwindPlan?.ownerCallbacks ?? [])
+    components = planned.componentClassLists(source)
   } catch (error) {
     return {
       status: 'skipped',
@@ -60,7 +69,7 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
   for (const site of sites)
     for (const block of site.blocks) {
       if (block.inputStart === undefined || !block.candidate) continue
-      const input = inputs.get(block.inputStart) ?? { prop: site.classProp, blocks: new Map() }
+      const input = inputs.get(block.inputStart) ?? { site, blocks: new Map() }
       input.blocks.set(block.candidate, block)
       inputs.set(block.inputStart, input)
     }
@@ -124,11 +133,19 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
           'Not a Tailwind class: the Web keeps it for your own CSS, Native has no classes'
         classes.push(entry)
       }
+    const { site } = input
     lists.push({
       offset,
       ...position(source, offset),
-      prop: input.prop,
-      route: candidates.some((block) => block.guarded) ? 'compiled-conditional' : 'compiled',
+      prop: site.classProp,
+      route: owned.some(
+        (callback) =>
+          callback.classProp === site.classProp && callback.spanStart === site.spanStart,
+      )
+        ? 'owner-callback'
+        : candidates.some((block) => block.guarded)
+          ? 'compiled-conditional'
+          : 'compiled',
       classes,
     })
   }
@@ -145,6 +162,17 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
       route: 'runtime',
       classes: [],
     })
+  // Handed to a component the compiler does not lower: the component
+  // resolves it, in its own file's compile or on device.
+  for (const list of components)
+    lists.push({
+      offset: list.spanStart,
+      ...position(source, list.spanStart),
+      prop: list.prop,
+      route: 'component',
+      component: list.element,
+      classes: [],
+    })
   lists.sort((a, b) => a.offset - b.offset)
   for (const list of lists) delete list.offset
   return { status: 'assessed', lists }
@@ -153,6 +181,8 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
 const ROUTES = {
   compiled: 'compiled',
   'compiled-conditional': 'compiled, some under a condition',
+  'owner-callback': "compiled; its pattern owner applies it with the owner's state",
+  component: 'handed to <%>, which resolves it',
   runtime: 'resolved at runtime: the compiler cannot read it',
 }
 
@@ -167,7 +197,7 @@ export function classListLines(evidence) {
     )
     const count = list.classes.length
     lines.push(
-      `  ${list.line}:${list.column} ${list.prop}: ${ROUTES[list.route]}${
+      `  ${list.line}:${list.column} ${list.prop}: ${ROUTES[list.route].replace('%', list.component)}${
         count ? `; ${clean.length} of ${count} class${count === 1 ? '' : 'es'} compiled` : ''
       }`,
     )
