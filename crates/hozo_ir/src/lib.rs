@@ -5696,21 +5696,7 @@ fn condition_groups(
     let mut compatible_filter_runs = None;
     let mut can_split_filters = || {
         compose_filter_slots
-            && *compatible_filter_runs.get_or_insert_with(|| {
-                // A raw filter, reset, or drop-shadow in another input
-                // still shares this element's whole filter property.
-                !declarations.iter().any(|d| {
-                    matches!(
-                        d.property,
-                        StyleProperty::FilterRaw(_)
-                            | StyleProperty::DropShadowColor(_)
-                            | StyleProperty::Filter(
-                                FilterFunction::DropShadow | FilterFunction::None,
-                                _
-                            )
-                    )
-                })
-            })
+            && *compatible_filter_runs.get_or_insert_with(|| filter_runs_can_split(declarations))
     };
     for (index, decl) in declarations.iter().enumerate() {
         // A later styling input can revisit a condition after another
@@ -5753,6 +5739,36 @@ fn condition_groups(
     // A single input is already in its frontend's order unless a Tailwind
     // barrier kept that input in authored order.
     (groups, start != 0 || unranked_tailwind)
+}
+
+fn filter_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
+    let mut base_reset = false;
+    let mut base_slots = false;
+    for d in declarations {
+        match d.property {
+            StyleProperty::FilterRaw(_)
+            | StyleProperty::DropShadowColor(_)
+            | StyleProperty::Filter(FilterFunction::DropShadow, _) => return false,
+            StyleProperty::Filter(FilterFunction::None, _) => {
+                // An isolated base reset is just a resting value; a guarded
+                // reset can compete with the same run's register reader.
+                if d.condition != Condition::Always || base_slots {
+                    return false;
+                }
+                base_reset = true;
+            }
+            StyleProperty::Filter(..) if d.condition == Condition::Always => {
+                // Retain the existing whole-rule reset when resting
+                // functions and a reset share the input.
+                if base_reset {
+                    return false;
+                }
+                base_slots = true;
+            }
+            _ => {}
+        }
+    }
+    true
 }
 
 fn independent_owner_guard_runs(

@@ -1800,17 +1800,23 @@ test('static fallback composes translate axes across repeated owner guards', {
 test('static fallback composes filter functions across repeated owner guards', {
   skip: !executablePath,
 }, async () => {
-  await assertRepeatedOwnerRegisters({
-    classes: 'blur-sm hover:blur-lg active:blur-xl active:sepia-50 hover:sepia columns-(--layout)',
-    reference: `
-      button { --blur: blur(8px); filter: var(--blur) var(--sepia,); }
+  for (const [base, resting] of [
+    ['blur-sm', 'blur(8px)'],
+    ['filter-none', 'none'],
+  ]) {
+    await assertRepeatedOwnerRegisters({
+      classes: `${base} hover:blur-lg active:blur-xl active:sepia-50 hover:sepia columns-(--layout)`,
+      reference: `
+      button { filter: ${resting}; }
+      button:is(:hover, :active) { filter: var(--blur) var(--sepia,); }
       button:hover { --blur: blur(16px); }
       button:active { --blur: blur(24px); --sepia: sepia(0.5); }
       button:hover { --sepia: sepia(1); }
     `,
-    property: 'filter',
-    values: ['blur(24px) sepia(0.5)', 'blur(16px) sepia(1)', 'blur(24px) sepia(1)', 'blur(8px)'],
-  })
+      property: 'filter',
+      values: ['blur(24px) sepia(0.5)', 'blur(16px) sepia(1)', 'blur(24px) sepia(1)', resting],
+    })
+  }
 })
 
 test('Tailwind filter resets keep the registers a later condition reads', {

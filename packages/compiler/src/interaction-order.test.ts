@@ -164,11 +164,15 @@ test('authored scalar state writes do not move back into an earlier visit to the
   }
 })
 
-test('fallback keeps same-guard filter grouping when a whole-chain reset is present', () => {
+test('fallback keeps same-guard filter grouping when a reset shares resting slots', () => {
   const source =
-    'import {Pressable} from "@hozo/core";const el=<Pressable className="filter-none hover:blur-sm active:p-4 hover:sepia columns-(--layout)"/>'
+    'import {Pressable} from "@hozo/core";const el=<Pressable className="blur-sm filter-none hover:blur-sm active:p-4 hover:sepia columns-(--layout)"/>'
   const [web] = compiler.compile(source)
-  assert.match(web!.css, /filter: blur\(8px\) sepia\(100%\)/)
+  assert.match(
+    web!.css,
+    /\.hozo-0:hover \{[^}]*--hozo-blur: blur\(8px\);[^}]*--hozo-sepia: sepia\(100%\);/,
+  )
+  assert.equal(web!.css.match(/\.hozo-0:hover \{/g)?.length, 1)
   const { style } = props(source, false, ['WEB_ONLY_PROPERTY_ON_NATIVE'])
   assert.equal(flatten(style({ hovered: false, pressed: true })).filter, 'none')
   assert.equal(flatten(style({ hovered: true, pressed: true })).filter, 'blur(8px) sepia(100%)')

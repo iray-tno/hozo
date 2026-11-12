@@ -77,17 +77,31 @@ test('a copied base cannot overwrite another active condition register', () => {
 })
 
 test('unranked owner filter runs compose independent functions in authored order', () => {
-  const probe = compiled(
-    'blur-sm hover:blur-lg active:blur-xl active:sepia-50 hover:sepia columns-(--layout)',
-    '',
-    'Pressable',
-    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
-  )
-  assert.equal(probe.style().filter, 'blur(8px)')
-  assert.equal(probe.style(false, true).filter, 'blur(16px) sepia(100%)')
-  assert.equal(probe.style(false, false, false, undefined, true).filter, 'blur(24px) sepia(50%)')
-  assert.equal(probe.style(false, true, false, undefined, true).filter, 'blur(24px) sepia(100%)')
-  assert.equal(probe.style(false, true).filter, 'blur(16px) sepia(100%)')
+  for (const [base, resting] of [
+    ['blur-sm', 'blur(8px)'],
+    ['filter-none', 'none'],
+  ]) {
+    const probe = compiled(
+      `${base} hover:blur-lg active:blur-xl active:sepia-50 hover:sepia columns-(--layout)`,
+      '',
+      'Pressable',
+      ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+    )
+    assert.equal(probe.style().filter, resting, base)
+    assert.equal(probe.style(false, true).filter, 'blur(16px) sepia(100%)', base)
+    assert.equal(
+      probe.style(false, false, false, undefined, true).filter,
+      'blur(24px) sepia(50%)',
+      base,
+    )
+    assert.equal(
+      probe.style(false, true, false, undefined, true).filter,
+      'blur(24px) sepia(100%)',
+      base,
+    )
+    assert.equal(probe.style(false, true).filter, 'blur(16px) sepia(100%)', base)
+    assert.equal(probe.style().filter, resting, base)
+  }
 })
 
 test('whole-chain reset yields to later slot writes without losing registers', () => {
