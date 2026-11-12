@@ -126,6 +126,14 @@ hover/active, the repeated hover, and a more-specific hover/focus
 conjunction. This is evidence for the next deletion, not register or mixed
 input parity.
 
+Web transform/filter, gradient, and shadow register detection now compares
+the slots written by each emitted rule, instead of OR-ing writes under
+equal conditions. Two separated rules can share a selector and still
+need independent slots. This removes an assumption in Web projection;
+it does not enable additional split runs or change Native runtime rank
+selection. One-rule, same-slot, and raw-filter controls keep their
+existing paths.
+
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace
 the runtime tie with stable selector weight once both routes agree. Report

@@ -686,6 +686,17 @@ pub fn register_split_gradients(
     register_gradients(groups, theme, false)
 }
 
+/// A literal declaration replaces all its slots. If separate emitted rules
+/// write different slots, keep those writes independent even under the same
+/// selector. Candidate rules can also compose with writers in another sheet.
+fn split_register_writers(masks: impl Iterator<Item = u16>, candidate: bool) -> bool {
+    let mut writers = masks.filter(|&mask| mask != 0);
+    let Some(first) = writers.next() else {
+        return false;
+    };
+    candidate || writers.any(|mask| mask != first)
+}
+
 fn register_gradients(
     groups: &mut [(Condition, Vec<StyleProperty>)],
     theme: &Theme,
@@ -719,19 +730,10 @@ fn register_gradients(
     if blocked {
         return false;
     }
-    let mut written: Vec<(&Condition, u16)> = Vec::new();
-    for (condition, props) in groups.iter() {
-        let slots = props.iter().fold(0, |slots, p| slots | slot(p));
-        if slots == 0 {
-            continue;
-        }
-        match written.iter_mut().find(|(seen, _)| *seen == condition) {
-            Some((_, seen)) => *seen |= slots,
-            None => written.push((condition, slots)),
-        }
-    }
-    if written.is_empty() || (!candidate && !written.windows(2).any(|pair| pair[0].1 != pair[1].1))
-    {
+    let masks = groups
+        .iter()
+        .map(|(_, props)| props.iter().fold(0, |slots, p| slots | slot(p)));
+    if !split_register_writers(masks, candidate) {
         return false;
     }
     let set = |name: &str, value: String| StyleProperty::Arbitrary(format!("--hozo-{name}"), value);
@@ -1479,25 +1481,17 @@ fn register_axes(
                 .iter()
                 .any(|p| (family.axis)(p).is_some() || (family.three)(p))
         };
-        // Conditions that write the same axes replace each other exactly as
-        // Tailwind's registers do, so only differing axis sets need them.
-        let mut written: Vec<(&Condition, u16)> = Vec::new();
-        for (condition, props) in groups.iter().filter(|(_, props)| touches(props)) {
-            let axes = props.iter().fold(0u16, |axes, p| {
+        let masks = groups.iter().map(|(_, props)| {
+            props.iter().fold(0u16, |axes, p| {
                 axes | (family.axis)(p).map_or(0, |index| 1 << index)
                     | if (family.three)(p) { 1 << 2 } else { 0 }
-            });
-            match written.iter_mut().find(|(seen, _)| *seen == condition) {
-                Some((_, seen)) => *seen |= axes,
-                None => written.push((condition, axes)),
-            }
-        }
-        let split = (candidate && !written.is_empty())
-            || written.windows(2).any(|pair| pair[0].1 != pair[1].1);
-        let blocked = groups
-            .iter()
-            .any(|(_, props)| props.iter().any(|p| (family.blocks)(p)));
-        if !split || blocked {
+            })
+        });
+        if !split_register_writers(masks, candidate)
+            || groups
+                .iter()
+                .any(|(_, props)| props.iter().any(|p| (family.blocks)(p)))
+        {
             continue;
         }
         if let Some(required) = required.as_deref_mut() {
@@ -2791,19 +2785,10 @@ fn register_shadows(
             _ => 0,
         }
     }
-    let mut written: Vec<(&Condition, u16)> = Vec::new();
-    for (condition, props) in groups.iter() {
-        let slots = props.iter().fold(0, |slots, p| slots | slot(p));
-        if slots == 0 {
-            continue;
-        }
-        match written.iter_mut().find(|(seen, _)| *seen == condition) {
-            Some((_, seen)) => *seen |= slots,
-            None => written.push((condition, slots)),
-        }
-    }
-    if written.is_empty() || (!candidate && !written.windows(2).any(|pair| pair[0].1 != pair[1].1))
-    {
+    let masks = groups
+        .iter()
+        .map(|(_, props)| props.iter().fold(0, |slots, p| slots | slot(p)));
+    if !split_register_writers(masks, candidate) {
         return false;
     }
     let color = |c: &Color| {
@@ -3671,6 +3656,84 @@ mod tests {
         );
         // The element's own chain and the backdrop's are independent.
         assert_eq!(filter_value(&refs, true, &Theme::default()), None);
+    }
+
+    #[test]
+    fn separate_writers_under_the_same_guard_still_need_registers() {
+        let theme = Theme::default();
+        for (first, last, writer) in [
+            (
+                StyleProperty::Filter(FilterFunction::Blur, "blur(8px)".into()),
+                StyleProperty::Filter(FilterFunction::Sepia, "sepia(100%)".into()),
+                register_split_axes as fn(&mut [(Condition, Vec<StyleProperty>)], &Theme) -> bool,
+            ),
+            (
+                StyleProperty::TranslateX(Dimension::Length(Length::Px(8.0))),
+                StyleProperty::TranslateY(Dimension::Length(Length::Px(12.0))),
+                register_split_axes,
+            ),
+            (
+                StyleProperty::BoxShadow("0 1px 2px #123".into()),
+                StyleProperty::RingWidth(Length::Px(2.0)),
+                register_split_shadows,
+            ),
+            (
+                StyleProperty::Gradient(GradientKind::Linear, "to right".into()),
+                StyleProperty::GradientStopColor(GradientStop::From, Color::Keyword("red")),
+                register_split_gradients,
+            ),
+        ] {
+            let mut one = vec![(Condition::Hover, vec![first.clone(), last.clone()])];
+            assert!(
+                !writer(&mut one, &theme),
+                "a single rule can write a literal"
+            );
+            let mut same_slots = vec![
+                (Condition::Hover, vec![first.clone()]),
+                (Condition::Hover, vec![first.clone()]),
+            ];
+            assert!(
+                !writer(&mut same_slots, &theme),
+                "identical slot masks need no registers"
+            );
+            let mut repeated = vec![
+                (Condition::Hover, vec![first]),
+                (Condition::Pressed, vec![StyleProperty::Opacity(0.5)]),
+                (Condition::Hover, vec![last]),
+            ];
+            assert!(writer(&mut repeated, &theme), "{repeated:?}");
+            assert_eq!(repeated[1].1, vec![StyleProperty::Opacity(0.5)]);
+            for (_, props) in [&repeated[0], &repeated[2]] {
+                assert!(props.iter().any(|prop| matches!(
+                    prop, StyleProperty::Arbitrary(name, _) if name.starts_with("--hozo-")
+                )));
+            }
+        }
+
+        let mut raw = vec![
+            (
+                Condition::Hover,
+                vec![StyleProperty::Filter(
+                    FilterFunction::Blur,
+                    "blur(8px)".into(),
+                )],
+            ),
+            (
+                Condition::Pressed,
+                vec![StyleProperty::FilterRaw("url(#external)".into())],
+            ),
+            (
+                Condition::Hover,
+                vec![StyleProperty::Filter(
+                    FilterFunction::Sepia,
+                    "sepia(100%)".into(),
+                )],
+            ),
+        ];
+        assert!(
+            !register_split_axes(&mut raw, &theme),
+            "raw filters still block register lowering"
+        );
     }
 
     #[test]
