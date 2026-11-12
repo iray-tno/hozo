@@ -63,11 +63,13 @@
       "types": "./dist/manifest-command.d.ts",
       "default": "./dist/manifest-command.js"
     },
+    "./diagnostics.json": "./diagnostics.json",
     "./package.json": "./package.json"
   },
   "files": [
     "CHANGELOG.md",
     "dist",
+    "diagnostics.json",
     "src",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",

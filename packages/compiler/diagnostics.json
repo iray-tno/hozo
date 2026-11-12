@@ -1,0 +1,594 @@
+{
+  "schemaVersion": 1,
+  "codes": {
+    "A11Y_DIALOG_WITHOUT_DISMISS": {
+      "summary": "A `Dialog` that can't be dismissed (proposal §10.3).\n\nEscape on Web and the hardware back button on Android both arrive as a request to close, and a modal that ignores them is a trap -- the one failure in §10.3's quality bar that a compiler *can* see, since it is a missing prop rather than a runtime behaviour.",
+      "example": {
+        "jsx": "<Dialog open aria-label=\"Confirm\">x</Dialog>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "Dialog has no `onClose`, so Escape and the Android back button do nothing and the modal is a trap. Add `onClose`."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "Dialog has no `onClose`, so Escape and the Android back button do nothing and the modal is a trap. Add `onClose`."
+        }
+      ]
+    },
+    "A11Y_DUPLICATE_ID": {
+      "summary": "Two elements in one file with the same id.\n\nEvery reference naming it -- `aria-labelledby`, `aria-controls`, `aria-describedby` -- resolves to the first, so one of the two points at the wrong element. It points *somewhere*, which is exactly why nothing about it looks broken.",
+      "example": {
+        "jsx": "<View><View nativeID=\"x\">a</View><View nativeID=\"x\">b</View></View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`nativeID=\"x\"` is already used earlier in this file. Every `aria-labelledby` or `aria-controls` naming it resolves to the first one, so a reference meant for this element points at that one instead -- and it points somewhere, which is why nothing looks wrong."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`nativeID=\"x\"` is already used earlier in this file. Every `aria-labelledby` or `aria-controls` naming it resolves to the first one, so a reference meant for this element points at that one instead -- and it points somewhere, which is why nothing looks wrong."
+        }
+      ]
+    },
+    "A11Y_HEADING_LEVEL_SKIPPED": {
+      "summary": "Heading levels that jump.\n\nThe levels are the document's outline and a screen reader navigates by it: \"next heading\", and a list of them all. A jump from 1 to 3 says there is a level-2 section the listener has been moved out of without being told.\n\nReported per pair rather than per document, which is what makes it decidable in one file: two headings adjacent here are adjacent on the page whatever wraps them. Starting at 3 says nothing.",
+      "example": {
+        "jsx": "<View><Heading level={1}>a</Heading><Heading level={3}>b</Heading></View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "This heading is level 3 and the one before it is level 1, so the outline skips level 2. Screen readers navigate by that outline, and a jump reads as a section the listener was moved out of without being told. Levels are structure; use a type utility if what you wanted was a smaller heading."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "This heading is level 3 and the one before it is level 1, so the outline skips level 2. Screen readers navigate by that outline, and a jump reads as a section the listener was moved out of without being told. Levels are structure; use a type utility if what you wanted was a smaller heading."
+        }
+      ]
+    },
+    "A11Y_HIDDEN_BUT_FOCUSABLE": {
+      "summary": "Hidden from assistive technology and still in the tab order.\n\n`aria-hidden` removes a subtree from the accessibility tree and removes nothing from the tab order, so a keyboard user can land on a control a screen reader has been told does not exist and be told nothing about where they are. WCAG 4.1.2, and one of the commonest ways a page becomes unusable while looking entirely correct.\n\nDecidable here because both halves are in the same tree: the attribute is on this element and the focusable thing is under it.",
+      "example": {
+        "jsx": "<Pressable role=\"button\" aria-label=\"Go\" aria-hidden tabIndex={0} onPress={go}>x</Pressable>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "This is hidden from assistive technology and still reachable by keyboard. `aria-hidden` takes the subtree out of the accessibility tree and leaves it in the tab order, so someone tabbing lands on a control a screen reader has been told is not there. Hide it from both -- `display: none`, or `hidden`, or `tabIndex={-1}` on what can be focused -- or from neither."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "This is hidden from assistive technology and still reachable by keyboard. `aria-hidden` takes the subtree out of the accessibility tree and leaves it in the tab order, so someone tabbing lands on a control a screen reader has been told is not there. Hide it from both -- `display: none`, or `hidden`, or `tabIndex={-1}` on what can be focused -- or from neither."
+        }
+      ]
+    },
+    "A11Y_INTERACTIVE_NESTING": {
+      "summary": "One interactive element inside another.\n\nNot a style question: the DOM does not allow it, and a browser meeting one reparents the markup -- so what renders is not what was written, and the inner control ends up beside the outer one. Before that it is ambiguous to everyone, since a press goes to whichever handler is closer and a screen reader announces two controls occupying one place.",
+      "example": {
+        "jsx": "<Pressable role=\"button\" aria-label=\"Outer\" onPress={go}><Pressable role=\"button\" aria-label=\"Inner\" onPress={go}>x</Pressable></Pressable>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "This is a `button` inside a `button`, which the DOM does not allow: a browser meeting one moves the inner element out, so what renders is not what is written here. Before that it is ambiguous to everyone -- a screen reader announces two controls in one place, and a press goes to whichever handler is closer. Put them side by side, or make the outer one a plain container."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "This is a `button` inside a `button`, which the DOM does not allow: a browser meeting one moves the inner element out, so what renders is not what is written here. Before that it is ambiguous to everyone -- a screen reader announces two controls in one place, and a press goes to whichever handler is closer. Put them side by side, or make the outer one a plain container."
+        }
+      ]
+    },
+    "A11Y_INTERACTIVE_WITHOUT_ROLE": {
+      "summary": "Interactive Pressable/Button with no accessible role (proposal §10.2).",
+      "example": {
+        "jsx": "<Pressable onPress={go}>x</Pressable>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "Interactive Pressable has no accessible role. Consider: accessibilityRole=\"button\""
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "Interactive Pressable has no accessible role. Consider: accessibilityRole=\"button\""
+        }
+      ]
+    },
+    "A11Y_MISSING_ACCESSIBLE_NAME": {
+      "summary": "An element that needs an accessible name and has none (proposal §10.2): a `TextInput`, a `Dialog`.\n\nOne code rather than one per element, because the fix is the same sentence every time -- give it a name -- and the message says which element it is.\n\nSeparate from the role diagnostic because the fix is different and the wrong fix is so common: a `placeholder` looks like a label, and is not one. Screen readers may not announce it, and it vanishes the moment the user types -- which is exactly when they would want to check what the field was for.",
+      "example": {
+        "jsx": "<Image src=\"a.png\" />",
+        "backend": "native"
+      },
+      "emitted": [
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "Image has no alternative text. Add `alt` (use an empty string for a decorative image) or `accessibilityLabel`."
+        }
+      ]
+    },
+    "A11Y_NAME_NOT_FORWARDED": {
+      "summary": "An accessible name on an element whose host never passes it on.\n\nReact Native's `Modal` types accept View props, and the native modal host forwards none of them; the Web runtime matches it so the two platforms agree. The name type-checks, renders nothing and is announced nowhere -- the same silent absence as `AriaNameProhibited`, for a reason that has nothing to do with ARIA.",
+      "example": {
+        "jsx": "<Modal visible={open} onRequestClose={close} aria-label=\"Settings\">x</Modal>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`Modal` passes no accessibility props to the platform, on React Native or on Web, so this name is never announced. Use a `Dialog`, which is named and announced as a dialog, or put the name on a `View` inside the modal."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`Modal` passes no accessibility props to the platform, on React Native or on Web, so this name is never announced. Use a `Dialog`, which is named and announced as a dialog, or put the name on a `View` inside the modal."
+        }
+      ]
+    },
+    "A11Y_POSITIVE_TAB_INDEX": {
+      "summary": "A `tabIndex` greater than zero.\n\nNot a local choice, which is what makes it worth a diagnostic rather than a style note: a positive value orders this element ahead of every element on the page without one, so a component reorders documents it has never met and the result depends on what else happens to be rendered.",
+      "example": {
+        "jsx": "<Pressable role=\"button\" aria-label=\"Go\" tabIndex={3} onPress={go}>x</Pressable>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`tabIndex={3}` puts this in front of every element on the page that has no positive tabIndex, not just the ones around it -- so the tab order it produces depends on what else is rendered, including from components this one has never met. Use `tabIndex={0}` to join the natural order, and put the element where it belongs in the markup."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`tabIndex={3}` puts this in front of every element on the page that has no positive tabIndex, not just the ones around it -- so the tab order it produces depends on what else is rendered, including from components this one has never met. Use `tabIndex={0}` to join the natural order, and put the element where it belongs in the markup."
+        }
+      ]
+    },
+    "A11Y_PRESS_WITHOUT_KEYBOARD": {
+      "summary": "A press handler on something no keyboard can press.\n\nTwo shapes that fail differently. `onClick` on a `View` works with a pointer and is not in the tab order and announces as nothing -- proposal §10.2's own example. `onPress` on a `View` is quieter and worse: neither platform has that prop on a plain view, so it reaches the output and does nothing at all.",
+      "example": {
+        "jsx": "<View role=\"button\" aria-label=\"Go\" onPress={go}>x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`onPress` is not a prop a plain View has, on either platform: React Native puts it on `Pressable` and the DOM has no such event at all. It is carried into the output and does nothing there -- not a missing keyboard path but a missing press. Use `Pressable`."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`onPress` is not a prop a plain View has, on either platform: React Native puts it on `Pressable` and the DOM has no such event at all. It is carried into the output and does nothing there -- not a missing keyboard path but a missing press. Use `Pressable`."
+        }
+      ]
+    },
+    "ARIA_INCOMPLETE_PATTERN": {
+      "summary": "An ARIA role written without what the specification says it needs.\n\nThe failure this names is quiet in every way that usually catches a defect: the element renders, nothing throws, and the page looks finished. What is wrong is only audible.",
+      "example": {
+        "jsx": "<View role=\"checkbox\">x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`role=\"checkbox\"` needs `aria-checked` to mean anything, and this element has  none of them. The element renders correctly either way; what changes is what a screen reader announces."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`role=\"checkbox\"` needs `aria-checked` to mean anything, and this element has  none of them. The element renders correctly either way; what changes is what a screen reader announces."
+        }
+      ]
+    },
+    "ARIA_NAME_PROHIBITED": {
+      "summary": "An accessible name on an element whose role forbids one.\n\nEleven ARIA roles prohibit `aria-label`, and `generic` -- what a bare `<div>` or `<span>` is -- is one of them, as is `paragraph`. The name is not merely redundant there; assistive technology may ignore it, so the element is announced as if it had none. Which is exactly the shape of defect nobody notices: written, rendered, and silently absent where it was supposed to be heard.",
+      "example": {
+        "jsx": "<View role=\"generic\" aria-label=\"No\">x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`role=\"generic\"` cannot carry an accessible name, so this `accessibilityLabel` may never be announced. Name something that can be named instead -- a `Section` becomes a region, an `Article` and a `Nav` are landmarks -- or give this element a role that takes one."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`role=\"generic\"` cannot carry an accessible name, so this `accessibilityLabel` may never be announced. Name something that can be named instead -- a `Section` becomes a region, an `Article` and a `Nav` are landmarks -- or give this element a role that takes one."
+        }
+      ]
+    },
+    "ARIA_PROP_NOT_ALLOWED": {
+      "summary": "A state or property the element's role does not accept.\n\n`role=\"button\"` takes `aria-expanded`, `aria-busy` and `aria-disabled` and nothing else, so `accessibilityState={{ selected }}` on one is an attribute assistive technology has no use for. Derived from the specification's own table rather than a list somebody thought of.",
+      "example": {
+        "jsx": "<View role=\"button\" aria-label=\"Go\" accessibilityState={{ selected: true }}>x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`role=\"button\"` does not take `aria-selected`. Assistive technology has nothing to do with it here, so the state is carried into the output and never announced."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`role=\"button\"` does not take `aria-selected`. Assistive technology has nothing to do with it here, so the state is carried into the output and never announced."
+        }
+      ]
+    },
+    "CLASS_NOT_DRAWN_ON_NATIVE": {
+      "summary": "A class React Native cannot draw, in a class prop the Native backend does not lower: one handed to a pattern -- `handleClassName` on a `BottomSheet` -- which reaches the runtime resolver and is dropped there (#1166). A primitive the compiler lowers says the same thing through `WebOnlyPropertyOnNative` and its neighbours.\n\nA warning, not an error: the pattern still works, and the Web half of the same file is right to use the class. Only what is missing is reported -- a cursor or a transition, which nobody on a touch screen would miss, is not.",
+      "example": {
+        "module": "import { BottomSheet } from '@hozo/patterns'\nexport function C() { return <BottomSheet handleClassName=\"before:block\" /> }\n",
+        "backend": "native"
+      },
+      "emitted": [
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`before:block` in handleClassName on <BottomSheet> is not drawn on React Native: `before:` styles a pseudo-element, which React Native does not have."
+        }
+      ]
+    },
+    "DYNAMIC_CLASS_NAME_NOT_RESOLVED": {
+      "summary": "Part of a `className` couldn't be decomposed statically (proposal §7's third tier). The expression is preserved so its classes still reach the DOM, but Hozo generates no CSS for whatever they turn out to be -- only for classes it could read at build time.",
+      "example": {
+        "jsx": "<View className={cls}>x</View>",
+        "backend": "native"
+      },
+      "emitted": [
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`cls` can't be resolved at build time, so it's resolved on device from the project-wide candidate map. Conditional utilities (`hover:`, `md:`, `pressed:`) can't be carried that way and will warn at runtime -- write those as a static className so they compile to a real style variant."
+        }
+      ]
+    },
+    "DYNAMIC_PROP_NOT_RESOLVED": {
+      "summary": "A prop whose value decides something the compiler has to write down once, and whose value isn't known until runtime.\n\nRare, because Hozo carries an expression it can't read rather than evaluating it -- `disabled={busy}` becomes a ternary in the output and needs nothing decided. This is for the case where there is no ternary to write: `multiline` chooses between `<textarea>` and `<input>`, and only one element goes into the file.",
+      "example": {
+        "jsx": "<TextInput aria-label=\"Note\" multiline={many} />",
+        "backend": "web"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`multiline` decides which element this becomes on Web -- `<textarea>` or `<input>` -- and its value isn't known until runtime, so the compiler cannot write one. It falls back to `<input>`. Render two elements, or make `multiline` a constant."
+        }
+      ]
+    },
+    "FLEX_DIRECTION_UNSAID": {
+      "summary": "`flex` on one of React Native's boxes, with no direction said.\n\nTailwind's `flex` is `display: flex` and nothing else -- the row everyone associates with it comes from CSS's initial value, which applies to a `<div>` and not to one of these. Every Hozo box is a column flex container on both platforms, because React Native's is and the Web base follows it. So `<View className=\"flex\">` is two things at once: redundant, since the box is already a flex container, and almost always a defect, since the author who wrote it was thinking of a row.\n\nQuiet in the way that matters: the page renders, nothing throws, and the content is simply stacked the other way.",
+      "example": {
+        "jsx": "<View className=\"flex items-center\">x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`flex` here says nothing about direction, and this element is already a flex container: every Hozo box is one, laid out as a column, on the Web and on React Native alike. Tailwind's `flex` is only `display: flex` -- the row it implies in a browser comes from CSS's default for a `<div>`, which this is not. Write `flex-row` for a horizontal layout, `flex-col` to say the column was meant, or drop `flex` entirely."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`flex` here says nothing about direction, and this element is already a flex container: every Hozo box is one, laid out as a column, on the Web and on React Native alike. Tailwind's `flex` is only `display: flex` -- the row it implies in a browser comes from CSS's default for a `<div>`, which this is not. Write `flex-row` for a horizontal layout, `flex-col` to say the column was meant, or drop `flex` entirely."
+        }
+      ]
+    },
+    "FOCUSABLE_DISABLED_UNSUPPORTED": {
+      "summary": "`focusable` written on an element that is also `disabled`.\n\nThe ARIA APG's \"focusable disabled\" pattern -- reachable, announced unavailable, explains itself when activated -- and Hozo does not offer it, because Android cannot produce it. React Native routes `disabled` to `View.setEnabled(false)`, and an Android view that is not enabled cannot take input focus however `focusable` is set. See `docs/decisions/001-disabled-and-focus.md`.",
+      "example": {
+        "jsx": "<Pressable role=\"button\" aria-label=\"Go\" disabled focusable onPress={go}>x</Pressable>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`focusable`/`tabIndex` cannot keep a disabled element in the keyboard focus order. React Native's disabled state removes keyboard focus on Android, and Hozo cannot yet separate that from the announcement. To let people reach the control and learn why it is unavailable, leave it enabled and answer in the handler instead."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`focusable`/`tabIndex` cannot keep a disabled element in the keyboard focus order. React Native's disabled state removes keyboard focus on Android, and Hozo cannot yet separate that from the announcement. To let people reach the control and learn why it is unavailable, leave it enabled and answer in the handler instead."
+        }
+      ]
+    },
+    "HOZO_ATTRIBUTE_IS_PRIVATE": {
+      "summary": "A class selecting on one of Hozo's own `data-hozo-*` attributes.\n\nThey are working state, not an interface. Every state worth selecting on is reachable through a variant that compiles to the identical selector, and one member of the family is named after source byte offsets -- so the namespace already contains something that cannot be depended on. See `Condition::hozo_private_attribute`.",
+      "example": {
+        "jsx": "<View className=\"data-[hozo-disabled]:p-4\">x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`data-hozo-disabled` is Hozo's own state rather than an interface, and a release is free to stop emitting it. Use `disabled:`, which compiles to exactly this selector."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`data-hozo-disabled` is Hozo's own state rather than an interface, and a release is free to stop emitting it. Use `disabled:`, which compiles to exactly this selector."
+        }
+      ]
+    },
+    "INVALID_SEMANTIC_NESTING": {
+      "summary": "A semantic text container has a statically-known child that its Web element cannot contain (for example a Section inside a Paragraph).",
+      "example": {
+        "jsx": "<Paragraph><Section>x</Section></Paragraph>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`Paragraph` cannot directly contain `Section` in semantic HTML. Move or wrap that child so the generated document structure remains valid."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`Paragraph` cannot directly contain `Section` in semantic HTML. Move or wrap that child so the generated document structure remains valid."
+        }
+      ]
+    },
+    "MOTION_IGNORES_REDUCED_MOTION": {
+      "summary": "An element that moves as it enters or leaves and says nothing about reduced motion: `starting:translate-y-4` or `data-[state=closed]:translate-y-4` with no `motion-safe:` or `motion-reduce:` on it.\n\nA hint, not a warning (decision 007). The animation is what the author wrote and plays the same on both platforms, as Tailwind's does; what is missing is a choice only the author can make, and `motion-safe:` is how they make it.",
+      "example": {
+        "jsx": "<View className=\"transition starting:translate-y-4\">x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "info",
+          "message": "This element moves as it enters or leaves (`starting:` or `data-[state=closed]:` with a translate, rotate, scale or skew), and nothing on it asks about reduced motion, so it plays for everyone, as Tailwind's does on the Web. To leave the movement out for people who have asked their device for less motion, write those classes as `motion-safe:starting:...` and `motion-safe:data-[state=closed]:...`, which work on the Web and on React Native. A fade on its own (`starting:opacity-0`) is not motion and needs nothing."
+        },
+        {
+          "backend": "native",
+          "severity": "info",
+          "message": "This element moves as it enters or leaves (`starting:` or `data-[state=closed]:` with a translate, rotate, scale or skew), and nothing on it asks about reduced motion, so it plays for everyone, as Tailwind's does on the Web. To leave the movement out for people who have asked their device for less motion, write those classes as `motion-safe:starting:...` and `motion-safe:data-[state=closed]:...`, which work on the Web and on React Native. A fade on its own (`starting:opacity-0`) is not motion and needs nothing."
+        }
+      ]
+    },
+    "NOT_WIRED_ON_NATIVE": {
+      "summary": "Something React Native could express that Hozo does not lower there yet, so it is left out of the Native output.\n\nThe other half of `WebOnlyPropertyOnNative`, and kept apart from it on purpose: that one says the platform cannot, this one says Hozo has not, and a gap filed as impossible is a gap nobody revisits. A Tailwind variant with no React Native signal wired yet, such as `contrast-less:`, is one; the same class still works on Web.",
+      "example": {
+        "jsx": "<View className=\"contrast-less:p-4\">x</View>",
+        "backend": "native"
+      },
+      "emitted": [
+        {
+          "backend": "native",
+          "severity": "error",
+          "message": "`contrast-less:` has no React Native equivalent, so the style is not applied there. On Web the same class works from a media query."
+        }
+      ]
+    },
+    "NOT_WIRED_ON_WEB": {
+      "summary": "A Tailwind variant this platform cannot express, on Web.\n\nThe mirror of `NotWiredOnNative`, and the first diagnostic to point that way: until the React Native accessibility settings were added, every variant Hozo compiled could be asked of a browser. Three of those four cannot, and one of them never will be -- see `Environment::web_gap_message`.",
+      "example": {
+        "jsx": "<View className=\"bold-text:p-4\">x</View>",
+        "backend": "web"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`bold-text:` reports an iOS setting, and CSS has no query for it, so the style is not applied on Web. On React Native the same class works. A `prefers-contrast` or a larger type scale is the nearest thing the Web can be asked."
+        }
+      ]
+    },
+    "PRIMITIVE_NOT_LOWERED": {
+      "summary": "A Hozo primitive sits inside something the compiler carries but doesn't read -- an expression container, or an unmodeled component's children -- so it reaches output as source rather than as compiled markup.\n\nNot an error: on Web `@hozo/core`'s real components render it and the candidate stylesheet supplies its CSS, and on Native `View`/ `Text`/`Pressable` resolve to the same react-native components Hozo lowers to. It costs the compile-time benefit for that element, which is worth saying out loud rather than leaving the user to wonder why one element behaves differently.",
+      "unreachable": "a defensive branch its own comment calls unreachable -- the finder only matches the four names `build_node` accepts, and it exists so that widening one and not the other degrades to a named gap instead of a silently uncompiled element"
+    },
+    "PROP_COLLIDES_WITH_PLATFORM_NAME": {
+      "summary": "Two props on one element that compile to the same one.\n\n`onPress` is React Native's spelling and becomes `onClick` on Web, so an element carrying both asks for one thing twice. The author's own prop wins, because they wrote the platform's name and meant it -- but the other one was written too, and dropping it in silence is the shape this compiler exists to avoid.",
+      "example": {
+        "module": "import { Svg } from '@hozo/svg'\nexport function C() { return <Svg><Svg.Rect onClick={f} onPress={g} /></Svg> }\n",
+        "backend": "web"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`onPress` compiles to `onClick` on Web and this element already has one,                      so the `onPress` handler is not used. Keep whichever you meant."
+        }
+      ]
+    },
+    "PROP_HAS_NO_NATIVE_EQUIVALENT": {
+      "summary": "A utility React Native could express, that Hozo doesn't lower yet.\n\nDistinct from `WebOnlyPropertyOnNative`, and the distinction is the point: those utilities are impossible on this platform (Yoga has no grid), whereas these are merely unbuilt. Keeping them apart is what stops \"not built yet\" from hardening into \"can't be built\" -- and the refusal audit (`@hozo/tailwind-conformance`) leans on it, since only the Web-only claims are ones React Native's types can contradict.\n\nCovers a variant with nothing to drive it (`hover:`/`focus:`, which are real on tablets with a pointer and on the desktop/visionOS targets; `disabled:` with no `disabled` prop), a metric that needs a font size the element doesn't set (`leading-tight` alone), and a utility whose target primitive Hozo doesn't have yet (`placeholder-*`, which React Native carries as `TextInput`'s `placeholderTextColor`). A prop React Native has no equivalent for, on an element that behaves differently without it.\n\nDistinct from `WebOnlyPropertyOnNative`, which is about style utilities: this is about props, and the difference that matters is that a style silently not applying is usually visible while a prop silently not applying is usually not.\n\nThe case it exists for is `<Button href download>`. On the Web that is a file the browser saves; React Native has no download in it at all -- the whole public surface is `Linking` and `Share`, and fetching a file to a path needs `expo-file-system` or `react-native-blob-util`, a dependency Hozo should not choose for anyone. So the link opens and the OS decides, which on Android is a download and on iOS is a viewer.\n\nNot raised for `target`, `rel` or `external`. Those are browser concepts whose absence changes nothing observable here: a link on this platform leaves the app whatever they say.",
+      "example": {
+        "jsx": "<Button href=\"https://example.com/report.pdf\" download>Get</Button>",
+        "backend": "native"
+      },
+      "emitted": [
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`download` has no equivalent on React Native: the platform has no download at all, so this link opens and the operating system decides -- a download on Android, a viewer on iOS. Fetch the file with a file-system library and hand it to `Share` if it has to be saved."
+        }
+      ]
+    },
+    "ROLE_HAS_NO_WEB_EQUIVALENT": {
+      "summary": "A role only React Native has, on a target that is the DOM.\n\nReact Native's own vocabulary carries Android container names -- `drawerlayout`, `viewgroup`, `pager`, `keyboardkey` -- that ARIA has no word for. Guessing the nearest one would announce something the author never wrote, so the attribute is dropped and named.",
+      "example": {
+        "jsx": "<View role=\"drawerlayout\">x</View>",
+        "backend": "web"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`drawerlayout` is not a role ARIA defines, so nothing is emitted here and the element is announced as whatever its tag says. React Native has its own role vocabulary with names like this one; the two overlap for most roles and not for this."
+        }
+      ]
+    },
+    "STYLEX_NOT_LOWERED": {
+      "summary": "A StyleX expression was recognized, but was outside the deliberately static subset the StyleX frontend can lower without changing meaning. It is carried verbatim so the official StyleX compiler can still handle it; Native gets a named gap instead of an empty style object.",
+      "example": {
+        "module": "import * as stylex from '@stylexjs/stylex'\nimport { View } from '@hozo/core'\nconst styles = stylex.create({ root: { transform: 'translateX(calc(100% - 2px))' } })\nexport function C() { return <View {...stylex.props(styles.root)} /> }\n",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "StyleX property `transform` or its value is not in Hozo's typed universal subset yet."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "StyleX property `transform` or its value is not in Hozo's typed universal subset yet."
+        }
+      ]
+    },
+    "TAILWIND_IMPORTANT_NOT_LOWERED": {
+      "summary": "Recognized important utility whose cascade semantics are not enabled.",
+      "example": {
+        "jsx": "<View className=\"p-2!\">x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`p-2!` in className: Tailwind important utilities are not lowered by Hozo yet. Removing `!` would lose their precedence; the shared static/fallback ordering implementation is still in progress."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`p-2!` in className: Tailwind important utilities are not lowered by Hozo yet. Removing `!` would lose their precedence; the shared static/fallback ordering implementation is still in progress."
+        }
+      ]
+    },
+    "TAILWIND_VARIANT_CANNOT_MATCH": {
+      "summary": "A Tailwind variant Hozo compiles, on an element its selector cannot reach.\n\nDistinct from `TailwindVariantNotSupported`, which is about Hozo and says \"not built yet\". This one is about the element: the variant is built, the CSS is generated, and the rule will simply never apply here. `required:` on a `<div>` is the case -- a perfectly good selector pointed at something that can never be required.",
+      "example": {
+        "jsx": "<View className=\"required:p-4\">x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`required:` compiles to `:required`, which matches a form control. This is a <div>, so the rule is generated and can never apply. Hozo's `TextInput` is a real `<input>`; nothing else is."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`required:` compiles to `:required`, which matches a form control. This is a <div>, so the rule is generated and can never apply. Hozo's `TextInput` is a real `<input>`; nothing else is."
+        }
+      ]
+    },
+    "TAILWIND_VARIANT_NOT_SUPPORTED": {
+      "summary": "A Tailwind class Hozo does not compile.\n\nDistinguished from a class that was never Tailwind's -- a project's own `my-card` is not a gap in Hozo and gets no diagnostic, while `group-hover:bg-blue-500` is one. Both are carried into the output; only one of them was expected to do something there.\n\nNamed against Tailwind's own variant list rather than a set of prefixes somebody remembered.",
+      "example": {
+        "jsx": "<View className=\"open:p-4\">x</View>",
+        "backend": "both"
+      },
+      "emitted": []
+    },
+    "UNREADABLE_ARBITRARY_VALUE": {
+      "summary": "A class carries square brackets or a `(--var)` -- Tailwind's arbitrary syntax -- and Hozo couldn't read it.\n\nThis exists because the alternative is so much worse than silence. Hozo's utility parsing ends in a colour catch-all: whatever the specific forms decline becomes a palette token. Before this code existed, `text-[14px]` -- a font size -- came out the other end as `color: var(--hozo-color-[14px])`, and `w-[32px]` was dropped with no trace at all. Neither failed; both produced a page that was simply wrong somewhere the author would have to find by eye.\n\nBrackets are what makes this detectable. A bare unknown class is ordinary -- projects have their own CSS and Hozo must leave it alone -- but a bracket is unambiguously Tailwind asking for something, so failing to read one is worth saying out loud.",
+      "example": {
+        "jsx": "<View className=\"ring-offset-[2rem]\">x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`ring-offset-[2rem]` uses Tailwind's arbitrary syntax and Hozo couldn't read it, so no style is generated for it. The class still reaches the DOM, so a hand-written rule for it will still apply."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`ring-offset-[2rem]` uses Tailwind's arbitrary syntax and Hozo couldn't read it, so no style is generated for it. The class still reaches the DOM, so a hand-written rule for it will still apply."
+        }
+      ]
+    },
+    "UNSAFE_PROP_SPREAD_AFTER_STYLE": {
+      "summary": "A prop spread appears after a statically compiled className/style and could silently override it at runtime; that node's className is not compiled and falls back instead of failing silently.\n\nNative also raises it where it cannot compose a spread's style after the compiled one (#1054) -- a prop between two spreads it does not take apart -- because the emission it falls back to lets the spread replace the compiled style.",
+      "example": {
+        "jsx": "<View className=\"p-4\" {...rest}>x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "Prop spread appears after className and may override Hozo's compiled styles at runtime. Move the spread before className."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "Prop spread appears after className and may override Hozo's compiled styles at runtime. Move the spread before className."
+        }
+      ]
+    },
+    "VISITED_STYLE_IGNORED": {
+      "summary": "A `visited:` utility the browser will refuse to apply.\n\nThe third shape of \"this will not do anything\", and distinct from both of the others. `TailwindVariantNotSupported` is about Hozo and `TailwindVariantCannotMatch` is about the element; this one is about the *browser*. The variant is compiled, the selector matches the link it was written for, and the declaration is discarded anyway -- because a page that could observe a `:visited` style could read the user's browsing history, so engines apply a short list of colour properties there and nothing else.\n\nWorth its own code because the fix is unlike either neighbour's: there is nothing to add and nothing to build, only a different utility to reach for.",
+      "example": {
+        "jsx": "<Link href=\"/a\" className=\"visited:p-4\">x</Link>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`visited:p-4` styles something the browser will discard. A page that could see a `:visited` style could read the user's history, so engines apply only `color`, `background-color`, the border and outline colours, `text-decoration-color`, `caret-color`, `fill` and `stroke` there -- and paint even those fully opaque. The CSS is emitted to match Tailwind; nothing will apply."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`visited:p-4` styles something the browser will discard. A page that could see a `:visited` style could read the user's history, so engines apply only `color`, `background-color`, the border and outline colours, `text-decoration-color`, `caret-color`, `fill` and `stroke` there -- and paint even those fully opaque. The CSS is emitted to match Tailwind; nothing will apply."
+        }
+      ]
+    },
+    "WEB_ONLY_PROPERTY_ON_NATIVE": {
+      "summary": "A utility with no React Native equivalent reached the Native backend. Verified against Yoga (RN's layout engine), whose `display` is only Flex/None/Contents and which has no grid implementation at all. Hozo maps `block` and `inline-flex` to their closest Yoga layouts. Grid properties cannot live in a React Native style object; the Native backend only accepts its supported subset when it can see the grid container and children together and lower them to Hozo's contextual solver.",
+      "example": {
+        "jsx": "<View className=\"inline-block\">x</View>",
+        "backend": "native"
+      },
+      "emitted": [
+        {
+          "backend": "native",
+          "severity": "error",
+          "message": "`display: inline-block`: React Native's layout engine supports only flex, none and contents -- this utility is Web-only."
+        }
+      ]
+    }
+  }
+}

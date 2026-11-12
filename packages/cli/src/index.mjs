@@ -27,6 +27,11 @@ const COMMANDS = {
     summary: 'Before adoption: report what Hozo would do with a React Native checkout',
     run: dryFit,
   },
+  square: {
+    alias: 'doctor',
+    summary: 'After adoption: check that a project is set up as Hozo needs',
+    run: square,
+  },
   manifest: {
     summary: "Build a component package's hozo.manifest.json, or --check it",
     run: manifest,
@@ -34,6 +39,10 @@ const COMMANDS = {
   links: {
     summary: 'Generate or --check the Universal Links and App Links verification files',
     run: links,
+  },
+  explain: {
+    summary: 'Explain a diagnostic code: what it means, an example, and the message',
+    run: explain,
   },
 }
 
@@ -129,6 +138,18 @@ async function links(argv, io) {
     )
   }
   return command.runVerificationCli(argv, process.cwd(), lines(io), 'hozo links')
+}
+
+async function explain(argv, io) {
+  const { runExplain } = await import('./explain.mjs')
+  const { exit, error } = runExplain(argv, io)
+  return error ? fail(io, 'hozo explain', new CliError(error.message, error.code), argv) : exit
+}
+
+async function square(argv, io) {
+  const { runSquare } = await import('./square.mjs')
+  const { exit, error } = runSquare(argv, io)
+  return error ? fail(io, 'hozo square', new CliError(error.message, error.code), argv) : exit
 }
 
 /** Run `hozo` with `argv` (no `node`, no script path). Resolves to the exit code. */

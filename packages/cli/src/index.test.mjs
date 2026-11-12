@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -171,4 +171,46 @@ test('`manifest` and `links` write what their deprecated binaries write', (t) =>
   const bad = hozo('links', '-c', 'missing.json')
   assert.equal(bad.status, 2)
   assert.match(bad.stderr, /^hozo links: .* \[config-not-found\]\n$/)
+})
+
+test('`explain` reads the shipped catalog, without loading the compiler', () => {
+  const catalog = JSON.parse(
+    readFileSync(
+      fileURLToPath(new URL('../../compiler/diagnostics.json', import.meta.url)),
+      'utf8',
+    ),
+  )
+  // Any import of a command package other than the catalog file itself.
+  const hook = `data:text/javascript,${encodeURIComponent(
+    "import { registerHooks } from 'node:module'; registerHooks({ resolve(s, c, next) { if (/migration-audit|@hozo.navigation|@hozo.compiler(?!.diagnostics.json)/.test(s)) process.stderr.write('loaded ' + s + '\\n'); return next(s, c) } })",
+  )}`
+  const explain = (...argv) =>
+    spawnSync(process.execPath, ['--import', hook, cli, 'explain', ...argv], { encoding: 'utf8' })
+
+  const one = explain('aria-name-prohibited')
+  assert.equal(one.status, 0, one.stderr)
+  assert.equal(one.stderr, '')
+  const entry = catalog.codes.ARIA_NAME_PROHIBITED
+  assert.match(one.stdout, /^ARIA_NAME_PROHIBITED\n\nAn accessible name on an element/)
+  assert.ok(one.stdout.includes(entry.example.jsx))
+  assert.ok(one.stdout.includes(`Web and Native, warning: ${entry.emitted[0].message}`))
+
+  const json = JSON.parse(explain('ARIA_NAME_PROHIBITED', '--format', 'json').stdout)
+  assert.deepEqual(json, { code: 'ARIA_NAME_PROHIBITED', ...entry })
+
+  const list = explain()
+  assert.equal(list.status, 0)
+  assert.deepEqual(
+    list.stdout
+      .trim()
+      .split('\n')
+      .map((line) => line.split(' ')[0]),
+    Object.keys(catalog.codes).sort(),
+  )
+
+  const unknown = explain('ARIA_NAME', '--format', 'json')
+  assert.equal(unknown.status, 2)
+  assert.match(unknown.stderr, /Did you mean ARIA_NAME_PROHIBITED.*\[unknown-diagnostic\]\n$/)
+  assert.equal(JSON.parse(unknown.stdout).error.code, 'unknown-diagnostic')
+  assert.equal(explain('--verbose').status, 2)
 })

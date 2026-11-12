@@ -376,6 +376,8 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'scripts/diagnostic-catalog.mjs',
+    'packages/compiler/diagnostics.json',
     'packages/patterns/src/toolbar.native.tsx',
     'packages/behaviors/src/text-child.native.tsx',
     'scripts/style-slots/owner-input-cases.mjs',

@@ -6,13 +6,16 @@
 npx @hozo/cli dry-fit .                          # what Hozo would do with this React Native checkout
 npx @hozo/cli dry-fit . --fail-on error --output hozo-audit.json
 npx @hozo/cli dry-fit --help                     # every option
+npx @hozo/cli square                             # once Hozo is installed: is the setup right?
 ```
 
 | Command | Alias | Does |
 | --- | --- | --- |
 | `hozo dry-fit` | `migration-audit` | Before adoption: lowers a checkout without installing anything and reports what Hozo would do. Options and report as [`@hozo/migration-audit`](../migration-audit/README.md) |
+| `hozo square [project]` | `doctor` | After adoption: checks that every `@hozo/*` package is at one version, nested copies included, and that what each one needs beside it (`react-native`, `react`, Expo's modules) is installed within the range it declares; that each bundler config (Vite, Astro, Next.js, Metro, Storybook) uses its Hozo adapter, with `hozo()` before React's plugin; that the stylesheet Hozo reads imports Tailwind, and `@hozo/ui`'s theme when it is installed; that Metro's saved state is newer than its config; and that every file importing `@hozo/*` was in the last candidate scan. Reads files and loads nothing, so it reports even when the install is what is broken. `--setup`, `--fail-on none|error|warning` (default `error`), `--format json` |
 | `hozo manifest` | | Builds a component package's `hozo.manifest.json`, or `--check`s it. See [`@hozo/compiler`](../compiler/README.md#a-component-packages-manifest) |
 | `hozo links` | | Generates or `--check`s the Universal Links and App Links verification files from `hozo-links.json`. Needs `@hozo/navigation` installed. See [`@hozo/navigation`](../navigation/README.md) |
+| `hozo explain [CODE]` | | Explains a diagnostic code: what it means, a source that raises it, and the compiler's message for that source. Without a code, lists every code. Reads the catalog `@hozo/compiler` ships; no compile, no network |
 
 `hozo-migration-audit`, `hozo-manifest` and `hozo-links` still work for one minor release, with the
 same stdout; each adds one deprecation line on stderr.
