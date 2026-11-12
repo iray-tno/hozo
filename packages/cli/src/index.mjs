@@ -27,6 +27,11 @@ const COMMANDS = {
     summary: 'Before adoption: report what Hozo would do with a React Native checkout',
     run: dryFit,
   },
+  square: {
+    alias: 'doctor',
+    summary: 'After adoption: check that a project is set up as Hozo needs',
+    run: square,
+  },
   manifest: {
     summary: "Build a component package's hozo.manifest.json, or --check it",
     run: manifest,
@@ -139,6 +144,12 @@ async function explain(argv, io) {
   const { runExplain } = await import('./explain.mjs')
   const { exit, error } = runExplain(argv, io)
   return error ? fail(io, 'hozo explain', new CliError(error.message, error.code), argv) : exit
+}
+
+async function square(argv, io) {
+  const { runSquare } = await import('./square.mjs')
+  const { exit, error } = runSquare(argv, io)
+  return error ? fail(io, 'hozo square', new CliError(error.message, error.code), argv) : exit
 }
 
 /** Run `hozo` with `argv` (no `node`, no script path). Resolves to the exit code. */

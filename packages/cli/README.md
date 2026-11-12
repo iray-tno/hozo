@@ -6,11 +6,13 @@
 npx @hozo/cli dry-fit .                          # what Hozo would do with this React Native checkout
 npx @hozo/cli dry-fit . --fail-on error --output hozo-audit.json
 npx @hozo/cli dry-fit --help                     # every option
+npx @hozo/cli square                             # once Hozo is installed: is the setup right?
 ```
 
 | Command | Alias | Does |
 | --- | --- | --- |
 | `hozo dry-fit` | `migration-audit` | Before adoption: lowers a checkout without installing anything and reports what Hozo would do. Options and report as [`@hozo/migration-audit`](../migration-audit/README.md) |
+| `hozo square [project]` | `doctor` | After adoption: checks that every `@hozo/*` package is at one version, nested copies included, and that what each one needs beside it (`react-native`, `react`, Expo's modules) is installed within the range it declares. Reads `package.json` files only, so it reports even when the install is what is broken. `--setup`, `--fail-on none|error|warning` (default `error`), `--format json` |
 | `hozo manifest` | | Builds a component package's `hozo.manifest.json`, or `--check`s it. See [`@hozo/compiler`](../compiler/README.md#a-component-packages-manifest) |
 | `hozo links` | | Generates or `--check`s the Universal Links and App Links verification files from `hozo-links.json`. Needs `@hozo/navigation` installed. See [`@hozo/navigation`](../navigation/README.md) |
 | `hozo explain [CODE]` | | Explains a diagnostic code: what it means, a source that raises it, and the compiler's message for that source. Without a code, lists every code. Reads the catalog `@hozo/compiler` ships; no compile, no network |
