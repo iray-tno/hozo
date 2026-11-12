@@ -5694,9 +5694,19 @@ fn condition_groups(
     let mut unranked_tailwind = false;
     let mut preserve_runs = false;
     let mut compatible_filter_runs = None;
-    let mut can_split_filters = || {
-        compose_filter_slots
-            && *compatible_filter_runs.get_or_insert_with(|| filter_runs_can_split(declarations))
+    let mut compatible_shadow_runs = None;
+    let mut can_split_effect = |property: &StyleProperty| match property {
+        StyleProperty::Filter(..) => {
+            compose_filter_slots
+                && *compatible_filter_runs
+                    .get_or_insert_with(|| filter_runs_can_split(declarations))
+        }
+        property
+            if matches!(property, StyleProperty::BoxShadow(_)) || is_shadow_modifier(property) =>
+        {
+            *compatible_shadow_runs.get_or_insert_with(|| shadow_runs_can_split(declarations))
+        }
+        _ => false,
     };
     for (index, decl) in declarations.iter().enumerate() {
         // A later styling input can revisit a condition after another
@@ -5712,7 +5722,7 @@ fn condition_groups(
             // Preserve consecutive guard runs only for values that both
             // backends can emit or compose as independent writes.
             preserve_runs = authored
-                && independent_owner_guard_runs(&declarations[index..], &mut can_split_filters);
+                && independent_owner_guard_runs(&declarations[index..], &mut can_split_effect);
         } else if next_ordered
             && groups
                 .last()
@@ -5771,9 +5781,60 @@ fn filter_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
     true
 }
 
+fn is_shadow_modifier(property: &StyleProperty) -> bool {
+    matches!(
+        property,
+        StyleProperty::ShadowColor(_)
+            | StyleProperty::InsetShadow(_)
+            | StyleProperty::InsetShadowColor(_)
+            | StyleProperty::RingWidth(_)
+            | StyleProperty::RingColor(_)
+            | StyleProperty::InsetRingWidth(_)
+            | StyleProperty::InsetRingColor(_)
+            | StyleProperty::RingOffsetWidth(_)
+            | StyleProperty::RingOffsetColor(_)
+            | StyleProperty::RingInset
+    )
+}
+
+fn shadow_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
+    let mut first = None;
+    let mut left_first_run = false;
+    let mut split_shadow_writers = false;
+    let mut has_modifier = false;
+    for d in declarations {
+        if matches!(&d.property, StyleProperty::Arbitrary(name, _)
+            if matches!(name.as_str(), "box-shadow" | "boxShadow"))
+        {
+            return false;
+        }
+        let run = (
+            d.source.input(),
+            matches!(d.source, StyleSource::TailwindOrdered { .. }),
+            &d.condition,
+        );
+        left_first_run |= first.is_some_and(|first| first != run);
+        let modifier = is_shadow_modifier(&d.property);
+        has_modifier |= modifier;
+        if d.condition != Condition::Always
+            && (modifier || matches!(d.property, StyleProperty::BoxShadow(_)))
+        {
+            first.get_or_insert(run);
+            split_shadow_writers |= left_first_run;
+        }
+        // Plain outer shadows replace each other. Modifiers can stay on
+        // the literal path only if all guarded shadow writes remain in one
+        // object, where the existing base fold still supplies resting slots.
+        if split_shadow_writers && has_modifier {
+            return false;
+        }
+    }
+    true
+}
+
 fn independent_owner_guard_runs(
     declarations: &[StyleDeclaration],
-    can_split_filters: &mut impl FnMut() -> bool,
+    can_split_effect: &mut impl FnMut(&StyleProperty) -> bool,
 ) -> bool {
     let input = declarations[0].source.input();
     declarations
@@ -5796,7 +5857,7 @@ fn independent_owner_guard_runs(
             {
                 return false;
             }
-            match item.property {
+            match &item.property {
                 StyleProperty::Opacity(_)
                 | StyleProperty::PaddingTop(_)
                 | StyleProperty::PaddingRight(_)
@@ -5808,8 +5869,7 @@ fn independent_owner_guard_runs(
                 | StyleProperty::MarginLeft(_)
                 | StyleProperty::TranslateX(_)
                 | StyleProperty::TranslateY(_) => true,
-                StyleProperty::Filter(..) => can_split_filters(),
-                _ => false,
+                property => can_split_effect(property),
             }
         })
 }

@@ -1800,12 +1800,14 @@ test('static fallback composes translate axes across repeated owner guards', {
 test('static fallback composes filter functions across repeated owner guards', {
   skip: !executablePath,
 }, async () => {
-  for (const [base, resting] of [
-    ['blur-sm', 'blur(8px)'],
-    ['filter-none', 'none'],
+  for (const [base, resting, trailing] of [
+    ['blur-sm', 'blur(8px)', ''],
+    ['filter-none', 'none', ''],
+    ['', 'none', 'hover:shadow-sm'],
+    ['shadow-sm', 'none', 'hover:shadow-md hover:ring-2 hover:shadow-red-500'],
   ]) {
     await assertRepeatedOwnerRegisters({
-      classes: `${base} hover:blur-lg active:blur-xl active:sepia-50 hover:sepia columns-(--layout)`,
+      classes: `${base} hover:blur-lg active:blur-xl active:sepia-50 hover:sepia ${trailing} columns-(--layout)`,
       reference: `
       button { filter: ${resting}; }
       button:is(:hover, :active) { filter: var(--blur) var(--sepia,); }
