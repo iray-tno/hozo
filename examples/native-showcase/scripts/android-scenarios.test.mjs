@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { runAndroidScenarios } from './android-scenarios.mjs'
 
-test('normal Android evidence runs SVG, full, then the docs previews; explicit isolated runs do not mix scenarios', () => {
+test('normal Android evidence runs SVG, full, then the docs previews; explicit isolated runs do not mix scenarios', async () => {
   for (const [scenario, expected] of [
     [
       undefined,
@@ -33,12 +33,15 @@ test('normal Android evidence runs SVG, full, then the docs previews; explicit i
     ['code-block-windowed', [['code-block-windowed', 'artifacts/native-showcase-code-block']]],
   ]) {
     const calls = []
-    runAndroidScenarios(scenario, (...args) => calls.push(args))
+    await runAndroidScenarios(scenario, async (...args) => {
+      await Promise.resolve()
+      calls.push(args)
+    })
     assert.deepEqual(calls, expected)
   }
 })
 
-test('a failed driver aborts without retrying or running the next scenario; unknown modes fail closed', () => {
+test('a failed driver aborts without retrying or running the next scenario; unknown modes fail closed', async () => {
   for (const scenario of [
     'full',
     'svg-filters',
@@ -51,9 +54,10 @@ test('a failed driver aborts without retrying or running the next scenario; unkn
   ]) {
     const calls = []
     const failure = new Error('driver failed')
-    assert.throws(
+    await assert.rejects(
       () =>
-        runAndroidScenarios(scenario, (...args) => {
+        runAndroidScenarios(scenario, async (...args) => {
+          await Promise.resolve()
           calls.push(args)
           throw failure
         }),
@@ -61,7 +65,7 @@ test('a failed driver aborts without retrying or running the next scenario; unkn
     )
     assert.equal(calls.length, 1)
   }
-  assert.throws(
+  await assert.rejects(
     () => runAndroidScenarios('typo', () => assert.fail('unknown scenario reached driver')),
     /Unknown Android scenario/,
   )

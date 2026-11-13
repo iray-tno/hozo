@@ -456,6 +456,16 @@ can select `google_apis` or `default` for a controlled system-image comparison.
 The collectors can allow boot services extra settling time; diagnostic success
 does not by itself establish that the normal cold-boot test is stable.
 
+The Linux Android `full` and `ui-docs` runs also upload
+`hozo-native-showcase-android-host-attempt-<n>` on success or failure (#1847).
+The artifact contains the streamed guest log (up to two 16 MiB segments)
+and a host timeline sampled every ten seconds, at scenario boundaries,
+and when logcat exits unexpectedly. The timeline includes host memory,
+resource pressure, the OOM kill counter, and adb and emulator process state.
+Compare `android-scenario=full` and `android-scenario=ui-docs` with the same
+APK and system image and `diagnostics=false` to test the effect of the
+preceding scenarios.
+
 `android-canvas-rounds=5` adds four more mount/assemble/disassemble/unmount rounds
 after the normal full sequence. Every mount requires the real completion state,
 nonblank/changed Canvas pixels in both directions, and a working counter after
