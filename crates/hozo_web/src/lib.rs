@@ -2624,12 +2624,22 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             source_evidence::shift_into(copies, incoming, 2 + tag.len() + attrs.len());
         }
     }
-    let text = if void {
+    let mut text = if void {
         format!("<{tag}{attrs} />")
     } else {
         format!("<{tag}{attrs}>{}</{tag}>", inner.text)
     };
     if let Some(evaluation) = node.root_class_evaluation() {
+        // Written in source order already: no plan needed (#1879).
+        if hozo_ir::attribute_capture::unplan(
+            evaluation,
+            source,
+            &mut text,
+            copies.as_mut(),
+            hozo_parser::plan_reads_in_order,
+        ) {
+            return Rendered { text, copies };
+        }
         if let Some(copies) = &mut copies {
             let offset = evaluation.wrapper_offset(source);
             for copy in copies {
