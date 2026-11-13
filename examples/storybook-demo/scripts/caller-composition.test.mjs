@@ -1656,6 +1656,61 @@ test('canonical-order baseline records current Hozo divergences without claiming
   }
 })
 
+test('Web candidate container branches preserve Tailwind cascade across breakpoints', {
+  skip: !executablePath,
+}, async () => {
+  const cases = [
+    'container',
+    'container max-w-5xl',
+    'container md:max-w-none',
+    'container lg:max-w-xs',
+    'container w-auto',
+  ]
+  const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`
+  const names = [...new Set(cases.flatMap((value) => value.split(' ')))]
+  const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const cache = openCandidateCache()
+  cache.scanFile('container-candidates.ts', JSON.stringify(names.join(' ')), 1)
+  const upstreamOrder = prepared.classOrder(cache.candidates())
+  const sheets = [
+    (await compile(css)).build(names),
+    cache.renderCss(),
+    cache.renderCss(undefined, upstreamOrder),
+    cache.renderCss(undefined, upstreamOrder.toReversed()),
+  ]
+  const page = await browser.newPage()
+  let reversedDifferences = 0
+  try {
+    for (const width of [500, 700, 900, 1100, 1400, 1700]) {
+      await page.setViewportSize({ width, height: 300 })
+      const orders = cases.flatMap((value) => [value, value.split(' ').toReversed().join(' ')])
+      for (const marker of ['', 'hozo-candidate-owner ']) {
+        const read = async (sheet) => {
+          await page.setContent(
+            `<!doctype html><style>body { margin: 0; }${sheet}</style>${orders.map((value) => `<main class="${marker}${value}"></main>`).join('')}`,
+          )
+          return page.locator('main').evaluateAll((nodes) =>
+            nodes.map((node) => {
+              const { width, maxWidth } = getComputedStyle(node)
+              return [width, maxWidth]
+            }),
+          )
+        }
+        const expected = await read(sheets[0])
+        assert.deepEqual(await read(sheets[1]), expected, `built-in/${width}/${marker}`)
+        assert.deepEqual(await read(sheets[2]), expected, `captured/${width}/${marker}`)
+        const reversed = await read(sheets[3])
+        reversedDifferences += reversed.filter(
+          ([value, max], index) => value !== expected[index][0] || max !== expected[index][1],
+        ).length
+      }
+    }
+    assert.ok(reversedDifferences > 0, 'the same rules emitted in reverse order change the cascade')
+  } finally {
+    await page.close()
+  }
+})
+
 test('Web leaves fallback conjunction specificity to the browser', {
   skip: !executablePath,
 }, async () => {

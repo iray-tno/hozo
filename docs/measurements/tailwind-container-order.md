@@ -57,3 +57,15 @@ things stood behind that:
   widths beside `max-w-5xl`.
 - Inventory: **0 gaps in every domain**. Repository coverage unchanged at
   318/320.
+
+## Web candidate sheet
+
+The ordinary candidate emitter expands the upstream container rule's
+breakpoint branches into separate rules. Built-in emission and the
+captured first-rule hint both keep that block in the right place against
+`max-w-5xl`, `md:max-w-none`, `lg:max-w-xs`, and `w-auto`. Chromium
+matches real Tailwind at six widths, with bare and owner-scoped candidate
+selectors, and in both class orders: 120 comparisons per emitter.
+Reversing the emission hint changes winners. This covers expansion of
+one upstream rule, not arbitrary custom utilities with multiple
+independently ordered upstream rules.
