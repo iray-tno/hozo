@@ -6,12 +6,20 @@ import assert from 'node:assert/strict'
  * Each key's send is timed, and when a value never appears `inspect` says
  * what was on screen instead (#1279): a character-alternative popup over
  * the field is the harness's key timing, not the app losing input, and the
- * two must not read as the same timeout. Nothing here retries, waits longer
- * or accepts a value it did not observe.
+ * two must not read as the same timeout. Nothing here resends a key, waits
+ * longer or accepts a value it did not observe.
+ *
+ * The popup is what a key held too long opens: on a loaded runner one
+ * `idb ui text` send took 6.6 s, and iOS read the key as held. The
+ * character is already in the field; the popup only hides it from AX. So
+ * `waitForValue` may answer `'popup'` instead of waiting out its budget,
+ * and the popup is dismissed once per character -- without choosing an
+ * alternative -- and the same value is then observed. A popup that comes
+ * back, or one with nothing to dismiss it, fails as before.
  */
 export async function enterIosText(
   text,
-  { send, waitForValue, observation, inspect, now = Date.now },
+  { send, waitForValue, dismissPopup, observation, inspect, now = Date.now },
 ) {
   assert.ok(typeof text === 'string' && text.length > 0, 'expected nonempty input text')
   Object.assign(observation, {
@@ -30,7 +38,16 @@ export async function enterIosText(
     // idb text returns after submitting key events, not after UIKit/React has
     // consumed them. Do not send the next character or Save until AX agrees.
     try {
-      await waitForValue(prefix)
+      let seen = await waitForValue(prefix)
+      if (seen === 'popup') {
+        if (!dismissPopup)
+          throw new Error(`OS character popup over the field at ${JSON.stringify(prefix)}`)
+        observation.dismissed = [...(observation.dismissed ?? []), prefix]
+        await dismissPopup()
+        seen = await waitForValue(prefix)
+        if (seen === 'popup')
+          throw new Error(`OS character popup reopened at ${JSON.stringify(prefix)}`)
+      }
     } catch (error) {
       if (inspect) {
         try {
