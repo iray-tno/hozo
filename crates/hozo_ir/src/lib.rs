@@ -5648,6 +5648,7 @@ pub fn group_by_condition_for_css(
         OwnerSlotComposition {
             filters: true,
             shadows: true,
+            gradients: true,
         },
     );
     if needs_composition {
@@ -5673,6 +5674,7 @@ pub struct NativeConditionGroupPlan {
 pub struct OwnerSlotComposition {
     pub filters: bool,
     pub shadows: bool,
+    pub gradients: bool,
 }
 
 pub fn plan_native_condition_groups(
@@ -5708,6 +5710,7 @@ fn condition_groups(
     let mut preserve_runs = false;
     let mut compatible_filter_runs = None;
     let mut compatible_shadow_runs = None;
+    let mut compatible_gradient_runs = None;
     for (index, decl) in declarations.iter().enumerate() {
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
@@ -5728,6 +5731,13 @@ fn condition_groups(
                             composition.filters
                                 && *compatible_filter_runs
                                     .get_or_insert_with(|| filter_runs_can_split(declarations))
+                        }
+                        StyleProperty::Gradient(..)
+                        | StyleProperty::GradientStopColor(..)
+                        | StyleProperty::GradientStopPosition(..) => {
+                            composition.gradients
+                                && *compatible_gradient_runs
+                                    .get_or_insert_with(|| gradient_runs_can_split(declarations))
                         }
                         property if is_shadow_slot(property) => {
                             match compatible_shadow_runs
@@ -5801,6 +5811,24 @@ fn filter_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
         }
     }
     true
+}
+
+fn gradient_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
+    // Admit only independent slots understood by both projections. Raw
+    // images, resets and opaque values still share the entire property.
+    !declarations.iter().any(|d| match &d.property {
+        StyleProperty::BackgroundImageNone
+        | StyleProperty::BackgroundImage(_)
+        | StyleProperty::Gradient(GradientKind::Conic, _) => true,
+        StyleProperty::GradientStopColor(_, color) => color.is_initial(),
+        StyleProperty::GradientStopPosition(_, position) => {
+            !matches!(position, Dimension::Percent(_))
+        }
+        StyleProperty::Arbitrary(name, _) => {
+            matches!(name.as_str(), "background-image" | "backgroundImage")
+        }
+        _ => false,
+    })
 }
 
 fn is_shadow_modifier(property: &StyleProperty) -> bool {

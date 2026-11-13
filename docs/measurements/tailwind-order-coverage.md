@@ -169,6 +169,15 @@ and the masked resolver both produce `sepia(100%)` for this probe; the
 current resolver still produces `sepia(50%)`. Raw shadow and shadow
 modifiers across authored inputs still block this expansion.
 
+The same projection now preserves authored filter runs beside composable
+gradient slots: a hover direction and first stop can combine with an
+active last stop, without moving the final hover sepia. With the captured
+`bg-brand` barrier, masking the variant bits agrees with static Native
+on nine of ten focused probes. Adding `bg-none` is the remaining negative
+control in this set: static still selects 50% sepia and the masked
+resolver selects 100%. Raw images, unsupported stops and conic gradients
+are outside this proof.
+
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace
 the runtime tie with stable selector weight once both routes agree. Report

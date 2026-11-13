@@ -1032,6 +1032,7 @@ pub(super) fn render_node(
         composition: hozo_ir::OwnerSlotComposition {
             filters: project_filter_slots,
             shadows: compose_shadows,
+            gradients: compose_gradients,
         },
     };
     let state_start = build_style_entries(

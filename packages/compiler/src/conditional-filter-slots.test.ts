@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
+import { hozoGradientStyles } from '../../engine/src/gradient-slots.ts'
 import { hozoShadowStyles } from '../../engine/src/shadow-slots.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
 import { compileNative } from './index.ts'
@@ -36,6 +37,7 @@ export function C() { return <${component} className="${classes}" ${caller} /> }
   const evaluate = new Function(
     'hozoStyles',
     'hozoFilterStyles',
+    'hozoGradientStyles',
     'hozoShadowStyles',
     'hozoTransformStyles',
     '__hozoBp_md',
@@ -45,7 +47,15 @@ export function C() { return <${component} className="${classes}" ${caller} /> }
   return {
     result,
     style(md = false, hovered = false, dark = false, composer = hozoFilterStyles, pressed = false) {
-      const value = evaluate(styles, composer, hozoShadowStyles, hozoTransformStyles, md, dark)
+      const value = evaluate(
+        styles,
+        composer,
+        hozoGradientStyles,
+        hozoShadowStyles,
+        hozoTransformStyles,
+        md,
+        dark,
+      )
       return flatten(
         typeof value === 'function' ? value({ hovered, pressed, focused: false }) : value,
       )
@@ -210,6 +220,25 @@ test('different shadow guards keep their slots and do not reorder the filter', (
     '0 0 0 2px currentcolor',
   )
   assert.equal(probe.style().boxShadow, undefined)
+})
+
+test('different gradient guards compose without moving later filter writes', () => {
+  const probe = compiled(
+    'hover:bg-linear-to-r hover:from-red-500 hover:blur-lg active:to-blue-500 active:blur-xl active:sepia-50 hover:sepia columns-(--layout)',
+    '',
+    'Pressable',
+    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+  )
+  assert.ok(probe.result.runtimeImports.includes('hozoGradientStyles'))
+  const both = probe.style(false, true, false, undefined, true)
+  assert.equal(both.filter, 'blur(24px) sepia(100%)')
+  assert.equal(both.backgroundImage, 'linear-gradient(to right, #fb2c36 0%, #2b7fff 100%)')
+  assert.match(
+    String(probe.style(false, true).backgroundImage),
+    /^linear-gradient\(to right, #fb2c36 0%, /,
+  )
+  assert.equal(probe.style(false, false, false, undefined, true).backgroundImage, undefined)
+  assert.equal(probe.style().backgroundImage, undefined)
 })
 
 test('same-function and unconditional filters retain their direct ahead-of-time path', () => {
