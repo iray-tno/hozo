@@ -25,6 +25,7 @@ import { chromium } from 'playwright-core'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
+import Yoga from 'yoga-layout'
 import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
 import { hozoTextMetricStyles } from '../../../packages/engine/src/class-resolver.ts'
 import { hozoDomStyle } from '../../../packages/engine/src/dom-style.ts'
@@ -1911,6 +1912,97 @@ test('unranked owner gaps follow authored order on both layout engines', {
           }),
         )
         assert.deepEqual(gapGeometry(positions, layout.flexDirection), gap, input)
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('unranked inline edges expose the physical and logical alias in real layout', {
+  skip: !executablePath,
+}, async () => {
+  const cases = [
+    ['hover:ps-6 active:pl-4', 'padding', [16, 0], [24, 0]],
+    ['active:pl-4 hover:ps-6', 'padding', [24, 0], [24, 0]],
+    ['hover:ms-6 active:ml-4', 'margin', [16, 0], [24, 0]],
+    ['active:ml-4 hover:ms-6', 'margin', [24, 0], [24, 0]],
+  ]
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const [classes, property, webLtr, nativeLtr] of cases) {
+      const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${classes} columns-(--layout)"/>`
+      const native = compiler.compileNativeModule(source).components[0]
+      assert.deepEqual(
+        native.diagnostics.map(({ code }) => code),
+        ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+      )
+      const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
+        h: (_type, props) => props,
+        HozoPressable: 'host',
+        hozoStyles: runInNewContext(`(${native.styles})`),
+      })
+      const selected = Object.assign(
+        {},
+        ...nativeProps.style({ hovered: true, pressed: true, focused: false }).flat(Infinity),
+      )
+      const web = compiler.compile(source)[0]
+      const webProps = evaluate(`module.exports=(${web.jsx})`, { h: (_type, props) => props })
+      const yoga = Yoga.Node.create()
+      try {
+        yoga.setWidth(140)
+        yoga.setHeight(100)
+        const [write, read] =
+          property === 'padding'
+            ? ['setPadding', 'getComputedPadding']
+            : ['setMargin', 'getComputedMargin']
+        yoga[write](Yoga.EDGE_START, selected[`${property}Start`])
+        yoga[write](Yoga.EDGE_LEFT, selected[`${property}Left`])
+        for (const [dir, webExpected, nativeExpected] of [
+          ['ltr', webLtr, nativeLtr],
+          ['rtl', [16, 24], [16, 24]],
+        ]) {
+          await page.setContent(
+            `<style>div { ${property}: 0; }${web.css}</style><div dir="${dir}" class="${webProps.className}"></div>`,
+          )
+          const { root } = await cdp.send('DOM.getDocument')
+          const { nodeId } = await cdp.send('DOM.querySelector', {
+            nodeId: root.nodeId,
+            selector: 'div',
+          })
+          await cdp.send('CSS.forcePseudoState', {
+            nodeId,
+            forcedPseudoClasses: ['hover', 'active'],
+          })
+          assert.deepEqual(
+            await page
+              .locator('div')
+              .evaluate(
+                (el, name) =>
+                  ['left', 'right'].map((edge) =>
+                    parseFloat(getComputedStyle(el).getPropertyValue(`${name}-${edge}`)),
+                  ),
+                property,
+              ),
+            webExpected,
+            `${dir}/${classes}`,
+          )
+          yoga.calculateLayout(
+            undefined,
+            undefined,
+            dir === 'rtl' ? Yoga.DIRECTION_RTL : Yoga.DIRECTION_LTR,
+          )
+          assert.deepEqual(
+            [yoga[read](Yoga.EDGE_LEFT), yoga[read](Yoga.EDGE_RIGHT)],
+            nativeExpected,
+            `${dir}/${classes}`,
+          )
+        }
+      } finally {
+        yoga.free()
       }
     }
   } finally {

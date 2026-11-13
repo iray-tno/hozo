@@ -213,6 +213,18 @@ eight layouts, through the existing authored-style projection. This
 does not change how raw authored Native style aliases resolve, and is
 not a device-layout measurement.
 
+The inline edge probe measures the related but distinct Native key
+boundary. With both states active and `hover:ps-6 active:pl-4`, the
+later physical write wins in LTR Chromium (left 16px), but Yoga keeps
+the start write (left 24px). The margin counterpart behaves the same
+way. Reversing authored order agrees in LTR; in RTL these two keys
+target separate physical sides and agree in both orders. Across four
+lists and two directions the compiled Web and selected Native style
+objects agree in 6/8 layout comparisons. No change to RTL or the
+Native style ABI is inferred from that comparison: a fix needs the
+effective direction where the style is applied, including locally
+overridden direction, rather than a global left/right swap.
+
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace
 the runtime tie with stable selector weight once both routes agree. Report
