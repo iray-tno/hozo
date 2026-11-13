@@ -179,6 +179,24 @@ reset or a reset competing with a resting constructor is still a
 barrier. Raw images, unsupported stops and conic gradients are outside
 this proof. This sample is not the mixed-input deletion gate.
 
+For the shorthand/logical/gap workstream, preserve authored runs for
+gap and logical inline edges, which already emit independent values.
+With the captured `bg-brand` barrier and overlapping hover/active, the
+following compare emitted Native style keys, not Yoga layout:
+
+| Input | Static before → after | Generated now | Generated without the variant tie |
+| --- | --- | --- | --- |
+| `hover:p-[11px] active:p-[17px] hover:pt-[23px]` | top 23 → 23 | 17 | 23 |
+| `hover:p-2 active:p-4 hover:p-6 hover:gap-2` | top 16 → 24 | 16 | 24 |
+| `hover:px-2 active:px-4 hover:ps-6` | start 16 → 24 | 16 | 24 |
+
+This does not change Native's layout precedence between two distinct
+keys (for example `columnGap` versus `gap`, or `paddingStart` versus
+`paddingLeft`). Those cases need effective-layout comparisons rather
+than asserting that the flattened keys agree. StyleX and authored
+`style` must also be compared at their real composition boundary: a
+generated class resolver by itself cannot see either of those inputs.
+
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace
 the runtime tie with stable selector weight once both routes agree. Report

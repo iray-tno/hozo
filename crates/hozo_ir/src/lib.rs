@@ -5950,6 +5950,13 @@ fn independent_owner_guard_runs(
                 | StyleProperty::MarginRight(_)
                 | StyleProperty::MarginBottom(_)
                 | StyleProperty::MarginLeft(_)
+                | StyleProperty::PaddingInlineStart(_)
+                | StyleProperty::PaddingInlineEnd(_)
+                | StyleProperty::MarginInlineStart(_)
+                | StyleProperty::MarginInlineEnd(_)
+                | StyleProperty::Gap(_)
+                | StyleProperty::RowGap(_)
+                | StyleProperty::ColumnGap(_)
                 | StyleProperty::TranslateX(_)
                 | StyleProperty::TranslateY(_) => true,
                 property => can_split_effect(property),

@@ -1780,6 +1780,28 @@ async function assertRepeatedOwnerRegisters({ classes, reference, property, valu
   }
 }
 
+test('static fallback keeps gap and logical edge writes in authored owner order', {
+  skip: !executablePath,
+}, async () => {
+  for (const [classes, property, css, resting] of [
+    ['hover:p-2 active:p-4 hover:p-6 hover:gap-2', 'paddingTop', 'padding-top', '1px'],
+    ['hover:gap-x-2 active:gap-x-4 hover:gap-x-6', 'columnGap', 'column-gap', 'normal'],
+    ['hover:px-2 active:px-4 hover:ps-6', 'paddingInlineStart', 'padding-inline-start', '6px'],
+  ]) {
+    await assertRepeatedOwnerRegisters({
+      classes: `${classes} columns-(--layout)`,
+      reference: `
+        button { ${css}: ${resting}; }
+        button:hover { ${css}: 8px; }
+        button:active { ${css}: 16px; }
+        button:hover { ${css}: 24px; }
+      `,
+      property,
+      values: ['16px', '24px', '24px', resting],
+    })
+  }
+})
+
 test('static fallback composes translate axes across repeated owner guards', {
   skip: !executablePath,
 }, async () => {
