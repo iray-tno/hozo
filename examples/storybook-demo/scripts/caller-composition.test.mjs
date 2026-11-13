@@ -372,7 +372,7 @@ for (const { file, name, slots, source, variants, classes } of uiCases) {
                     variant.align ?? 'stretch'
                   ]
               assert.equal(flat.flexDirection, direction)
-              assert.equal(flat.gap, gap)
+              assert.deepEqual([flat.rowGap, flat.columnGap], [gap, gap])
               assert.equal(flat.alignItems, align)
               for (const sheets of [
                 [web.css, uiCandidates],
