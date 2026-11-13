@@ -1656,6 +1656,61 @@ test('canonical-order baseline records current Hozo divergences without claiming
   }
 })
 
+test('Web candidate container branches preserve Tailwind cascade across breakpoints', {
+  skip: !executablePath,
+}, async () => {
+  const cases = [
+    'container',
+    'container max-w-5xl',
+    'container md:max-w-none',
+    'container lg:max-w-xs',
+    'container w-auto',
+  ]
+  const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`
+  const names = [...new Set(cases.flatMap((value) => value.split(' ')))]
+  const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const cache = openCandidateCache()
+  cache.scanFile('container-candidates.ts', JSON.stringify(names.join(' ')), 1)
+  const upstreamOrder = prepared.classOrder(cache.candidates())
+  const sheets = [
+    (await compile(css)).build(names),
+    cache.renderCss(),
+    cache.renderCss(undefined, upstreamOrder),
+    cache.renderCss(undefined, upstreamOrder.toReversed()),
+  ]
+  const page = await browser.newPage()
+  let reversedDifferences = 0
+  try {
+    for (const width of [500, 700, 900, 1100, 1400, 1700]) {
+      await page.setViewportSize({ width, height: 300 })
+      const orders = cases.flatMap((value) => [value, value.split(' ').toReversed().join(' ')])
+      for (const marker of ['', 'hozo-candidate-owner ']) {
+        const read = async (sheet) => {
+          await page.setContent(
+            `<!doctype html><style>body { margin: 0; }${sheet}</style>${orders.map((value) => `<main class="${marker}${value}"></main>`).join('')}`,
+          )
+          return page.locator('main').evaluateAll((nodes) =>
+            nodes.map((node) => {
+              const { width, maxWidth } = getComputedStyle(node)
+              return [width, maxWidth]
+            }),
+          )
+        }
+        const expected = await read(sheets[0])
+        assert.deepEqual(await read(sheets[1]), expected, `built-in/${width}/${marker}`)
+        assert.deepEqual(await read(sheets[2]), expected, `captured/${width}/${marker}`)
+        const reversed = await read(sheets[3])
+        reversedDifferences += reversed.filter(
+          ([value, max], index) => value !== expected[index][0] || max !== expected[index][1],
+        ).length
+      }
+    }
+    assert.ok(reversedDifferences > 0, 'the same rules emitted in reverse order change the cascade')
+  } finally {
+    await page.close()
+  }
+})
+
 test('Web leaves fallback conjunction specificity to the browser', {
   skip: !executablePath,
 }, async () => {
@@ -1801,6 +1856,132 @@ test('static fallback keeps gap and logical edge writes in authored owner order'
       property,
       values: ['16px', '24px', '24px', resting],
     })
+  }
+})
+
+test('unranked absolute text metrics keep repeated owner writes without losing explicit leading', {
+  skip: !executablePath,
+}, async () => {
+  const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
+    @tailwind utilities;
+    @theme { --color-brand: #123456; }
+    @utility bg-brand { background-color: #abcdef; }`
+  const theme = await loadTheme(css, tailwindPackageDir())
+  const local = createCompiler(theme)
+  const cases = [
+    'hover:text-lg active:text-2xl hover:text-xl',
+    'hover:leading-6 active:leading-8 hover:leading-7 hover:text-xl',
+    'active:leading-8 hover:text-xl active:leading-6',
+    'active:leading-8 hover:text-xl hover:focus:leading-6',
+  ]
+  const names = [...new Set(cases.flatMap((classes) => classes.split(' '))), 'text-sm', 'bg-brand']
+  const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const cache = openCandidateCache()
+  cache.scanFile('metric-fallback.ts', JSON.stringify(names.join(' ')), 1)
+  const candidates = cache.renderNativeModulePlan(final, theme)
+  assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
+  assert.equal(
+    candidates.entries.find((entry) => entry.candidate === 'bg-brand').groups[0].writes[0].reason,
+    'ambiguous-property-owner',
+  )
+  const candidateCode = candidates.code.replace(/^import .*$/gm, '')
+  const legacy = evaluate(candidateCode, { createClassResolver, hozoTextMetricStyles }).hozoClasses
+  const resolve = evaluate(candidateCode, {
+    hozoTextMetricStyles,
+    createClassResolver: (plan) =>
+      createClassResolver({
+        ...plan,
+        states: Object.fromEntries(
+          Object.entries(plan.states).map(([name, groups]) => [
+            name,
+            groups.map(([keys, style, rank]) =>
+              rank === undefined ? [keys, style] : [keys, style, rank >>> 8],
+            ),
+          ]),
+        ),
+      }),
+  }).hozoClasses
+  const metrics = (style) => {
+    const { fontSize, lineHeight } = Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
+    return [fontSize, lineHeight]
+  }
+  const overlap = { hovered: true, pressed: true, focused: false }
+  // A comparison that accidentally routes both sides through Tailwind's
+  // historical variant tiebreaker must not look green.
+  assert.deepEqual(metrics(legacy(`text-sm ${cases[0]} bg-brand`, overlap)), [24, 32])
+  assert.deepEqual(metrics(resolve(`text-sm ${cases[0]} bg-brand`, overlap)), [20, 28])
+  // These inputs cannot use Tailwind's rule order. Independently give the
+  // browser Tailwind's declaration bodies, but put them in authored order.
+  const rules = {
+    'hover:text-lg': ':hover { font-size: 18px; line-height: var(--tw-leading, 28px) }',
+    'hover:text-xl': ':hover { font-size: 20px; line-height: var(--tw-leading, 28px) }',
+    'active:text-2xl': ':active { font-size: 24px; line-height: var(--tw-leading, 32px) }',
+    'hover:leading-6': ':hover { --tw-leading: 24px; line-height: 24px }',
+    'hover:leading-7': ':hover { --tw-leading: 28px; line-height: 28px }',
+    'active:leading-6': ':active { --tw-leading: 24px; line-height: 24px }',
+    'active:leading-8': ':active { --tw-leading: 32px; line-height: 32px }',
+    'hover:focus:leading-6': ':hover:focus { --tw-leading: 24px; line-height: 24px }',
+  }
+  const page = await browser.newPage()
+  try {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const authored of cases)
+      for (const classes of [authored, authored.split(' ').toReversed().join(' ')]) {
+        const input = `text-sm ${classes} bg-brand`
+        const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${input}"/>`
+        const native = local.prepareNativeModule(source).emit(final).components[0]
+        const { hozoTextStyle } = evaluate(
+          `const hozoStyles=${native.styles};module.exports=(${native.jsx})`,
+          { HozoPressable: 'host', Pressable: 'host', h: (_type, props) => props },
+        )
+        const web = local.prepareWebModule(source).emit(final)[0]
+        const { className } = evaluate(`module.exports=(${web.jsx})`, {
+          h: (_type, props) => props,
+        })
+        const reference = [
+          '#oracle { font-size: 14px; line-height: var(--tw-leading, 20px) }',
+          ...classes.split(' ').map((name) => `#oracle${rules[name]}`),
+        ].join('\n')
+        await page.setContent(`<!doctype html><style>${reference}\n${web.css}</style>
+          <button id="oracle">Label</button><button id="compiled" class="${className}">Label</button>`)
+        const { root } = await cdp.send('DOM.getDocument')
+        const ids = await Promise.all(
+          ['#oracle', '#compiled'].map((selector) =>
+            cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector }),
+          ),
+        )
+        for (const hovered of [false, true])
+          for (const pressed of [false, true])
+            for (const focused of [false, true]) {
+              const state = { hovered, pressed, focused }
+              const forcedPseudoClasses = [
+                hovered && 'hover',
+                pressed && 'active',
+                focused && 'focus',
+              ].filter(Boolean)
+              for (const { nodeId } of ids)
+                await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses })
+              const [expected, compiled] = await page.locator('button').evaluateAll((buttons) =>
+                buttons.map((button) => {
+                  const style = getComputedStyle(button)
+                  return [parseFloat(style.fontSize), parseFloat(style.lineHeight)]
+                }),
+              )
+              const label = `${input}/${forcedPseudoClasses.join(':')}`
+              assert.deepEqual(compiled, expected, `${label}/web`)
+              assert.deepEqual(metrics(hozoTextStyle(state)), expected, `${label}/native`)
+              assert.deepEqual(
+                metrics(resolve(input, state)),
+                expected,
+                `${label}/specificity-only`,
+              )
+            }
+      }
+  } finally {
+    await page.close()
   }
 })
 

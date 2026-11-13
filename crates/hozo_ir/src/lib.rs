@@ -5959,6 +5959,16 @@ fn independent_owner_guard_runs(
                 | StyleProperty::ColumnGap(_)
                 | StyleProperty::TranslateX(_)
                 | StyleProperty::TranslateY(_) => true,
+                // Absolute text metrics can keep their runs. The emitters
+                // already project font defaults separately from explicit
+                // leading; relative metrics can need more context on Native.
+                StyleProperty::FontSize(length)
+                | StyleProperty::LineHeight(
+                    LineHeight::Length(length) | LineHeight::FontDefault(length),
+                )
+                | StyleProperty::LetterSpacing(LetterSpacing::Px(length)) => {
+                    length.css_expression().is_none() && length.unresolved_unit().is_none()
+                }
                 property => can_split_effect(property),
             }
         })
