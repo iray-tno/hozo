@@ -37,12 +37,18 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned below 1.100. Rust 1.100's wasi-libc calls
+      # `__wasilibc_futex_wait_atomic_wait` with three arguments; emnapi
+      # 2.0.0-beta.3's archive defines it with four, the linker keeps
+      # emnapi's, and the module fails validation. Lift the pin with the
+      # emnapi release that drops or matches that definition.
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           targets: wasm32-wasip1-threads
       - uses: Swatinem/rust-cache@v2
         with:
-          key: wasm32-wasip1-threads
+          key: wasm32-wasip1-threads-1.99.1
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -81,12 +87,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned for the reason given in the `compiler` job.
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           targets: wasm32-wasip1-threads
       - uses: Swatinem/rust-cache@v2
         with:
-          key: wasm32-wasip1-threads
+          key: wasm32-wasip1-threads-1.99.1
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

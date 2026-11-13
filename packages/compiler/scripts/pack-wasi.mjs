@@ -124,6 +124,29 @@ export function wasmMemoryMinimum(bytes) {
   throw new Error('the module imports no memory')
 }
 
+/**
+ * Refuses a module the engine will not compile.
+ *
+ * The linker can produce one and still exit 0: when two archives define the
+ * same symbol with different signatures, `rust-lld` warns and keeps one, and
+ * the callers of the other become invalid code. Without this the package
+ * packs, and every consumer fails at load instead.
+ */
+export function assertCompiles(bytes) {
+  try {
+    new WebAssembly.Module(bytes)
+  } catch (error) {
+    throw new Error(
+      `the built hozo_napi.wasm does not compile: ${error.message}. ` +
+        "Rust 1.100's wasi-libc and emnapi 2.0.0-beta.3 define " +
+        '`__wasilibc_futex_wait_atomic_wait` with different signatures; ' +
+        'build with Rust 1.99 (`RUSTUP_TOOLCHAIN=1.99.1`; `.github/workflows/wasi.yml` pins it) ' +
+        'until an emnapi release resolves it.',
+      { cause: error },
+    )
+  }
+}
+
 /** The loader source with the module's memory minimum written in. */
 export function writeLoader(source, minimumPages) {
   const placeholder = 'const MINIMUM_PAGES = 0\n'
@@ -157,6 +180,7 @@ export async function packWasi({ repoRoot, packageDir, outDir, version, reposito
 
   const built = path.join(repoRoot, 'target', WASI_TARGET.triple, 'wasm', 'hozo_napi.wasm')
   if (!existsSync(built)) throw new Error(`cargo reported success but ${built} does not exist`)
+  assertCompiles(readFileSync(built))
 
   const dir = path.join(outDir, WASI_TARGET.packageName.replace('@hozo/', ''))
   mkdirSync(dir, { recursive: true })

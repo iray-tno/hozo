@@ -2,7 +2,13 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-import { EMNAPI_ARCHIVE, tarMember, wasmMemoryMinimum, writeLoader } from '../scripts/pack-wasi.mjs'
+import {
+  assertCompiles,
+  EMNAPI_ARCHIVE,
+  tarMember,
+  wasmMemoryMinimum,
+  writeLoader,
+} from '../scripts/pack-wasi.mjs'
 import { WASI_RUNTIME_DEPENDENCIES, WASI_TARGET } from './native-targets.ts'
 
 const uleb = (value: number) => {
@@ -53,6 +59,23 @@ test('reads the memory minimum the module declares, past other imports', () => {
     assert.equal(wasmMemoryMinimum(bytes), minimum)
   }
   assert.throws(() => wasmMemoryMinimum(Uint8Array.from([0x00, 0x61, 0x73, 0x6d, 1, 0, 0, 0])))
+})
+
+test('a module the engine will not compile is refused before it is packed', () => {
+  assert.doesNotThrow(() => assertCompiles(moduleImportingMemory(984)))
+  // A function body that calls a one-argument function with no argument:
+  // the shape of the invalid code a signature clash at link time leaves.
+  const invalid = Uint8Array.from([
+    ...[0x00, 0x61, 0x73, 0x6d, 1, 0, 0, 0],
+    ...[1, 8, 2, 0x60, 1, 0x7f, 0, 0x60, 0, 0], // types: (i32) -> (), () -> ()
+    ...[3, 3, 2, 0, 1], // functions: 0 has type 0, 1 has type 1
+    ...[10, 9, 2, 2, 0, 0x0b, 4, 0, 0x10, 0, 0x0b], // bodies: f0 = end; f1 = call 0; end
+  ])
+  assert.equal(WebAssembly.validate(invalid), false)
+  assert.throws(
+    () => assertCompiles(invalid),
+    /does not compile.*__wasilibc_futex_wait_atomic_wait/s,
+  )
 })
 
 test('the shipped loader takes the minimum and refuses to be packed without one', () => {
