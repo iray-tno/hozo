@@ -2672,7 +2672,17 @@ fn render_verbatim(
     let start = expr_ref.0.start as usize;
     let mut out = Rendered::new(cx.tag_decisions.is_some());
     let mut cursor = start;
-    for entry in nested {
+    // An element inside a value the plan evaluates is lowered there; the
+    // copy below writes the value's slot (#1879).
+    let spans: Vec<_> = nested.iter().map(|entry| entry.span).collect();
+    let planned = hozo_ir::attribute_capture::lower_captured(
+        cx.source,
+        start,
+        expr_ref.0.end as usize,
+        &spans,
+        |index| render_node(&nested[index].node, cx).text,
+    );
+    for (entry, _) in nested.iter().zip(planned).filter(|(_, planned)| !planned) {
         let from = entry.span.start as usize;
         out.copy(cx.source, cursor, from);
         out.append(render_node(&entry.node, cx));

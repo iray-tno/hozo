@@ -12,6 +12,12 @@
 //! the guard it returns removes them, and `text` is the one place a backend
 //! slices source. Spans are byte ranges of one source, so a nested
 //! element's own plan never collides with its parent's.
+//!
+//! A captured value can hold elements of its own (`footer={make(<Text />)}`),
+//! which a backend lowers where it copies the value. The plan evaluates the
+//! value, so it has to hold that lowered text rather than the source's:
+//! `lower_captured` records it while the element renders, and the plan's
+//! steps and `unplan` read it back.
 
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -19,7 +25,15 @@ use std::cell::RefCell;
 use crate::{ClassEvaluation, SourceSpan};
 
 thread_local! {
-    static ACTIVE: RefCell<Vec<(SourceSpan, String)>> = const { RefCell::new(Vec::new()) };
+    static ACTIVE: RefCell<Vec<Captured>> = const { RefCell::new(Vec::new()) };
+}
+
+struct Captured {
+    span: SourceSpan,
+    /// What every copy of the span writes instead: the plan's slot.
+    slot: String,
+    /// The value with its elements lowered, once a backend has written it.
+    lowered: Option<String>,
 }
 
 /// Removes the substitutions `enter` installed when dropped.
@@ -44,7 +58,15 @@ pub fn enter(evaluation: Option<&ClassEvaluation>, source: &str) -> Scope {
     let attributes = evaluation.map_or_else(Vec::new, |evaluation| evaluation.attributes(source));
     let installed = attributes.len();
     if installed > 0 {
-        ACTIVE.with(|active| active.borrow_mut().extend(attributes));
+        ACTIVE.with(|active| {
+            active
+                .borrow_mut()
+                .extend(attributes.into_iter().map(|(span, slot)| Captured {
+                    span,
+                    slot,
+                    lowered: None,
+                }))
+        });
     }
     Scope { installed }
 }
@@ -60,8 +82,9 @@ pub fn text(source: &str, start: usize, end: usize) -> Cow<'_, str> {
         if active.is_empty() {
             return Cow::Borrowed(&source[start..end]);
         }
-        let mut inside: Vec<&(SourceSpan, String)> = active
+        let mut inside: Vec<(SourceSpan, &str)> = active
             .iter()
+            .map(|captured| (captured.span, captured.slot.as_str()))
             .filter(|(span, _)| {
                 let (from, to) = (span.start as usize, span.end as usize);
                 debug_assert!(
@@ -104,7 +127,7 @@ pub fn spans_within(start: usize, end: usize) -> Vec<SourceSpan> {
         let mut spans: Vec<SourceSpan> = active
             .borrow()
             .iter()
-            .map(|(span, _)| *span)
+            .map(|captured| captured.span)
             .filter(|span| start <= span.start as usize && span.end as usize <= end)
             .collect();
         spans.sort_by_key(|span| span.start);
@@ -112,10 +135,73 @@ pub fn spans_within(start: usize, end: usize) -> Vec<SourceSpan> {
     })
 }
 
+/// Lowers the elements inside each captured value in `start..end`, for the
+/// plan to evaluate, and says which of `nested` (the spans of the elements
+/// a backend lowers in that range, in order) it rendered. The backend copies
+/// the rest of the range as usual, which writes those values' slots.
+///
+/// `render` lowers one element, by its index in `nested`. Its copy
+/// evidence is not kept: the value now sits in the plan, where nothing is
+/// recorded as a copy of the source.
+pub fn lower_captured(
+    source: &str,
+    start: usize,
+    end: usize,
+    nested: &[SourceSpan],
+    mut render: impl FnMut(usize) -> String,
+) -> Vec<bool> {
+    let mut rendered = vec![false; nested.len()];
+    for span in spans_within(start, end) {
+        let inside: Vec<usize> = (0..nested.len())
+            .filter(|&index| span.start <= nested[index].start && nested[index].end <= span.end)
+            .collect();
+        if inside.is_empty() {
+            continue;
+        }
+        let mut text = String::new();
+        let mut cursor = span.start as usize;
+        for index in inside {
+            text.push_str(&source[cursor..nested[index].start as usize]);
+            text.push_str(&render(index));
+            cursor = nested[index].end as usize;
+            rendered[index] = true;
+        }
+        text.push_str(&source[cursor..span.end as usize]);
+        ACTIVE.with(|active| {
+            if let Some(captured) = active
+                .borrow_mut()
+                .iter_mut()
+                .rev()
+                .find(|captured| captured.span == span)
+            {
+                captured.lowered = Some(text);
+            }
+        });
+    }
+    rendered
+}
+
+/// A captured value as the plan evaluates it: lowered, if it holds
+/// elements a backend lowered, or else as written.
+pub fn value(source: &str, span: SourceSpan) -> Cow<'_, str> {
+    ACTIVE.with(|active| {
+        active
+            .borrow()
+            .iter()
+            .rev()
+            .find(|captured| captured.span == span)
+            .and_then(|captured| captured.lowered.clone())
+            .map_or(
+                Cow::Borrowed(&source[span.start as usize..span.end as usize]),
+                Cow::Owned,
+            )
+    })
+}
+
 /// Takes the plan back out of an element whose emitted JSX already reads
 /// its values once each, in order and eagerly: each slot is written back as
 /// the source text it captured, which is the output the element had before
-/// it was planned. `reads_in_order` is the backend's reading of its own
+/// it was planned, its elements lowered. `reads_in_order` is the backend's reading of its own
 /// output (`hozo_parser::plan_reads_in_order`).
 ///
 /// Only a plan of attribute values alone: a class list's plan predates
@@ -138,16 +224,12 @@ pub fn unplan(
     if !reads_in_order(text, &name, attributes.len()) {
         return false;
     }
-    let mut edits: Vec<(usize, usize, &str)> = Vec::new();
+    let mut edits: Vec<(usize, usize, Cow<'_, str>)> = Vec::new();
     for (span, slot) in &attributes {
         let Some(at) = text.find(slot.as_str()) else {
             return false;
         };
-        edits.push((
-            at,
-            slot.len(),
-            &source[span.start as usize..span.end as usize],
-        ));
+        edits.push((at, slot.len(), value(source, *span)));
     }
     edits.sort_by_key(|(at, _, _)| *at);
     let mut out = String::with_capacity(text.len());
@@ -208,6 +290,37 @@ mod tests {
             assert_eq!(spans_within(3, 18), vec![span(6, 9), span(14, 17)]);
         }
         assert_eq!(text(source, 6, 9), "f()");
+    }
+
+    #[test]
+    fn an_element_inside_a_captured_value_is_lowered_into_the_plan() {
+        // `<V a={f(<T />)} b={<U />} c={g()} />`: `<T />` sits in a captured
+        // value, `<U />` in one the plan leaves alone.
+        let source = "<V a={f(<T />)} b={<U />} c={g()} />";
+        let plan = ClassEvaluation {
+            span: span(0, 36),
+            steps: vec![
+                ClassEvaluationStep::Attribute(ExprRef(span(6, 14))),
+                ClassEvaluationStep::Attribute(ExprRef(span(29, 32))),
+            ],
+            scope: ClassCaptureScope::Subtree {
+                expression_container: false,
+            },
+        };
+        let nested = [span(8, 13), span(19, 24)];
+        let _scope = enter(Some(&plan), source);
+        let mut lowered = Vec::new();
+        let planned = lower_captured(source, 3, 33, &nested, |index| {
+            lowered.push(index);
+            "<t />".to_string()
+        });
+        assert_eq!(planned, vec![true, false]);
+        assert_eq!(lowered, vec![0]);
+        assert_eq!(plan.render(source), "[(f(<t />)), (g())]");
+        // Where the plan is taken out, the lowered value comes back.
+        let mut text = "<v a={__hozoClassPlan0[0]} c={__hozoClassPlan0[1]} />".to_string();
+        assert!(unplan(&plan, source, &mut text, None, |_, _, _| true));
+        assert_eq!(text, "<v a={f(<t />)} c={g()} />");
     }
 
     #[test]

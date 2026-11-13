@@ -8,8 +8,8 @@
 
 use super::*;
 use oxc_ast::ast::{
-    ArrayExpressionElement, AwaitExpression, CallExpression, Expression, JSXFragment,
-    ObjectPropertyKind, YieldExpression,
+    ArrayExpressionElement, AwaitExpression, CallExpression, Expression, ObjectPropertyKind,
+    YieldExpression,
 };
 
 pub(super) fn can_wrap(element: &JSXElement, class_attribute: Span) -> bool {
@@ -79,9 +79,9 @@ const WRITTEN_MORE_THAN_ONCE: &[&str] = &[
 ];
 
 /// The value an attribute's plan step evaluates, if the plan can hold it:
-/// a value that runs code and contains no element of its own (whose lowering
-/// would be lost to the plan's copy of the source). With it, whether a
-/// backend writes it more than once.
+/// a value that runs code. An element inside it is lowered into the plan by
+/// the backend that lowers it (`attribute_capture::lower_captured`). With
+/// it, whether a backend writes it more than once.
 fn captured_value(item: &JSXAttributeItem) -> Option<(Span, bool)> {
     let (expression, name) = match item {
         JSXAttributeItem::SpreadAttribute(spread) => (&spread.argument, None),
@@ -102,7 +102,7 @@ fn captured_value(item: &JSXAttributeItem) -> Option<(Span, bool)> {
             (container.expression.as_expression()?, Some(name))
         }
     };
-    if pure(expression) || contains_element(expression) {
+    if pure(expression) {
         return None;
     }
     Some((
@@ -169,21 +169,6 @@ fn pure(expression: &Expression) -> bool {
         }
         _ => false,
     }
-}
-
-fn contains_element(expression: &Expression) -> bool {
-    struct Finder(bool);
-    impl<'a> Visit<'a> for Finder {
-        fn visit_jsx_element(&mut self, _: &JSXElement<'a>) {
-            self.0 = true;
-        }
-        fn visit_jsx_fragment(&mut self, _: &JSXFragment<'a>) {
-            self.0 = true;
-        }
-    }
-    let mut finder = Finder(false);
-    finder.visit_expression(expression);
-    finder.0
 }
 
 /// One thing an element's plan evaluates, in source order.
@@ -567,9 +552,6 @@ mod tests {
         }
         for jsx in [
             "<View className={guard() && 'p-2'}>{eval('thing')}</View>",
-            // An element in the earlier value would lose its lowering to
-            // the plan's copy of the source.
-            "<View footer={render(<Text />)} className={guard() && 'p-2'} />",
             "<View className={guard() ? 'p-2' : opaque()} />",
             "<View className={guard() && 'p-2'} className='p-4' />",
         ] {

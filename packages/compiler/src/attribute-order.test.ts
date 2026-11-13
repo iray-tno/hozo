@@ -64,6 +64,7 @@ function run(jsx: string, styles: string, calls: string[], values: Record<string
     },
     disabled: call('disabled'),
     label: call('label'),
+    make: call('make'),
     id: call('id'),
     press: () => {
       calls.push('press')
@@ -102,12 +103,15 @@ const ORDERS: [string, string[]][] = [
     ['before', 'cond', 'opaque'],
   ],
   ["<Chip removeClassName={cond() && 'p-4'} className={opaque()} />", ['cond', 'opaque']],
+  // A value holding an element: the plan evaluates it lowered.
+  ['<View footer={make(<Text className="p-2">x</Text>)} testID={id()} />', ['make', 'id']],
+  ['<Text accessibilityLabel={label(<Text />)} style={style()}>x</Text>', ['label', 'style']],
 ]
 
 for (const [jsx, expected] of ORDERS)
   for (const [backend, compile] of Object.entries(backends))
     test(`${backend}: ${jsx} runs its values once each, as written`, () => {
-      const source = `import { View, Pressable, Chip } from '@hozo/core'\nexport const A = () => ${jsx}\n`
+      const source = `import { View, Text, Pressable, Chip } from '@hozo/core'\nexport const A = () => ${jsx}\n`
       const output = compile(source)[0]!
       const calls: string[] = []
       const props = run(output.jsx, backend === 'native' ? output.styles : '{}', calls)
@@ -141,6 +145,21 @@ test('one value alone, read once wherever a backend writes it', () => {
     const calls: string[] = []
     run(output.jsx, backend === 'native' ? output.styles : '{}', calls, { disabled: true })
     assert.deepEqual(calls, ['disabled'], `${backend}: ${output.jsx}`)
+  }
+})
+
+test('an element inside a planned value is lowered in the plan, as it was in place', () => {
+  for (const [backend, compile] of Object.entries(backends)) {
+    const { jsx } = compile(
+      `import { View, Text } from '@hozo/core'\nexport const A = () => <View footer={make(<Text className="p-2">x</Text>)} testID={id()} />\n`,
+    )[0]!
+    assert.match(jsx, /__hozoClassPlan/, backend)
+    assert.doesNotMatch(jsx, /className="p-2"/, `${backend}: ${jsx}`)
+    const lowered =
+      backend === 'web'
+        ? '<span className="hozo-1">x</span>'
+        : '<Text style={hozoStyles.hozo1}>x</Text>'
+    assert.ok(jsx.includes(`(make(${lowered}))`), `${backend}: ${jsx}`)
   }
 })
 

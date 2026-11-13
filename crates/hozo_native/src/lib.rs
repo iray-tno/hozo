@@ -949,44 +949,66 @@ fn render_verbatim(
 ) -> Rendered {
     let mut out = Rendered::new(cx.source_evidence);
     let mut cursor = expr_ref.0.start as usize;
-    for entry in nested {
+    // An element inside a value the plan evaluates is lowered there; the
+    // copy below writes the value's slot (#1879).
+    let spans: Vec<_> = nested.iter().map(|entry| entry.span).collect();
+    let source = cx.source;
+    let planned = hozo_ir::attribute_capture::lower_captured(
+        source,
+        cursor,
+        expr_ref.0.end as usize,
+        &spans,
+        |index| render_nested(&nested[index], inherited, interaction_context, cx).text,
+    );
+    for (entry, _) in nested.iter().zip(planned).filter(|(_, planned)| !planned) {
         out.copy(cx.source, cursor, entry.span.start as usize);
-        // After what the elements above hand down, so a component written
-        // in between, and nearer, wins.
-        let inherited: Vec<StyleDeclaration> = inherited
-            .iter()
-            .chain(forwarded_text(&entry.forwarded))
-            .cloned()
-            .collect();
-        let inherited = inherited.as_slice();
-        let ambient_size = inherited.iter().rev().find_map(|d| match &d.property {
-            hozo_ir::StyleProperty::FontSize(hozo_ir::Length::Px(px))
-                if d.condition == hozo_ir::Condition::Always =>
-            {
-                Some(*px)
-            }
-            _ => None,
-        });
-        let ancestor = AncestorContext {
-            inherited,
-            parent_font_size: ambient_size,
-            parent_size_opaque: true,
-            in_dynamic_ruby: false,
-            from_ancestor: FromAncestor::default(),
-            grid_columns: None,
-            grid_rows: None,
-        };
-        out.append(render_node(
-            &entry.node,
-            SiblingPosition::UNKNOWN,
-            interaction_context || forwards_interaction(&entry.forwarded),
-            ancestor,
-            cx,
-        ));
+        out.append(render_nested(entry, inherited, interaction_context, cx));
         cursor = entry.span.end as usize;
     }
     out.copy(cx.source, cursor, expr_ref.0.end as usize);
     out
+}
+
+/// One element written inside an expression, with what its ancestors
+/// hand down.
+fn render_nested(
+    entry: &hozo_ir::NestedNode,
+    inherited: &[StyleDeclaration],
+    interaction_context: bool,
+    cx: &mut NativeRenderContext<'_>,
+) -> Rendered {
+    // After what the elements above hand down, so a component written
+    // in between, and nearer, wins.
+    let inherited: Vec<StyleDeclaration> = inherited
+        .iter()
+        .chain(forwarded_text(&entry.forwarded))
+        .cloned()
+        .collect();
+    let inherited = inherited.as_slice();
+    let ambient_size = inherited.iter().rev().find_map(|d| match &d.property {
+        hozo_ir::StyleProperty::FontSize(hozo_ir::Length::Px(px))
+            if d.condition == hozo_ir::Condition::Always =>
+        {
+            Some(*px)
+        }
+        _ => None,
+    });
+    let ancestor = AncestorContext {
+        inherited,
+        parent_font_size: ambient_size,
+        parent_size_opaque: true,
+        in_dynamic_ruby: false,
+        from_ancestor: FromAncestor::default(),
+        grid_columns: None,
+        grid_rows: None,
+    };
+    render_node(
+        &entry.node,
+        SiblingPosition::UNKNOWN,
+        interaction_context || forwards_interaction(&entry.forwarded),
+        ancestor,
+        cx,
+    )
 }
 
 fn is_safe_area_inset(prop: &StyleProperty) -> bool {
