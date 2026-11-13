@@ -68,13 +68,12 @@ test('the dynamic Native map ranks gaps', async () => {
   const style = (classes: string, pressed: boolean) =>
     Object.assign({}, ...[resolve(classes, { pressed })].flat(Infinity))
   for (const classes of ['gap-2 active:gap-4', 'active:gap-4 gap-2']) {
-    assert.equal(style(classes, false).gap, 8, classes)
-    assert.equal(style(classes, true).gap, 16, classes)
+    assert.deepEqual(style(classes, false), { rowGap: 8, columnGap: 8 }, classes)
+    assert.deepEqual(style(classes, true), { rowGap: 16, columnGap: 16 }, classes)
   }
-  // Different keys: Yoga's axis gutter wins by key, as Tailwind's later
-  // `column-gap` does.
+  // Both utilities now write the same column slot. The assessed
+  // Tailwind rule order, not Yoga's alias rules, picks the winner.
   for (const classes of ['gap-x-2 gap-4', 'gap-4 gap-x-2']) {
-    assert.equal(style(classes, false).columnGap, 8, classes)
-    assert.equal(style(classes, false).gap, 16, classes)
+    assert.deepEqual(style(classes, false), { rowGap: 16, columnGap: 8 }, classes)
   }
 })

@@ -27,6 +27,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
 import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
 import { hozoTextMetricStyles } from '../../../packages/engine/src/class-resolver.ts'
+import { hozoDomStyle } from '../../../packages/engine/src/dom-style.ts'
 import { hozoGapSpreadStyles } from '../../../packages/engine/src/gap-styles.ts'
 import { hozoShadowStyles } from '../../../packages/engine/src/generated/shadow-slots.ts'
 import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
@@ -1802,7 +1803,7 @@ test('static fallback keeps gap and logical edge writes in authored owner order'
   }
 })
 
-test('an unranked gap list distinguishes owner order from Yoga axis precedence', {
+test('unranked owner gaps follow authored order on both layout engines', {
   skip: !executablePath,
 }, async () => {
   const css = `@import "tailwindcss/theme.css" layer(theme); @tailwind utilities;
@@ -1811,9 +1812,10 @@ test('an unranked gap list distinguishes owner order from Yoga axis precedence',
   const theme = await loadTheme(css, tailwindPackageDir())
   const local = createCompiler(theme)
   const cases = [
-    ['hover:gap-2 active:gap-4 hover:gap-6', [24, 24], [24, 24]],
-    ['hover:gap-x-6 active:gap-4', [16, 16], [16, 24]],
-    ['active:gap-4 hover:gap-x-6', [16, 24], [16, 24]],
+    ['hover:gap-2 active:gap-4 hover:gap-6', [24, 24]],
+    ['hover:gap-x-6 active:gap-4', [16, 16]],
+    ['active:gap-4 hover:gap-x-6', [16, 24]],
+    ['active:gap-4 hover:gap-x-6', [28, 28], { gap: 28 }],
   ]
   const names = [...new Set(cases.flatMap(([classes]) => classes.split(' '))), 'bg-brand']
   const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
@@ -1848,20 +1850,29 @@ test('an unranked gap list distinguishes owner order from Yoga axis precedence',
     const cdp = await page.context().newCDPSession(page)
     await cdp.send('DOM.enable')
     await cdp.send('CSS.enable')
-    for (const [classes, webGap, nativeGap] of cases) {
+    for (const [classes, gap, own] of cases) {
       const input = `${classes} bg-brand`
-      const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${input}"/>`
+      const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${input}" ${own ? 'style={own}' : ''}/>`
       const native = local.prepareNativeModule(source).emit(final).components[0]
       const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
         h: (_type, props) => props,
         HozoPressable: 'host',
+        own,
         hozoStyles: runInNewContext(`(${native.styles})`),
       })
       const web = local.prepareWebModule(source).emit(final)[0]
-      const webProps = evaluate(`module.exports=(${web.jsx})`, { h: (_type, props) => props })
+      const webProps = evaluate(`module.exports=(${web.jsx})`, {
+        h: (_type, props) => props,
+        own,
+        hozoDomStyle,
+      })
       for (const layout of gapLayouts) {
-        assert.deepEqual(yogaGapGeometry(flatten(nativeProps.style(state)), layout), nativeGap)
-        assert.deepEqual(yogaGapGeometry(flatten(masked(input, state)), layout), nativeGap)
+        assert.deepEqual(yogaGapGeometry(flatten(nativeProps.style(state)), layout), gap, input)
+        assert.deepEqual(
+          yogaGapGeometry(flatten([masked(input, state), hozoAuthoredStyle(own)]), layout),
+          gap,
+          input,
+        )
         const markup = renderToStaticMarkup(
           createElement(
             'button',
@@ -1878,6 +1889,7 @@ test('an unranked gap list distinguishes owner order from Yoga axis precedence',
                 width: 140,
                 height: 140,
                 ...layout,
+                ...webProps.style,
               },
             },
             ...[0, 1, 2].map((key) =>
@@ -1898,7 +1910,7 @@ test('an unranked gap list distinguishes owner order from Yoga axis precedence',
             return [box.left, box.top]
           }),
         )
-        assert.deepEqual(gapGeometry(positions, layout.flexDirection), webGap, input)
+        assert.deepEqual(gapGeometry(positions, layout.flexDirection), gap, input)
       }
     }
   } finally {

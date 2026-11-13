@@ -440,7 +440,12 @@ mod tests {
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert!(output.runtime_imports.contains(&"HozoGrid"));
         assert!(output.jsx.contains("<HozoGrid tracks={[{ kind: 'fr', value: 1 }, { kind: 'fr', value: 1 }, { kind: 'fr', value: 1 }]} columnGap={16} rowGap={16}>"), "{}", output.jsx);
-        assert!(output.styles.contains("gap: 16,"), "{}", output.styles);
+        assert!(output.styles.contains("rowGap: 16,"), "{}", output.styles);
+        assert!(
+            output.styles.contains("columnGap: 16,"),
+            "{}",
+            output.styles
+        );
     }
 
     #[test]
