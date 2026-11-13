@@ -5814,12 +5814,21 @@ fn filter_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
 }
 
 fn gradient_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
-    // Admit only independent slots understood by both projections. Raw
-    // images, resets and opaque values still share the entire property.
+    // A resting reset can coexist with stops; it just has no image to
+    // draw. Competing constructors at rest or guarded resets still need
+    // a proof for whole-property precedence.
+    let mut base_reset = false;
+    let mut base_constructor = false;
     !declarations.iter().any(|d| match &d.property {
-        StyleProperty::BackgroundImageNone
-        | StyleProperty::BackgroundImage(_)
-        | StyleProperty::Gradient(GradientKind::Conic, _) => true,
+        StyleProperty::BackgroundImageNone => {
+            base_reset = true;
+            d.condition != Condition::Always || base_constructor
+        }
+        StyleProperty::BackgroundImage(_) | StyleProperty::Gradient(GradientKind::Conic, _) => true,
+        StyleProperty::Gradient(..) if d.condition == Condition::Always => {
+            base_constructor = true;
+            base_reset
+        }
         StyleProperty::GradientStopColor(_, color) => color.is_initial(),
         StyleProperty::GradientStopPosition(_, position) => {
             !matches!(position, Dimension::Percent(_))

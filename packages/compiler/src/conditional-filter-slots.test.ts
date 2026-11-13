@@ -241,6 +241,20 @@ test('different gradient guards compose without moving later filter writes', () 
   assert.equal(probe.style().backgroundImage, undefined)
 })
 
+test('an isolated base image reset keeps the gradient and filter owner runs separate', () => {
+  const probe = compiled(
+    'bg-none hover:bg-linear-to-r hover:from-red-500 hover:blur-lg active:to-blue-500 active:blur-xl active:sepia-50 hover:sepia columns-(--layout)',
+    '',
+    'Pressable',
+    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+  )
+  const both = probe.style(false, true, false, undefined, true)
+  assert.equal(both.filter, 'blur(24px) sepia(100%)')
+  assert.equal(both.backgroundImage, 'linear-gradient(to right, #fb2c36 0%, #2b7fff 100%)')
+  assert.equal(probe.style(false, false, false, undefined, true).backgroundImage, 'none')
+  assert.equal(probe.style().backgroundImage, 'none')
+})
+
 test('same-function and unconditional filters retain their direct ahead-of-time path', () => {
   for (const classes of ['blur-sm sepia', 'blur-sm md:blur-lg', 'md:blur-lg hover:blur-sm']) {
     assert.ok(!compiled(classes).result.runtimeImports.includes('hozoFilterStyles'))
