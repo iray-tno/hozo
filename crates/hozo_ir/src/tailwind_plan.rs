@@ -15,11 +15,10 @@ pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v58";
 /// style utility's `--tw-border-style`) and compound text still need
 /// separate evidence.
 ///
-/// Logical and physical edges are both admitted. Ranking them cannot change
-/// which one Yoga applies -- `paddingStart` beats `paddingLeft` and
-/// `columnGap` beats `gap` by key, whatever their order -- so it only moves
-/// writes to the same key (`ps-2 px-4`) and the Web cascade, where Tailwind's
-/// order is the answer.
+/// Logical and physical edges are both admitted. Yoga still gives
+/// `paddingStart` priority over `paddingLeft` by key. Native projects both
+/// gap shorthands and longhands to the axis keys, so their order decides
+/// the same axes as in the Web cascade.
 pub fn scalar_tailwind_property(property: &crate::StyleProperty) -> bool {
     use crate::StyleProperty::*;
     crate::tailwind_assessment::scalar_css_property(property).is_some()

@@ -25,8 +25,10 @@ import { chromium } from 'playwright-core'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
+import Yoga from 'yoga-layout'
 import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
 import { hozoTextMetricStyles } from '../../../packages/engine/src/class-resolver.ts'
+import { hozoDomStyle } from '../../../packages/engine/src/dom-style.ts'
 import { hozoGapSpreadStyles } from '../../../packages/engine/src/gap-styles.ts'
 import { hozoShadowStyles } from '../../../packages/engine/src/generated/shadow-slots.ts'
 import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
@@ -371,7 +373,7 @@ for (const { file, name, slots, source, variants, classes } of uiCases) {
                     variant.align ?? 'stretch'
                   ]
               assert.equal(flat.flexDirection, direction)
-              assert.equal(flat.gap, gap)
+              assert.deepEqual([flat.rowGap, flat.columnGap], [gap, gap])
               assert.equal(flat.alignItems, align)
               for (const sheets of [
                 [web.css, uiCandidates],
@@ -1779,6 +1781,234 @@ async function assertRepeatedOwnerRegisters({ classes, reference, property, valu
     await page.close()
   }
 }
+
+test('static fallback keeps gap and logical edge writes in authored owner order', {
+  skip: !executablePath,
+}, async () => {
+  for (const [classes, property, css, resting] of [
+    ['hover:p-2 active:p-4 hover:p-6 hover:gap-2', 'paddingTop', 'padding-top', '1px'],
+    ['hover:gap-x-2 active:gap-x-4 hover:gap-x-6', 'columnGap', 'column-gap', 'normal'],
+    ['hover:px-2 active:px-4 hover:ps-6', 'paddingInlineStart', 'padding-inline-start', '6px'],
+  ]) {
+    await assertRepeatedOwnerRegisters({
+      classes: `${classes} columns-(--layout)`,
+      reference: `
+        button { ${css}: ${resting}; }
+        button:hover { ${css}: 8px; }
+        button:active { ${css}: 16px; }
+        button:hover { ${css}: 24px; }
+      `,
+      property,
+      values: ['16px', '24px', '24px', resting],
+    })
+  }
+})
+
+test('unranked owner gaps follow authored order on both layout engines', {
+  skip: !executablePath,
+}, async () => {
+  const css = `@import "tailwindcss/theme.css" layer(theme); @tailwind utilities;
+    @theme { --color-brand: #123456; }
+    @utility bg-brand { background-color: #abcdef; }`
+  const theme = await loadTheme(css, tailwindPackageDir())
+  const local = createCompiler(theme)
+  const cases = [
+    ['hover:gap-2 active:gap-4 hover:gap-6', [24, 24]],
+    ['hover:gap-x-6 active:gap-4', [16, 16]],
+    ['active:gap-4 hover:gap-x-6', [16, 24]],
+    ['active:gap-4 hover:gap-x-6', [28, 28], { gap: 28 }],
+  ]
+  const names = [...new Set(cases.flatMap(([classes]) => classes.split(' '))), 'bg-brand']
+  const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const cache = openCandidateCache()
+  cache.scanFile('gap-fallback.ts', JSON.stringify(names.join(' ')), 1)
+  const candidates = cache.renderNativeModulePlan(final, theme)
+  assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
+  const makeSpecificityOnlyResolver = (plan) => {
+    assert.equal(plan.schema, 1)
+    return createClassResolver({
+      ...plan,
+      states: Object.fromEntries(
+        Object.entries(plan.states).map(([name, groups]) => [
+          name,
+          groups.map(([keys, style, rank]) =>
+            rank === undefined ? [keys, style] : [keys, style, rank >>> 8],
+          ),
+        ]),
+      ),
+    })
+  }
+  const masked = evaluate(
+    `${candidates.code.replace(/^import[^\n]*\n/gm, '').replaceAll('export const ', 'const ')}
+      module.exports = hozoClasses`,
+    { createClassResolver: makeSpecificityOnlyResolver },
+  )
+  const state = { hovered: true, pressed: true, focused: false }
+  const flatten = (style) => Object.assign({}, ...style.flat(Infinity).filter(Boolean))
+  const page = await browser.newPage()
+  try {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const [classes, gap, own] of cases) {
+      const input = `${classes} bg-brand`
+      const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${input}" ${own ? 'style={own}' : ''}/>`
+      const native = local.prepareNativeModule(source).emit(final).components[0]
+      const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
+        h: (_type, props) => props,
+        HozoPressable: 'host',
+        own,
+        hozoStyles: runInNewContext(`(${native.styles})`),
+      })
+      const web = local.prepareWebModule(source).emit(final)[0]
+      const webProps = evaluate(`module.exports=(${web.jsx})`, {
+        h: (_type, props) => props,
+        own,
+        hozoDomStyle,
+      })
+      for (const layout of gapLayouts) {
+        assert.deepEqual(yogaGapGeometry(flatten(nativeProps.style(state)), layout), gap, input)
+        assert.deepEqual(
+          yogaGapGeometry(flatten([masked(input, state), hozoAuthoredStyle(own)]), layout),
+          gap,
+          input,
+        )
+        const markup = renderToStaticMarkup(
+          createElement(
+            'button',
+            {
+              className: webProps.className,
+              style: {
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignContent: 'flex-start',
+                alignItems: 'flex-start',
+                boxSizing: 'content-box',
+                border: 0,
+                padding: 0,
+                width: 140,
+                height: 140,
+                ...layout,
+                ...webProps.style,
+              },
+            },
+            ...[0, 1, 2].map((key) =>
+              createElement('span', { key, style: { flex: 'none', width: 50, height: 50 } }),
+            ),
+          ),
+        )
+        await page.setContent(`<style>${web.css}</style>${markup}`)
+        const { root } = await cdp.send('DOM.getDocument')
+        const { nodeId } = await cdp.send('DOM.querySelector', {
+          nodeId: root.nodeId,
+          selector: 'button',
+        })
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover', 'active'] })
+        const positions = await page.locator('button').evaluate((owner) =>
+          [...owner.children].map((child) => {
+            const box = child.getBoundingClientRect()
+            return [box.left, box.top]
+          }),
+        )
+        assert.deepEqual(gapGeometry(positions, layout.flexDirection), gap, input)
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('unranked inline edges expose the physical and logical alias in real layout', {
+  skip: !executablePath,
+}, async () => {
+  const cases = [
+    ['hover:ps-6 active:pl-4', 'padding', [16, 0], [24, 0]],
+    ['active:pl-4 hover:ps-6', 'padding', [24, 0], [24, 0]],
+    ['hover:ms-6 active:ml-4', 'margin', [16, 0], [24, 0]],
+    ['active:ml-4 hover:ms-6', 'margin', [24, 0], [24, 0]],
+  ]
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const [classes, property, webLtr, nativeLtr] of cases) {
+      const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${classes} columns-(--layout)"/>`
+      const native = compiler.compileNativeModule(source).components[0]
+      assert.deepEqual(
+        native.diagnostics.map(({ code }) => code),
+        ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+      )
+      const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
+        h: (_type, props) => props,
+        HozoPressable: 'host',
+        hozoStyles: runInNewContext(`(${native.styles})`),
+      })
+      const selected = Object.assign(
+        {},
+        ...nativeProps.style({ hovered: true, pressed: true, focused: false }).flat(Infinity),
+      )
+      const web = compiler.compile(source)[0]
+      const webProps = evaluate(`module.exports=(${web.jsx})`, { h: (_type, props) => props })
+      const yoga = Yoga.Node.create()
+      try {
+        yoga.setWidth(140)
+        yoga.setHeight(100)
+        const [write, read] =
+          property === 'padding'
+            ? ['setPadding', 'getComputedPadding']
+            : ['setMargin', 'getComputedMargin']
+        yoga[write](Yoga.EDGE_START, selected[`${property}Start`])
+        yoga[write](Yoga.EDGE_LEFT, selected[`${property}Left`])
+        for (const [dir, webExpected, nativeExpected] of [
+          ['ltr', webLtr, nativeLtr],
+          ['rtl', [16, 24], [16, 24]],
+        ]) {
+          await page.setContent(
+            `<style>div { ${property}: 0; }${web.css}</style><div dir="${dir}" class="${webProps.className}"></div>`,
+          )
+          const { root } = await cdp.send('DOM.getDocument')
+          const { nodeId } = await cdp.send('DOM.querySelector', {
+            nodeId: root.nodeId,
+            selector: 'div',
+          })
+          await cdp.send('CSS.forcePseudoState', {
+            nodeId,
+            forcedPseudoClasses: ['hover', 'active'],
+          })
+          assert.deepEqual(
+            await page
+              .locator('div')
+              .evaluate(
+                (el, name) =>
+                  ['left', 'right'].map((edge) =>
+                    parseFloat(getComputedStyle(el).getPropertyValue(`${name}-${edge}`)),
+                  ),
+                property,
+              ),
+            webExpected,
+            `${dir}/${classes}`,
+          )
+          yoga.calculateLayout(
+            undefined,
+            undefined,
+            dir === 'rtl' ? Yoga.DIRECTION_RTL : Yoga.DIRECTION_LTR,
+          )
+          assert.deepEqual(
+            [yoga[read](Yoga.EDGE_LEFT), yoga[read](Yoga.EDGE_RIGHT)],
+            nativeExpected,
+            `${dir}/${classes}`,
+          )
+        }
+      } finally {
+        yoga.free()
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
 
 test('static fallback composes translate axes across repeated owner guards', {
   skip: !executablePath,

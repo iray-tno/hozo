@@ -148,6 +148,12 @@ test('authored scalar state writes do not move back into an earlier visit to the
     ['active:p-2 hover:p-4 active:p-6', 'paddingTop', 16, 24, 24],
     ['hover:m-2 active:m-4 hover:m-6', 'marginTop', 24, 16, 24],
     ['hover:opacity-25 active:opacity-50 hover:opacity-75', 'opacity', 0.75, 0.5, 0.75],
+    ['hover:p-2 active:p-4 hover:p-6 hover:gap-2', 'paddingTop', 24, 16, 24],
+    ['hover:gap-2 active:gap-4 hover:gap-6', 'rowGap', 24, 16, 24],
+    ['hover:gap-x-2 active:gap-x-4 hover:gap-x-6', 'columnGap', 24, 16, 24],
+    ['hover:gap-y-2 active:gap-y-4 hover:gap-y-6', 'rowGap', 24, 16, 24],
+    ['hover:px-2 active:px-4 hover:ps-6', 'paddingStart', 24, 16, 24],
+    ['hover:ms-2 active:ms-4 hover:ms-6', 'marginStart', 24, 16, 24],
   ] as const) {
     const source = `import {Pressable} from '@hozo/core';const el=<Pressable className="${classes} columns-(--layout)"/>`
     const { style } = props(source, false, ['WEB_ONLY_PROPERTY_ON_NATIVE'])

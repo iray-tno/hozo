@@ -199,7 +199,7 @@ test('HozoGrid measured rows settle after layout and respond to width changes', 
 
   // The authored View remains the semantic/styling container; the solver is
   // its only child and owns the absolute placement layer.
-  assert.deepEqual(tree?.props.style, { gap: 8 })
+  assert.deepEqual(tree?.props.style, { rowGap: 8, columnGap: 8 })
   const [grid] = children(tree)
   assert.deepEqual(grid.props.style, { position: 'relative', alignSelf: 'stretch', height: 70 })
   const cells = children(grid)
@@ -348,7 +348,7 @@ test('ScrollView directly uses the Native viewport and keeps child layout explic
   const content = tree?.children?.[0]
   assert.equal(typeof content === 'string' ? content : content?.type, 'View')
   if (typeof content !== 'string' && content) {
-    assert.deepEqual(content.props.style, { flexDirection: 'row', gap: 16 })
+    assert.deepEqual(content.props.style, { flexDirection: 'row', rowGap: 16, columnGap: 16 })
   }
 })
 

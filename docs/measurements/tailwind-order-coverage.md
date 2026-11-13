@@ -179,6 +179,52 @@ reset or a reset competing with a resting constructor is still a
 barrier. Raw images, unsupported stops and conic gradients are outside
 this proof. This sample is not the mixed-input deletion gate.
 
+For the shorthand/logical/gap workstream, preserve authored runs for
+gap and logical inline edges, which already emit independent values.
+With the captured `bg-brand` barrier and overlapping hover/active, the
+following compare emitted Native style keys, not Yoga layout:
+
+| Input | Static before → after | Generated now | Generated without the variant tie |
+| --- | --- | --- | --- |
+| `hover:p-[11px] active:p-[17px] hover:pt-[23px]` | top 23 → 23 | 17 | 23 |
+| `hover:p-2 active:p-4 hover:p-6 hover:gap-2` | top 16 → 24 | 16 | 24 |
+| `hover:px-2 active:px-4 hover:ps-6` | start 16 → 24 | 16 | 24 |
+
+Logical and physical padding still use different Native keys. Those
+cases need effective-layout comparisons rather than asserting that
+the flattened keys agree. StyleX and authored `style` also need their
+real composition boundary: a generated class resolver by itself cannot
+see either of those inputs.
+
+The fallback gap geometry probe compares actual compiled Web CSS in
+Chromium, the static Native callback in Yoga 3.2.1 WASM, and the
+specificity-only diagnostic resolver in the same Yoga fixture. For each
+of three lists it exercises four flex directions and LTR/RTL (24
+observations per route). The two Native paths agree on 24/24. In the
+`hover:gap-x-6 active:gap-4` order, however, the browser shows
+`[16, 16]` and both Native paths show `[16, 24]` (row, column pixels).
+Reversing the class order and repeating a single gap key agree. This
+was a cross-key fallback mismatch, not one caused by masking the
+variant rank. Native now emits both axis writes for every compiled
+`gap`, through the same style writer for static objects and generated
+candidates. Both Native paths now match Chromium on those 24 layouts.
+A fourth case with an authored `style={{ gap: 28 }}` agrees on another
+eight layouts, through the existing authored-style projection. This
+does not change how raw authored Native style aliases resolve, and is
+not a device-layout measurement.
+
+The inline edge probe measures the related but distinct Native key
+boundary. With both states active and `hover:ps-6 active:pl-4`, the
+later physical write wins in LTR Chromium (left 16px), but Yoga keeps
+the start write (left 24px). The margin counterpart behaves the same
+way. Reversing authored order agrees in LTR; in RTL these two keys
+target separate physical sides and agree in both orders. Across four
+lists and two directions the compiled Web and selected Native style
+objects agree in 6/8 layout comparisons. No change to RTL or the
+Native style ABI is inferred from that comparison: a fix needs the
+effective direction where the style is applied, including locally
+overridden direction, rather than a global left/right swap.
+
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace
 the runtime tie with stable selector weight once both routes agree. Report

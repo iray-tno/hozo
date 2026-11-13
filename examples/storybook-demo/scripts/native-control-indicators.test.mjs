@@ -591,7 +591,8 @@ test('Native Form applies its own classes before explicit style and preserves su
   assert.equal(views(tree)[0].props.accessibilityLabel, 'Delivery')
   assert.equal(views(tree)[0].props.testID, 'form')
   const ui = await mount(t, UiForm, {})
-  assert.equal(flat(views(ui)[0].props.style).gap, 16)
+  const formStyle = flat(views(ui)[0].props.style)
+  assert.deepEqual([formStyle.rowGap, formStyle.columnGap], [16, 16])
   assert.equal(flat(views(ui)[0].props.style).flexDirection, 'column')
   let submit
   const before = keyboardDismissals
@@ -1511,7 +1512,8 @@ test('Native TimePicker explicit field text wins without turning ancestor text i
 test('Native UI TimePicker draws its real group and field chrome', async (t) => {
   const tree = await mount(t, UiTimePicker, timeProps)
   assert.equal(flat(timeGroup(tree).props.style).flexDirection, 'row')
-  assert.equal(flat(timeGroup(tree).props.style).gap, 8)
+  const groupStyle = flat(timeGroup(tree).props.style)
+  assert.deepEqual([groupStyle.rowGap, groupStyle.columnGap], [8, 8])
   for (const value of timeValues(tree)) {
     const box = flat(timeField(value).props.style)
     assert.equal(box.minHeight, 48)
@@ -3778,6 +3780,8 @@ test('compiled UI Listbox bounds the real scroller and puts child layout on its 
   assert.equal(flat(scroll().props.style).maxHeight, 240)
   assert.equal(flat(scroll().props.style).paddingTop, undefined)
   assert.equal(flat(scroll().props.style).gap, undefined)
+  assert.equal(flat(scroll().props.style).rowGap, undefined)
+  assert.equal(flat(scroll().props.style).columnGap, undefined)
   assert.equal(flat(scroll().props.contentContainerStyle).paddingTop, 12)
   assert.equal(flat(scroll().props.contentContainerStyle).paddingRight, 12)
   assert.equal(flat(scroll().props.contentContainerStyle).gap, undefined)
