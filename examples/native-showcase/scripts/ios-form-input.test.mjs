@@ -143,3 +143,55 @@ test('the AX tree tells a character popup from a field that is simply not there'
   assert.deepEqual(inputObstruction([field], isField), { kind: 'field-visible', value: 'H' })
   assert.deepEqual(inputObstruction([], isField), { kind: 'field-not-visible' })
 })
+
+test('a held key opens the character popup: dismissed once, then the value is observed', async () => {
+  const events = []
+  const observation = {}
+  let popupOpen = false
+  await enterIosText('Ho', {
+    send: (character) => {
+      events.push(['key', character])
+      // The first key is held long enough for iOS to offer Ħ (#1279).
+      if (character === 'H') popupOpen = true
+    },
+    waitForValue: (value) => {
+      events.push(['value', value])
+      return popupOpen ? 'popup' : 'value'
+    },
+    dismissPopup: () => {
+      events.push(['dismiss'])
+      popupOpen = false
+    },
+    observation,
+  })
+  assert.deepEqual(events, [
+    ['key', 'H'],
+    ['value', 'H'],
+    ['dismiss'],
+    ['value', 'H'],
+    ['key', 'o'],
+    ['value', 'Ho'],
+  ])
+  assert.deepEqual(observation.confirmed, ['H', 'Ho'])
+  assert.deepEqual(observation.dismissed, ['H'])
+})
+
+test('a popup that reopens, or one with no way to dismiss it, fails without resending', async () => {
+  for (const dismissPopup of [() => {}, undefined]) {
+    const sent = []
+    const observation = {}
+    await assert.rejects(
+      enterIosText('Hozo', {
+        send: (character) => sent.push(character),
+        waitForValue: () => 'popup',
+        dismissPopup,
+        observation,
+        inspect: () => ({ kind: 'os-character-popup', candidates: ['Ħ'], fieldVisible: false }),
+      }),
+      /OS character popup (reopened|over the field) at "H"/,
+    )
+    assert.deepEqual(sent, ['H'])
+    assert.deepEqual(observation.confirmed, [])
+    assert.equal(observation.obstruction.kind, 'os-character-popup')
+  }
+})

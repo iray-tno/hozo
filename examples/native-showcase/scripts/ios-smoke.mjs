@@ -555,13 +555,34 @@ try {
         'name input is editing',
       )
       evidence.formInput = {}
+      // A held key's character popup hides the field from AX (#1279): seen
+      // as itself, not as the value's timeout, and dismissed without a choice.
+      const characterPopup = (node) => node.AXUniqueId === 'PopoverDismissRegion'
       await enterIosText('Hozo', {
         send: (character) => idb('ui', 'text', character),
-        waitForValue: (value) =>
-          waitFor(
-            (node) => nameField(node) && node.AXValue === value,
+        waitForValue: async (value) => {
+          const seen = await waitFor(
+            (node) => (nameField(node) && node.AXValue === value) || characterPopup(node),
             `name input contains ${JSON.stringify(value)}`,
-          ),
+          )
+          // An open popup wins over a visible value: the next key must not
+          // land in it.
+          return characterPopup(seen) || parseIosNodes(latestTree).some(characterPopup)
+            ? 'popup'
+            : 'value'
+        },
+        dismissPopup: async () => {
+          screenshot('05-form-character-popup')
+          const region = await waitFor(characterPopup, 'character popup dismiss region')
+          const [left, top, right, bottom] = region.rect
+          // Near the region's top edge, away from the popup's keys by the field.
+          idb(
+            'ui',
+            'tap',
+            String(Math.floor((left + right) / 2)),
+            String(Math.floor(top + (bottom - top) / 20)),
+          )
+        },
         observation: evidence.formInput,
         // On a timeout, what the last AX tree showed instead of the field (#1279).
         inspect: () => inputObstruction(parseIosNodes(latestTree), nameField),
