@@ -232,6 +232,19 @@ the deletion per domain with the ranked, barrier, and mixed-input controls
 above; independently verify candidate sheet emission where a utility
 emits multiple rules. A static-only repair is not a completed domain.
 
+Absolute text metrics now preserve repeated owner guards. For
+`hover:text-lg active:text-2xl hover:text-xl` beside the captured
+`bg-brand` barrier, the authored 20px/28px wins when hover and press
+overlap, rather than the coalesced 24px/32px. A Chromium reference with
+the declarations in authored order, ordinary compiled Web, ordinary
+compiled Native, and a generated Native resolver with only selector
+weight agree across four inputs, both orders and all eight state
+combinations (64 observations per route). This includes repeated
+explicit leading and a more specific conjunction; the unchanged
+production candidate resolver still selects 24px/32px for the first
+overlap. No runtime or ranking behavior changed. The ranked
+absolute-metric regression still uses real Tailwind's emitted rule order.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it
