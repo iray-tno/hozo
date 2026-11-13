@@ -2,6 +2,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { appendFileSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { freemem, loadavg, totalmem } from 'node:os'
 import { join } from 'node:path'
+import { readEmulatorCrashReports, readQemuExit } from './android-crash-evidence.mjs'
 
 const LOG_LIMIT = 16 * 1024 * 1024
 
@@ -17,6 +18,15 @@ function hostSnapshot() {
     encoding: 'utf8',
     timeout: 1000,
   })
+  const processes = ps.stdout
+    ?.split('\n')
+    .filter((line) => /\b(?:qemu-system-\S*|emulator|adb)$/.test(line))
+  const qemuExits = (processes ?? []).flatMap((line) => {
+    const [pid, , state, , , command] = line.trim().split(/\s+/)
+    if (!command?.startsWith('qemu-system-') || !state.startsWith('Z')) return []
+    const exit = readQemuExit(pid)
+    return exit ? [{ ...exit, pid: Number(pid) }] : []
+  })
   return {
     memoryTotalBytes: totalmem(),
     memoryFreeBytes: freemem(),
@@ -26,9 +36,8 @@ function hostSnapshot() {
       ['cpu', 'memory', 'io'].map((resource) => [resource, read(`/proc/pressure/${resource}`)]),
     ),
     oomKills: read('/proc/vmstat')?.match(/^oom_kill (\d+)$/m)?.[1] ?? null,
-    processes: ps.stdout
-      ?.split('\n')
-      .filter((line) => /\b(?:qemu-system-\S*|emulator|adb)$/.test(line)),
+    processes,
+    qemuExits,
     processSampleError: ps.status === 0 ? undefined : String(ps.error ?? ps.stderr),
   }
 }
@@ -72,6 +81,13 @@ export function startAndroidHostEvidence(
 
   function sample(event, scenario) {
     record(event, { scenario, ...hostSnapshot() })
+    if (event === 'logcat-disconnected' || event === 'scenario-fail') {
+      try {
+        record('emulator-crash-reports', { trigger: event, ...readEmulatorCrashReports() })
+      } catch (error) {
+        record('emulator-crash-reports', { trigger: event, error: error.message })
+      }
+    }
   }
 
   const child = startLogcat()
