@@ -126,8 +126,9 @@ impl ClassEvaluationStep {
         let text =
             |reference: ExprRef| &source[reference.0.start as usize..reference.0.end as usize];
         match self {
-            Self::Value(reference) | Self::Attribute(reference) => {
-                format!("({})", text(*reference))
+            Self::Value(reference) => format!("({})", text(*reference)),
+            Self::Attribute(reference) => {
+                format!("({})", crate::attribute_capture::value(source, reference.0))
             }
             Self::TemplateValue(reference) => format!("`${{({})}}`", text(*reference)),
             Self::Branch {
