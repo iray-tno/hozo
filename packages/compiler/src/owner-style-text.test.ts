@@ -82,7 +82,9 @@ test('parent-relative metrics, residuals and child targets cannot be certified a
 
 test('raw NAPI validates the declared text destination at both entry points', () => {
   const require = createRequire(import.meta.url)
-  const raw = new (require('../hozo_napi.node').Compiler)()
+  // The raw binding this run measures: the WASI CI job points
+  // HOZO_NATIVE_BINDING at the WebAssembly build, as the loader honours it.
+  const raw = new (require(process.env.HOZO_NATIVE_BINDING ?? '../hozo_napi.node').Compiler)()
   for (const request of [
     { ownerText: 'split' },
     { ownerStyle: false, ownerText: 'split' },

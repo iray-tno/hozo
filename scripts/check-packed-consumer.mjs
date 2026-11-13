@@ -19,7 +19,12 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { hostTarget, publishManifest } from '../packages/compiler/src/native-targets.ts'
+import {
+  hostTarget,
+  NATIVE_TARGETS,
+  publishManifest,
+  WASI_TARGET,
+} from '../packages/compiler/src/native-targets.ts'
 import { BUILT_GUIDES, readGuide } from './guide-snippets.mjs'
 import { PACKAGE_NAMES } from './package-metadata.mjs'
 
@@ -124,13 +129,21 @@ export const GUIDE_STARTERS = {
   astro: { packages: ['astro'], build: 'astro' },
 }
 
-function workspaceYaml(tarballs) {
+export function workspaceYaml(tarballs, { wasi = false } = {}) {
   return [
     'nodeLinker: isolated',
     'autoInstallPeers: false',
     'strictPeerDependencies: false',
+    // What a WebContainer user does to get the WASI binding: pnpm installs
+    // an optional package only for the architectures listed. `current` stays
+    // so Vite's own bundler keeps its native binding; this run is about
+    // Hozo's, not rolldown's.
+    ...(wasi ? ['supportedArchitectures:', '  cpu:', '    - current', '    - wasm32'] : []),
     'overrides:',
     ...Object.entries(tarballs).map(([name, spec]) => `  '${name}': '${spec}'`),
+    // And no native compiler package can rescue the build: `-` removes the
+    // dependency, so the loader has nothing to try before WebAssembly.
+    ...(wasi ? NATIVE_TARGETS.map((target) => `  '${target.packageName}': '-'`) : []),
     '',
   ].join('\n')
 }
@@ -154,6 +167,10 @@ export function guideOutputProblems(files) {
 }
 
 async function main() {
+  // `--wasi`: the Vite guide alone, on the WebAssembly binding alone, as a
+  // StackBlitz WebContainer would install it (#1094). POSIX hosts only: the
+  // WASI sandbox does not resolve Windows paths.
+  const wasi = process.argv.includes('--wasi')
   const artifacts = path.join(root, 'artifacts/packed-consumer')
   mkdirSync(artifacts, { recursive: true })
   const output = mkdtempSync(path.join(artifacts, 'run-'))
@@ -174,8 +191,10 @@ async function main() {
     startedAt: new Date().toISOString(),
     checks: [],
     packages: [],
-    scope:
-      'Local release tarballs; compiler execution, SSR, Vite browser interaction, Android/iOS Metro, Android autolink/codegen, the Vite and Astro getting-started guides built as written. Not registry authentication, Gradle compilation or device rendering.',
+    wasi,
+    scope: wasi
+      ? 'Local release tarballs with the WASI compiler binding as the only one installable (pnpm supportedArchitectures cpu: wasm32); the Vite getting-started guide built as written, and the binding that compiled it identified. Not a WebContainer itself, and not the other apps or guides.'
+      : 'Local release tarballs; compiler execution, SSR, Vite browser interaction, Android/iOS Metro, Android autolink/codegen, the Vite and Astro getting-started guides built as written. Not registry authentication, Gradle compilation or device rendering.',
   }
   const env = consumerEnvironment(process.env)
   const save = () =>
@@ -212,12 +231,19 @@ async function main() {
   save()
   console.log(`[packed-consumer] evidence: ${output}`)
   try {
-    const target = hostTarget(
-      process.platform,
-      process.arch,
-      process.report?.getReport()?.header?.glibcVersionRuntime ? 'gnu' : 'musl',
+    assert.ok(
+      !(wasi && process.platform === 'win32'),
+      'the WASI binding cannot resolve Windows paths',
     )
+    const target = wasi
+      ? WASI_TARGET
+      : hostTarget(
+          process.platform,
+          process.arch,
+          process.report?.getReport()?.header?.glibcVersionRuntime ? 'gnu' : 'musl',
+        )
     assert.ok(target, 'no platform binding for this host')
+    const bindingFile = wasi ? WASI_TARGET.wasm : 'hozo_napi.node'
     const bindingsAt = process.argv.indexOf('--bindings-dir')
     const bindings =
       bindingsAt === -1 ? path.join(output, 'bindings') : path.resolve(process.argv[bindingsAt + 1])
@@ -238,7 +264,7 @@ async function main() {
       name: target.packageName,
       version: bindingManifest.version,
       sha256: createHash('sha256')
-        .update(readFileSync(path.join(binding, 'hozo_napi.node')))
+        .update(readFileSync(path.join(binding, bindingFile)))
         .digest('hex'),
     }
 
@@ -268,7 +294,7 @@ async function main() {
           })
         writeFileSync(
           path.join(directory, 'package.json'),
-          `${JSON.stringify(publishManifest(manifest), null, 2)}\n`,
+          `${JSON.stringify(publishManifest(manifest, { wasi }), null, 2)}\n`,
         )
       }
       pnpm(`pack-${name}`, ['pack', '--out', tarball], directory)
@@ -322,10 +348,12 @@ async function main() {
       metro: installedVersion('examples/native-demo', 'metro'),
     }
     evidence.peers = { web: webPeers, native: nativePeers }
-    for (const [kind, peers, hozo] of [
-      ['web', webPeers, WEB_CONSUMER_PACKAGES],
-      ['native', nativePeers, ['core', 'compiler', 'metro', 'ui', 'native', 'behaviors']],
-    ]) {
+    for (const [kind, peers, hozo] of wasi
+      ? []
+      : [
+          ['web', webPeers, WEB_CONSUMER_PACKAGES],
+          ['native', nativePeers, ['core', 'compiler', 'metro', 'ui', 'native', 'behaviors']],
+        ]) {
       const app = path.join(work, kind)
       cpSync(path.join(fixtureRoot, kind), app, { recursive: true })
       writeFileSync(
@@ -360,7 +388,7 @@ async function main() {
     }
     // The getting-started guides, built from their own code blocks over a
     // stand-in for the framework's starter (`guide-snippets.mjs`).
-    for (const name of BUILT_GUIDES) {
+    for (const name of wasi ? ['vite'] : BUILT_GUIDES) {
       const guide = readGuide(name)
       const starter = GUIDE_STARTERS[name]
       const app = path.join(work, `guide-${name}`)
@@ -375,9 +403,36 @@ async function main() {
         path.join(app, 'package.json'),
         `${JSON.stringify({ name: `packed-hozo-guide-${name}`, private: true, type: 'module', dependencies: specs([...starter.packages, ...guide.dependencies]), devDependencies: specs(guide.devDependencies) }, null, 2)}\n`,
       )
-      writeFileSync(path.join(app, 'pnpm-workspace.yaml'), workspaceYaml(tarballs))
+      writeFileSync(path.join(app, 'pnpm-workspace.yaml'), workspaceYaml(tarballs, { wasi }))
       pnpm(`install-guide-${name}`, ['install', '--ignore-scripts'], app)
       pnpm(`build-guide-${name}`, ['exec', starter.build, 'build'], app)
+      if (wasi) {
+        // A guide that builds proves nothing about WASI unless WASI is what
+        // compiled it. Ask the compiler which binding it loaded, the same
+        // way the build did.
+        const identity = JSON.parse(
+          command(
+            'binding-identity-wasi',
+            process.execPath,
+            [
+              '--input-type=module',
+              '-e',
+              "import('@hozo/compiler').then((m) => console.log(JSON.stringify(m.getCompilerBindingIdentity())))",
+            ],
+            app,
+          )
+            .trim()
+            .split('\n')
+            .at(-1),
+        )
+        evidence.bindingIdentity = identity
+        save()
+        assert.equal(identity.specifier, WASI_TARGET.packageName)
+        assert.ok(
+          realpathSync(identity.path).startsWith(realpathSync(path.join(app, 'node_modules'))),
+          `the WASI binding came from ${identity.path}, not the consumer's install`,
+        )
+      }
       const built = filesUnder(path.join(app, 'dist'))
         .filter((file) => /\.(?:js|css|html)$/.test(file))
         .map((file) => ({ file, content: readFileSync(file, 'utf8') }))
