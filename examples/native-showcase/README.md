@@ -462,6 +462,10 @@ The artifact contains the streamed guest log (up to two 16 MiB segments)
 and a host timeline sampled every ten seconds, at scenario boundaries,
 and when logcat exits unexpectedly. The timeline includes host memory,
 resource pressure, the OOM kill counter, and adb and emulator process state.
+If Linux still exposes a QEMU zombie, its wait status records the exit code
+or signal. On disconnect or failure, the timeline also records any exception
+metadata in the emulator's Crashpad reports. The records can be absent if
+the process was already reaped or Crashpad did not write a report.
 Compare `android-scenario=full` and `android-scenario=ui-docs` with the same
 APK and system image and `diagnostics=false` to test the effect of the
 preceding scenarios.

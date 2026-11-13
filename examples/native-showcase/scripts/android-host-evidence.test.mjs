@@ -27,12 +27,20 @@ test('Android host evidence retains the guest log and host state when logcat exi
       .map(JSON.parse)
     assert.deepEqual(
       records.map(({ event }) => event),
-      ['start', 'scenario-start', 'logcat-exit', 'logcat-disconnected', 'scenario-fail'],
+      [
+        'start',
+        'scenario-start',
+        'logcat-exit',
+        'logcat-disconnected',
+        'emulator-crash-reports',
+        'scenario-fail',
+        'emulator-crash-reports',
+      ],
     )
     assert.equal(records[2].code, 1)
     assert.equal(records[2].stopped, false)
-    assert.equal(records[4].scenario, 'ui-docs')
-    assert.ok(records[4].memoryTotalBytes > 0)
+    assert.equal(records[5].scenario, 'ui-docs')
+    assert.ok(records[5].memoryTotalBytes > 0)
   } finally {
     await evidence.stop()
     rmSync(output, { recursive: true, force: true })
