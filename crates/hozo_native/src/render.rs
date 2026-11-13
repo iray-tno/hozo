@@ -2906,6 +2906,16 @@ pub(super) fn render_node(
     };
     if let Some(evaluation) = node.root_class_evaluation() {
         let mut rendered = rendered;
+        // Written in source order already: no plan needed (#1879).
+        if hozo_ir::attribute_capture::unplan(
+            evaluation,
+            source,
+            &mut rendered.text,
+            rendered.copies.as_mut(),
+            hozo_parser::plan_reads_in_order,
+        ) {
+            return rendered;
+        }
         rendered.text = evaluation.wrap_subtree(source, &rendered.text);
         rendered.forget_scope();
         rendered

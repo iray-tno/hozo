@@ -112,6 +112,69 @@ pub fn spans_within(start: usize, end: usize) -> Vec<SourceSpan> {
     })
 }
 
+/// Takes the plan back out of an element whose emitted JSX already reads
+/// its values once each, in order and eagerly: each slot is written back as
+/// the source text it captured, which is the output the element had before
+/// it was planned. `reads_in_order` is the backend's reading of its own
+/// output (`hozo_parser::plan_reads_in_order`).
+///
+/// Only a plan of attribute values alone: a class list's plan predates
+/// #1879 and stays. A copy recorded in `copies` after a slot moves by what
+/// replacing it added; the slots themselves were never recorded as copies,
+/// so the values they hold come back without evidence, which a consumer
+/// reads as "not known to be verbatim" rather than as anything wrong.
+pub fn unplan(
+    evaluation: &ClassEvaluation,
+    source: &str,
+    text: &mut String,
+    copies: Option<&mut Vec<crate::SourceCopy>>,
+    reads_in_order: impl FnOnce(&str, &str, usize) -> bool,
+) -> bool {
+    let attributes = evaluation.attributes(source);
+    if attributes.is_empty() || attributes.len() != evaluation.references().len() {
+        return false;
+    }
+    let name = evaluation.name(source);
+    if !reads_in_order(text, &name, attributes.len()) {
+        return false;
+    }
+    let mut edits: Vec<(usize, usize, &str)> = Vec::new();
+    for (span, slot) in &attributes {
+        let Some(at) = text.find(slot.as_str()) else {
+            return false;
+        };
+        edits.push((
+            at,
+            slot.len(),
+            &source[span.start as usize..span.end as usize],
+        ));
+    }
+    edits.sort_by_key(|(at, _, _)| *at);
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0;
+    let mut shifts: Vec<(usize, isize)> = Vec::new();
+    for (at, length, value) in &edits {
+        out.push_str(&text[cursor..*at]);
+        out.push_str(value);
+        cursor = at + length;
+        shifts.push((cursor, value.len() as isize - *length as isize));
+    }
+    out.push_str(&text[cursor..]);
+    if let Some(copies) = copies {
+        for copy in copies.iter_mut() {
+            let delta: isize = shifts
+                .iter()
+                .filter(|(end, _)| *end <= copy.emitted_start)
+                .map(|(_, delta)| delta)
+                .sum();
+            copy.emitted_start = (copy.emitted_start as isize + delta) as usize;
+            copy.emitted_end = (copy.emitted_end as isize + delta) as usize;
+        }
+    }
+    *text = out;
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,5 +208,40 @@ mod tests {
             assert_eq!(spans_within(3, 18), vec![span(6, 9), span(14, 17)]);
         }
         assert_eq!(text(source, 6, 9), "f()");
+    }
+
+    #[test]
+    fn an_element_read_in_order_gets_its_values_back_and_its_copies_moved() {
+        let source = "<V a={f()} b={g()} />";
+        let plan = ClassEvaluation {
+            span: span(0, 21),
+            steps: vec![
+                ClassEvaluationStep::Attribute(ExprRef(span(6, 9))),
+                ClassEvaluationStep::Attribute(ExprRef(span(14, 17))),
+            ],
+            scope: ClassCaptureScope::Subtree {
+                expression_container: false,
+            },
+        };
+        let mut text = "<v a={__hozoClassPlan0[0]} k={x} b={__hozoClassPlan0[1]} />".to_string();
+        let k = text.find('x').unwrap();
+        let mut copies = vec![crate::SourceCopy {
+            span: span(0, 1),
+            emitted_start: k,
+            emitted_end: k + 1,
+        }];
+        assert!(unplan(
+            &plan,
+            source,
+            &mut text,
+            Some(&mut copies),
+            |_, name, count| { name == "__hozoClassPlan0" && count == 2 }
+        ));
+        assert_eq!(text, "<v a={f()} k={x} b={g()} />");
+        assert_eq!(&text[copies[0].emitted_start..copies[0].emitted_end], "x");
+        // Out of order, as the backend's reading says: the plan stays.
+        let mut kept = "<v b={__hozoClassPlan0[1]} a={__hozoClassPlan0[0]} />".to_string();
+        assert!(!unplan(&plan, source, &mut kept, None, |_, _, _| false));
+        assert!(kept.contains("__hozoClassPlan0[1]"));
     }
 }

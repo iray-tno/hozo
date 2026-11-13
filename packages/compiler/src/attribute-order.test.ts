@@ -178,3 +178,36 @@ test('no prop of any primitive is written with its call twice', () => {
       }
   assert.deepEqual(twice, [])
 })
+
+test('a plan stays only where a backend would read the values out of order or twice', () => {
+  const plan = (jsx: string) =>
+    Object.fromEntries(
+      Object.entries(backends).map(([backend, compile]) => [
+        backend,
+        /__hozoClassPlan/.test(
+          compile(`import { View, Text } from '@hozo/core'\nexport const A = () => ${jsx}\n`)[0]!
+            .jsx,
+        ),
+      ]),
+    )
+  // Both backends write `testID` before `accessibilityLabel`: in this
+  // source order, no plan; in the other, one.
+  assert.deepEqual(plan('<View testID={id()} accessibilityLabel={label()} />'), {
+    web: false,
+    native: false,
+  })
+  assert.deepEqual(plan('<View accessibilityLabel={label()} testID={id()} />'), {
+    web: true,
+    native: true,
+  })
+  // The class list is written first on both: after it, no plan.
+  assert.deepEqual(plan('<View className={opaque()} accessibilityLabel={after()} />'), {
+    web: false,
+    native: false,
+  })
+  // Native writes `style` first; the Web keeps it last.
+  assert.deepEqual(plan('<Text accessibilityLabel={label()} style={style()}>x</Text>'), {
+    web: false,
+    native: true,
+  })
+})
