@@ -25,7 +25,9 @@ import {
   hostTarget,
   NATIVE_TARGETS,
   npmPlatformConstraints,
+  WASI_TARGET,
 } from '../src/native-targets.ts'
+import { packWasi } from './pack-wasi.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const packageDir = path.resolve(here, '..')
@@ -37,11 +39,12 @@ function argument(name) {
 }
 
 const requested = argument('--target')
+const wasi = requested === WASI_TARGET.triple
 const target = requested
   ? NATIVE_TARGETS.find((entry) => entry.triple === requested)
   : hostTarget(process.platform, process.arch, detectLibc())
-if (!target) {
-  const known = NATIVE_TARGETS.map((entry) => `  ${entry.triple}`).join('\n')
+if (!target && !wasi) {
+  const known = [...NATIVE_TARGETS, WASI_TARGET].map((entry) => `  ${entry.triple}`).join('\n')
   throw new Error(
     requested
       ? `Hozo does not build ${requested}. Known targets:\n${known}`
@@ -75,6 +78,11 @@ if (!repository?.url) {
   throw new Error('@hozo/compiler has no repository.url for the platform packages to inherit')
 }
 const outDir = path.resolve(argument('--out') ?? path.join(repoRoot, 'artifacts'))
+
+if (wasi) {
+  await packWasi({ repoRoot, packageDir, outDir, version, repository })
+  process.exit(0)
+}
 
 console.log(`building ${target.triple} -> ${target.packageName}@${version}`)
 execFileSync('cargo', ['build', '--release', '-p', 'hozo_napi', '--target', target.triple], {

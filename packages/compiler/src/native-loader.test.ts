@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { type TestContext } from 'node:test'
 
 import {
   createCompiler,
@@ -7,7 +7,7 @@ import {
   openCandidateCache,
   prepareTailwindContext,
 } from './index.ts'
-import { loadNativeBinding, nativePackageName } from './native-loader.ts'
+import { loadNativeBinding, nativePackageName, WASI_PACKAGE_NAME } from './native-loader.ts'
 
 test('the host addon reports owner caller spans from import symbols in UTF-16', () => {
   const source = `// 🧩\nimport {BottomSheet as Sheet} from '@hozo/patterns'; const a=<Sheet handleClassName="p-2"/>`
@@ -126,7 +126,18 @@ test('maps supported Node platforms to optional native packages', () => {
   assert.equal(nativePackageName('freebsd', 'x64'), undefined)
 })
 
-test('prefers the adjacent development addon and falls back to the platform package', () => {
+// The variable is how CI runs this whole suite against the WASI build, and
+// it would otherwise replace the very candidate lists these tests assert.
+function withoutOverride(t: TestContext) {
+  const saved = process.env.HOZO_NATIVE_BINDING
+  delete process.env.HOZO_NATIVE_BINDING
+  t.after(() => {
+    if (saved !== undefined) process.env.HOZO_NATIVE_BINDING = saved
+  })
+}
+
+test('prefers the adjacent development addon and falls back to the platform package', (t) => {
+  withoutOverride(t)
   const tried: string[] = []
   const binding = loadNativeBinding<{ compile: string }>({
     localPath: 'local.node',
@@ -141,6 +152,48 @@ test('prefers the adjacent development addon and falls back to the platform pack
 
   assert.deepEqual(tried, ['local.node', '@hozo/compiler-win32-x64-msvc'])
   assert.equal(binding.compile, 'native')
+})
+
+test('falls back to the WASI build only after every native candidate', (t) => {
+  withoutOverride(t)
+  for (const [platform, arch, expected] of [
+    ['linux', 'x64', ['local.node', '@hozo/compiler-linux-x64-gnu', WASI_PACKAGE_NAME]],
+    // No platform package to try: a WebContainer reports a real platform,
+    // but a host nothing is built for goes straight to WebAssembly.
+    ['freebsd', 'x64', ['local.node', WASI_PACKAGE_NAME]],
+  ] as const) {
+    const tried: string[] = []
+    const binding = loadNativeBinding<{ compile: string }>({
+      localPath: 'local.node',
+      platform,
+      arch,
+      libc: 'gnu',
+      require(specifier) {
+        tried.push(specifier)
+        if (specifier !== WASI_PACKAGE_NAME) throw new Error('missing')
+        return { compile: 'wasi' }
+      },
+    })
+    assert.deepEqual(tried, expected)
+    assert.equal(binding.compile, 'wasi')
+  }
+})
+
+test('a host with nothing built for it is told the WASI package exists', (t) => {
+  withoutOverride(t)
+  assert.throws(
+    () =>
+      loadNativeBinding({
+        localPath: 'local.node',
+        platform: 'freebsd',
+        arch: 'x64',
+        require() {
+          throw new Error('missing')
+        },
+      }),
+    (error: Error) =>
+      error.message.includes('freebsd/x64') && error.message.includes(WASI_PACKAGE_NAME),
+  )
 })
 
 test('an explicit override is authoritative and failures are actionable', () => {

@@ -31,15 +31,28 @@ function detectLibc(): 'gnu' | 'musl' {
   return report.header?.glibcVersionRuntime ? 'gnu' : 'musl'
 }
 
-/** Loads a development addon or the matching future platform package. */
+/**
+ * The WebAssembly build, tried after the platform package. Spelled out
+ * rather than imported from `native-targets.ts`, which the published
+ * runtime does not otherwise load; `native-targets.test.ts` holds the two
+ * to the same name.
+ */
+export const WASI_PACKAGE_NAME = '@hozo/compiler-wasm32-wasi'
+
+/** Loads a development addon, the matching platform package, or the WASI build. */
 export function loadNativeBinding<T>(options: NativeLoadOptions): T {
   const platform = options.platform ?? process.platform
   const arch = options.arch ?? process.arch
   const override = options.override ?? process.env.HOZO_NATIVE_BINDING
   const platformPackage = nativePackageName(platform, arch, options.libc ?? detectLibc())
+  // Last, so a native addon always wins where one exists: the WASI build
+  // compiles about half as fast. It is what a WebContainer (StackBlitz),
+  // which cannot load a native addon at all, falls through to.
   const candidates = override
     ? [override]
-    : [options.localPath, platformPackage].filter((candidate): candidate is string => !!candidate)
+    : [options.localPath, platformPackage, WASI_PACKAGE_NAME].filter(
+        (candidate): candidate is string => !!candidate,
+      )
   const failures: unknown[] = []
 
   for (const candidate of candidates) {
@@ -56,7 +69,7 @@ export function loadNativeBinding<T>(options: NativeLoadOptions): T {
     ? `HOZO_NATIVE_BINDING points to ${override}, but it could not be loaded.`
     : platformPackage
       ? `Install @hozo/compiler normally so its optional ${platformPackage} dependency is present.`
-      : `Hozo does not yet ship a native compiler for ${platform}/${arch}.`
+      : `Hozo does not yet ship a native compiler for ${platform}/${arch}; ${WASI_PACKAGE_NAME} runs anywhere WebAssembly does.`
   throw new Error(
     `@hozo/compiler: no native addon could be loaded for ${platform}/${arch}.\n` +
       `Tried:\n${tried}\n${hint}\n` +

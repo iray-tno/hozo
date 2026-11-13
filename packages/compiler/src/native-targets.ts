@@ -91,6 +91,53 @@ export const NATIVE_TARGETS: NativeTarget[] = [
   },
 ]
 
+/**
+ * The WebAssembly build, for hosts no platform package fits (#1094).
+ *
+ * StackBlitz runs Node inside a WebContainer, which cannot load a native
+ * addon, so without this no Hozo project opens there. It is the same
+ * `hozo_napi` crate built for WASI with napi-rs's emnapi, not a second
+ * binding: the API is identical, compiles are about twice as slow, and
+ * Windows paths do not resolve inside its sandbox (Windows always has a
+ * native package, so the loader never needs it there).
+ *
+ * Deliberately not in `NATIVE_TARGETS`. That table is the release matrix
+ * and `@hozo/compiler`'s published optional dependencies, and this one is
+ * not released yet: its link step needs emnapi v2, which is still a
+ * pre-release. If emnapi v2 is not stable when 0.5.0 is cut, 0.5.0 ships
+ * without it. Until then it is packed locally and exercised by CI and the
+ * packed consumer only.
+ */
+export interface WasiTarget {
+  triple: 'wasm32-wasip1-threads'
+  packageName: string
+  /** The file the package carries, and the loader that instantiates it. */
+  wasm: string
+  loader: string
+}
+
+export const WASI_TARGET: WasiTarget = {
+  triple: 'wasm32-wasip1-threads',
+  packageName: '@hozo/compiler-wasm32-wasi',
+  wasm: 'hozo_napi.wasm',
+  loader: 'hozo_napi.wasi.cjs',
+}
+
+/**
+ * The emnapi and runtime versions the WASI package is built and run with.
+ *
+ * Exact, because they are pre-releases: `@napi-rs/wasm-runtime` 1.2.7
+ * accepts `@emnapi/core` 2.0.0-beta.2 and beta.3 by name and nothing newer,
+ * and a beta is allowed to change what it exports. `napi-build` 2.4.1
+ * already requires emnapi v2, so v1 is not an option. Move these together,
+ * and drop the pins when emnapi v2 is stable.
+ */
+export const WASI_RUNTIME_DEPENDENCIES = {
+  '@emnapi/core': '2.0.0-beta.3',
+  '@emnapi/runtime': '2.0.0-beta.3',
+  '@napi-rs/wasm-runtime': '1.2.7',
+} as const
+
 /** The cdylib file extension Cargo produces on a platform. */
 export function cdylibExtension(platform: NodeJS.Platform): string | undefined {
   return { win32: 'dll', darwin: 'dylib', linux: 'so' }[platform as 'win32' | 'darwin' | 'linux']
@@ -134,9 +181,17 @@ export function npmPlatformConstraints(target: NativeTarget) {
 /** The manifest `@hozo/compiler` publishes, given the one it develops under. */
 export function publishManifest(
   current: Record<string, unknown> & { version: string },
+  // Only the packed consumer's WASI run asks for this; the release does not
+  // (see `WASI_TARGET`). Under pnpm's isolated linker the compiler can only
+  // resolve what it declares, so the fallback has to be declared here to be
+  // reachable at all.
+  options: { wasi?: boolean } = {},
 ): Record<string, unknown> {
   const optionalDependencies = Object.fromEntries(
-    NATIVE_TARGETS.map((target) => [target.packageName, current.version]),
+    [...NATIVE_TARGETS, ...(options.wasi ? [WASI_TARGET] : [])].map((target) => [
+      target.packageName,
+      current.version,
+    ]),
   )
   const { private: _private, ...rest } = current
   return {

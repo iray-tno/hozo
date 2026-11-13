@@ -1,0 +1,104 @@
+# The compiler built for WebAssembly (WASI), which `@hozo/compiler` falls
+# back to on a host with no native package, such as a StackBlitz
+# WebContainer (#1094).
+#
+# On demand, not per pull request. The binding links emnapi 2.0.0-beta.3,
+# and until emnapi 2 is stable the package is not released (`WASI_TARGET`
+# in `packages/compiler/src/native-targets.ts`), so a red run here must not
+# hold up unrelated work. Run it before a release that might include the
+# package, and after a change to a Rust dependency, since a crate that stops
+# building for wasm32 is invisible to every other workflow.
+#
+# A pull request that edits this machinery runs it, as `native.yml` does:
+# these paths are the packer, the loader and this file, not a guess about
+# what might break the build, and it is the only way to see this workflow
+# work before it is on the default branch.
+name: wasi
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/wasi.yml'
+      - 'packages/compiler/scripts/pack-wasi.mjs'
+      - 'packages/compiler/wasi/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wasi-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The compiler's own suite against the WASI binding.
+  compiler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1-threads
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm32-wasip1-threads
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: node scripts/pack-native.mjs --target wasm32-wasip1-threads --out ../../artifacts/wasi
+        working-directory: packages/compiler
+      # Installed the way a consumer gets it: an optional dependency that npm
+      # skips unless asked for wasm32, packed rather than linked so its own
+      # runtime dependencies resolve from inside it.
+      - name: Install the packed WASI binding
+        working-directory: artifacts/wasi
+        run: |
+          (cd compiler-wasm32-wasi && npm pack --pack-destination ..)
+          mkdir consumer
+          echo '{"private":true,"optionalDependencies":{"@hozo/compiler-wasm32-wasi":"file:../hozo-compiler-wasm32-wasi-'"$(node -p "require('./compiler-wasm32-wasi/package.json').version")"'.tgz"}}' > consumer/package.json
+          (cd consumer && npm install --cpu=wasm32 --no-audit --no-fund)
+          test -f consumer/node_modules/@hozo/compiler-wasm32-wasi/hozo_napi.wasm
+      - run: pnpm --filter @hozo/compiler test
+        env:
+          HOZO_NATIVE_BINDING: ${{ github.workspace }}/artifacts/wasi/consumer/node_modules/@hozo/compiler-wasm32-wasi/hozo_napi.wasi.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compiler-wasm32-wasi
+          path: artifacts/wasi/*.tgz
+          if-no-files-found: warn
+
+  # The Vite guide on the WASI binding alone, installed the way a
+  # WebContainer would get it: wasm32 is a supported architecture and every
+  # native compiler package is removed. Not a WebContainer itself; that
+  # check waits for the package to be published.
+  packed-consumer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1-threads
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm32-wasip1-threads
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter='./packages/*'
+      - run: pnpm test:packed-consumer --wasi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packed-consumer-wasi
+          path: artifacts/packed-consumer/
+          if-no-files-found: error
+          retention-days: 14

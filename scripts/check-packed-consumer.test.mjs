@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { NATIVE_TARGETS, WASI_TARGET } from '../packages/compiler/src/native-targets.ts'
 import {
   consumerClosure,
   consumerEnvironment,
   WEB_CONSUMER_PACKAGES,
+  workspaceYaml,
 } from './check-packed-consumer.mjs'
 import { mapSources } from './fixtures/packed-consumer/native/map-sources.mjs'
 
@@ -67,4 +69,19 @@ test('bundle checks inspect flat and recursively indexed Metro source maps', () 
     ['a.js', 'b.js'],
   )
   assert.throws(() => mapSources({ sections: [{ url: 'external.map' }] }))
+})
+
+test('the WASI run leaves Hozo nothing native to load, and Vite its own binding', () => {
+  const tarballs = { '@hozo/compiler': 'file:/c.tgz' }
+  const native = workspaceYaml(tarballs)
+  assert.doesNotMatch(native, /supportedArchitectures|'-'/)
+  const wasi = workspaceYaml(tarballs, { wasi: true })
+  assert.match(wasi, /supportedArchitectures:\n {2}cpu:\n {4}- current\n {4}- wasm32\n/)
+  for (const target of NATIVE_TARGETS)
+    assert.ok(
+      wasi.includes(`  '${target.packageName}': '-'`),
+      `${target.packageName} is not removed`,
+    )
+  assert.ok(!wasi.includes(`'${WASI_TARGET.packageName}': '-'`))
+  assert.ok(wasi.includes("  '@hozo/compiler': 'file:/c.tgz'"))
 })

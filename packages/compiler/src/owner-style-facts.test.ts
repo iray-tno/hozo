@@ -106,7 +106,9 @@ test('facts are per-call inputs and do not widen ordinary output or partial-plan
 
 test('raw NAPI rejects invalid declarations on compile and retained preparation', () => {
   const require = createRequire(import.meta.url)
-  const raw = new (require('../hozo_napi.node').Compiler)()
+  // The raw binding this run measures: the WASI CI job points
+  // HOZO_NATIVE_BINDING at the WebAssembly build, as the loader honours it.
+  const raw = new (require(process.env.HOZO_NATIVE_BINDING ?? '../hozo_napi.node').Compiler)()
   for (const request of [
     { ownerFacts: facts },
     { ownerStyle: false, ownerFacts: [] },

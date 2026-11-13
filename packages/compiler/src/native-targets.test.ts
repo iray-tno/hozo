@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { nativePackageName } from './native-loader.ts'
+import { nativePackageName, WASI_PACKAGE_NAME } from './native-loader.ts'
 import {
   cdylibFileName,
   hostTarget,
   NATIVE_TARGETS,
   npmPlatformConstraints,
   publishManifest,
+  WASI_RUNTIME_DEPENDENCIES,
+  WASI_TARGET,
 } from './native-targets.ts'
 
 test('the packer and the loader name the same packages', () => {
@@ -75,6 +77,32 @@ test('the published manifest lists every platform, pinned exactly', () => {
     )
   }
   assert.equal(Object.keys(published.optionalDependencies).length, NATIVE_TARGETS.length)
+})
+
+test('the WASI build is not released until emnapi v2 is stable', () => {
+  // The gate agreed in #1094: if emnapi v2 is still a pre-release when 0.5.0
+  // is cut, 0.5.0 ships without the WASI package. Releasing it means
+  // removing this test on purpose, not drifting past it.
+  assert.ok(!NATIVE_TARGETS.some((target) => target.triple === WASI_TARGET.triple))
+  const published = publishManifest({ name: '@hozo/compiler', version: '1.2.3' })
+  assert.equal(
+    (published.optionalDependencies as Record<string, string>)[WASI_TARGET.packageName],
+    undefined,
+  )
+  for (const version of Object.values(WASI_RUNTIME_DEPENDENCIES)) {
+    assert.match(version, /^\d+\.\d+\.\d+(?:-[\w.]+)?$/, `${version} is not an exact pin`)
+  }
+})
+
+test('the packed consumer can declare the WASI build, pinned like the rest', () => {
+  const published = publishManifest({ name: '@hozo/compiler', version: '1.2.3' }, { wasi: true })
+  const optional = published.optionalDependencies as Record<string, string>
+  assert.equal(optional[WASI_TARGET.packageName], '1.2.3')
+  assert.equal(Object.keys(optional).length, NATIVE_TARGETS.length + 1)
+})
+
+test('the loader asks for the WASI package by the name it is packed under', () => {
+  assert.equal(WASI_PACKAGE_NAME, WASI_TARGET.packageName)
 })
 
 test('npm platform metadata names glibc while Rust triples and package names keep gnu', () => {
