@@ -157,14 +157,27 @@ slots without a composer keep their former grouping.
 With the captured `bg-brand` barrier, masking just the generated variant
 bits now agrees with static Native for the repeated filter runs in both
 token orders, for a hover/focus conjunction, with an isolated base
-`filter-none`, and with `hover:shadow-sm` with or without an adjacent
-`hover:ring-2`. Plain outer shadows replace one another; a shadow with
-ring or colour modifiers stays a literal only when all guarded shadow
-writes still land in a single style object. If the shadow and ring
-straddle the active filter run, static and the current resolver still
-produce `sepia(50%)`, while the masked resolver produces `sepia(100%)`.
-That case needs the shadow projection to preserve both physical writes
-before the runtime tie can go.
+`filter-none`, and with `hover:shadow-sm` and `hover:ring-2` even
+when an active filter rule separates them. Plain outer shadows replace
+one another. When all guarded shadow slots belong to one guard in one
+input region, only those slots rejoin that guard's first rule. The
+independent filter rules remain in order and Native retains its shadow
+literal. With `active:ring-2` instead of `hover:ring-2`, Web and Native
+now keep the slots separate where composition is available. Native uses
+the shadow composer it already selected for this combination. Static
+and the masked resolver both produce `sepia(100%)` for this probe; the
+current resolver still produces `sepia(50%)`. Raw shadow and shadow
+modifiers across authored inputs still block this expansion.
+
+The same projection now preserves authored filter runs beside composable
+gradient slots: a hover direction and first stop can combine with an
+active last stop, without moving the final hover sepia. With the captured
+`bg-brand` barrier, masking the variant bits agrees with static Native
+on ten of ten focused probes, including `bg-none` at rest. The reset
+keeps `none` without erasing independent gradient stops. A guarded
+reset or a reset competing with a resting constructor is still a
+barrier. Raw images, unsupported stops and conic gradients are outside
+this proof. This sample is not the mixed-input deletion gate.
 
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace

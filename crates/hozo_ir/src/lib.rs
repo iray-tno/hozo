@@ -5635,7 +5635,7 @@ impl Condition {
 pub fn group_by_condition(
     declarations: &[StyleDeclaration],
 ) -> Vec<(Condition, Vec<StyleProperty>)> {
-    plan_native_condition_groups(declarations, false).groups
+    plan_native_condition_groups(declarations, OwnerSlotComposition::default()).groups
 }
 
 /// CSS handles selector specificity itself. Preserve source order between
@@ -5643,7 +5643,14 @@ pub fn group_by_condition(
 pub fn group_by_condition_for_css(
     declarations: &[StyleDeclaration],
 ) -> Vec<(Condition, Vec<StyleProperty>)> {
-    let (groups, needs_composition) = condition_groups(declarations, true);
+    let (groups, needs_composition) = condition_groups(
+        declarations,
+        OwnerSlotComposition {
+            filters: true,
+            shadows: true,
+            gradients: true,
+        },
+    );
     if needs_composition {
         coalesce_adjacent_conditions(groups)
     } else {
@@ -5661,13 +5668,20 @@ pub struct NativeConditionGroupPlan {
     pub canonical_input: bool,
 }
 
-/// Only callers that compose the selected filter style objects can preserve
-/// separate filter runs. Other slots and animation frames use whole strings.
+/// Effect families that the caller composes after selecting guarded objects.
+/// Other slots and animation frames still use whole strings.
+#[derive(Default, Clone, Copy)]
+pub struct OwnerSlotComposition {
+    pub filters: bool,
+    pub shadows: bool,
+    pub gradients: bool,
+}
+
 pub fn plan_native_condition_groups(
     declarations: &[StyleDeclaration],
-    compose_filter_slots: bool,
+    composition: OwnerSlotComposition,
 ) -> NativeConditionGroupPlan {
-    let (mut groups, needs_composition) = condition_groups(declarations, compose_filter_slots);
+    let (mut groups, needs_composition) = condition_groups(declarations, composition);
     let canonical_input = has_canonical_tailwind_input(declarations);
     if needs_composition {
         // An input whose shared order was assessed is already linearized.
@@ -5686,7 +5700,7 @@ pub fn plan_native_condition_groups(
 
 fn condition_groups(
     declarations: &[StyleDeclaration],
-    compose_filter_slots: bool,
+    composition: OwnerSlotComposition,
 ) -> (Vec<ConditionGroup>, bool) {
     let mut groups: Vec<ConditionGroup> = Vec::new();
     let mut source = None;
@@ -5696,19 +5710,7 @@ fn condition_groups(
     let mut preserve_runs = false;
     let mut compatible_filter_runs = None;
     let mut compatible_shadow_runs = None;
-    let mut can_split_effect = |property: &StyleProperty| match property {
-        StyleProperty::Filter(..) => {
-            compose_filter_slots
-                && *compatible_filter_runs
-                    .get_or_insert_with(|| filter_runs_can_split(declarations))
-        }
-        property
-            if matches!(property, StyleProperty::BoxShadow(_)) || is_shadow_modifier(property) =>
-        {
-            *compatible_shadow_runs.get_or_insert_with(|| shadow_runs_can_split(declarations))
-        }
-        _ => false,
-    };
+    let mut compatible_gradient_runs = None;
     for (index, decl) in declarations.iter().enumerate() {
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
@@ -5723,7 +5725,32 @@ fn condition_groups(
             // Preserve consecutive guard runs only for values that both
             // backends can emit or compose as independent writes.
             preserve_runs = authored
-                && independent_owner_guard_runs(&declarations[index..], &mut can_split_effect);
+                && independent_owner_guard_runs(&declarations[index..], &mut |property| {
+                    match property {
+                        StyleProperty::Filter(..) => {
+                            composition.filters
+                                && *compatible_filter_runs
+                                    .get_or_insert_with(|| filter_runs_can_split(declarations))
+                        }
+                        StyleProperty::Gradient(..)
+                        | StyleProperty::GradientStopColor(..)
+                        | StyleProperty::GradientStopPosition(..) => {
+                            composition.gradients
+                                && *compatible_gradient_runs
+                                    .get_or_insert_with(|| gradient_runs_can_split(declarations))
+                        }
+                        property if is_shadow_slot(property) => {
+                            match compatible_shadow_runs
+                                .get_or_insert_with(|| shadow_runs(declarations))
+                            {
+                                ShadowRuns::Independent | ShadowRuns::OneGuard => true,
+                                ShadowRuns::SeveralGuards => composition.shadows,
+                                ShadowRuns::Blocked => false,
+                            }
+                        }
+                        _ => false,
+                    }
+                });
         } else if next_ordered
             && groups
                 .last()
@@ -5733,7 +5760,11 @@ fn condition_groups(
         }
         ordered = next_ordered;
         let region = &mut groups[start..];
-        let existing = if preserve_runs && decl.condition != Condition::Always {
+        // A box-shadow register can rejoin its only conditional writer
+        // without moving any of the independent properties in that rule.
+        let coalesce_shadow =
+            compatible_shadow_runs == Some(ShadowRuns::OneGuard) && is_shadow_slot(&decl.property);
+        let existing = if preserve_runs && decl.condition != Condition::Always && !coalesce_shadow {
             region
                 .last_mut()
                 .filter(|(condition, _)| *condition == decl.condition)
@@ -5782,6 +5813,33 @@ fn filter_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
     true
 }
 
+fn gradient_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
+    // A resting reset can coexist with stops; it just has no image to
+    // draw. Competing constructors at rest or guarded resets still need
+    // a proof for whole-property precedence.
+    let mut base_reset = false;
+    let mut base_constructor = false;
+    !declarations.iter().any(|d| match &d.property {
+        StyleProperty::BackgroundImageNone => {
+            base_reset = true;
+            d.condition != Condition::Always || base_constructor
+        }
+        StyleProperty::BackgroundImage(_) | StyleProperty::Gradient(GradientKind::Conic, _) => true,
+        StyleProperty::Gradient(..) if d.condition == Condition::Always => {
+            base_constructor = true;
+            base_reset
+        }
+        StyleProperty::GradientStopColor(_, color) => color.is_initial(),
+        StyleProperty::GradientStopPosition(_, position) => {
+            !matches!(position, Dimension::Percent(_))
+        }
+        StyleProperty::Arbitrary(name, _) => {
+            matches!(name.as_str(), "background-image" | "backgroundImage")
+        }
+        _ => false,
+    })
+}
+
 fn is_shadow_modifier(property: &StyleProperty) -> bool {
     matches!(
         property,
@@ -5798,39 +5856,63 @@ fn is_shadow_modifier(property: &StyleProperty) -> bool {
     )
 }
 
-fn shadow_runs_can_split(declarations: &[StyleDeclaration]) -> bool {
+fn is_shadow_slot(property: &StyleProperty) -> bool {
+    matches!(property, StyleProperty::BoxShadow(_)) || is_shadow_modifier(property)
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ShadowRuns {
+    Independent,
+    OneGuard,
+    SeveralGuards,
+    Blocked,
+}
+
+fn shadow_runs(declarations: &[StyleDeclaration]) -> ShadowRuns {
     let mut first = None;
     let mut left_first_run = false;
+    let mut left_first_input = false;
     let mut split_shadow_writers = false;
+    let mut different_shadow_guard = false;
+    let mut different_shadow_input = false;
     let mut has_modifier = false;
     for d in declarations {
         if matches!(&d.property, StyleProperty::Arbitrary(name, _)
             if matches!(name.as_str(), "box-shadow" | "boxShadow"))
         {
-            return false;
+            return ShadowRuns::Blocked;
         }
-        let run = (
+        let input = (
             d.source.input(),
             matches!(d.source, StyleSource::TailwindOrdered { .. }),
-            &d.condition,
         );
-        left_first_run |= first.is_some_and(|first| first != run);
+        if let Some((first_input, first_condition)) = first {
+            left_first_input |= first_input != input;
+            left_first_run |= left_first_input || first_condition != &d.condition;
+        }
         let modifier = is_shadow_modifier(&d.property);
         has_modifier |= modifier;
         if d.condition != Condition::Always
             && (modifier || matches!(d.property, StyleProperty::BoxShadow(_)))
         {
-            first.get_or_insert(run);
+            let (_, first_condition) = *first.get_or_insert((input, &d.condition));
             split_shadow_writers |= left_first_run;
+            different_shadow_guard |= first_condition != &d.condition;
+            different_shadow_input |= left_first_input;
         }
-        // Plain outer shadows replace each other. Modifiers can stay on
-        // the literal path only if all guarded shadow writes remain in one
-        // object, where the existing base fold still supplies resting slots.
-        if split_shadow_writers && has_modifier {
-            return false;
+        if different_shadow_input && has_modifier {
+            return ShadowRuns::Blocked;
         }
     }
-    true
+    if different_shadow_guard && has_modifier {
+        ShadowRuns::SeveralGuards
+    } else if split_shadow_writers && has_modifier {
+        // No other guard or input competes for boxShadow, so only this
+        // family can go back to its first run and keep the whole value.
+        ShadowRuns::OneGuard
+    } else {
+        ShadowRuns::Independent
+    }
 }
 
 fn independent_owner_guard_runs(
@@ -6184,6 +6266,36 @@ mod grouping_tests {
     }
 
     #[test]
+    fn coalescing_shadow_slots_requires_one_guard_in_one_input_region() {
+        let mut declarations = [
+            StyleDeclaration {
+                condition: Condition::Hover,
+                source: StyleSource::Tailwind(0),
+                property: StyleProperty::BoxShadow("0 1px 2px #000".into()),
+            },
+            StyleDeclaration {
+                condition: Condition::Pressed,
+                source: StyleSource::Tailwind(0),
+                property: StyleProperty::Opacity(0.5),
+            },
+            StyleDeclaration {
+                condition: Condition::Hover,
+                source: StyleSource::Tailwind(0),
+                property: StyleProperty::RingWidth(Length::Px(2.0)),
+            },
+        ];
+        assert!(matches!(shadow_runs(&declarations), ShadowRuns::OneGuard));
+        declarations[2].condition = Condition::Pressed;
+        assert!(matches!(
+            shadow_runs(&declarations),
+            ShadowRuns::SeveralGuards
+        ));
+        declarations[2].condition = Condition::Hover;
+        declarations[1].source = StyleSource::Stylex(1);
+        assert!(matches!(shadow_runs(&declarations), ShadowRuns::Blocked));
+    }
+
+    #[test]
     fn later_sources_do_not_merge_back_across_intervening_conditions() {
         let declaration = |condition, source, value| StyleDeclaration {
             condition,
@@ -6229,7 +6341,7 @@ mod grouping_tests {
             style(Condition::Pressed, 2, 0.2),
             style(all.clone(), 3, 0.3),
         ];
-        let known = plan_native_condition_groups(&declarations, false);
+        let known = plan_native_condition_groups(&declarations, OwnerSlotComposition::default());
         assert!(!known.canonical_input);
         assert_eq!(
             known.groups,
@@ -6242,7 +6354,7 @@ mod grouping_tests {
             ],
         );
         declarations.push(style(Condition::Dark, 4, 0.4));
-        let unknown = plan_native_condition_groups(&declarations, false);
+        let unknown = plan_native_condition_groups(&declarations, OwnerSlotComposition::default());
         assert_eq!(unknown.groups, group_by_condition_for_css(&declarations));
         assert_eq!(unknown.groups.len(), 4);
         assert_eq!(unknown.groups[0].0, all);
