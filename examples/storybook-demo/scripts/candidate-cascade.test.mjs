@@ -2732,6 +2732,21 @@ test('ordered secondary guards match actual owner pixels and independent Tailwin
   }
 })
 
+// The Web warns, at the attribute, for a secondary class list it carries
+// whole (the opaque route); the residual warnings are the mixed routes'.
+// Each carried list is an opaque route's whole call, not a mixed one.
+const CARRIED_WHOLE = /^`\w+` can't be resolved at build time, so it's passed through/
+function residualWarnings(web, source) {
+  const carried = web.diagnostics.filter(({ message }) => CARRIED_WHOLE.test(message))
+  assert.ok(carried.length > 0, 'the opaque route warns on the Web too')
+  for (const diagnostic of carried) {
+    const attribute = source.slice(diagnostic.spanStart, diagnostic.spanEnd)
+    assert.match(attribute, /^\w+=\{getClasses\(/)
+    assert.doesNotMatch(attribute, /'mixed/)
+  }
+  return web.diagnostics.filter((diagnostic) => !carried.includes(diagnostic))
+}
+
 // A real component on one page and an independent raw Tailwind input on
 // another: a modal focus trap must not pull focus away from the oracle.
 async function patternInputFixture(component, own, props) {
@@ -2751,8 +2766,9 @@ async function patternInputFixture(component, own, props) {
       .join('')}
   </View>`
   const web = compiler.compile(source)[0]
-  assert.equal(web.diagnostics.length, 1)
-  const [diagnostic] = web.diagnostics
+  const residual = residualWarnings(web, source)
+  assert.equal(residual.length, 1)
+  const [diagnostic] = residual
   assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
   assert.equal(diagnostic.severity, 'warning')
   assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed'/)
@@ -3715,8 +3731,9 @@ test('Combobox real owners match isolated Tailwind across focus, filtering, acti
       .join('')}
     </View>`
   const web = compiler.compile(source)[0]
-  assert.equal(web.diagnostics.length, 5)
-  for (const diagnostic of web.diagnostics) {
+  const residual = residualWarnings(web, source)
+  assert.equal(residual.length, 5)
+  for (const diagnostic of residual) {
     assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
     assert.equal(diagnostic.severity, 'warning')
     assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\(/)
@@ -3913,8 +3930,9 @@ test('Avatar decorative owners match independent Tailwind through image failure,
       .join('')}
   </View>`
   const web = compiler.compile(source)[0]
-  assert.equal(web.diagnostics.length, 3)
-  for (const diagnostic of web.diagnostics) {
+  const residual = residualWarnings(web, source)
+  assert.equal(residual.length, 3)
+  for (const diagnostic of residual) {
     assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
     assert.equal(diagnostic.severity, 'warning')
     assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed\//)
@@ -4089,8 +4107,9 @@ test('CommandPalette decorative owners match independent Tailwind through query 
       .join('')}
   </View>`
   const web = compiler.compile(source)[0]
-  assert.equal(web.diagnostics.length, 3)
-  for (const diagnostic of web.diagnostics) {
+  const residual = residualWarnings(web, source)
+  assert.equal(residual.length, 3)
+  for (const diagnostic of residual) {
     assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
     assert.equal(diagnostic.severity, 'warning')
     assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed\//)
@@ -4284,12 +4303,13 @@ test('decorative Stepper and Pagination owners match independent non-control Tai
       .join('')}
   </View>`
   const web = compiler.compile(source)[0]
+  const residual = residualWarnings(web, source)
   assert.equal(
-    web.diagnostics.length,
+    residual.length,
     6,
     'each mixed decorative slot retains its residual candidate warning',
   )
-  for (const diagnostic of web.diagnostics) {
+  for (const diagnostic of residual) {
     assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
     assert.equal(diagnostic.severity, 'warning')
     assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed\//)

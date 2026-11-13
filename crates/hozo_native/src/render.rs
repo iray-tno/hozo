@@ -1183,6 +1183,12 @@ pub(super) fn render_node(
     // `active:` or `hover:` class applies as a compiled one does (#886).
     let runtime_states = !node.class_name_fallback.is_empty()
         && matches!(component, "Pressable" | "HozoLink" | "TextInput");
+    if runtime_states {
+        cx.runtime_states.push(crate::OwnerCallback {
+            span: node.span,
+            class_prop: "className",
+        });
+    }
     let class_state = runtime_class_state(node, source, runtime_states);
     let pattern_classes = if crate::pattern::interaction_slot(node.primitive, "className").is_some()
     {
@@ -2443,7 +2449,9 @@ pub(super) fn render_node(
                         slot.class_prop
                     )
                 },
-                span: node.span,
+                // The attribute, not the element: an element has several
+                // class lists, and the report names the one it means.
+                span: prop.span.0,
             });
             if owned {
                 let route = crate::class_route::PatternClasses::new(

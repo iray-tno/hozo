@@ -180,7 +180,10 @@ test('class lists: the route of each, and what became of each class', async (t) 
     text,
     /\nClass lists\n {2}4:11 className: compiled; 3 of 5 classes compiled\n {4}bg-nope: Web not-generated, Native not-generated -- /,
   )
-  assert.match(text, /\n {2}6:7 className: resolved at runtime: the compiler cannot read it\n/)
+  assert.match(
+    text,
+    /\n {2}6:7 className: resolved at runtime by <Pressable>, with its state: the compiler cannot read it\n/,
+  )
   assert.doesNotMatch(text, /\n {4}p-4:/)
 
   // One platform reports that platform only.
@@ -214,7 +217,7 @@ export const B = () => (
 
 test('class lists: what a pattern owner applies, and what a component is handed', async (t) => {
   const root = project(t, {
-    'src/C.tsx': `import { View, Chip, Menu } from '@hozo/core'
+    'src/C.tsx': `import { View, Chip, Menu, Pressable } from '@hozo/core'
 import { Button } from '@hozo/ui'
 export const C = ({ cls }: { cls: string }) => (
   <View className="p-4">
@@ -224,6 +227,7 @@ export const C = ({ cls }: { cls: string }) => (
     <Chip className={cls} label="b" />
     <Menu label="n" itemClassName={cls} items={[]} />
     <View className={cls} />
+    <Pressable className={cls} />
   </View>
 )
 `,
@@ -241,11 +245,13 @@ export const C = ({ cls }: { cls: string }) => (
     '6:11 className owner-callback',
     // A slot list: the Menu applies it to each item, with that item's state.
     '7:21 itemClassName owner-callback',
-    // Unreadable, but the owner still resolves it with its own state, and
-    // a slot list keeps the prop it was written as.
+    // Unreadable, but the owner still resolves it with its own state. A
+    // slot list is reported at its attribute, under the prop it was written as.
     '8:5 className runtime Chip',
-    '9:5 itemClassName runtime Menu',
+    '9:21 itemClassName runtime Menu',
     '10:5 className runtime',
+    // A Pressable resolves its own unread list with its pressed/hovered state.
+    '11:5 className runtime Pressable',
   ])
   const text = (await show(file)).stdout
   assert.match(text, /\n {2}5:13 className: handed to <Button>, which resolves it\n/)
@@ -255,7 +261,7 @@ export const C = ({ cls }: { cls: string }) => (
   )
   assert.match(
     text,
-    /\n {2}8:5 className: resolved at runtime by <Chip>, with the owner's state: the compiler cannot read it\n/,
+    /\n {2}8:5 className: resolved at runtime by <Chip>, with its state: the compiler cannot read it\n/,
   )
   assert.match(text, /\n {2}10:5 className: resolved at runtime: the compiler cannot read it\n/)
   // The owner callback is the Native backend's; the Web has no such route.
@@ -264,4 +270,7 @@ export const C = ({ cls }: { cls: string }) => (
   // Nor an owner resolving a runtime list with its state.
   const chip = web.classLists.lists.find(({ line }) => line === 8)
   assert.deepEqual([chip.route, chip.owner], ['runtime', undefined])
+  // The Web reports an unread slot list too, under its own prop.
+  const menu = web.classLists.lists.find(({ line }) => line === 9)
+  assert.deepEqual([menu.column, menu.prop, menu.route], [21, 'itemClassName', 'runtime'])
 })

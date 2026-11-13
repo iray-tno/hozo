@@ -1848,17 +1848,20 @@ fn lower_native_components(
                 let mut plan = tailwind_order::compile_plan(plan, &offsets);
                 // Native's own evidence rides with the plan, asked for with it;
                 // absent when empty, so a plan without one reads as the Web's.
-                plan.owner_callbacks = (!output.owner_callbacks.is_empty()).then(|| {
-                    output
-                        .owner_callbacks
-                        .iter()
-                        .map(|callback| CompiledOwnerCallback {
-                            span_start: offsets.at(callback.span.start),
-                            span_end: offsets.at(callback.span.end),
-                            class_prop: callback.class_prop.to_string(),
-                        })
-                        .collect()
-                });
+                let evidence = |lists: &[hozo_native::OwnerCallback]| {
+                    (!lists.is_empty()).then(|| {
+                        lists
+                            .iter()
+                            .map(|callback| CompiledOwnerCallback {
+                                span_start: offsets.at(callback.span.start),
+                                span_end: offsets.at(callback.span.end),
+                                class_prop: callback.class_prop.to_string(),
+                            })
+                            .collect()
+                    })
+                };
+                plan.owner_callbacks = evidence(&output.owner_callbacks);
+                plan.runtime_states = evidence(&output.runtime_states);
                 plan
             });
             CompiledNativeComponent {

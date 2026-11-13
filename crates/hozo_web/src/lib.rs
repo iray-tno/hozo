@@ -1559,6 +1559,30 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             ));
         }
     }
+    // A secondary list the compiler carries whole reaches the component as
+    // written and its CSS comes from the candidate stylesheet, as an opaque
+    // root `className` does. Said the same way, at the attribute, so the
+    // report names the list it means.
+    for prop in node.props.passthrough.iter().filter(|prop| {
+        !prop.is_spread
+            && prop.literal.is_none()
+            && prop.name.as_deref().is_some_and(|name| {
+                node.primitive
+                    .class_slots()
+                    .iter()
+                    .any(|slot| slot.class_prop == name)
+            })
+    }) {
+        cx.diagnostics.push(hozo_ir::Diagnostic {
+            code: hozo_ir::DiagnosticCode::DynamicClassNameNotResolved,
+            severity: hozo_ir::Severity::Warning,
+            message: format!(
+                "`{}` can't be resolved at build time, so it's passed through and its CSS comes                  from the project-wide candidate stylesheet instead. Only classes whose text                  appears literally somewhere in the project are covered.",
+                prop.name.as_deref().unwrap_or_default()
+            ),
+            span: prop.span.0,
+        });
+    }
     for (key, value) in &extra_attrs {
         // `hozoInteractive` supplies it, together with everything else it
         // has to agree with.

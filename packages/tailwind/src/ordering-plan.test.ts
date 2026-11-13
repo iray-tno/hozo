@@ -10,6 +10,14 @@ import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 const base = tailwindPackageDir()
 const css = readFileSync(path.join(base, 'theme.css'), 'utf8')
 const capture = { tailwindPlan: true }
+// The ordering plan both backends consume, without Native's inspection
+// evidence (`ownerCallbacks`, `runtimeStates`): which lists a pattern owner
+// or the element itself resolves with state is not part of the order.
+const ordering = (plan) => {
+  if (!plan) return plan
+  const { ownerCallbacks: _owners, runtimeStates: _states, ...rest } = plan
+  return rest
+}
 const emitted = (components) => components.map(({ tailwindPlan: _plan, ...output }) => output)
 const emittedModule = ({ components, ...module }) => ({
   ...module,
@@ -63,7 +71,7 @@ test('actual Web and all Native compile routes consume the same module plan befo
   assert.deepEqual(emittedModule(module), before.module)
   assert.deepEqual(
     web.map((component) => component.tailwindPlan),
-    native.map((component) => component.tailwindPlan),
+    native.map((component) => ordering(component.tailwindPlan)),
   )
   assert.deepEqual(
     native.map((component) => component.tailwindPlan),
@@ -134,7 +142,7 @@ test('StyleX boundaries and opaque guard evaluation stay outside Tailwind rule i
   assert.deepEqual(emitted(web), webBefore)
   assert.deepEqual(emittedModule(native), nativeBefore)
   const plan = web[0]!.tailwindPlan!
-  assert.deepEqual(plan, native.components[0]!.tailwindPlan)
+  assert.deepEqual(plan, ordering(native.components[0]!.tailwindPlan))
   const stylex = plan.sites
     .flatMap((site) => site.blocks)
     .filter((block) => block.source === 'stylex')

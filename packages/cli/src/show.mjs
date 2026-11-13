@@ -26,8 +26,8 @@ A class list is compiled (some classes perhaps under a condition); compiled
 into a callback its pattern owner (Chip, Menu, ...) applies with its own
 state, on Native; handed to a component the compiler does not lower, which
 resolves it; or resolved at runtime when the compiler cannot read it (on
-Native, by its pattern owner with its state, when it has one). A class in it
-is compiled, not-generated (Tailwind has no rule for it in this theme), refused
+Native, with state, by its pattern owner or by a Pressable, Link or
+TextInput itself). A class in it is compiled, not-generated (Tailwind has no rule for it in this theme), refused
 or not-wired on Native (with the reason), or passed-through: not a Tailwind
 class, kept on the Web for the project's own CSS.
 
