@@ -14,6 +14,9 @@ pub struct TailwindCompilePlan {
     /// Native only: the class lists a pattern owner applies with its own
     /// state, in a callback, rather than the element holding them.
     pub owner_callbacks: Option<Vec<CompiledOwnerCallback>>,
+    /// Native only: the unread class lists the element itself resolves on
+    /// device with its own state (a Pressable's `pressed`, `hovered`, …).
+    pub runtime_states: Option<Vec<CompiledOwnerCallback>>,
 }
 
 #[napi(object)]
@@ -159,6 +162,7 @@ pub fn compile_plan(
         }
         .into(),
         owner_callbacks: None,
+        runtime_states: None,
         sites: plan
             .sites
             .into_iter()

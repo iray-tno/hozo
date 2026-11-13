@@ -78,7 +78,11 @@ test('actual Web/Native root and secondary write plans consume identical fingerp
   )
   assert.deepEqual(
     web.map(({ tailwindPlan }) => tailwindPlan),
-    native.components.map(({ tailwindPlan }) => tailwindPlan),
+    // Without Native's inspection evidence, which is not part of the order.
+    native.components.map(({ tailwindPlan }) => {
+      const { ownerCallbacks: _owners, runtimeStates: _states, ...ordering } = tailwindPlan!
+      return ordering
+    }),
   )
   const sites = web.flatMap(({ tailwindPlan }) => {
     assert.equal(tailwindPlan!.fingerprint, prepared.snapshot.fingerprint)

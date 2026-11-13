@@ -35,6 +35,12 @@ export interface TailwindCompilePlan {
    * The span is the element's, or the slot attribute's for a static slot list.
    */
   ownerCallbacks?: { spanStart: number; spanEnd: number; classProp: string }[]
+  /**
+   * Native only, absent when empty: the class lists the compiler could not
+   * read that the element itself resolves on device with its own state (a
+   * Pressable, Link or TextInput). The span is the element's.
+   */
+  runtimeStates?: { spanStart: number; spanEnd: number; classProp: string }[]
   sites: {
     spanStart: number
     spanEnd: number

@@ -35,6 +35,7 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
   let sites
   let refusal
   let owned = []
+  let stateful = []
   let components
   try {
     const [{ loadProjectTailwindSnapshot }, compiler] = await Promise.all([
@@ -51,10 +52,14 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
     refusal = compiler.tailwindClassesNativeRefusal
     // Which lists a pattern owner resolves with its own state, as the
     // Native backend emitted them; and which are handed to a component.
-    if (platforms.includes('native'))
-      owned = planned
+    // And which unread lists the element itself resolves with its state.
+    if (platforms.includes('native')) {
+      const native = planned
         .compileNative(source, undefined, { tailwindPlan: true })
-        .flatMap((component) => component.tailwindPlan?.ownerCallbacks ?? [])
+        .map((component) => component.tailwindPlan)
+      owned = native.flatMap((plan) => plan?.ownerCallbacks ?? [])
+      stateful = native.flatMap((plan) => plan?.runtimeStates ?? [])
+    }
     components = planned.componentClassLists(source)
   } catch (error) {
     return {
@@ -136,7 +141,6 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
     const { site } = input
     lists.push({
       offset,
-      element: site.spanStart,
       ...position(source, offset),
       prop: site.classProp,
       route: owned.some(
@@ -156,28 +160,37 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
     diagnostics.filter(({ code }) => code === RUNTIME).map(({ spanStart }) => spanStart),
   )
   for (const offset of runtime) {
-    // A pattern owner given a list it cannot read still resolves it with
-    // its own state on Native (`hozoClasses(className, state)` in the
-    // Chip), so a runtime `hover:` works there and warns on a View. The
-    // Native backend records each list it hands such an owner; the ones not
-    // already reported as compiled are this element's runtime lists, under
-    // the prop they were written as (`itemClassName`, not `className`).
-    const compiled = new Set(
-      lists.filter((list) => list.element === offset).map((list) => list.prop),
-    )
-    const handed = owned.filter(
-      (callback) => callback.spanStart === offset && !compiled.has(callback.classProp),
-    )
-    const owner = /^<([A-Za-z_$][\w.$]*)/.exec(source.slice(offset))?.[1]
-    for (const prop of handed.length ? handed.map((callback) => callback.classProp) : ['className'])
-      lists.push({
-        offset,
-        ...position(source, offset),
-        prop,
-        route: 'runtime',
-        ...(handed.length && owner ? { owner } : {}),
-        classes: [],
-      })
+    // A root list is reported at its element, a secondary one at its own
+    // attribute, which names it.
+    const prop = /^([A-Za-z_$][\w$]*)\s*=/.exec(source.slice(offset))?.[1] ?? 'className'
+    // Unread, but still resolved on device with state, on Native: by a
+    // pattern owner (`hozoClasses(className, state)` in the Chip), or by a
+    // Pressable, Link or TextInput itself. A runtime `hover:` works there
+    // and warns on a View. The backend records both; a root list's record
+    // is at its element, a secondary list's at the element that holds it.
+    const holder =
+      prop === 'className'
+        ? [...owned, ...stateful].find(
+            (record) => record.classProp === prop && record.spanStart === offset,
+          )
+        : owned
+            .filter(
+              (record) =>
+                record.classProp === prop && record.spanStart < offset && offset < record.spanEnd,
+            )
+            .reduce(
+              (inner, next) => (inner && inner.spanStart > next.spanStart ? inner : next),
+              undefined,
+            )
+    const owner = holder && /^<([A-Za-z_$][\w.$]*)/.exec(source.slice(holder.spanStart))?.[1]
+    lists.push({
+      offset,
+      ...position(source, offset),
+      prop,
+      route: 'runtime',
+      ...(owner ? { owner } : {}),
+      classes: [],
+    })
   }
   // Handed to a component the compiler does not lower: the component
   // resolves it, in its own file's compile or on device.
@@ -191,10 +204,7 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
       classes: [],
     })
   lists.sort((a, b) => a.offset - b.offset)
-  for (const list of lists) {
-    delete list.offset
-    delete list.element
-  }
+  for (const list of lists) delete list.offset
   return { status: 'assessed', lists }
 }
 
@@ -205,8 +215,7 @@ const ROUTES = {
   component: 'handed to <%>, which resolves it',
   runtime: 'resolved at runtime: the compiler cannot read it',
 }
-const OWNED_RUNTIME =
-  "resolved at runtime by <%>, with the owner's state: the compiler cannot read it"
+const OWNED_RUNTIME = 'resolved at runtime by <%>, with its state: the compiler cannot read it'
 
 /** The text report's section: each list, and each class not compiled everywhere. */
 export function classListLines(evidence) {

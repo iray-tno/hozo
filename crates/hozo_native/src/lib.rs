@@ -148,6 +148,12 @@ pub struct LowerOutput {
     /// (`class_route`), rather than as a style the element holds itself.
     /// Inspection evidence (`hozo show`); nothing in the output reads it.
     pub owner_callbacks: Vec<OwnerCallback>,
+    /// The class lists the compiler could not read that the element still
+    /// resolves on device with its own state (`hozoClasses(cls, { pressed,
+    /// … })` on a Pressable, Link or TextInput), so a runtime `hover:` works
+    /// there and warns on a View. Inspection evidence, like
+    /// `owner_callbacks`.
+    pub runtime_states: Vec<OwnerCallback>,
 }
 
 /// A class list whose styles its pattern owner resolves with its own state:
@@ -245,6 +251,8 @@ pub(crate) struct NativeRenderContext<'a> {
     pub source_evidence: bool,
     /// See `LowerOutput::owner_callbacks`.
     pub owner_callbacks: &'a mut Vec<OwnerCallback>,
+    /// See `LowerOutput::runtime_states`.
+    pub runtime_states: &'a mut Vec<OwnerCallback>,
 }
 
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
@@ -459,6 +467,7 @@ fn lower_forwarded_capturing(
     let mut diagnostics = Vec::new();
     let mut runtime = RuntimeNeeds::default();
     let mut owner_callbacks = Vec::new();
+    let mut runtime_states = Vec::new();
 
     // The root's position is genuinely unknowable here: it's whatever the
     // component's caller renders it into.
@@ -475,6 +484,7 @@ fn lower_forwarded_capturing(
         owner_inputs,
         source_evidence,
         owner_callbacks: &mut owner_callbacks,
+        runtime_states: &mut runtime_states,
     };
     let ancestor = AncestorContext {
         inherited: &inherited,
@@ -553,6 +563,7 @@ fn lower_forwarded_capturing(
         native_imports,
         diagnostics,
         owner_callbacks,
+        runtime_states,
     }
 }
 
