@@ -1,6 +1,6 @@
 # RFC 011: One `hozo` command
 
-- **Status**: Draft
+- **Status**: Implemented (steps 1–4); step 5 waits on a release (§6)
 - **Authors**: iray-tno
 - **Tracking issue**: Not assigned
 - **Target packages**: new `@hozo/cli`; `@hozo/migration-audit`, `@hozo/compiler`, `@hozo/navigation`
@@ -80,8 +80,12 @@ the assembled piece has not gone out of true. The other names stay plain.
 - **Old binaries** keep working for one minor release and print one
   deprecation line to stderr naming the new command. Their stdout and JSON
   stay byte-identical.
-- Renaming the `@hozo/migration-audit` *package* is out of scope; the command
-  name is what users type.
+- The `@hozo/migration-audit` *package* keeps its name. The command name is
+  what users type, and the package stays as the engine `dry-fit` and
+  `square` run. Its `hozo-migration-audit` binary is deprecated and removed
+  like `hozo-manifest` and `hozo-links`: all three old binaries are treated
+  alike. The package itself is not deprecated on npm, because `@hozo/cli`
+  depends on it and every install of `@hozo/cli` would print the warning.
 
 ## 5. Command notes
 
@@ -135,6 +139,19 @@ Each step is releasable on its own and changes no existing output.
 
 Steps 2–4 can proceed in parallel once step 1 lands.
 
+**Progress** (2026-11-14): steps 1–4 are on `main`, after `v0.4.0`.
+
+| Step | Pull requests |
+| --- | --- |
+| 1 | #1908 (`hozo`, `dry-fit`), #1919 (`manifest`, `links`), #1925 (docs) |
+| 2 | #1928 (versions and peers), #1929 (adapter, CSS entry, Metro state, scan), #1930 (code half, `--compare`), #1943 (compiler mismatch) |
+| 3 | #1927 |
+| 4 | #1932, #1933 (shared JSX layout with the REPL), #1939 (class lists), #1946, #1949, #1953 (routes and owners) |
+
+Step 5 is measured from the release that ships step 1. That release is the
+first after `v0.4.0`, so the old binaries are removed in the minor release
+after it.
+
 ## 7. Reserved for later RFCs
 
 These names are reserved in `@hozo/cli` now, so no other command takes them.
@@ -158,14 +175,18 @@ needs its own RFC.
   `--format json` and the exit codes already let an agent run every command
   from a shell; it is reconsidered if a client needs MCP specifically.
 
-## 8. Open questions
+## 8. Resolved questions
 
-- Whether `--fix` belongs to `dry-fit` long-term, or moves to `init` once
-  `init` consumes the `dry-fit` report.
-- Whether `square`'s JSON embeds the audit's schema 3 as its `code` section
-  or defines its own.
-- Whether to rename the `@hozo/migration-audit` package after the command
-  rename has settled.
+- **`--fix` stays in `dry-fit`.** It is the command a project runs before
+  adoption, and the import moves are part of adopting. When `init` exists it
+  calls the same engine rather than taking the flag over, so nobody's
+  invocation changes.
+- **`square`'s JSON embeds the audit's schema 3** as `code.report`, as
+  implemented in #1930. A second schema for the same findings would have to
+  be kept in step with the first. `--compare` reads either a `square` report
+  or a `dry-fit` report as its baseline.
+- **`@hozo/migration-audit` is not renamed** (§4). A rename would cost a
+  release of re-exports for a name users do not type.
 
 ## History
 
@@ -174,3 +195,6 @@ needs its own RFC.
   `add` reserved for `@hozo/ui` as source; a change a command could not make
   exits `2`, and finer reasons are string codes in the JSON; the
   candidate-scan check stated as a file-to-root comparison.
+- Implemented, steps 1–4 (2026-11-14): progress recorded in §6; the open
+  questions resolved in §8; the three old binaries deprecated alike, the
+  `@hozo/migration-audit` package kept under its name.
