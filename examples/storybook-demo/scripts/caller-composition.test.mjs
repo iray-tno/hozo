@@ -1802,6 +1802,110 @@ test('static fallback keeps gap and logical edge writes in authored owner order'
   }
 })
 
+test('an unranked gap list distinguishes owner order from Yoga axis precedence', {
+  skip: !executablePath,
+}, async () => {
+  const css = `@import "tailwindcss/theme.css" layer(theme); @tailwind utilities;
+    @theme { --color-brand: #123456; }
+    @utility bg-brand { background-color: #abcdef; }`
+  const theme = await loadTheme(css, tailwindPackageDir())
+  const local = createCompiler(theme)
+  const cases = [
+    ['hover:gap-2 active:gap-4 hover:gap-6', [24, 24], [24, 24]],
+    ['hover:gap-x-6 active:gap-4', [16, 16], [16, 24]],
+    ['active:gap-4 hover:gap-x-6', [16, 24], [16, 24]],
+  ]
+  const names = [...new Set(cases.flatMap(([classes]) => classes.split(' '))), 'bg-brand']
+  const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const cache = openCandidateCache()
+  cache.scanFile('gap-fallback.ts', JSON.stringify(names.join(' ')), 1)
+  const candidates = cache.renderNativeModulePlan(final, theme)
+  assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
+  const makeSpecificityOnlyResolver = (plan) => {
+    assert.equal(plan.schema, 1)
+    return createClassResolver({
+      ...plan,
+      states: Object.fromEntries(
+        Object.entries(plan.states).map(([name, groups]) => [
+          name,
+          groups.map(([keys, style, rank]) =>
+            rank === undefined ? [keys, style] : [keys, style, rank >>> 8],
+          ),
+        ]),
+      ),
+    })
+  }
+  const masked = evaluate(
+    `${candidates.code.replace(/^import[^\n]*\n/gm, '').replaceAll('export const ', 'const ')}
+      module.exports = hozoClasses`,
+    { createClassResolver: makeSpecificityOnlyResolver },
+  )
+  const state = { hovered: true, pressed: true, focused: false }
+  const flatten = (style) => Object.assign({}, ...style.flat(Infinity).filter(Boolean))
+  const page = await browser.newPage()
+  try {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const [classes, webGap, nativeGap] of cases) {
+      const input = `${classes} bg-brand`
+      const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${input}"/>`
+      const native = local.prepareNativeModule(source).emit(final).components[0]
+      const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
+        h: (_type, props) => props,
+        HozoPressable: 'host',
+        hozoStyles: runInNewContext(`(${native.styles})`),
+      })
+      const web = local.prepareWebModule(source).emit(final)[0]
+      const webProps = evaluate(`module.exports=(${web.jsx})`, { h: (_type, props) => props })
+      for (const layout of gapLayouts) {
+        assert.deepEqual(yogaGapGeometry(flatten(nativeProps.style(state)), layout), nativeGap)
+        assert.deepEqual(yogaGapGeometry(flatten(masked(input, state)), layout), nativeGap)
+        const markup = renderToStaticMarkup(
+          createElement(
+            'button',
+            {
+              className: webProps.className,
+              style: {
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignContent: 'flex-start',
+                alignItems: 'flex-start',
+                boxSizing: 'content-box',
+                border: 0,
+                padding: 0,
+                width: 140,
+                height: 140,
+                ...layout,
+              },
+            },
+            ...[0, 1, 2].map((key) =>
+              createElement('span', { key, style: { flex: 'none', width: 50, height: 50 } }),
+            ),
+          ),
+        )
+        await page.setContent(`<style>${web.css}</style>${markup}`)
+        const { root } = await cdp.send('DOM.getDocument')
+        const { nodeId } = await cdp.send('DOM.querySelector', {
+          nodeId: root.nodeId,
+          selector: 'button',
+        })
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover', 'active'] })
+        const positions = await page.locator('button').evaluate((owner) =>
+          [...owner.children].map((child) => {
+            const box = child.getBoundingClientRect()
+            return [box.left, box.top]
+          }),
+        )
+        assert.deepEqual(gapGeometry(positions, layout.flexDirection), webGap, input)
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('static fallback composes translate axes across repeated owner guards', {
   skip: !executablePath,
 }, async () => {

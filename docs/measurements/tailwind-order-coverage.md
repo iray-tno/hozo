@@ -197,6 +197,18 @@ than asserting that the flattened keys agree. StyleX and authored
 `style` must also be compared at their real composition boundary: a
 generated class resolver by itself cannot see either of those inputs.
 
+The fallback gap geometry probe compares actual compiled Web CSS in
+Chromium, the static Native callback in Yoga 3.2.1 WASM, and the
+specificity-only diagnostic resolver in the same Yoga fixture. For each
+of three lists it exercises four flex directions and LTR/RTL (24
+observations per route). The two Native paths agree on 24/24. In the
+`hover:gap-x-6 active:gap-4` order, however, the browser shows
+`[16, 16]` and both Native paths show `[16, 24]` (row, column pixels).
+Reversing the class order and repeating a single gap key agree. This
+is an existing cross-key fallback mismatch, not one caused by masking
+the variant rank. Fix it in layout projection rather than keeping a
+second variant policy. This is not a device-layout measurement.
+
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace
 the runtime tie with stable selector weight once both routes agree. Report
