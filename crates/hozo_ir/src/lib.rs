@@ -5635,7 +5635,7 @@ impl Condition {
 pub fn group_by_condition(
     declarations: &[StyleDeclaration],
 ) -> Vec<(Condition, Vec<StyleProperty>)> {
-    plan_native_condition_groups(declarations, false).groups
+    plan_native_condition_groups(declarations, OwnerSlotComposition::default()).groups
 }
 
 /// CSS handles selector specificity itself. Preserve source order between
@@ -5643,7 +5643,13 @@ pub fn group_by_condition(
 pub fn group_by_condition_for_css(
     declarations: &[StyleDeclaration],
 ) -> Vec<(Condition, Vec<StyleProperty>)> {
-    let (groups, needs_composition) = condition_groups(declarations, true);
+    let (groups, needs_composition) = condition_groups(
+        declarations,
+        OwnerSlotComposition {
+            filters: true,
+            shadows: true,
+        },
+    );
     if needs_composition {
         coalesce_adjacent_conditions(groups)
     } else {
@@ -5661,13 +5667,19 @@ pub struct NativeConditionGroupPlan {
     pub canonical_input: bool,
 }
 
-/// Only callers that compose the selected filter style objects can preserve
-/// separate filter runs. Other slots and animation frames use whole strings.
+/// Effect families that the caller composes after selecting guarded objects.
+/// Other slots and animation frames still use whole strings.
+#[derive(Default, Clone, Copy)]
+pub struct OwnerSlotComposition {
+    pub filters: bool,
+    pub shadows: bool,
+}
+
 pub fn plan_native_condition_groups(
     declarations: &[StyleDeclaration],
-    compose_filter_slots: bool,
+    composition: OwnerSlotComposition,
 ) -> NativeConditionGroupPlan {
-    let (mut groups, needs_composition) = condition_groups(declarations, compose_filter_slots);
+    let (mut groups, needs_composition) = condition_groups(declarations, composition);
     let canonical_input = has_canonical_tailwind_input(declarations);
     if needs_composition {
         // An input whose shared order was assessed is already linearized.
@@ -5686,7 +5698,7 @@ pub fn plan_native_condition_groups(
 
 fn condition_groups(
     declarations: &[StyleDeclaration],
-    compose_filter_slots: bool,
+    composition: OwnerSlotComposition,
 ) -> (Vec<ConditionGroup>, bool) {
     let mut groups: Vec<ConditionGroup> = Vec::new();
     let mut source = None;
@@ -5713,13 +5725,18 @@ fn condition_groups(
                 && independent_owner_guard_runs(&declarations[index..], &mut |property| {
                     match property {
                         StyleProperty::Filter(..) => {
-                            compose_filter_slots
+                            composition.filters
                                 && *compatible_filter_runs
                                     .get_or_insert_with(|| filter_runs_can_split(declarations))
                         }
                         property if is_shadow_slot(property) => {
-                            *compatible_shadow_runs.get_or_insert_with(|| shadow_runs(declarations))
-                                != ShadowRuns::Blocked
+                            match compatible_shadow_runs
+                                .get_or_insert_with(|| shadow_runs(declarations))
+                            {
+                                ShadowRuns::Independent | ShadowRuns::OneGuard => true,
+                                ShadowRuns::SeveralGuards => composition.shadows,
+                                ShadowRuns::Blocked => false,
+                            }
                         }
                         _ => false,
                     }
@@ -5810,6 +5827,7 @@ fn is_shadow_slot(property: &StyleProperty) -> bool {
 enum ShadowRuns {
     Independent,
     OneGuard,
+    SeveralGuards,
     Blocked,
 }
 
@@ -5819,6 +5837,7 @@ fn shadow_runs(declarations: &[StyleDeclaration]) -> ShadowRuns {
     let mut left_first_input = false;
     let mut split_shadow_writers = false;
     let mut different_shadow_guard = false;
+    let mut different_shadow_input = false;
     let mut has_modifier = false;
     for d in declarations {
         if matches!(&d.property, StyleProperty::Arbitrary(name, _)
@@ -5841,13 +5860,16 @@ fn shadow_runs(declarations: &[StyleDeclaration]) -> ShadowRuns {
         {
             let (_, first_condition) = *first.get_or_insert((input, &d.condition));
             split_shadow_writers |= left_first_run;
-            different_shadow_guard |= left_first_input || first_condition != &d.condition;
+            different_shadow_guard |= first_condition != &d.condition;
+            different_shadow_input |= left_first_input;
         }
-        if different_shadow_guard && has_modifier {
+        if different_shadow_input && has_modifier {
             return ShadowRuns::Blocked;
         }
     }
-    if split_shadow_writers && has_modifier {
+    if different_shadow_guard && has_modifier {
+        ShadowRuns::SeveralGuards
+    } else if split_shadow_writers && has_modifier {
         // No other guard or input competes for boxShadow, so only this
         // family can go back to its first run and keep the whole value.
         ShadowRuns::OneGuard
@@ -6227,7 +6249,10 @@ mod grouping_tests {
         ];
         assert!(matches!(shadow_runs(&declarations), ShadowRuns::OneGuard));
         declarations[2].condition = Condition::Pressed;
-        assert!(matches!(shadow_runs(&declarations), ShadowRuns::Blocked));
+        assert!(matches!(
+            shadow_runs(&declarations),
+            ShadowRuns::SeveralGuards
+        ));
         declarations[2].condition = Condition::Hover;
         declarations[1].source = StyleSource::Stylex(1);
         assert!(matches!(shadow_runs(&declarations), ShadowRuns::Blocked));
@@ -6279,7 +6304,7 @@ mod grouping_tests {
             style(Condition::Pressed, 2, 0.2),
             style(all.clone(), 3, 0.3),
         ];
-        let known = plan_native_condition_groups(&declarations, false);
+        let known = plan_native_condition_groups(&declarations, OwnerSlotComposition::default());
         assert!(!known.canonical_input);
         assert_eq!(
             known.groups,
@@ -6292,7 +6317,7 @@ mod grouping_tests {
             ],
         );
         declarations.push(style(Condition::Dark, 4, 0.4));
-        let unknown = plan_native_condition_groups(&declarations, false);
+        let unknown = plan_native_condition_groups(&declarations, OwnerSlotComposition::default());
         assert_eq!(unknown.groups, group_by_condition_for_css(&declarations));
         assert_eq!(unknown.groups.len(), 4);
         assert_eq!(unknown.groups[0].0, all);

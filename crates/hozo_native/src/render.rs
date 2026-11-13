@@ -1029,7 +1029,10 @@ pub(super) fn render_node(
             && renders_text(component)
             && pattern_style_prop.is_none(),
         pattern_slot: Some("className"),
-        compose_filter_slots: project_filter_slots,
+        composition: hozo_ir::OwnerSlotComposition {
+            filters: project_filter_slots,
+            shadows: compose_shadows,
+        },
     };
     let state_start = build_style_entries(
         // RN View cannot inherit these fields. Experimental ReferenceView
@@ -1073,7 +1076,7 @@ pub(super) fn render_node(
             position,
             interaction_context: true,
             pattern_slot: None,
-            compose_filter_slots: false,
+            composition: Default::default(),
         };
         build_style_entries(
             &text_declarations,
@@ -2339,7 +2342,7 @@ pub(super) fn render_node(
                 position,
                 interaction_context: false,
                 pattern_slot: Some(slot.class_prop),
-                compose_filter_slots: false,
+                composition: Default::default(),
             };
             let state_start = build_style_entries(
                 field_style.as_deref().unwrap_or(slot_style),

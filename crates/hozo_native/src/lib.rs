@@ -895,7 +895,7 @@ fn spaced_children(
         position,
         interaction_context: false,
         pattern_slot: None,
-        compose_filter_slots: false,
+        composition: Default::default(),
     };
     build_style_entries(
         child_declarations,

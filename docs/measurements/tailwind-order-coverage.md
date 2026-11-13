@@ -162,10 +162,12 @@ when an active filter rule separates them. Plain outer shadows replace
 one another. When all guarded shadow slots belong to one guard in one
 input region, only those slots rejoin that guard's first rule. The
 independent filter rules remain in order and Native retains its shadow
-literal. With `active:ring-2` instead of `hover:ring-2`, different
-guards write the shadow slots: static and the current resolver still
-produce `sepia(50%)`, while the masked resolver produces `sepia(100%)`.
-That case needs to keep the shadow slots separate for state selection.
+literal. With `active:ring-2` instead of `hover:ring-2`, Web and Native
+now keep the slots separate where composition is available. Native uses
+the shadow composer it already selected for this combination. Static
+and the masked resolver both produce `sepia(100%)` for this probe; the
+current resolver still produces `sepia(50%)`. Raw shadow and shadow
+modifiers across authored inputs still block this expansion.
 
 For the next stage-6 checkpoint, verify the static authored guard runs
 through the affected register and text-metric projections, then replace

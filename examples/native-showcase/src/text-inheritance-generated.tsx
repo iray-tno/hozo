@@ -87,13 +87,13 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/text_regions.rs':
         '0615cf249f3e52fc860131783e6ff1d5bba67f7a9a04a1a37ba5da533ca5ad0d',
       'crates/hozo_native/src/lib.rs':
-        'da02e46d1e29daad032c3b205fa502182ce42dc52e27b29e2e943121e72b9d83',
+        '4812e239b3dbfb42658122b668f89115df161ca7b6f1b4c418f7af93fce85c9f',
       'crates/hozo_native/src/owner_style.rs':
         '719c4df739e1cc930c0c18212be178c7e0b3523c418fdfa31e6d9f5c22ff27fc',
       'crates/hozo_native/src/runtime_classes.rs':
         '09159eafcbbf2ca076bd7a279bc5df851222279e3baf12ff5edf648ae23dce9c',
       'crates/hozo_native/src/conditions.rs':
-        'aa48da60689cb59e2fbfd29c993245fcc1989dc2a2e38304871953fababe841f',
+        '7912ec1d062017cb2294511ae4f25f28dc77af402b19338a4a66c660a1148c55',
       'crates/hozo_native/src/conditions/guards.rs':
         'dd34ae4567c841bb4c830caba937836ecb29ef5db81440fd7dafed96b8198f13',
       'crates/hozo_native/src/text_region.rs':
@@ -101,15 +101,15 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/style.rs':
         '58a052a6ef3fe1ee5088880432295a6a52106820f6a529fd06477039c91f0657',
       'crates/hozo_native/src/render.rs':
-        '57ad7e8f3f5988dde825e595b2455c307b8b36309789563a10bd98213fe8f141',
+        'f9e9142d2be36959a41df521d87cb298f4388d6e79d3ac883cc07415a0e752a1',
       'crates/hozo_native/src/source_evidence.rs':
         '4721b3782f599cb1067ad166d8436a7d88cb1d352438c83041d05a8f6900ee3e',
       'crates/hozo_native/src/spread_style.rs':
         'e0740869d9c47eed7055dc55cbb5597fe05a04048a56eb4d45e7c9a756272c93',
       'crates/hozo_native/src/text.rs':
-        '05bcd48d0c37ddd9eb1ffd539a18ab7a9767f58ceffe0d8448104fd6f5fa266f',
+        'baeff1cea258794584da930db71a441c02a8bb1908e72d2b65edb0e0ef84465d',
       'crates/hozo_ir/src/lib.rs':
-        'd20f88321642ce42d30ff3b3e05823c9cdea40fe99ea80994dc965fed3fb3b7d',
+        '6399a4f5961c3c7a05bd8240e30cb560bc744a829a73dfb6d89a9a93fa5bde64',
       'crates/hozo_ir/src/tailwind_builtin.rs':
         '5abc57ebb3456f36bda3b55fed6ad13dd183860fa35375b6277b46a49b345f70',
       'crates/hozo_ir/src/tailwind_builtin_data.rs':

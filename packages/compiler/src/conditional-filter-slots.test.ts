@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
+import { hozoShadowStyles } from '../../engine/src/shadow-slots.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
 import { compileNative } from './index.ts'
 import { generatedRuntimeImports } from './lower.ts'
@@ -35,6 +36,7 @@ export function C() { return <${component} className="${classes}" ${caller} /> }
   const evaluate = new Function(
     'hozoStyles',
     'hozoFilterStyles',
+    'hozoShadowStyles',
     'hozoTransformStyles',
     '__hozoBp_md',
     '__hozoDark',
@@ -43,7 +45,7 @@ export function C() { return <${component} className="${classes}" ${caller} /> }
   return {
     result,
     style(md = false, hovered = false, dark = false, composer = hozoFilterStyles, pressed = false) {
-      const value = evaluate(styles, composer, hozoTransformStyles, md, dark)
+      const value = evaluate(styles, composer, hozoShadowStyles, hozoTransformStyles, md, dark)
       return flatten(
         typeof value === 'function' ? value({ hovered, pressed, focused: false }) : value,
       )
@@ -189,6 +191,25 @@ test('transform composition and caller style keep their own precedence', () => {
   const caller = compiled('blur-sm md:sepia', "style={{ filter: 'contrast(20%)', opacity: 0.5 }}")
   assert.equal(caller.style(true).filter, 'contrast(20%)')
   assert.equal(caller.style(true).opacity, 0.5)
+})
+
+test('different shadow guards keep their slots and do not reorder the filter', () => {
+  const probe = compiled(
+    'hover:shadow-sm hover:blur-lg active:blur-xl active:sepia-50 hover:sepia active:ring-2 columns-(--layout)',
+    '',
+    'Pressable',
+    ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+  )
+  assert.ok(probe.result.runtimeImports.includes('hozoShadowStyles'))
+  const both = probe.style(false, true, false, undefined, true)
+  assert.equal(both.filter, 'blur(24px) sepia(100%)')
+  assert.match(String(both.boxShadow), /^0 0 0 2px currentcolor, 0 1px 3px 0 /)
+  assert.match(String(probe.style(false, true).boxShadow), /^0 1px 3px 0 /)
+  assert.equal(
+    probe.style(false, false, false, undefined, true).boxShadow,
+    '0 0 0 2px currentcolor',
+  )
+  assert.equal(probe.style().boxShadow, undefined)
 })
 
 test('same-function and unconditional filters retain their direct ahead-of-time path', () => {
