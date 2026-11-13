@@ -2530,18 +2530,33 @@ pub(super) fn render_node(
                 });
             }
             if prop.is_spread {
-                let raw = source_text(source, prop.span);
+                let raw = &source[prop.span.0.start as usize..prop.span.0.end as usize];
                 if let Some(expression) = raw
                     .trim()
                     .strip_prefix('{')
                     .and_then(|text| text.strip_suffix('}'))
                     .and_then(|text| text.trim().strip_prefix("..."))
                 {
+                    // Read off the source, so that the primitives written
+                    // inside it lower and a captured argument reads its slot.
+                    let expression = expression.trim();
+                    let start = expression.as_ptr() as usize - source.as_ptr() as usize;
+                    let argument = ExprRef(hozo_ir::SourceSpan {
+                        start: start as u32,
+                        end: (start + expression.len()) as u32,
+                    });
+                    let argument = render_verbatim(
+                        argument,
+                        &prop.nested,
+                        &descend,
+                        child_interaction_context,
+                        cx,
+                    );
                     cx.runtime.need_component("hozoButtonProps");
                     rendered.push((
                         prop,
                         Rendered {
-                            text: format!("{{...hozoButtonProps({expression})}}"),
+                            text: format!("{{...hozoButtonProps({})}}", argument.text),
                             copies: None,
                         },
                     ));

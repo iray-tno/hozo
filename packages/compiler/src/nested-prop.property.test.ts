@@ -58,3 +58,30 @@ export function Fixture({ rows, flag, items }) {
     assert.ok(native.styles.length > 0, context)
   }
 })
+
+// A spread is carried like any other opaque expression, so the primitives
+// written inside it lower too. Each host path that wraps the argument
+// (Web's DOM-prop translators, a later prop taken out of it, Native's
+// Button props) has to lower it, not copy it.
+test('primitives inside a spread are lowered on every host the spread can reach', () => {
+  const hosts = ['View', 'Text', 'Pressable', 'Button', 'TextInput', 'Image', 'ScrollView', 'Link']
+  for (const host of hosts)
+    for (const after of ['', ' testID={id()}', ' className="p-4"']) {
+      const source = `import { ${host}, Text } from '@hozo/core'
+export const A = () => <${host} {...withFooter(<Text className="p-2">marker</Text>)}${after} />
+`
+      for (const [backend, output] of [
+        ['web', compile(source)[0]],
+        ['native', compileNative(source)[0]],
+      ] as const) {
+        const context = `${backend} <${host}${after}>: ${output?.jsx}`
+        assert.ok(output, context)
+        assert.match(
+          output.jsx,
+          /withFooter\(<\w+ (?:className="hozo-\d+"|style=\{hozoStyles\.hozo\d+\})>marker</,
+          context,
+        )
+        assert.doesNotMatch(output.jsx, /className="p-2"/, context)
+      }
+    }
+})

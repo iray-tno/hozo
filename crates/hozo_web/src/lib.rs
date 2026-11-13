@@ -2518,7 +2518,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                 ),
                 None => (open, close),
             };
-            source_evidence::expression(&mut attrs, &mut attr_copies, source, value, &open, &close);
+            spread_argument(prop, value, &open, &close, &mut attrs, &mut attr_copies, cx);
             continue;
         }
         // `external` is not an attribute the DOM has; it was lowered into
@@ -2546,7 +2546,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
         // The same as a translated spread above, for one kept as written
         // (a component such as `HozoView`): its modeled props were emitted
         // first, so the keys the author wrote after it come out of it.
-        if prop.is_spread && prop.nested.is_empty() {
+        if prop.is_spread {
             if let Some(destructure) = omit_later_names(prop, &node.props.passthrough) {
                 let text = source_text(source, prop.span);
                 let text: &str = &text;
@@ -2555,13 +2555,14 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                     .and_then(|rest| rest.strip_suffix('}'))
                     .unwrap_or(text)
                     .trim();
-                source_evidence::expression(
-                    &mut attrs,
-                    &mut attr_copies,
-                    source,
+                spread_argument(
+                    prop,
                     value,
                     &format!(" {{...(({destructure}) => _hozoRest)(("),
                     ") ?? {})}",
+                    &mut attrs,
+                    &mut attr_copies,
+                    cx,
                 );
                 continue;
             }
@@ -2664,6 +2665,41 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
 /// enough. `{show && <Text className="p-4">hi</Text>}` comes out as
 /// `{show && <span className="hozo-1">hi</span>}` -- the guard untouched,
 /// the element fully compiled.
+/// A spread's argument between `prefix` and `suffix`: `value`, its text
+/// as sliced, or, when primitives are written inside it
+/// (`{...withFooter(<Text className="p-2" />)}`), the argument with them
+/// lowered.
+fn spread_argument(
+    prop: &hozo_ir::PassthroughProp,
+    value: &str,
+    prefix: &str,
+    suffix: &str,
+    attrs: &mut String,
+    copies: &mut Option<Vec<hozo_ir::SourceCopy>>,
+    cx: &mut WebRenderContext<'_>,
+) {
+    if prop.nested.is_empty() {
+        source_evidence::expression(attrs, copies, cx.source, value, prefix, suffix);
+        return;
+    }
+    let source = cx.source;
+    let raw = &source[prop.span.0.start as usize..prop.span.0.end as usize];
+    let argument = raw
+        .strip_prefix('{')
+        .and_then(|rest| rest.strip_suffix('}'))
+        .unwrap_or(raw)
+        .trim_start();
+    let argument = argument.strip_prefix("...").unwrap_or(argument).trim();
+    let start = argument.as_ptr() as usize - source.as_ptr() as usize;
+    let argument = hozo_ir::ExprRef(hozo_ir::SourceSpan {
+        start: start as u32,
+        end: (start + argument.len()) as u32,
+    });
+    attrs.push_str(prefix);
+    source_evidence::append(attrs, copies, render_verbatim(argument, &prop.nested, cx));
+    attrs.push_str(suffix);
+}
+
 fn render_verbatim(
     expr_ref: hozo_ir::ExprRef,
     nested: &[hozo_ir::NestedNode],

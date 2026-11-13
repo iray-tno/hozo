@@ -1254,6 +1254,19 @@ fn build_node(
                         span: to_span(spread.span()),
                     });
                 }
+                // The spread is opaque; the primitives written inside it
+                // (`{...withFooter(<Text className="p-2" />)}`) are not, and
+                // lower like those in any other carried expression.
+                let mut finder = PrimitiveFinder {
+                    scope,
+                    diagnostics,
+                    consumed,
+                    nested: Vec::new(),
+                    enclosing: Vec::new(),
+                    expression_container: false,
+                };
+                finder.visit_expression(&spread.argument);
+                let nested = finder.nested;
                 props.passthrough.push(PassthroughProp {
                     span: to_expr_ref(spread.span()),
                     is_spread: true,
@@ -1265,7 +1278,7 @@ fn build_node(
                         .collect(),
                     name: None,
                     literal: None,
-                    nested: Vec::new(),
+                    nested,
                     spread_excludes: match &spread.argument {
                         oxc_ast::ast::Expression::Identifier(id) => scope
                             .rest_exclusions
