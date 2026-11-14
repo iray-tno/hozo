@@ -1989,6 +1989,150 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
   }
 })
 
+test('opaque typography needs captured rule order even when a caller string includes a barrier', {
+  skip: !executablePath,
+}, async () => {
+  const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
+    @tailwind utilities; @theme { --color-brand: #123456; }
+    @utility bg-brand { background-color: #abcdef; }`
+  const theme = await loadTheme(css, tailwindPackageDir())
+  const names = [
+    'bg-brand',
+    'active:text-2xl',
+    'hover:text-xl',
+    'hover:text-lg',
+    'active:p-2',
+    'hover:p-4',
+    'hover:focus:text-3xl',
+  ]
+  const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const local = createCompiler(theme)
+  const cache = openCandidateCache()
+  cache.scanFile('opaque-metrics.tsx', JSON.stringify(names.join(' ')), 1)
+  const candidates = cache.renderNativeModulePlan(context, theme)
+  assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
+  const candidateCode = candidates.code.replace(/^import .*$/gm, '')
+  const production = evaluate(candidateCode, { createClassResolver }).hozoClasses
+  const specificityOnly = evaluate(candidateCode, {
+    createClassResolver: (plan) =>
+      createClassResolver({
+        ...plan,
+        states: Object.fromEntries(
+          Object.entries(plan.states).map(([name, groups]) => [
+            name,
+            groups.map(([keys, style, rank]) =>
+              rank === undefined ? [keys, style] : [keys, style, rank >>> 8],
+            ),
+          ]),
+        ),
+      }),
+  }).hozoClasses
+  const source = `import { Button } from '@hozo/core'; const el=<Button className={value}/>`
+  const web = local.prepareWebModule(source).emit(context)[0]
+  const native = local.prepareNativeModule(source).emit(context).components[0]
+  assert.deepEqual(
+    native.diagnostics.map(({ code }) => code),
+    ['DYNAMIC_CLASS_NAME_NOT_RESOLVED'],
+  )
+  const renderWeb = evaluate(`module.exports=(value)=> (${web.jsx})`, { h: createElement })
+  const renderNative = (resolve) =>
+    evaluate(`const hozoStyles=${native.styles};module.exports=(value)=> (${native.jsx})`, {
+      HozoPressable: 'host',
+      Pressable: 'host',
+      h: (_type, props) => props,
+      hozoClasses: resolve,
+    })
+  const renderCurrent = renderNative(production)
+  const renderMasked = renderNative(specificityOnly)
+  const upstream = (await compile(css)).build(names)
+  const downstream = cache.renderCss(theme, classOrder(cache.candidates()))
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  let currentDisagrees = 0
+  let maskedDisagrees = 0
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const [authored, focus, expected, current, masked] of [
+      [
+        'active:text-2xl hover:text-xl active:p-2 hover:p-4',
+        false,
+        [24, 32, 8],
+        [24, 32, 8],
+        [20, 28, 16],
+      ],
+      [
+        'hover:text-xl active:text-2xl hover:p-4 active:p-2',
+        false,
+        [24, 32, 8],
+        [24, 32, 8],
+        [24, 32, 8],
+      ],
+      [
+        'active:text-2xl hover:focus:text-3xl hover:text-xl active:p-2 hover:p-4',
+        true,
+        [30, 36, 8],
+        [30, 36, 8],
+        [30, 36, 16],
+      ],
+      [
+        'hover:text-xl hover:text-lg active:p-2 hover:p-4',
+        false,
+        [20, 28, 8],
+        [18, 28, 8],
+        [18, 28, 16],
+      ],
+      [
+        'hover:text-lg hover:text-xl hover:p-4 active:p-2',
+        false,
+        [20, 28, 8],
+        [20, 28, 8],
+        [20, 28, 8],
+      ],
+    ]) {
+      const value = `${authored} bg-brand`
+      const html = renderToStaticMarkup(renderWeb(value))
+      for (const [sheet, markup] of [
+        [upstream, `<button class="${value}"></button>`],
+        [`${downstream}\n${web.css}`, html],
+      ]) {
+        await page.setContent(`<!doctype html><style>${sheet}</style>${markup}`)
+        const { root } = await cdp.send('DOM.getDocument')
+        const { nodeId } = await cdp.send('DOM.querySelector', {
+          nodeId: root.nodeId,
+          selector: 'button',
+        })
+        assert.ok(nodeId, html)
+        await cdp.send('CSS.forcePseudoState', {
+          nodeId,
+          forcedPseudoClasses: ['hover', 'active', ...(focus ? ['focus'] : [])],
+        })
+        const browserMetrics = await page.locator('button').evaluate((node) => {
+          const { fontSize, lineHeight, paddingTop } = getComputedStyle(node)
+          return [fontSize, lineHeight, paddingTop].map(parseFloat)
+        })
+        assert.deepEqual(browserMetrics, expected, value)
+      }
+      const state = { hovered: true, pressed: true, focused: focus, focusVisible: false }
+      const read = ({ style }) => {
+        const { fontSize, lineHeight, paddingTop } = Object.assign(
+          {},
+          ...style(state).flat(Infinity).filter(Boolean),
+        )
+        return [fontSize, lineHeight, paddingTop]
+      }
+      assert.deepEqual(read(renderCurrent(value)), current, `${value}/current`)
+      assert.deepEqual(read(renderMasked(value)), masked, `${value}/specificity-only`)
+      if (current.some((metric, index) => metric !== expected[index])) currentDisagrees++
+      if (masked.some((metric, index) => metric !== expected[index])) maskedDisagrees++
+    }
+    assert.deepEqual([currentDisagrees, maskedDisagrees], [1, 3])
+  } finally {
+    await page.close()
+  }
+})
+
 test('absolute metric fallback preserves mixed tiers and projects cross-input leading', {
   skip: !executablePath,
 }, async () => {

@@ -263,6 +263,28 @@ The projection restores the last explicit leading only when a later font
 default would hide it. It runs only on mixed Native text/field sites with
 compiled metrics, before authored inline style, and never inspects ranks.
 
+An entirely opaque owner string is a different route: the Web candidate
+sheet does not know the caller's token order. With the same `bg-brand`
+barrier, real Tailwind and Hozo's captured Web candidate sheet choose
+`text-2xl` for `active:text-2xl hover:text-xl` when both states hold, even
+though hover was written second. Native's variant tie currently agrees
+on that case. Removing the tie leaves 20px instead of 24px and also changes
+the padding control. Separately, when both text utilities share the
+same hover guard, `hover:text-xl hover:text-lg` yields 18px on the current
+Native resolver and 20px on both sheets. The old rank cannot express
+this same-guard utility order. Across five opaque cases the current
+resolver differs in one, and the specificity-only ablation in three;
+a positive conjunction still wins in both. The ablation is not a safe
+replacement for the opaque route, even for absolute typography.
+
+The next deletion needs shared, assessed rule ranks to remain usable
+for an independent set of writes when another candidate is unassessed.
+Keep a barrier when its writes might compete with that set, including
+aliases and register dependencies; do not give it an invented rank.
+An entirely opaque string and a static authored fallback must not be
+treated as having the same reference order merely to remove the legacy
+code. This is a requirement for the next change, not a new default.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it
