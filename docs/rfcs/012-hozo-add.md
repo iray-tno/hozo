@@ -269,6 +269,27 @@ and the packages it imports are checked against `package.json`.
 - The removed-state-class note (§8) is in `--diff` and in `--update`'s
   report of an edited copy.
 
+### 7.4 Step 4
+
+`hozo square` has a `copies` check (`packages/cli/src/square-copies.mjs`):
+
+- **`copy-upstream-newer`**, severity `info`, a new severity that never
+  fails at any `--fail-on` and leaves the check `passed`.
+- **`theme-token-undefined`**, an error, per component file: the
+  `hozo-` tokens its class strings name through a token utility (`bg-`,
+  `text-`, `border-`, `rounded-`, `outline-`, `shadow-`, …), looked up
+  in the stylesheet the `css` check found and what it imports. The files
+  are every copy, and each `@hozo/ui` file the project imports a
+  component from. A token is defined when any `--<namespace>-<token>:`
+  declaration names it, which catches a rename or a removal without
+  modelling every utility's namespace.
+- Comments are skipped on both sides: an apostrophe in a source comment
+  would otherwise hide class strings, and `theme.css` shows its own
+  `@import` in a comment.
+- Measured on `examples/storybook-demo` (233 tokens in 33 files),
+  `apps/landing` (287 in 40) and `examples/native-showcase` (64 in 8):
+  no finding.
+
 ## 8. Resolved questions
 
 - **Moving callers: behind `--imports`.** By default `add` only lists the
@@ -309,3 +330,5 @@ and the packages it imports are checked against `package.json`.
   import that takes the copy.
 - Draft (2026-11-15): step 3 implemented (§7.3); the old release is kept in
   `add`'s own cache rather than read from the package manager's.
+- Draft (2026-11-15): step 4 implemented (§7.4), with an `info` severity
+  in `square`.
