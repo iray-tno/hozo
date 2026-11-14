@@ -12,11 +12,14 @@ import {
   type ClassHelper,
   classHelperCandidates,
   type FontAvailability,
+  inspectStaticModuleImports,
   openCandidateCache,
   type StylexExternalBinding,
   summarizeClassHelperMerges,
   summarizeClassHelpers,
+  type TextForwardingModule,
 } from './index.ts'
+import { buildManifest, textForwardingModule } from './manifest.ts'
 import { withOwnerPackageCandidates } from './owner-package-candidates.ts'
 import type { OwnerPackageContributions } from './owner-package-contributions.ts'
 import { StylexModuleCache, type StylexResolutionRequest } from './stylex-project.ts'
@@ -976,6 +979,71 @@ export function projectClassHelpers(
           found.push(helper)
         }
       }
+    }
+    if (found.length > 0) out[importer] = found
+  }
+  return out
+}
+
+/**
+ * The text forwarding of the project's own components, by absolute importer:
+ * for each file, what every project module it imports hands a nested `Text`,
+ * keyed by the specifier the file wrote (RFC 012 §7.1).
+ *
+ * A dependency's forwarding arrives in its manifest (#950). A project
+ * component has none, because it is not a package: an `@hozo/ui` file copied
+ * in by `hozo add`, or any component the project wrote. Each import is
+ * resolved with `staticResolver`, as class helpers are, and the target is
+ * summarised the way a manifest is built, following relative re-exports so an
+ * `index.ts` barrel works. Specifiers that leave the project (a package, or a
+ * path alias into `node_modules`) are a manifest's business and are skipped.
+ * Files that import no forwarding component are left out.
+ */
+export function projectTextForwarding(
+  root: string,
+  files: readonly string[],
+): Record<string, TextForwardingModule[]> {
+  const resolve = staticResolver(root)
+  const summaries = new Map<string, TextForwardingModule['components']>()
+  const summarise = (target: string) => {
+    let components = summaries.get(target)
+    if (components === undefined) {
+      try {
+        components = textForwardingModule('', buildManifest({ entry: target })).components
+      } catch {
+        components = []
+      }
+      summaries.set(target, components)
+    }
+    return components
+  }
+  const outside = (file: string) => file.split(path.sep).includes('node_modules')
+  const out: Record<string, TextForwardingModule[]> = {}
+  for (const file of files) {
+    const importer = path.resolve(file)
+    // The scan's walk includes dependencies' sources; they are not callers
+    // of project components.
+    if (!SCRIPT.test(importer) || outside(importer)) continue
+    let source: string
+    try {
+      source = readFileSync(importer, 'utf8')
+    } catch {
+      continue
+    }
+    let specifiers: Set<string>
+    try {
+      specifiers = new Set(
+        inspectStaticModuleImports(source, importer).bindings.map((binding) => binding.source),
+      )
+    } catch {
+      continue
+    }
+    const found: TextForwardingModule[] = []
+    for (const specifier of specifiers) {
+      const target = resolve(specifier, importer)
+      if (!target || !SCRIPT.test(target) || outside(target)) continue
+      const components = summarise(target)
+      if (components.length > 0) found.push({ module: specifier, components })
     }
     if (found.length > 0) out[importer] = found
   }
