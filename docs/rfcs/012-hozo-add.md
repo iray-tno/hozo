@@ -189,6 +189,31 @@ callers differently, `add` would hand the project a component that behaves
 worse than the one it replaced, and the fix belongs in the compiler, not in
 `add`.
 
+### 7.1 Step 1's result
+
+Measured in
+[`docs/measurements/hozo-add-copied-callers.md`](../measurements/hozo-add-copied-callers.md):
+
+- **A copied file compiles the same** as the package's, for all 43 files on
+  both Native platforms. `packages/metro/src/copied-component.test.ts` pins
+  it.
+- **Its callers do not, on the Native backend.** A `Text` nested in a copied
+  `Alert`, `Button`, `Checkbox` or `Switch` loses the component's text
+  classes: 14 of 33 caller cases differ, the same on `ios`, `android` and
+  Metro's `web`. Text forwarding reaches Metro only from a dependency's
+  manifest, keyed by package name; a copy has no manifest and its callers
+  import it by a relative path. The DOM Web backend does not read forwarding
+  and is unaffected.
+
+So steps 2–5 wait on one compiler change, added as step 1b:
+
+| Step | Work | Exit |
+| --- | --- | --- |
+| 1b | **Text forwarding for project components on Metro.** `withHozo` summarises the project's own component files the way the manifest builder summarises a package's (`summarizeTextForwarding`), and records the result by file in `metro.json`, as it records class helpers (#964). `transform` resolves the caller's imports (relative, and `tsconfig` `paths`) to files and registers each recorded file's forwarding under the specifier the caller wrote, for that compile only. The summary joins the cache key | The 14 differing cases of step 1 compile the same; a copy edited after Metro started is reported by `square`'s existing stale-`metro.json` check, the same restart rule as class helpers |
+
+Step 1b is the project-file half of RFC 010's F6, which #1307's per-file
+record would later absorb; it does not wait for #1307.
+
 ## 8. Resolved questions
 
 - **Moving callers: behind `--imports`.** By default `add` only lists the
@@ -221,3 +246,6 @@ worse than the one it replaced, and the fix belongs in the compiler, not in
   on request; the theme is overridden by default and copied by
   `hozo add theme` (§6.1), with `square` failing on a token the theme does
   not define; a removed state variant is a note in `--diff`.
+- Draft (2026-11-14): step 1 measured (§7.1). A copy compiles the same; its
+  Native callers lose text forwarding, so step 1b brings project components'
+  forwarding to Metro before `add` ships.
