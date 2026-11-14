@@ -1985,6 +1985,182 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
   }
 })
 
+test('absolute metric fallback preserves mixed input tiers and exposes a cross-input leading gap', {
+  skip: !executablePath,
+}, async () => {
+  const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
+    @tailwind utilities; @theme { --color-brand: #123456; }
+    @utility bg-brand { background-color: #abcdef; }`
+  const theme = await loadTheme(css, tailwindPackageDir())
+  const local = createCompiler(theme)
+  const sx = `import * as stylex from '@stylexjs/stylex';
+    const metric=stylex.create({label:{fontSize:{default:'15px',':focus':'19px'}}});`
+  const compilerRequire = createRequire(
+    new URL('../../../packages/compiler/package.json', import.meta.url),
+  )
+  const official = compilerRequire('@babel/core').transformSync(sx, {
+    filename: '/app/MixedMetrics.tsx',
+    babelrc: false,
+    configFile: false,
+    plugins: [[compilerRequire('@stylexjs/babel-plugin'), { runtimeInjection: false }]],
+  }).metadata.stylex
+  assert.equal(official.length, 2)
+  const stylexCss = [...official]
+    .sort((a, b) => a[2] - b[2])
+    .map(([, rule]) => rule.ltr)
+    .join('\n')
+  const stylexClasses = official.map(([name]) => name).join(' ')
+  const names = [
+    'text-sm',
+    'hover:text-lg',
+    'active:text-2xl',
+    'hover:text-xl',
+    'tracking-[3px]',
+    'leading-6',
+    'bg-brand',
+  ]
+  const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const cache = openCandidateCache()
+  cache.scanFile('mixed-metrics.tsx', JSON.stringify(names.join(' ')), 1)
+  const candidates = cache.renderNativeModulePlan(context, theme)
+  assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
+  const nativeCandidateCode = candidates.code.replace(/^import .*$/gm, '')
+  const { hozoClasses } = evaluate(nativeCandidateCode, {
+    createClassResolver,
+    hozoTextMetricStyles,
+  })
+  const webCandidates = cache.renderCss(theme, classOrder(cache.candidates()))
+  // The unassessed candidate preserves authored order for the compiled
+  // input. Native should still follow the same StyleX, residual and inline
+  // boundaries as Web, not apply a second Tailwind order to that input.
+  const rules = {
+    'text-sm': ['', 'font-size:14px;line-height:var(--tw-leading,20px)'],
+    'hover:text-lg': [':hover', 'font-size:18px;line-height:var(--tw-leading,28px)'],
+    'active:text-2xl': [':active', 'font-size:24px;line-height:var(--tw-leading,32px)'],
+    'hover:text-xl': [':hover', 'font-size:20px;line-height:var(--tw-leading,28px)'],
+  }
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  let compared = 0
+  let leadingGaps = 0
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const guarded of [names.slice(1, 4), names.slice(1, 4).toReversed()])
+      for (const stylexLast of [false, true]) {
+        const known = ['text-sm', ...guarded]
+        const input = `${known.join(' ')} bg-brand`
+        const attributes = [
+          `className={cx("${input}", runtimeNames)}`,
+          '{...stylex.props(metric.label)}',
+        ]
+        if (!stylexLast) attributes.reverse()
+        const source = `${sx} import {cx, Pressable, Text} from '@hozo/core';
+          const el=<Pressable><Text ${attributes.join(' ')} style={own}>Label</Text></Pressable>`
+        const native = local.prepareNativeModule(source).emit(context).components[0]
+        const web = local.prepareWebModule(source).emit(context)[0]
+        assert.deepEqual(
+          native.diagnostics.map(({ code }) => code),
+          ['DYNAMIC_CLASS_NAME_NOT_RESOLVED'],
+        )
+        assert.deepEqual(
+          web.diagnostics.map(({ code }) => code),
+          ['DYNAMIC_CLASS_NAME_NOT_RESOLVED'],
+        )
+        assert.match(native.jsx, /hozoClasses\(runtimeNames\)/)
+        const renderNative = evaluate(
+          `const hozoStyles=${native.styles};module.exports=(runtimeNames, own)=> (${native.jsx})`,
+          {
+            h: (type, props, ...children) => ({ type, props, children }),
+            HozoPressable: 'owner',
+            HozoText: 'text',
+            Text: 'text',
+            hozoClasses,
+          },
+        )
+        const renderWeb = evaluate(`module.exports=(runtimeNames,own)=>(${web.jsx})`, {
+          h: createElement,
+          hozoDomStyle,
+        })
+        const authoredCss = known
+          .map((name) => {
+            const [selector, declarations] = rules[name]
+            return `.authored${selector}{${declarations}}`
+          })
+          .join('\n')
+        const sourceCss = stylexLast ? [authoredCss, stylexCss] : [stylexCss, authoredCss]
+        for (const [runtimeNames, own] of [
+          ['tracking-[3px] bg-brand', undefined],
+          ['leading-6 tracking-[3px] bg-brand', undefined],
+          ['leading-6 tracking-[3px] bg-brand', { fontSize: 27, letterSpacing: 5 }],
+        ]) {
+          const actual = renderToStaticMarkup(renderWeb(runtimeNames, own))
+          const reference = renderToStaticMarkup(
+            createElement(
+              'span',
+              {
+                className: `authored ${stylexClasses} ${runtimeNames}`,
+                style: own,
+              },
+              'Label',
+            ),
+          )
+          // The only residual metrics here are unconditional; use actual
+          // Tailwind CSS for them and the caller's established source tier.
+          const oracleCaller = (await compile(css)).build(runtimeNames.split(' '))
+          await page.setContent(`<!doctype html>
+            <style>${sourceCss.join('\n')}\n${oracleCaller}\n${webCandidates}\n${web.css}</style>
+            <section id="oracle">${reference}</section><section id="compiled">${actual}</section>`)
+          const { root } = await cdp.send('DOM.getDocument')
+          const ids = []
+          for (const selector of ['#oracle span', '#compiled span'])
+            ids.push(
+              (await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })).nodeId,
+            )
+          for (let mask = 0; mask < 8; mask++) {
+            const state = {
+              hovered: Boolean(mask & 1),
+              pressed: Boolean(mask & 2),
+              focused: Boolean(mask & 4),
+            }
+            const forcedPseudoClasses = [
+              state.hovered && 'hover',
+              state.pressed && 'active',
+              state.focused && 'focus',
+            ].filter(Boolean)
+            for (const nodeId of ids)
+              await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses })
+            const [expected, compiled] = await page.locator('section span').evaluateAll((nodes) =>
+              nodes.map((node) => {
+                const style = getComputedStyle(node)
+                return [style.fontSize, style.lineHeight, style.letterSpacing].map(parseFloat)
+              }),
+            )
+            const { style } = renderNative(runtimeNames, own).children[0].props
+            const { fontSize, lineHeight, letterSpacing } = Object.assign(
+              {},
+              ...style(state).flat(Infinity).filter(Boolean),
+            )
+            const label = `${input}/StyleX-last=${stylexLast}/${runtimeNames}/${mask}`
+            assert.deepEqual(compiled, expected, `${label}/web`)
+            assert.deepEqual([fontSize, letterSpacing], [expected[0], expected[2]], label)
+            if (runtimeNames.includes('leading-6') && (state.hovered || state.pressed)) {
+              assert.equal(expected[1], 24, label)
+              assert.equal(lineHeight, state.hovered ? 28 : 32, label)
+              leadingGaps++
+            } else assert.equal(lineHeight, expected[1], label)
+            compared++
+          }
+        }
+      }
+    assert.equal(compared, 96)
+    assert.equal(leadingGaps, 48)
+  } finally {
+    await page.close()
+  }
+})
+
 test('unranked owner gaps follow authored order on both layout engines', {
   skip: !executablePath,
 }, async () => {

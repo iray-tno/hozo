@@ -245,6 +245,19 @@ production candidate resolver still selects 24px/32px for the first
 overlap. No runtime or ranking behavior changed. The ranked
 absolute-metric regression still uses real Tailwind's emitted rule order.
 
+A mixed-input probe compiles a Text nested in a Pressable, with both
+Tailwind/StyleX input orders, both authored guard orders, eight states,
+and three caller/inline combinations (96 observations). The Web oracle
+uses the official StyleX Babel output, Tailwind's actual caller CSS and
+an authored-order reference for the unassessed static list. Font size
+and tracking agree throughout, including explicit inline overrides.
+Native line height disagrees in 48 observations: a caller's
+`leading-6` writes 24px, but an active compiled size applies its 28px
+or 32px default over it. CSS reads the caller's `--tw-leading` inside
+that size rule. Masking the fallback variant tie cannot repair this:
+the residual has no state-conditioned rank to mask. The two sources
+need to preserve explicit versus default leading through composition.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it
