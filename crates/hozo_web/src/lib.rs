@@ -641,6 +641,20 @@ fn render_scanned_candidates(
             rules.push_str("\n\n");
         }
         let shaded_theme = theme.dark();
+        // The captured literal rule writes only the register. Use the
+        // existing owner selectors, but don't manufacture line-height.
+        let leading = theme
+            .utility_leading_register(&utility.class_name)
+            .filter(|_| {
+                utility.groups.len() == 1 && utility.groups[0].0 == hozo_ir::Condition::Always
+            });
+        if let Some(px) = leading {
+            uses_leading = true;
+            rules.push_str(&format!(".{selector} {{ --tw-leading: {px}px; }}\n\n"));
+            owned_rules.push_str(&format!(
+                ".{owned_selector} {{ --tw-leading: {px}px; }}\n\n"
+            ));
+        }
         for (condition, properties) in &utility.groups {
             uses_leading |= properties
                 .iter()

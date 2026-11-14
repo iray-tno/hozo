@@ -565,3 +565,20 @@ test('a dark variant reaches the compiled CSS in place of prefers-color-scheme',
   assert.match(css, /var\(--color-brand--dark\)/)
   assert.match(css, /--color-brand--dark: oklch\(80% 0\.1 259\)/)
 })
+test('literal text utilities capture only a portable supplemental leading register', async () => {
+  const input = '@theme { --color-brand:#123456; } @tailwind utilities;'
+  const load = (declarations: string) =>
+    themeFrom(`${input} @utility text-brand { ${declarations} }`)
+  const good = await load('color:#123456; --tw-leading:41.5px;')
+  assert.deepEqual(good.utilityLeadingRegisters, [{ name: 'text-brand', px: 41.5 }])
+  for (const declarations of [
+    'color:#ffffff; --tw-leading:41px;',
+    'color:#123456; --tw-leading:1.5;',
+    'color:#123456; --tw-leading:-41px;',
+    'color:#123456; --tw-leading:41px !important;',
+    'color:#123456; --tw-leading:var(--line);',
+    'color:#123456; --tw-leading:41px; font-size:20px;',
+    'color:#123456; &:hover { --tw-leading:41px; }',
+  ])
+    assert.equal((await load(declarations)).utilityLeadingRegisters, undefined, declarations)
+})

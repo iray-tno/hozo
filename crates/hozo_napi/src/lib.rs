@@ -1932,6 +1932,7 @@ pub struct JsTheme {
     /// `--font-<name>`, which `font-sans`, `font-serif` and `font-mono`
     /// read (#1691).
     pub font_families: Option<Vec<JsThemeFontFamily>>,
+    pub utility_leading_registers: Option<Vec<JsUtilityLeadingRegister>>,
     /// The selector of the project's `@custom-variant dark (...)`, with `&`
     /// for the element. Absent means `prefers-color-scheme` (#1654).
     pub dark_selector: Option<String>,
@@ -1963,6 +1964,12 @@ pub struct JsThemeFontFamily {
     pub web: String,
     /// The declaration's value, for a backend with no CSS variables.
     pub value: String,
+}
+
+#[napi(object)]
+pub struct JsUtilityLeadingRegister {
+    pub name: String,
+    pub px: f64,
 }
 
 #[napi(object)]
@@ -2120,6 +2127,14 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
                 .collect(),
         )
         .with_dark_selector(theme.dark_selector)
+        .with_utility_leading_registers(
+            theme
+                .utility_leading_registers
+                .unwrap_or_default()
+                .into_iter()
+                .map(|register| (register.name, register.px))
+                .collect(),
+        )
         .with_web_colors(
             theme
                 .web_colors

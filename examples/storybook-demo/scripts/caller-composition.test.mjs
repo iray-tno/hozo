@@ -2246,7 +2246,7 @@ test('opaque typography needs captured rule order even when a caller string incl
   }
 })
 
-test('an overlapping custom leading register is missing before Native ordering', {
+test('an overlapping custom leading register reaches ordinary Web and Native candidates', {
   skip: !executablePath,
 }, async () => {
   const base = tailwindPackageDir()
@@ -2285,18 +2285,18 @@ test('an overlapping custom leading register is missing before Native ordering',
       const renderWeb = evaluate(`module.exports=(value)=> (${web.jsx})`, { h: createElement })
       const upstream = (await compile(css)).build(names)
       const downstream = `${cache.renderCss(theme, classOrder(cache.candidates()))}\n${web.css}`
-      // The ordinary resolver keeps the hover ranks in the fallback, but
-      // cannot add a declaration the compiler never emitted.
       const code = module.code.replace(/^import .*$/gm, '')
-      const resolve = evaluate(code, { createClassResolver }).hozoClasses
+      const resolve = evaluate(code, { createClassResolver, hozoTextMetricStyles }).hozoClasses
+      assert.deepEqual(Object.assign({}, ...resolve('text-brand')), { color: '#123456' })
+      assert.doesNotMatch(downstream, /--tw-leading: 41px;[^}]*line-height:/)
       for (const tokens of [names, names.toReversed()]) {
         const value = tokens.join(' ')
         const markup = renderToStaticMarkup(renderWeb(value))
         for (const pressed of [false, true]) {
           const expectedSize = pressed ? 24 : 20
-          const defaultLeading = pressed ? 32 : 28
+          const defaultLeading = overlapping ? 41 : pressed ? 32 : 28
           for (const [sheet, html, expectedLeading] of [
-            [upstream, `<span class="${value}"></span>`, overlapping ? 41 : defaultLeading],
+            [upstream, `<span class="${value}"></span>`, defaultLeading],
             [downstream, markup, defaultLeading],
           ]) {
             await page.setContent(`<!doctype html><style>${sheet}</style>${html}`)

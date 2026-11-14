@@ -113,6 +113,7 @@ pub struct Theme {
     /// the declaration's own value for a backend with no CSS variables
     /// (#1691).
     font_families: HashMap<String, (String, String)>,
+    utility_leading_registers: HashMap<String, f64>,
     /// Where dark rules apply on Web, when the project says: the selector in
     /// its `@custom-variant dark (...)`, such as
     /// `&:where([data-theme=dark], [data-theme=dark] *)`. Absent means
@@ -144,12 +145,25 @@ impl Default for Theme {
             shadows: HashMap::new(),
             font_weights: HashMap::new(),
             font_families: HashMap::new(),
+            utility_leading_registers: HashMap::new(),
             dark_selector: None,
         }
     }
 }
 
 impl Theme {
+    pub fn with_utility_leading_registers(mut self, values: HashMap<String, f64>) -> Self {
+        self.utility_leading_registers = values;
+        self
+    }
+
+    pub fn utility_leading_register(&self, name: &str) -> Option<f64> {
+        self.utility_leading_registers
+            .get(name)
+            .copied()
+            .filter(|value| value.is_finite() && *value >= 0.0)
+    }
+
     pub fn new(
         colors: HashMap<String, ThemeColor>,
         spacing_px: Option<f64>,
@@ -176,6 +190,7 @@ impl Theme {
             shadows: HashMap::new(),
             font_weights: HashMap::new(),
             font_families: HashMap::new(),
+            utility_leading_registers: HashMap::new(),
             dark_selector: None,
         }
     }
@@ -376,6 +391,7 @@ impl Theme {
             shadows: self.shadows.clone(),
             font_weights: self.font_weights.clone(),
             font_families: self.font_families.clone(),
+            utility_leading_registers: self.utility_leading_registers.clone(),
             // Still where the dark rules go: this theme renders them.
             dark_selector: self.dark_selector.clone(),
         })

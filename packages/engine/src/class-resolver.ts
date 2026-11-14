@@ -15,7 +15,20 @@ export type StyleObject = Record<string, unknown>
 export function hozoTextMetricStyles(
   styles: StyleObject[],
   defaults: ReadonlyMap<StyleObject, StyleObject>,
+  registers?: ReadonlyMap<StyleObject, StyleObject>,
 ): StyleObject[] {
+  if (registers && styles.some((style) => registers.has(style))) {
+    let leading: StyleObject | undefined
+    let hasDefault = false
+    for (const style of styles) {
+      if (defaults.has(style)) hasDefault = true
+      else if (Object.hasOwn(style, 'lineHeight')) leading = undefined
+      else leading = registers.get(style) ?? leading
+    }
+    if (hasDefault && leading) {
+      return [...styles.map((style) => defaults.get(style) ?? style), leading]
+    }
+  }
   if (
     !styles.some((style) => defaults.has(style)) ||
     !styles.some((style) => Object.hasOwn(style, 'lineHeight') && !defaults.has(style))

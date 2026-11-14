@@ -385,6 +385,18 @@ different specificity weights among the colour barriers are still refused
 by this proof. This is neither custom declaration value projection nor a
 claim of general unassessed parity.
 
+The runtime-candidate reproduction now agrees on **41px** leading with the
+ordinary Hozo candidate stylesheet and generated Native resolver in both
+token orders, under hover alone and under hover plus active. The loader
+captures a supplemental absolute register only for a literal text-colour
+utility with no other write and the same captured theme colour. Web emits
+the register without setting line-height. Native applies it only when a
+selected candidate reads the font-size default, preserving the colour-only
+case and using the existing explicit-leading composition. The ordinary
+Metro fixture also replaces 41px with 43px on a stylesheet epoch change.
+This does not cover literal compiled classes or cross-input readers, nor
+relative, nested or conflicting custom declarations.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

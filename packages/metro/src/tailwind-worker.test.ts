@@ -233,6 +233,45 @@ test('ordinary Metro keeps shared state ranks across a candidate universe change
   }
 })
 
+test('ordinary Metro delivers captured leading with a new stylesheet epoch', async (t) => {
+  const { root, config, tokens, file } = fixture(t)
+  const source = `import {Button} from '@hozo/core';export const A=({classes}) => <Button className={classes}/>`
+  writeFileSync(file, source)
+  const names = ['text-brand', 'hover:text-lg', 'hover:text-xl', 'active:text-2xl']
+  writeFileSync(
+    path.join(root, 'src', 'metrics.ts'),
+    `export const metrics=()=> '${names.join(' ')}'`,
+  )
+  let previousKey: string | undefined
+  for (const px of [41, 43]) {
+    writeFileSync(
+      tokens,
+      `@theme { --color-brand:#123456; } @utility text-brand { color:#123456; --tw-leading:${px}px; }`,
+    )
+    await withHozo(config)
+    const key = getCacheKey({ projectRoot: root })
+    assert.notEqual(key, previousKey)
+    previousKey = key
+    const code = readFileSync(path.join(root, CACHE_DIR, 'candidates.native.js'), 'utf8')
+    const resolve = runInNewContext(
+      `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`,
+      { createClassResolver, hozoTextMetricStyles },
+    )
+    for (const candidates of [names, names.toReversed()]) {
+      assert.deepEqual(
+        Object.assign({}, ...resolve(candidates.join(' '), { hovered: true, pressed: true })),
+        { color: '#123456', fontSize: 24, lineHeight: px },
+      )
+      assert.deepEqual(
+        Object.assign({}, ...resolve(candidates.join(' '), { hovered: false, pressed: false })),
+        {
+          color: '#123456',
+        },
+      )
+    }
+  }
+})
+
 test('full lexical startup names give one retained parse followed by ready hits without ordinary lowering', async (t) => {
   const { root, source, config } = fixture(t)
   await withHozo(config)

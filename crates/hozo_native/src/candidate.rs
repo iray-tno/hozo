@@ -109,6 +109,7 @@ fn render_candidate_module_impl(
     let mut shadows = Vec::new();
     let mut transitions: Vec<(&String, Option<&'static str>, String)> = Vec::new();
     let mut font_defaults = Vec::new();
+    let mut leading_registers = Vec::new();
     let mut explicit_leading = false;
     for name in class_names {
         let Some(mut utility) = hozo_parser::resolve_class_name(name) else {
@@ -226,6 +227,11 @@ fn render_candidate_module_impl(
         if has_font_default(&properties) {
             font_defaults.push(name);
         }
+        if matches!(properties.as_slice(), [StyleProperty::TextColor(_)]) {
+            if let Some(px) = theme.utility_leading_register(name) {
+                leading_registers.push((name, px));
+            }
+        }
         supported.push((name, pairs));
     }
 
@@ -241,7 +247,8 @@ fn render_candidate_module_impl(
         || states
             .iter()
             .any(|(_, groups)| groups.iter().any(|group| group.font_default));
-    let composes_text_metrics = explicit_leading && has_font_defaults;
+    let composes_text_metrics =
+        (explicit_leading || !leading_registers.is_empty()) && has_font_defaults;
     // One function, even in many states/values, already obeys whole-property
     // replacement. Only namespaces able to combine distinct functions need
     // the extra leaf, table and per-resolution composition.
@@ -500,6 +507,17 @@ fn render_candidate_module_impl(
             out.push_str("])\n\n");
         }
     }
+    let uses_leading_registers = composes_text_metrics && !leading_registers.is_empty();
+    if uses_leading_registers {
+        out.push_str("const leadingRegisters = new Map([\n");
+        for (name, px) in leading_registers {
+            out.push_str(&format!(
+                "  [styles[{}], {{ lineHeight: {px} }}],\n",
+                quote(name)
+            ));
+        }
+        out.push_str("])\n\n");
+    }
     let has_gradient_slots = !gradients.is_empty()
         || states
             .iter()
@@ -548,8 +566,13 @@ fn render_candidate_module_impl(
         input = "filtered";
     }
     if composes_text_metrics {
+        let registers = if uses_leading_registers {
+            ", leadingRegisters"
+        } else {
+            ""
+        };
         pipeline.push_str(&format!(
-            "const text = hozoTextMetricStyles({input}, fontDefaults); "
+            "const text = hozoTextMetricStyles({input}, fontDefaults{registers}); "
         ));
         input = "text";
     }

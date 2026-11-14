@@ -579,6 +579,8 @@ export interface Theme {
    * delivers the variable, and `value` the declaration for Native (#1691).
    */
   fontFamilies?: { name: string; web: string; value: string }[]
+  /** Absolute register writes captured from a supported literal utility. */
+  utilityLeadingRegisters?: { name: string; px: number }[]
   /**
    * Where dark rules apply on Web, from the project's own
    * `@custom-variant dark (...)`: a selector with `&` for the element, or an

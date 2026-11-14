@@ -6,6 +6,21 @@ import {
   hozoTextMetricStyles,
 } from './class-resolver.ts'
 
+test('a captured register affects only a selected font default and respects explicit writes', () => {
+  const brand = { color: '#123456' }
+  const size = { fontSize: 20, lineHeight: 28 }
+  const stripped = { fontSize: 20 }
+  const explicit = { lineHeight: 24 }
+  const defaults = new Map([[size, stripped]])
+  const registers = new Map([[brand, { lineHeight: 41 }]])
+  const apply = (styles: Record<string, unknown>[]) =>
+    Object.assign({}, ...hozoTextMetricStyles(styles, defaults, registers))
+  assert.deepEqual(apply([brand]), brand)
+  assert.deepEqual(apply([brand, size]), { ...brand, ...size, lineHeight: 41 })
+  assert.deepEqual(apply([size, brand, explicit]), { ...brand, ...size, lineHeight: 24 })
+  assert.deepEqual(apply([size, explicit, brand]), { ...brand, ...size, lineHeight: 41 })
+})
+
 test('generated font defaults lose only their line height to an active explicit write, never their font size', () => {
   const font = { fontSize: 18, lineHeight: 28 }
   const otherFont = { fontSize: 20, lineHeight: 28 }
