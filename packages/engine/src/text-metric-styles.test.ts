@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createClassResolver, hozoTextMetricStyles } from './class-resolver.ts'
+import {
+  createClassResolver,
+  hozoMixedTextMetricStyles,
+  hozoTextMetricStyles,
+} from './class-resolver.ts'
 
 test('generated font defaults lose only their line height to an active explicit write, never their font size', () => {
   const font = { fontSize: 18, lineHeight: 28 }
@@ -82,4 +86,26 @@ test('cached text templates restore defaults after states deactivate without rea
     readOnce,
     'state selection/cached strings must not inspect ordering metadata',
   )
+})
+
+test('mixed metrics restore only the explicit leading already selected by the style tiers', () => {
+  const resting = { fontSize: 18, lineHeight: 28 }
+  const hover = { fontSize: 20, lineHeight: 28 }
+  const caller = { fontSize: 24, lineHeight: 32 }
+  const explicit = { lineHeight: 24 }
+  const later = { lineHeight: 26 }
+  const defaults = [resting, hover]
+  const candidates = new Set([caller])
+  const selected = [resting, [explicit, [caller]], later, hover]
+  const projected = hozoMixedTextMetricStyles(selected, defaults, candidates)
+  assert.deepEqual(projected, [...selected, { lineHeight: 26 }])
+  assert.equal(projected[1], selected[1], 'preserve other fields and the caller object identities')
+  const noConflict = [resting, [caller], false]
+  assert.equal(hozoMixedTextMetricStyles(noConflict, defaults, candidates), noConflict)
+  const explicitWinsAlready = [resting, [caller], explicit]
+  assert.equal(
+    hozoMixedTextMetricStyles(explicitWinsAlready, defaults, candidates),
+    explicitWinsAlready,
+  )
+  assert.deepEqual(hozoMixedTextMetricStyles([explicit, caller], [], candidates).at(-1), explicit)
 })

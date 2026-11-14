@@ -251,12 +251,17 @@ and three caller/inline combinations (96 observations). The Web oracle
 uses the official StyleX Babel output, Tailwind's actual caller CSS and
 an authored-order reference for the unassessed static list. Font size
 and tracking agree throughout, including explicit inline overrides.
-Native line height disagrees in 48 observations: a caller's
+Before mixed projection, Native line height disagreed in 48 observations: a caller's
 `leading-6` writes 24px, but an active compiled size applies its 28px
 or 32px default over it. CSS reads the caller's `--tw-leading` inside
 that size rule. Masking the fallback variant tie cannot repair this:
 the residual has no state-conditioned rank to mask. The two sources
 need to preserve explicit versus default leading through composition.
+Ordinary compiled Native now matches all 96 observations; the same
+48 counterexamples remain when the mixed metric projection is disabled.
+The projection restores the last explicit leading only when a later font
+default would hide it. It runs only on mixed Native text/field sites with
+compiled metrics, before authored inline style, and never inspects ranks.
 
 ## Progress
 

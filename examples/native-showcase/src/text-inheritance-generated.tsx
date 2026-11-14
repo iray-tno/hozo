@@ -101,7 +101,7 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/style.rs':
         '9f589e575fdd1c37807b087715c28d0e3e2b77f2e449b9bdee81ae63f1145468',
       'crates/hozo_native/src/render.rs':
-        '352f3be11d2b2086678fd57d5d4d4e804db02eeb2ea21ff47848c1a72229a405',
+        '57ea8693bcb6f393c37583c90ecf5f8a55e49e8819833f6aa65fe4c5d6ee5e5c',
       'crates/hozo_native/src/source_evidence.rs':
         '4721b3782f599cb1067ad166d8436a7d88cb1d352438c83041d05a8f6900ee3e',
       'crates/hozo_native/src/spread_style.rs':

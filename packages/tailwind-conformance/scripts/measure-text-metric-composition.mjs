@@ -59,9 +59,14 @@ for (const count of [18, 130, 1026]) {
   const control = code
     .replace(/^import \{ hozoTextMetricStyles \}.*\n/m, '')
     .replace(/const fontDefaults = new Map\(\[[\s\S]*?\}\)\)\n\n/, '')
-    .replace(' compose: resolved => hozoTextMetricStyles(resolved, fontDefaults),', '')
+    .replace(
+      ' compose: resolved => { const text = hozoTextMetricStyles(resolved, fontDefaults); return text },',
+      '',
+    )
+    .replace(/^hozoClasses\.fontDefaults = fontDefaults\n/m, '')
   assert.notEqual(code, control)
   assert.ok(!control.includes('hozoTextMetricStyles'))
+  assert.ok(!control.includes('fontDefaults'))
   const factory = (text) => () =>
     runInNewContext(
       `${text.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,

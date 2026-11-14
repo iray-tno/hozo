@@ -27,7 +27,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
 import Yoga from 'yoga-layout'
 import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
-import { hozoTextMetricStyles } from '../../../packages/engine/src/class-resolver.ts'
+import {
+  hozoMixedTextMetricStyles,
+  hozoTextMetricStyles,
+} from '../../../packages/engine/src/class-resolver.ts'
 import { hozoDomStyle } from '../../../packages/engine/src/dom-style.ts'
 import { hozoGapSpreadStyles } from '../../../packages/engine/src/gap-styles.ts'
 import { hozoShadowStyles } from '../../../packages/engine/src/generated/shadow-slots.ts'
@@ -1985,7 +1988,7 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
   }
 })
 
-test('absolute metric fallback preserves mixed input tiers and exposes a cross-input leading gap', {
+test('absolute metric fallback preserves mixed tiers and projects cross-input leading', {
   skip: !executablePath,
 }, async () => {
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
@@ -2069,16 +2072,20 @@ test('absolute metric fallback preserves mixed input tiers and exposes a cross-i
           ['DYNAMIC_CLASS_NAME_NOT_RESOLVED'],
         )
         assert.match(native.jsx, /hozoClasses\(runtimeNames\)/)
-        const renderNative = evaluate(
-          `const hozoStyles=${native.styles};module.exports=(runtimeNames, own)=> (${native.jsx})`,
-          {
-            h: (type, props, ...children) => ({ type, props, children }),
-            HozoPressable: 'owner',
-            HozoText: 'text',
-            Text: 'text',
-            hozoClasses,
-          },
-        )
+        const render = (project) =>
+          evaluate(
+            `const hozoStyles=${native.styles};module.exports=(runtimeNames, own)=> (${native.jsx})`,
+            {
+              h: (type, props, ...children) => ({ type, props, children }),
+              HozoPressable: 'owner',
+              HozoText: 'text',
+              Text: 'text',
+              hozoClasses,
+              hozoMixedTextMetricStyles: project,
+            },
+          )
+        const renderNative = render(hozoMixedTextMetricStyles)
+        const withoutProjection = render((styles) => styles)
         const renderWeb = evaluate(`module.exports=(runtimeNames,own)=>(${web.jsx})`, {
           h: createElement,
           hozoDomStyle,
@@ -2096,6 +2103,8 @@ test('absolute metric fallback preserves mixed input tiers and exposes a cross-i
           ['leading-6 tracking-[3px] bg-brand', { fontSize: 27, letterSpacing: 5 }],
         ]) {
           const actual = renderToStaticMarkup(renderWeb(runtimeNames, own))
+          const compiledText = renderNative(runtimeNames, own).children[0].props
+          const unprojectedText = withoutProjection(runtimeNames, own).children[0].props
           const reference = renderToStaticMarkup(
             createElement(
               'span',
@@ -2137,19 +2146,21 @@ test('absolute metric fallback preserves mixed input tiers and exposes a cross-i
                 return [style.fontSize, style.lineHeight, style.letterSpacing].map(parseFloat)
               }),
             )
-            const { style } = renderNative(runtimeNames, own).children[0].props
-            const { fontSize, lineHeight, letterSpacing } = Object.assign(
-              {},
-              ...style(state).flat(Infinity).filter(Boolean),
-            )
+            const metrics = ({ style }) => {
+              const { fontSize, lineHeight, letterSpacing } = Object.assign(
+                {},
+                ...style(state).flat(Infinity).filter(Boolean),
+              )
+              return [fontSize, lineHeight, letterSpacing]
+            }
             const label = `${input}/StyleX-last=${stylexLast}/${runtimeNames}/${mask}`
             assert.deepEqual(compiled, expected, `${label}/web`)
-            assert.deepEqual([fontSize, letterSpacing], [expected[0], expected[2]], label)
+            assert.deepEqual(metrics(compiledText), expected, `${label}/native`)
             if (runtimeNames.includes('leading-6') && (state.hovered || state.pressed)) {
               assert.equal(expected[1], 24, label)
-              assert.equal(lineHeight, state.hovered ? 28 : 32, label)
+              assert.equal(metrics(unprojectedText)[1], state.hovered ? 28 : 32, label)
               leadingGaps++
-            } else assert.equal(lineHeight, expected[1], label)
+            } else assert.deepEqual(metrics(unprojectedText), expected, label)
             compared++
           }
         }

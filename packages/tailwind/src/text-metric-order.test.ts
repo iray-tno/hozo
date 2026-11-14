@@ -5,7 +5,11 @@ import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { createCompiler, openCandidateCache, prepareFinalTailwindContext } from '@hozo/compiler'
 import { transformSync } from 'esbuild'
-import { createClassResolver, hozoTextMetricStyles } from '../../engine/src/class-resolver.ts'
+import {
+  createClassResolver,
+  hozoMixedTextMetricStyles,
+  hozoTextMetricStyles,
+} from '../../engine/src/class-resolver.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
@@ -169,16 +173,63 @@ test('semantic and unrelated StyleX defaults do not reweight an already canonica
   }
 })
 
-test('projects without an emitted default/explicit leading conflict keep the tiny factory without metric metadata', async () => {
+test('projects without an emitted default/explicit leading conflict only publish the needed identity', async () => {
   const theme = await loadTheme(css, base)
-  for (const classes of [
-    'text-lg text-xl focus:text-2xl',
-    'leading-6 p-2',
-    'text-lg md:leading-6',
-  ]) {
+  for (const [classes, defaults] of [
+    ['text-lg text-xl focus:text-2xl', true],
+    ['leading-6 p-2', false],
+    ['text-lg md:leading-6', true],
+    ['text-[19px] p-2', false],
+  ] as const) {
     const cache = openCandidateCache()
     cache.scanFile('runtime.ts', JSON.stringify(classes), 0)
     const code = cache.renderNativeModule(theme)
-    assert.doesNotMatch(code, /fontDefaults|hozoTextMetricStyles/)
+    assert.doesNotMatch(code, /hozoTextMetricStyles|fontDefaults = new Map/)
+    assert.equal(code.includes('fontDefaults = new Set'), defaults)
+    const resolve = runInNewContext(
+      `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,
+      { createClassResolver },
+    )
+    assert.equal(resolve.fontDefaults?.has(resolve('text-lg')[0]) ?? false, defaults)
   }
+})
+
+test('mixed Text and TextInput use candidate default identities without a candidate composer', () => {
+  const cache = openCandidateCache()
+  cache.scanFile('runtime.ts', '"text-xl"', 0)
+  const code = cache.renderNativeModule()
+  assert.doesNotMatch(code, /hozoTextMetricStyles/)
+  const hozoClasses = runInNewContext(
+    `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,
+    { createClassResolver },
+  )
+  for (const tag of ['Text', 'TextInput']) {
+    const source = `import {cx,${tag}} from '@hozo/core';const el=<${tag} accessibilityLabel="Label" className={cx('leading-6', caller)} style={own}/>`
+    const native = createCompiler().compileNativeModule(source).components[0]!
+    assert.ok(native.runtimeImports.includes('hozoMixedTextMetricStyles'))
+    const render = runInNewContext(
+      transformSync(`const hozoStyles=${native.styles};(caller,own)=> (${native.jsx})`, {
+        loader: 'tsx',
+        jsxFactory: 'h',
+      }).code,
+      {
+        Text: 'host',
+        HozoTextInput: 'host',
+        h: (_type: unknown, props: Record<string, unknown>) => props,
+        hozoClasses,
+        hozoMixedTextMetricStyles,
+        hozoAuthoredStyle: (style: unknown) => style,
+      },
+    )
+    for (const own of [undefined, { lineHeight: 41 }]) {
+      const { style, hozoStyle } = render('text-xl', own)
+      const actual = Object.assign({}, ...[hozoStyle?.({}), style].flat(Infinity))
+      assert.equal(actual.fontSize, 20)
+      assert.equal(actual.lineHeight, own?.lineHeight ?? 24)
+    }
+  }
+  const staticText = createCompiler().compileNativeModule(
+    `import {Text} from '@hozo/core';const el=<Text className="text-xl leading-6"/>`,
+  ).components[0]!
+  assert.ok(!staticText.runtimeImports.includes('hozoMixedTextMetricStyles'))
 })

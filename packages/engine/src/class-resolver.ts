@@ -26,6 +26,35 @@ export function hozoTextMetricStyles(
   return styles.map((style) => defaults.get(style) ?? style)
 }
 
+type TextMetricStyle = StyleObject | readonly TextMetricStyle[] | false | null | undefined
+
+/**
+ * A compiled text owner sees both its own entries and selected caller entries.
+ * Keep the array order for every other field, and keep the last explicit
+ * leading if a later font-size fallback would cover it.
+ */
+export function hozoMixedTextMetricStyles(
+  styles: readonly TextMetricStyle[],
+  ownDefaults: readonly StyleObject[],
+  candidateDefaults?: ReadonlySet<StyleObject> | ReadonlyMap<StyleObject, StyleObject>,
+): readonly TextMetricStyle[] {
+  let explicit: StyleObject | undefined
+  let endsWithDefault = false
+  function visit(value: TextMetricStyle): void {
+    if (!value || typeof value !== 'object') return
+    if (Array.isArray(value)) {
+      for (const part of value) visit(part)
+      return
+    }
+    const style = value as StyleObject
+    if (!Object.hasOwn(style, 'lineHeight')) return
+    endsWithDefault = ownDefaults.includes(style) || candidateDefaults?.has(style) === true
+    if (!endsWithDefault) explicit = style
+  }
+  for (const style of styles) visit(style)
+  return endsWithDefault && explicit ? [...styles, { lineHeight: explicit.lineHeight }] : styles
+}
+
 /**
  * The state an element is in when its runtime classes are resolved: what
  * its pressable reports (`pressed`, `hovered`, `focused`, `focusVisible`)
@@ -74,6 +103,8 @@ export type ClassResolver = ((
   gradientSlots?: ReadonlyMap<StyleObject, GradientSlots>
   transformSlots?: ReadonlyMap<StyleObject, TransformSlots>
   filterSlots?: ReadonlyMap<StyleObject, FilterSlots>
+  /** @internal Identity of implicit leading, including on maps without explicit leading. */
+  fontDefaults?: ReadonlySet<StyleObject> | ReadonlyMap<StyleObject, StyleObject>
   /** @internal Bit mask of this namespace's installed deferrable composers. */
   effectMask?: number
 }

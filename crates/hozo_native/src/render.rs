@@ -1094,6 +1094,33 @@ pub(super) fn render_node(
         None
     };
     let own_entries = &cx.style_entries[own_entry_start..own_entry_end];
+    // A Text (or editable field) can combine its own font metrics with
+    // late-bound classes. A conditional font default must not erase the
+    // explicit leading from that other input. Static-only owners already
+    // project this at build time and need no helper.
+    let mixed_metric_defaults = (matches!(component, "Text" | "TextInput")
+        && !node.class_name_fallback.is_empty())
+    .then(|| {
+        let mut has_metrics = false;
+        let defaults = own_entries
+            .iter()
+            .filter_map(|(name, props, _)| {
+                props.iter().find_map(|property| match property {
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(_)) => {
+                        has_metrics = true;
+                        Some(format!("{STYLE_OBJECT}.{name}"))
+                    }
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_)) => {
+                        has_metrics = true;
+                        None
+                    }
+                    _ => None,
+                })
+            })
+            .collect::<Vec<_>>();
+        has_metrics.then(|| defaults.join(", "))
+    })
+    .flatten();
     let transform_specs = if mixed_transforms
         || (own_declarations
             .iter()
@@ -1612,6 +1639,16 @@ pub(super) fn render_node(
             "hozoTransformStyles([{}], [{}], hozoClasses.transformSlots)",
             style_array_parts.join(", "),
             transform_specs
+        )];
+    }
+    if let Some(defaults) = mixed_metric_defaults {
+        // Before the author's style array: its values (including an opaque
+        // registered style) retain their last word without being inspected.
+        cx.runtime.need_component("hozoMixedTextMetricStyles");
+        style_array_parts = vec![format!(
+            "hozoMixedTextMetricStyles([{}], [{}], hozoClasses.fontDefaults)",
+            style_array_parts.join(", "),
+            defaults
         )];
     }
     if (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some() {
