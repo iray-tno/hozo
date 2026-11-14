@@ -105,6 +105,8 @@ export interface Theme {
   fontWeights?: { name: string; value: string }[]
   /** `--font-<name>` for `font-sans`, `font-serif` and `font-mono` (#1691). */
   fontFamilies?: { name: string; web: string; value: string }[]
+  /** Absolute register writes captured from a supported literal utility. */
+  utilityLeadingRegisters?: { name: string; px: number }[]
   /**
    * The project's `dark` variant, when it declared its own with
    * `@custom-variant dark`: a selector with `&` for the element, or an
@@ -368,8 +370,65 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
         value: dereference(value, declared),
       })),
     fontFamilies: readFontFamilies(design, declared),
+    ...readUtilityLeadingRegisters(design, declared),
     ...readDarkSelector(design),
   }
+}
+
+// Some literal @utility rules supplement a theme text colour with a
+// register write. Capture the additional value, not arbitrary CSS. A
+// register does not set line-height on its own.
+function readUtilityLeadingRegisters(
+  design: Awaited<ReturnType<typeof __unstable__loadDesignSystem>>,
+  declared: ReadonlyMap<string, string>,
+): Pick<Theme, 'utilityLeadingRegisters'> {
+  if (design.important || design.theme.prefix) return {}
+  const registers: NonNullable<Theme['utilityLeadingRegisters']> = []
+  for (const name of design.utilities.keys('static')) {
+    if (!name.startsWith('text-')) continue
+    const token = declared.get(`--color-${name.slice(5)}`)
+    if (token === undefined) continue
+    const candidates = design.parseCandidate(name)
+    const custom = candidates.filter((candidate) => candidate.kind === 'static')
+    const other = candidates.filter((candidate) => candidate.kind !== 'static')
+    if (custom.length !== 1 || other.length !== 1) continue
+    const [rule, ...duplicates] = design.compileAstNodes(custom[0]!)
+    if (!rule || duplicates.length || rule.node.kind !== 'rule') continue
+    const core = design.compileAstNodes(other[0]!)
+    if (
+      core.length !== 1 ||
+      core[0]!.node.kind !== 'rule' ||
+      core[0]!.node.nodes.length !== 1 ||
+      core[0]!.node.nodes[0]?.kind !== 'declaration' ||
+      core[0]!.node.nodes[0].property !== 'color'
+    )
+      continue
+    let leading: number | undefined
+    let color = false
+    for (const node of rule.node.nodes) {
+      if (node.kind !== 'declaration' || node.important || node.value === undefined) {
+        leading = undefined
+        break
+      }
+      if (node.property === '--tw-leading' && leading === undefined) {
+        const value = node.value.trim()
+        if (!/^(?:\d+(?:\.\d+)?|\.\d+)px$/.test(value)) break
+        leading = Number.parseFloat(value)
+      } else if (
+        node.property === 'color' &&
+        !color &&
+        node.value.trim() === dereference(token, declared)
+      ) {
+        color = true
+      } else {
+        leading = undefined
+        break
+      }
+    }
+    if (rule.node.nodes.length === 2 && color && leading !== undefined && Number.isFinite(leading))
+      registers.push({ name, px: leading })
+  }
+  return registers.length ? { utilityLeadingRegisters: registers } : {}
 }
 
 /**

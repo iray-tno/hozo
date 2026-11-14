@@ -1946,6 +1946,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::BorderEndEndRadius(r) => radius_pair("border-end-end-radius", r, theme),
         StyleProperty::FontSize(l) => ("font-size", length_px(l, theme)),
         StyleProperty::FontWeight(w) => ("font-weight", w.css(theme)),
+        StyleProperty::LeadingRegister(px) => ("--tw-leading", format!("{px}px")),
         StyleProperty::LineHeight(lh) => (
             "line-height",
             match lh {

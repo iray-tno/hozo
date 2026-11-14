@@ -185,5 +185,10 @@ test('a plain unranked background keeps ranked opacity and only elides unreachab
     assert.equal(flatten(runtime(competing)(classes, { ...state, focused: true })).opacity, 0.5)
   }
   const outside = await generate(['hover:opacity-25', 'active:opacity-75', 'bg-brand', 'mt-2'])
-  assert.match(outside, /\{ opacity: 0.75 \}, \d+\]/)
+  assert.doesNotMatch(outside, /\{ opacity: 0.75 \}, \d+\]/)
+  assert.match(outside, /rankedStates: true/)
+  assert.equal(
+    flatten(runtime(outside)('active:opacity-75 bg-brand hover:opacity-25 mt-2', state)).opacity,
+    0.75,
+  )
 })

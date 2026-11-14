@@ -319,9 +319,12 @@ fn lower_capturing(
         css.push_str(CONTENT_BASE_CSS);
     }
     if contains_prop(root, |node| {
-        node.style
-            .iter()
-            .any(|d| matches!(d.property, hozo_ir::StyleProperty::LineHeight(_)))
+        node.style.iter().any(|d| {
+            matches!(
+                d.property,
+                hozo_ir::StyleProperty::LineHeight(_) | hozo_ir::StyleProperty::LeadingRegister(_)
+            )
+        })
     }) {
         css.push_str(LEADING_BASE_CSS);
     }
@@ -641,6 +644,20 @@ fn render_scanned_candidates(
             rules.push_str("\n\n");
         }
         let shaded_theme = theme.dark();
+        // The captured literal rule writes only the register. Use the
+        // existing owner selectors, but don't manufacture line-height.
+        let leading = theme
+            .utility_leading_register(&utility.class_name)
+            .filter(|_| {
+                utility.groups.len() == 1 && utility.groups[0].0 == hozo_ir::Condition::Always
+            });
+        if let Some(px) = leading {
+            uses_leading = true;
+            rules.push_str(&format!(".{selector} {{ --tw-leading: {px}px; }}\n\n"));
+            owned_rules.push_str(&format!(
+                ".{owned_selector} {{ --tw-leading: {px}px; }}\n\n"
+            ));
+        }
         for (condition, properties) in &utility.groups {
             uses_leading |= properties
                 .iter()

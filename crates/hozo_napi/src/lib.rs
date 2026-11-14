@@ -471,6 +471,7 @@ fn emit_web(
     parsed: &mut hozo_parser::ParseOutput,
     options: WebModuleOptions<'_>,
 ) -> Vec<CompiledComponent> {
+    hozo_parser::capture_utility_leading(parsed, theme);
     let mut plans = options.tailwind.apply(parsed).into_iter();
     let evidence = options.evidence;
     let offsets = Utf16Offsets::new(source);
@@ -1612,6 +1613,7 @@ fn lower_native(
         text_forwarding,
         class_helpers,
     );
+    hozo_parser::capture_utility_leading(&mut parsed, theme);
     let plans = tailwind.apply(&mut parsed);
     lower_native_components(
         source,
@@ -1700,6 +1702,7 @@ fn emit_native_module(
     parsed: &mut hozo_parser::ParseOutput,
     options: NativeModuleOptions<'_>,
 ) -> CompiledNativeModule {
+    hozo_parser::capture_utility_leading(parsed, theme);
     let plans = options.tailwind.apply(parsed);
     let mut components = lower_native_components(source, theme, parsed, &options, plans);
     let imports = parsed
@@ -1932,6 +1935,7 @@ pub struct JsTheme {
     /// `--font-<name>`, which `font-sans`, `font-serif` and `font-mono`
     /// read (#1691).
     pub font_families: Option<Vec<JsThemeFontFamily>>,
+    pub utility_leading_registers: Option<Vec<JsUtilityLeadingRegister>>,
     /// The selector of the project's `@custom-variant dark (...)`, with `&`
     /// for the element. Absent means `prefers-color-scheme` (#1654).
     pub dark_selector: Option<String>,
@@ -1963,6 +1967,12 @@ pub struct JsThemeFontFamily {
     pub web: String,
     /// The declaration's value, for a backend with no CSS variables.
     pub value: String,
+}
+
+#[napi(object)]
+pub struct JsUtilityLeadingRegister {
+    pub name: String,
+    pub px: f64,
 }
 
 #[napi(object)]
@@ -2120,6 +2130,14 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
                 .collect(),
         )
         .with_dark_selector(theme.dark_selector)
+        .with_utility_leading_registers(
+            theme
+                .utility_leading_registers
+                .unwrap_or_default()
+                .into_iter()
+                .map(|register| (register.name, register.px))
+                .collect(),
+        )
         .with_web_colors(
             theme
                 .web_colors

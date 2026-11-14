@@ -10,6 +10,7 @@ pub(super) const DEFER_SHADOW: u8 = 1;
 pub(super) const DEFER_GRADIENT: u8 = 2;
 pub(super) const DEFER_TRANSFORM: u8 = 4;
 pub(super) const DEFER_FILTER: u8 = 8;
+pub(super) const DEFER_TEXT_METRICS: u8 = 16;
 mod plan;
 use plan::CandidatePlanBuilder;
 pub use plan::{
@@ -109,6 +110,7 @@ fn render_candidate_module_impl(
     let mut shadows = Vec::new();
     let mut transitions: Vec<(&String, Option<&'static str>, String)> = Vec::new();
     let mut font_defaults = Vec::new();
+    let mut leading_registers = Vec::new();
     let mut explicit_leading = false;
     for name in class_names {
         let Some(mut utility) = hozo_parser::resolve_class_name(name) else {
@@ -226,6 +228,11 @@ fn render_candidate_module_impl(
         if has_font_default(&properties) {
             font_defaults.push(name);
         }
+        if matches!(properties.as_slice(), [StyleProperty::TextColor(_)]) {
+            if let Some(px) = theme.utility_leading_register(name) {
+                leading_registers.push((name, px));
+            }
+        }
         supported.push((name, pairs));
     }
 
@@ -241,7 +248,8 @@ fn render_candidate_module_impl(
         || states
             .iter()
             .any(|(_, groups)| groups.iter().any(|group| group.font_default));
-    let composes_text_metrics = explicit_leading && has_font_defaults;
+    let composes_text_metrics =
+        (explicit_leading || !leading_registers.is_empty()) && has_font_defaults;
     // One function, even in many states/values, already obeys whole-property
     // replacement. Only namespaces able to combine distinct functions need
     // the extra leaf, table and per-resolution composition.
@@ -324,13 +332,36 @@ fn render_candidate_module_impl(
         out.push_str(&format!("  {}: {},\n", quote(name), quote(reason)));
     }
     out.push_str("}\n\n");
+    let mut state_colors = None;
     let ordering = plan.and_then(|plan| {
         if plan.finalized {
-            let (barriers, independent) = plan.independent_colors();
+            let (barriers, independent) = plan.independent_colors("style");
             let covers_every_drawable =
                 barriers.len() + independent.len() == supported.len() + states.len();
             let partial = (!barriers.is_empty() && independent.len() > 1)
                 .then(|| (barriers.join(" "), independent.join(" ")));
+            if !states.is_empty() {
+                let (colors, independent) = plan.independent_colors("state");
+                // Colour writes keep authored order only when their Native
+                // specificity ties. A mixed-weight colour tier still needs
+                // its usual specificity projection, not a guessed rank.
+                let mut weights = states
+                    .iter()
+                    .filter(|(name, _)| colors.contains(&name.as_str()))
+                    .flat_map(|(_, groups)| groups.iter().map(|group| group.order));
+                let uniform = weights
+                    .next()
+                    .is_some_and(|first| first.is_some() && weights.all(|weight| weight == first));
+                if !colors.is_empty()
+                    && uniform
+                    && states.iter().all(|(name, groups)| {
+                        (colors.contains(&name.as_str()) || independent.contains(&name.as_str()))
+                            && groups.iter().all(|group| group.order.is_some())
+                    })
+                {
+                    state_colors = Some(colors.join(" "));
+                }
+            }
             plan.prepare_ordering().map(|order| {
                 let complete = order.ranks.len() == supported.len() + states.len()
                     || (partial.is_some() && covers_every_drawable);
@@ -346,6 +377,19 @@ fn render_candidate_module_impl(
     // drawable entry together, no string can reach the legacy state order.
     // Refused and unknown tokens never enter the resolver's rank lookup.
     let complete = ordering.as_ref().is_some_and(|(_, _, complete)| *complete);
+    // If every conditional group has a common rank and belongs to the
+    // existing owner-interaction domain, a resting barrier need not make
+    // the entire conditional tier switch cascades. The fallback still
+    // keeps its resting prefix, and must not pull in ambient-only writes.
+    let fully_ranked_states = !complete
+        && !states.is_empty()
+        && ordering.as_ref().is_some_and(|(ordering, _, _)| {
+            states.iter().all(|(name, groups)| {
+                ordering.ranks.contains_key(name.as_str())
+                    && groups.iter().all(|group| group.order.is_some())
+            })
+        });
+    let ranked_states = fully_ranked_states || state_colors.is_some();
     // Only when there are any, so a project without state classes keeps the
     // module it had.
     let states_argument = if states.is_empty() {
@@ -358,6 +402,7 @@ fn render_candidate_module_impl(
             .iter()
             .flat_map(|(_, groups)| groups.iter().filter_map(|group| group.order));
         let emit_owner_ranks = !complete
+            && !ranked_states
             && owner_ranks
                 .next()
                 .is_some_and(|first| owner_ranks.any(|rank| rank != first));
@@ -463,6 +508,17 @@ fn render_candidate_module_impl(
             out.push_str("])\n\n");
         }
     }
+    let uses_leading_registers = !leading_registers.is_empty();
+    if uses_leading_registers {
+        out.push_str("const leadingRegisters = new Map([\n");
+        for (name, px) in leading_registers {
+            out.push_str(&format!(
+                "  [styles[{}], {{ lineHeight: {px} }}],\n",
+                quote(name)
+            ));
+        }
+        out.push_str("])\n\n");
+    }
     let has_gradient_slots = !gradients.is_empty()
         || states
             .iter()
@@ -511,9 +567,20 @@ fn render_candidate_module_impl(
         input = "filtered";
     }
     if composes_text_metrics {
-        pipeline.push_str(&format!(
-            "const text = hozoTextMetricStyles({input}, fontDefaults); "
-        ));
+        let registers = if uses_leading_registers {
+            ", leadingRegisters"
+        } else {
+            ""
+        };
+        if uses_leading_registers {
+            pipeline.push_str(&format!(
+                "const text = (deferred & {DEFER_TEXT_METRICS}) ? {input} : hozoTextMetricStyles({input}, fontDefaults{registers}); "
+            ));
+        } else {
+            pipeline.push_str(&format!(
+                "const text = hozoTextMetricStyles({input}, fontDefaults); "
+            ));
+        }
         input = "text";
     }
     if needs_transform_slots {
@@ -523,7 +590,8 @@ fn render_candidate_module_impl(
     let effect_mask = u8::from(needs_shadow_slots) * DEFER_SHADOW
         + u8::from(needs_gradient_slots) * DEFER_GRADIENT
         + u8::from(needs_transform_slots) * DEFER_TRANSFORM
-        + u8::from(needs_filter_slots) * DEFER_FILTER;
+        + u8::from(needs_filter_slots) * DEFER_FILTER
+        + u8::from(uses_leading_registers && composes_text_metrics) * DEFER_TEXT_METRICS;
     let compose = if pipeline.is_empty() {
         None
     } else {
@@ -553,6 +621,11 @@ fn render_candidate_module_impl(
             out.push_str(&format!(" {}: [{}],", quote(name), ranks.join(",")));
         }
         out.push_str(" }");
+        if let Some(colors) = state_colors {
+            out.push_str(&format!(", rankedStates: {}", quote(&colors)));
+        } else if fully_ranked_states {
+            out.push_str(", rankedStates: true");
+        }
         if let Some((barriers, independent)) = partial {
             out.push_str(&format!(
                 ", independentColors: [{}, {}]",
@@ -582,6 +655,9 @@ fn render_candidate_module_impl(
     }
     if has_font_defaults {
         out.push_str("hozoClasses.fontDefaults = fontDefaults\n");
+    }
+    if uses_leading_registers {
+        out.push_str("hozoClasses.leadingRegisters = leadingRegisters\n");
     }
     if effect_mask != 0 {
         out.push_str(&format!("hozoClasses.effectMask = {effect_mask}\n"));
@@ -729,7 +805,11 @@ fn state_groups(
                 filter: crate::filters::metadata(properties),
                 gradient: crate::gradients::metadata(properties, theme),
                 shadow: crate::shadows::metadata(properties, theme),
-                order: hozo_ir::builtin_owner_interaction_rank(condition),
+                // Preserve the existing tuple scale; the low bits no
+                // longer encode a second Tailwind variant precedence.
+                order: condition
+                    .owner_interaction_specificity()
+                    .map(|weight| u32::from(weight) * 256),
                 font_default: has_font_default(properties),
             })
         })
@@ -1277,7 +1357,7 @@ mod tests {
             &Theme::default(),
         );
         assert!(
-            module.contains(r#""active:opacity-80": [[["pressed"], { opacity: 0.8 }, 264]],"#),
+            module.contains(r#""active:opacity-80": [[["pressed"], { opacity: 0.8 }, 256]],"#),
             "{module}"
         );
         assert!(

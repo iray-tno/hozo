@@ -53,7 +53,7 @@ Reading it:
 | Web candidate stylesheet emission | Tailwind's upstream first-rule ordinals with a project hint; otherwise the shared built-in rule comparator over the scanned candidate's descriptors. CSS itself resolves specificity. | One rule-emission authority per context, not a declaration rank. A whole-candidate sort cannot prove multi-rule ordering. Verify final ordinary output, not bootstrap output. |
 | Native assessed runtime candidates | `candidate/plan.rs` projects ranks onto emitted objects and real conflict keys. `class-resolver.ts` applies them on a class-string cache miss and selects state matches afterward. | Keep data projection and selection; neither may decide a new Tailwind priority. |
 | Native static specificity and JSX composition | `plan_native_condition_groups` linearizes known weights when needed; unknown weight is not zero. `conditions.rs` preserves authored tiers and [ADR 011](../decisions/011-styling-inputs-keep-their-own-cascade.md) preserves input boundaries. | Keep, including for arbitrary/unranked and mixed inputs. Web needs no parallel weight sort. StyleX keeps its own atomic order; `twMerge` removes classes before ranking and is not cascade. |
-| Native runtime fallback owner ranks | `builtin_owner_interaction_rank` uses the same selector weight as the static Native projection, plus the shared built-in variant positions; `class-resolver.ts` may sort these tuples when the string cannot use the complete plan. It leaves equal ranks in authored order and does not sort a group set containing unknown ranks. Fully ranked namespaces [no longer emit the fallback tuples](tailwind-order-old-path.md#omit-fallback-ranks-when-the-fallback-cannot-run). | Keep necessary specificity/selection. The variant tie policy is still observable on genuinely unassessed input. |
+| Native runtime fallback specificity | Candidate tuples project `Condition::owner_interaction_specificity`, the same weights as static Native. No built-in variant mask is generated. The resolver retains authored order for equal specificity, and does not treat an unknown weight as zero. Fully assessed conditional tiers use the shared rule ranks instead. | Keep specificity and state selection. Do not assign Tailwind priorities to unassessed writes. |
 | Style projection after ordering | Logical edges, implicit line-height, register assembly (transform/filter/shadow/gradient), and authored style/spread precedence. | Keep semantics; never use these projections as a second utility-priority table. |
 
 The parser interaction sort, Web condition-weight sort, duplicate owner
@@ -337,6 +337,87 @@ unassessed write without treating it as disjoint; supporting the custom
 register itself would also require value projection or an explicit refusal
 instead of silently counting it as a correct Tailwind winner. This receipt
 changes neither routing nor the Stage 6 score.
+
+The Native fallback now uses the assessed priority for adjacent implicit
+font-size defaults under the same guard. Both token orders in the
+overlapping-register fixture select **20px / 28px** without the rank
+ablation. This only changes ties among those jointly selected writes. An
+unranked state write, an explicit leading write, or a different effective
+guard keeps its previous relationship to the run. State-only updates do
+not read the priorities. The missing custom value and inter-guard fallback
+are still open; this is a narrower production change, not the exit.
+
+In a namespace whose only conditional writes are assessed font-size
+defaults, Native now emits specificity without the built-in variant tie
+bits. A resting barrier can still reach the fallback but cannot insert a
+conditional style among those writes. Same-specificity hover and press
+use the shared rank, while a hover/focus conjunction retains its higher
+weight. With an additional non-size state writer the compiler still emits
+the legacy tuples. This removes the tie from the bounded size-only route,
+not from general mixed or unassessed input.
+
+The next deletion replaces that size-only tuple mode: when the entire
+conditional tier has shared ranks and an existing owner-interaction
+projection, no conditional tuple carries a legacy rank. The ordinary Metro
+fixture keeps its winners after adding a ranked hover margin. An
+unassessed resting write keeps its previous tier and ordering; an unassessed
+conditional write still prevents the deletion. The missing custom leading
+value is not treated as an independent write or a passing measurement.
+
+The remaining generator no longer packs built-in variant positions into
+Native's selector weight. The old producer and its parser re-export are
+deleted; newly generated partial/fallback tuples carry only the scaled
+selector weight. The authored-order gap regression now exercises the
+actual resolver against Yoga and Chromium, not a tuple-masking ablation.
+This does not prove pinned Tailwind parity for mixed opaque states:
+assessed properties can still lose their shared rank when an unassessed
+conditional write falls outside the proof. The differential below that
+boundary remains an exit blocker, even without a second variant table.
+
+Conditional colour-only rules now participate in the disjointness proof
+when their Native specificity weights tie. The compiler checks the
+captured rule footprints and actual Native keys. The resolver leaves those
+colour writes in authored positions, and reorders only the assessed
+writes in the other slots. All five opaque metric cases keep the real
+Tailwind winners even with an unranked hover background in the input.
+Overlapping custom declarations, non-admitted aliases/registers and
+different specificity weights among the colour barriers are still refused
+by this proof. This is neither custom declaration value projection nor a
+claim of general unassessed parity.
+
+The runtime-candidate reproduction now agrees on **41px** leading with the
+ordinary Hozo candidate stylesheet and generated Native resolver in both
+token orders, under hover alone and under hover plus active. The loader
+captures a supplemental absolute register only for a literal text-colour
+utility with no other write and the same captured theme colour. Web emits
+the register without setting line-height. Native applies it only when a
+selected candidate reads the font-size default, preserving the colour-only
+case and using the existing explicit-leading composition. The ordinary
+Metro fixture also replaces 41px with 43px on a stylesheet epoch change.
+Literal compiled classes also retain a typed register write before their
+utility identity is dropped. With only absolute size readers, they use
+the shared metric ranks without assigning the register its own Tailwind
+priority. The pinned Chromium and Native resolver comparisons agree on
+both permutations and both states for static and dynamic inputs. Mixed
+static/dynamic readers are now verified for ordinary Text lowering as
+well: static size with a runtime register and static register with a
+runtime size each resolve to 41px. An explicitly authored line-height
+of 53px still wins. The mixed Native helper reads the existing selected
+style identities; no per-state rank reads or sorts were added. Relative,
+nested and conflicting custom declarations are not covered by this receipt.
+
+A direct `leading-6` and a register are different writes. In both token
+orders of `text-brand text-xl leading-6`, pinned Tailwind computes
+**20px / 24px** even though the CSS register is **41px**. The generated
+Web and Native routes now retain that winner too; the old Native
+projection incorrectly returned 41px in the reversed string. Keep this
+as a separate control from the conditional case: with
+`hover:text-brand hover:text-xl active:text-2xl hover:leading-6` and
+both states active, Tailwind instead computes **24px / 41px**. The
+later `active:` rule at equal specificity is the live reader there. Hozo does not
+yet capture the conditional custom register, or order that reader
+against a direct leading declaration by the captured rule priority.
+Do not count the resting fix as parity for the conditional case.
 
 ## Progress
 

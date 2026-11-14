@@ -302,6 +302,23 @@ pub(super) fn build_style_entries(
     // condition, a breakpoint, `dark:`, a className branch -- is (0,1,0) and
     // loses to it.
     let mut state_parts: Vec<String> = Vec::new();
+    // Mixed text owners must still order the raw register against the
+    // caller's writes. Only fold it into defaults on the static path.
+    let mixed_text = matches!(
+        node.primitive,
+        hozo_ir::Primitive::Text | hozo_ir::Primitive::TextInput
+    ) && !node.class_name_fallback.is_empty();
+    let register = declarations
+        .iter()
+        .rev()
+        .find_map(|declaration| match declaration.property {
+            StyleProperty::LeadingRegister(px)
+                if !mixed_text && declaration.condition == Condition::Always =>
+            {
+                Some(px)
+            }
+            _ => None,
+        });
     let hozo_ir::NativeConditionGroupPlan {
         mut groups,
         canonical_input,
@@ -310,6 +327,15 @@ pub(super) fn build_style_entries(
     let mut has_interactive = false;
     for (_, props) in &mut groups {
         *props = hozo_ir::dedupe_last_wins(theme.resolve_shadow_tokens(std::mem::take(props)));
+        if let Some(px) = register {
+            for property in props.iter_mut() {
+                if let StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(length)) =
+                    property
+                {
+                    *length = hozo_ir::Length::Px(px);
+                }
+            }
+        }
     }
     let is_default = |property: &StyleProperty| {
         matches!(

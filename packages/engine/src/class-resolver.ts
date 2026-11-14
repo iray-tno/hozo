@@ -15,7 +15,24 @@ export type StyleObject = Record<string, unknown>
 export function hozoTextMetricStyles(
   styles: StyleObject[],
   defaults: ReadonlyMap<StyleObject, StyleObject>,
+  registers?: ReadonlyMap<StyleObject, StyleObject>,
 ): StyleObject[] {
+  if (registers && styles.some((style) => registers.has(style))) {
+    let leading: StyleObject | undefined
+    let hasDefault = false
+    let hasExplicit = false
+    for (const style of styles) {
+      if (defaults.has(style)) hasDefault = true
+      else if (Object.hasOwn(style, 'lineHeight')) hasExplicit = true
+      else leading = registers.get(style) ?? leading
+    }
+    // Until the direct declaration and the reader have a shared assessed
+    // order, keep the existing explicit-leading projection. A later
+    // register cannot become a direct line-height just by appearing last.
+    if (hasDefault && !hasExplicit && leading) {
+      return [...styles.map((style) => defaults.get(style) ?? style), leading]
+    }
+  }
   if (
     !styles.some((style) => defaults.has(style)) ||
     !styles.some((style) => Object.hasOwn(style, 'lineHeight') && !defaults.has(style))
@@ -37,9 +54,13 @@ export function hozoMixedTextMetricStyles(
   styles: readonly TextMetricStyle[],
   ownDefaults: readonly StyleObject[],
   candidateDefaults?: ReadonlySet<StyleObject> | ReadonlyMap<StyleObject, StyleObject>,
+  candidateRegisters?: ReadonlyMap<StyleObject, StyleObject>,
+  ownRegisters?: readonly (readonly [StyleObject, number])[],
 ): readonly TextMetricStyle[] {
   let explicit: StyleObject | undefined
   let endsWithDefault = false
+  let hasDefault = false
+  let register: number | undefined
   function visit(value: TextMetricStyle): void {
     if (!value || typeof value !== 'object') return
     if (Array.isArray(value)) {
@@ -47,11 +68,20 @@ export function hozoMixedTextMetricStyles(
       return
     }
     const style = value as StyleObject
+    const captured =
+      ownRegisters?.find(([entry]) => entry === style)?.[1] ??
+      (candidateRegisters?.get(style)?.lineHeight as number | undefined)
+    if (captured !== undefined) register = captured
     if (!Object.hasOwn(style, 'lineHeight')) return
     endsWithDefault = ownDefaults.includes(style) || candidateDefaults?.has(style) === true
-    if (!endsWithDefault) explicit = style
+    hasDefault ||= endsWithDefault
+    if (!endsWithDefault) {
+      explicit = style
+    }
   }
   for (const style of styles) visit(style)
+  if (hasDefault && !explicit && register !== undefined)
+    return [...styles, { lineHeight: register }]
   return endsWithDefault && explicit ? [...styles, { lineHeight: explicit.lineHeight }] : styles
 }
 
@@ -105,6 +135,8 @@ export type ClassResolver = ((
   filterSlots?: ReadonlyMap<StyleObject, FilterSlots>
   /** @internal Identity of implicit leading, including on maps without explicit leading. */
   fontDefaults?: ReadonlySet<StyleObject> | ReadonlyMap<StyleObject, StyleObject>
+  /** @internal Captured register writes keyed by original generated style. */
+  leadingRegisters?: ReadonlyMap<StyleObject, StyleObject>
   /** @internal Bit mask of this namespace's installed deferrable composers. */
   effectMask?: number
 }
@@ -123,6 +155,8 @@ export interface ClassResolverPlan {
     ranks: Readonly<Record<string, readonly number[]>>
     /** Compiler-proven disjoint sets: unranked colours and admitted ranked scalars. */
     independentColors?: readonly [barriers: string, independent: string]
+    /** All state groups are ranked, except listed disjoint colour writers. */
+    rankedStates?: true | string
   }
 }
 
@@ -190,6 +224,8 @@ export function createClassResolver(
   let styles: Record<string, StyleObject>
   let ranks: ClassResolverPlan['ordering']['ranks'] | undefined
   let independentColors: ClassResolverPlan['ordering']['independentColors']
+  let rankedStates = false
+  let stateColors: Set<string> | undefined
   if (typeof stylesOrPlan.schema === 'number') {
     const plan = stylesOrPlan as ClassResolverPlan
     if (
@@ -206,6 +242,9 @@ export function createClassResolver(
     ambient = plan.ambient ?? {}
     ranks = plan.ordering.ranks
     independentColors = plan.ordering.independentColors
+    rankedStates = plan.ordering.rankedStates !== undefined
+    if (typeof plan.ordering.rankedStates === 'string')
+      stateColors = new Set(plan.ordering.rankedStates.split(' '))
   } else styles = stylesOrPlan as Record<string, StyleObject>
   // Only mixed namespaces carrying the build-time proof allocate these.
   const barriers = independentColors && new Set(independentColors[0].split(' '))
@@ -264,6 +303,7 @@ export function createClassResolver(
   function resolve(value: string): Resolved {
     const base: StyleObject[] = []
     const groups: TemplateEntry[] = []
+    const stateRanks: (number | undefined)[] | undefined = rankedStates ? [] : undefined
     const stateClasses: string[] = []
     const decided: StyleObject[] = []
     // Build transient ranked entries only for the generated-plan ABI. A
@@ -312,6 +352,14 @@ export function createClassResolver(
             continue
           }
           groups.push(entry)
+          if (stateRanks) {
+            const rank = ranks![name]?.[index]
+            if (
+              rank === undefined ? !stateColors?.has(name) : !Number.isSafeInteger(rank) || rank < 0
+            )
+              throw new Error('Invalid Hozo class plan state rank')
+            stateRanks.push(rank)
+          }
           needsState = true
         }
         if (needsState) stateClasses.push(name)
@@ -344,12 +392,80 @@ export function createClassResolver(
     // Build-time Tailwind owner-state rank, sorted once per cached class string,
     // never on every state update. Mixed/unranked domains are left alone; ties
     // retain authored/caller order. Keep warning provenance beside each group.
-    if (
+    if (stateRanks) {
+      let previous = -1
+      if (
+        stateRanks.some((rank) => {
+          if (rank === undefined) return false
+          const inverted = previous > rank
+          previous = rank
+          return inverted
+        })
+      ) {
+        const ordered = groups.flatMap((entry, index) => {
+          const rank = stateRanks[index]
+          return rank === undefined ? [] : [{ entry, rank }]
+        })
+        ordered.sort((a, b) => a.rank - b.rank)
+        let next = 0
+        for (let index = 0; index < groups.length; index++)
+          if (stateRanks[index] !== undefined) groups[index] = ordered[next++]!.entry
+      }
+    } else if (
       groups.length > 1 &&
       groups.every((group) => group.ownerRank !== undefined) &&
       groups.some((group, index) => index > 0 && groups[index - 1]!.ownerRank! > group.ownerRank!)
     ) {
       groups.sort((a, b) => a.ownerRank! - b.ownerRank!)
+    }
+    // Even behind a barrier, adjacent assessed font-size defaults under the
+    // same specificity can use the captured rule rank. Both write the same
+    // fields, and state selection still tests each guard. Do not move a
+    // write across an unknown or an explicit leading register.
+    const fontRanks = ranks
+    const fontDefaults = hozoClasses.fontDefaults
+    if (!rankedStates && fontRanks && fontDefaults && groups.length > 1) {
+      const sizeRank = ({ name, style }: TemplateEntry) => {
+        if (
+          !fontDefaults.has(style) ||
+          !Object.hasOwn(style, 'fontSize') ||
+          !Object.hasOwn(style, 'lineHeight') ||
+          Object.keys(style).length !== 2
+        )
+          return undefined
+        const row = fontRanks[name]
+        return row?.length === 1 ? row[0] : undefined
+      }
+      for (let start = 0; start < groups.length - 1; ) {
+        const first = groups[start]!
+        let previous = sizeRank(first)
+        let end = start + 1
+        let inverted = false
+        if (previous !== undefined) {
+          for (; end < groups.length; end++) {
+            const next = groups[end]!
+            // The upper bits of the emitted owner rank are Native
+            // specificity. If the emitter omitted the ranks entirely,
+            // only matching predicates prove equal specificity here.
+            const sameSpecificity =
+              first.ownerRank !== undefined && next.ownerRank !== undefined
+                ? first.ownerRank >>> 8 === next.ownerRank >>> 8
+                : first.ownerRank === next.ownerRank &&
+                  first.keys.length === next.keys.length &&
+                  first.keys.every((key, index) => key === next.keys[index])
+            if (!sameSpecificity) break
+            const rank = sizeRank(next)
+            if (rank === undefined) break
+            inverted ||= previous > rank
+            previous = rank
+          }
+        }
+        if (inverted) {
+          const ordered = groups.slice(start, end).sort((a, b) => sizeRank(a)! - sizeRank(b)!)
+          for (let index = start; index < end; index++) groups[index] = ordered[index - start]!
+        }
+        start = end
+      }
     }
     base.push(...decided)
     return {

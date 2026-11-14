@@ -53,6 +53,70 @@ pub fn order_module_tailwind(output: &mut ParseOutput, context: &TailwindOrderCo
     plan_module(output, context, PlanMode::Scalars);
 }
 
+/// Transfer a captured register before the backends lose utility identity.
+/// Plain projects do not walk the tree again. An unconditional class can
+/// supplement this element, but a JS guard is not the captured CSS rule.
+pub fn capture_utility_leading(output: &mut ParseOutput, theme: &hozo_ir::Theme) {
+    use hozo_ir::{StyleProperty, Theme};
+    if !theme.has_utility_leading_registers() {
+        return;
+    }
+    fn site(style: &mut Vec<StyleDeclaration>, units: &TailwindUnits, theme: &Theme) {
+        let mut index = 0;
+        while index < style.len() {
+            let declaration = &style[index];
+            let px = (declaration.condition == Condition::Always
+                && matches!(declaration.property, StyleProperty::TextColor(_)))
+            .then(|| {
+                declaration
+                    .source
+                    .utility()
+                    .and_then(|id| units.candidate(id))
+                    .and_then(|name| theme.utility_leading_register(name))
+            })
+            .flatten();
+            if let Some(px) = px {
+                let declaration = StyleDeclaration {
+                    property: StyleProperty::LeadingRegister(px),
+                    condition: Condition::Always,
+                    source: declaration.source,
+                };
+                style.insert(index + 1, declaration);
+                index += 1;
+            }
+            index += 1;
+        }
+    }
+    fn visit(node: &mut Node, units: &TailwindUnits, theme: &Theme) {
+        site(&mut node.style, units, theme);
+        for slot in &mut node.props.class_slots {
+            site(&mut slot.style, units, theme);
+        }
+        for prop in &mut node.props.passthrough {
+            for nested in &mut prop.nested {
+                visit(&mut nested.node, units, theme);
+            }
+        }
+        for child in &mut node.children {
+            match child {
+                Child::Node(node) => visit(node, units, theme),
+                Child::Verbatim { nested, .. } => {
+                    for entry in nested {
+                        visit(&mut entry.node, units, theme);
+                    }
+                }
+                Child::Text(_) => {}
+            }
+        }
+    }
+    for root in &mut output.roots {
+        if let Some(units) = root.tailwind_units.as_deref() {
+            visit(&mut root.node, units, theme);
+            site(&mut root.forwarded, units, theme);
+        }
+    }
+}
+
 /// A context for this module's classes built from the Tailwind facts
 /// compiled into Hozo, for a compile with no project CSS (#1230). Each class's
 /// parsed writes choose between a root's bodies; a class the built-in data

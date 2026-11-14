@@ -6,6 +6,48 @@ import {
   hozoTextMetricStyles,
 } from './class-resolver.ts'
 
+test('a captured register affects only a selected font default and respects explicit writes', () => {
+  const brand = { color: '#123456' }
+  const size = { fontSize: 20, lineHeight: 28 }
+  const stripped = { fontSize: 20 }
+  const explicit = { lineHeight: 24 }
+  const defaults = new Map([[size, stripped]])
+  const registers = new Map([[brand, { lineHeight: 41 }]])
+  const apply = (styles: Record<string, unknown>[]) =>
+    Object.assign({}, ...hozoTextMetricStyles(styles, defaults, registers))
+  assert.deepEqual(apply([brand]), brand)
+  assert.deepEqual(apply([brand, size]), { ...brand, ...size, lineHeight: 41 })
+  assert.deepEqual(apply([size, brand, explicit]), { ...brand, ...size, lineHeight: 24 })
+  assert.deepEqual(apply([size, explicit, brand]), { ...brand, ...size, lineHeight: 24 })
+  assert.deepEqual(apply([explicit, size, brand]), { ...brand, ...size, lineHeight: 24 })
+})
+
+test('a register and its font-size reader can arrive from different input tiers', () => {
+  const color = { color: '#123456' }
+  const size = { fontSize: 20, lineHeight: 28 }
+  const explicit = { lineHeight: 24 }
+  const candidate = new Map([[color, { lineHeight: 41 }]])
+  assert.equal(hozoMixedTextMetricStyles([color], [], undefined, candidate).length, 1)
+  assert.deepEqual(
+    hozoMixedTextMetricStyles([[size], [color]], [size], undefined, candidate).at(-1),
+    {
+      lineHeight: 41,
+    },
+  )
+  assert.deepEqual(
+    hozoMixedTextMetricStyles([color, size], [], new Set([size]), undefined, [[color, 41]]).at(-1),
+    { lineHeight: 41 },
+  )
+  assert.equal(
+    hozoMixedTextMetricStyles([color, size, explicit], [size], undefined, candidate).at(-1),
+    explicit,
+  )
+  assert.deepEqual(
+    hozoMixedTextMetricStyles([explicit, size, color], [size], undefined, candidate).at(-1),
+    explicit,
+  )
+})
+
 test('generated font defaults lose only their line height to an active explicit write, never their font size', () => {
   const font = { fontSize: 18, lineHeight: 28 }
   const otherFont = { fontSize: 20, lineHeight: 28 }

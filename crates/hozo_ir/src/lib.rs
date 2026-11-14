@@ -45,8 +45,7 @@ pub use tailwind_portable::portable_tailwind_snapshot;
 // Generated per-root and per-variant facts for a compile with no project CSS.
 mod tailwind_builtin;
 pub use tailwind_builtin::{
-    builtin_owner_interaction_rank, builtin_tailwind_emission_order, builtin_tailwind_snapshot,
-    builtin_tailwind_version,
+    builtin_tailwind_emission_order, builtin_tailwind_snapshot, builtin_tailwind_version,
 };
 
 // ---------------------------------------------------------------------------
@@ -2244,6 +2243,8 @@ pub enum StyleProperty {
     FontSize(Length),
     FontWeight(FontWeight),
     LineHeight(LineHeight),
+    /// A CSS leading register write, not a direct line-height declaration.
+    LeadingRegister(f64),
     /// Letter spacing, always in `em` -- Tailwind's `tracking-*` scale is
     /// defined relative to the element's own font size. Web-only: React
     /// Native's `letterSpacing` is an absolute number, and the font size to
@@ -2962,6 +2963,7 @@ impl StyleProperty {
             | StyleProperty::ContainerName(..)
             | StyleProperty::Content(..)
             | StyleProperty::Keyword(..)
+            | StyleProperty::LeadingRegister(..)
             | StyleProperty::Arbitrary(..)
             | StyleProperty::WebOnly(..)
             | StyleProperty::GridTemplateColumns(..)

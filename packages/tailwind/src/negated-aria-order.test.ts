@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
-import { createCompiler, openCandidateCache, prepareFinalTailwindContext } from '@hozo/compiler'
+import {
+  createCompiler,
+  openCandidateCache,
+  prepareFinalTailwindContext,
+  TAILWIND_SCALAR_ORDER_POLICY,
+} from '@hozo/compiler'
 import { transformSync } from 'esbuild'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { nativeDisabledProps } from '../../primitives/src/native-disabled.ts'
@@ -33,7 +38,7 @@ test('negated boolean ARIA retains original order and polarity in static and dyn
   const cache = openCandidateCache()
   cache.scanFile('negative.ts', JSON.stringify(names.join(' ')), 0)
   const plan = cache.renderNativeModulePlan(context)
-  assert.match(plan.fingerprint, /^scalar-order-v58:/)
+  assert.equal(plan.fingerprint.split(':')[0], TAILWIND_SCALAR_ORDER_POLICY)
   for (const entry of plan.entries) {
     assert.ok(entry.groups.length > 0, entry.candidate)
     assert.ok(
