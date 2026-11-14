@@ -318,6 +318,26 @@ reference in both token orders, for six state observations per route.
 This leaves ranked input handling and Native arbitrary-family refusals
 unchanged.
 
+An overlapping `@utility text-brand` that also writes `--tw-leading: 41px`
+exposes two separate gaps. With `hover:text-xl hover:text-lg` both token
+orders give Tailwind **20px / 41px** (font size / line height) in Chromium.
+Hozo's generated Web candidate CSS gives **20px / 28px** in both orders;
+the generated Native resolver gives **18px / 28px** when `hover:text-lg`
+is last and **20px / 28px** in reverse. Its `text-brand` candidate writes
+only `color`. In a test-only ablation, retaining the assessed hover ranks
+fixes font size in both orders but leaves line height at 28px. Removing the
+custom register declaration restores the independent-colour proof and all
+three routes give **20px / 28px** in both orders.
+
+The overlapping case is not solvable by a different tie-break alone: the
+capture records the declaration footprint but does not deliver the authored
+register value. Keep it out of the independent-colour proof. Before retiring
+the fallback for this domain, separate the known hover precedence from the
+unassessed write without treating it as disjoint; supporting the custom
+register itself would also require value projection or an explicit refusal
+instead of silently counting it as a correct Tailwind winner. This receipt
+changes neither routing nor the Stage 6 score.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

@@ -2286,6 +2286,98 @@ test('opaque typography needs captured rule order even when a caller string incl
   }
 })
 
+test('an overlapping custom leading register is missing before Native ordering', {
+  skip: !executablePath,
+}, async () => {
+  const base = tailwindPackageDir()
+  const names = ['text-brand', 'hover:text-xl', 'hover:text-lg']
+  const cache = openCandidateCache()
+  cache.scanFile('custom-leading.tsx', JSON.stringify(names.join(' ')), 1)
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const overlapping of [false, true]) {
+      const css = `${readFileSync(path.join(base, 'theme.css'), 'utf8')}
+        @tailwind utilities; @theme { --color-brand: #123456; }
+        @utility text-brand { color: #123456; ${overlapping ? '--tw-leading: 41px;' : ''} }`
+      const theme = await loadTheme(css, base)
+      const { snapshot, classOrder } = await prepareTailwindOrder(css, base, names)
+      const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
+      const module = cache.renderNativeModulePlan(context, theme)
+      const branded = module.entries.find((entry) => entry.candidate === 'text-brand')
+      assert.equal(branded.kind, 'style')
+      assert.deepEqual(
+        branded.groups.map(({ nativeKeys }) => nativeKeys),
+        [['color']],
+      )
+      assert.equal(module.ordering.ranks['text-brand'], undefined)
+      assert.equal(module.code.includes('independentColors:'), !overlapping)
+
+      const local = createCompiler(theme)
+      const opaque = `import { Text } from '@hozo/core'; const el=<Text className={value}/>`
+      const web = local.prepareWebModule(opaque).emit(context)[0]
+      const renderWeb = evaluate(`module.exports=(value)=> (${web.jsx})`, { h: createElement })
+      const upstream = (await compile(css)).build(names)
+      const downstream = `${cache.renderCss(theme, classOrder(cache.candidates()))}\n${web.css}`
+      // Test the ordinary resolver and a diagnostic ablation that keeps the
+      // assessed hover ranks but still cannot add the absent custom write.
+      const code = module.code.replace(/^import .*$/gm, '')
+      const resolve = evaluate(code, { createClassResolver }).hozoClasses
+      const rankedHover = evaluate(code, {
+        createClassResolver: (plan) =>
+          createClassResolver({
+            ...plan,
+            ordering: {
+              ...plan.ordering,
+              independentColors: ['text-brand', 'hover:text-xl hover:text-lg'],
+            },
+          }),
+      }).hozoClasses
+      for (const [tokens, fallbackSize] of [
+        [names, overlapping ? 18 : 20],
+        [names.toReversed(), 20],
+      ]) {
+        const value = tokens.join(' ')
+        const markup = renderToStaticMarkup(renderWeb(value))
+        for (const [sheet, html, expectedLeading] of [
+          [upstream, `<span class="${value}"></span>`, overlapping ? '41px' : '28px'],
+          [downstream, markup, '28px'],
+        ]) {
+          await page.setContent(`<!doctype html><style>${sheet}</style>${html}`)
+          const { root } = await cdp.send('DOM.getDocument')
+          const { nodeId } = await cdp.send('DOM.querySelector', {
+            nodeId: root.nodeId,
+            selector: 'span',
+          })
+          assert.ok(nodeId, html)
+          await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover'] })
+          assert.deepEqual(
+            await page.locator('span').evaluate((node) => {
+              const { fontSize, lineHeight } = getComputedStyle(node)
+              return [fontSize, lineHeight]
+            }),
+            ['20px', expectedLeading],
+            value,
+          )
+        }
+        const metrics = (resolver) => {
+          const { color, fontSize, lineHeight } = Object.assign(
+            {},
+            ...resolver(value, { hovered: true }),
+          )
+          return [color, fontSize, lineHeight]
+        }
+        assert.deepEqual(metrics(resolve), ['#123456', fallbackSize, 28], value)
+        assert.deepEqual(metrics(rankedHover), ['#123456', 20, 28], value)
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('absolute metric fallback preserves mixed tiers and projects cross-input leading', {
   skip: !executablePath,
 }, async () => {
