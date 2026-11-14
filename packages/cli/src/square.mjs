@@ -39,7 +39,8 @@ Setup checks:
             its Hozo adapter; on Vite, hozo() comes before React's plugin
   css       The stylesheet Hozo reads imports Tailwind, and @hozo/ui's theme
             when @hozo/ui is installed
-  metro     Metro's saved state is newer than metro.config (else: restart it)
+  metro     Metro's saved state is newer than metro.config, and than each
+            project component whose text classes it read (else: restart it)
   scan      Every file importing @hozo/* was read by the last candidate scan
 
 Code: the audit \`hozo dry-fit\` runs, against the stylesheet the css check
