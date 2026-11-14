@@ -3,7 +3,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { type Compiler, createCompiler, prepareTailwindContext } from '@hozo/compiler'
+import {
+  type Compiler,
+  createCompiler,
+  prepareTailwindContext,
+  TAILWIND_SCALAR_ORDER_POLICY,
+} from '@hozo/compiler'
 import { emitTailwindModules, TailwindProjectSession } from '@hozo/compiler/project'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
@@ -26,8 +31,8 @@ test('ordinary project sessions enable shared scalar winners, and standalone cal
     for (const classes of ['p-4 p-2', 'p-2 p-4']) {
       const [web] = await session.emit(`web-${classes}`, [collected(classes)])
       assert.match(web[0].css, /padding-top: 16px/)
-      assert.equal(web[0].tailwindPlan.mode, 'scalar-order-v58')
-      assert.match(web[0].tailwindPlan.fingerprint, /^scalar-order-v58:/)
+      assert.equal(web[0].tailwindPlan.mode, TAILWIND_SCALAR_ORDER_POLICY)
+      assert.equal(web[0].tailwindPlan.fingerprint.split(':')[0], TAILWIND_SCALAR_ORDER_POLICY)
       const [native] = await session.emit(`native-${classes}`, [
         (compiler) => compiler.prepareNativeModule(source(classes)),
       ])

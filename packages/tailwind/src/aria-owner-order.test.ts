@@ -6,6 +6,7 @@ import {
   openCandidateCache,
   prepareAuthoredTailwindContext,
   prepareFinalTailwindContext,
+  TAILWIND_SCALAR_ORDER_POLICY,
 } from '@hozo/compiler'
 import { transformSync } from 'esbuild'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
@@ -123,7 +124,7 @@ test('canonical disabled ordering survives actual static/dynamic action and dest
   const cache = openCandidateCache()
   cache.scanFile('disabled-order.ts', JSON.stringify(names.join(' ')), 0)
   const plan = cache.renderNativeModulePlan(context)
-  assert.match(plan.fingerprint!, /^scalar-order-v58:/)
+  assert.equal(plan.fingerprint?.split(':')[0], TAILWIND_SCALAR_ORDER_POLICY)
   assert.ok(plan.entries.every((entry) => entry.groups.every((group) => group.orderable)))
   const resolve = runInNewContext(
     `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,

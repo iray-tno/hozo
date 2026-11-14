@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { TAILWIND_SCALAR_ORDER_POLICY } from '../../packages/compiler/src/index.ts'
 import { tailwindPackageDir } from '../../packages/tailwind/src/theme.ts'
 import { hozo, hozoWithDiscoveredOwnerCallers } from '../../packages/vite/src/index.ts'
 import { handleClasses } from './handle-publication.mjs'
@@ -114,7 +115,7 @@ export async function buildViteOwnerPublication(route = 'captured') {
       for (const owner of owners) {
         assert.equal(owner.identity.importer, caller)
         assert.equal(owner.identity.platform, 'web')
-        assert.match(owner.fingerprint, /^scalar-order-v58:/)
+        assert.equal(owner.fingerprint.split(':')[0], TAILWIND_SCALAR_ORDER_POLICY)
         assert.ok(owner.findings.every((row) => row.disposition === 'prepared-literal'))
       }
     } else {

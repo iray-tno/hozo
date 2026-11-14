@@ -9,6 +9,7 @@ import {
   type PreparedModule,
   prepareAuthoredTailwindContext,
   prepareTailwindContext,
+  TAILWIND_SCALAR_ORDER_POLICY,
 } from '@hozo/compiler'
 import { lowerModule, prepareLowerModule } from '@hozo/compiler/lower'
 import { emitFinalTailwindBatch } from '@hozo/compiler/project'
@@ -99,7 +100,7 @@ test('one exact final context contains actual static units and reconciled runtim
   })
   assert.equal(preparations, 1)
   assert.equal(result.fingerprint, result.native.fingerprint)
-  assert.match(result.fingerprint, /^scalar-order-v58:[a-f0-9]{64}$/)
+  assert.match(result.fingerprint, new RegExp(`^${TAILWIND_SCALAR_ORDER_POLICY}:[a-f0-9]{64}$`))
   assert.equal(web.context, native.context)
   assert.equal(
     renderContext,
@@ -114,7 +115,7 @@ test('one exact final context contains actual static units and reconciled runtim
   for (const { output } of result.modules) {
     const components = Array.isArray(output) ? output : output.components
     assert.equal(components[0].tailwindPlan?.fingerprint, result.fingerprint)
-    assert.equal(components[0].tailwindPlan?.mode, 'scalar-order-v58')
+    assert.equal(components[0].tailwindPlan?.mode, TAILWIND_SCALAR_ORDER_POLICY)
   }
   assert.deepEqual(result.ignoredModules, [{ id: 'deleted', revision: 'old' }])
   assert.deepEqual(result.ignoredRuntimeSources, ['deleted'])
