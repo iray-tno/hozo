@@ -168,6 +168,7 @@
         "$TURBO_ROOT$/packages/compiler/src/**",
         "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",
         "$TURBO_ROOT$/packages/ui/src/**",
+        "$TURBO_ROOT$/packages/ui/hozo.manifest.json",
         "$TURBO_ROOT$/packages/engine/src/class-resolver.ts",
         "$TURBO_ROOT$/packages/engine/src/transform-slots.ts"
       ]
