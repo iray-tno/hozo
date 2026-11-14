@@ -324,13 +324,36 @@ fn render_candidate_module_impl(
         out.push_str(&format!("  {}: {},\n", quote(name), quote(reason)));
     }
     out.push_str("}\n\n");
+    let mut state_colors = None;
     let ordering = plan.and_then(|plan| {
         if plan.finalized {
-            let (barriers, independent) = plan.independent_colors();
+            let (barriers, independent) = plan.independent_colors("style");
             let covers_every_drawable =
                 barriers.len() + independent.len() == supported.len() + states.len();
             let partial = (!barriers.is_empty() && independent.len() > 1)
                 .then(|| (barriers.join(" "), independent.join(" ")));
+            if !states.is_empty() {
+                let (colors, independent) = plan.independent_colors("state");
+                // Colour writes keep authored order only when their Native
+                // specificity ties. A mixed-weight colour tier still needs
+                // its usual specificity projection, not a guessed rank.
+                let mut weights = states
+                    .iter()
+                    .filter(|(name, _)| colors.contains(&name.as_str()))
+                    .flat_map(|(_, groups)| groups.iter().map(|group| group.order));
+                let uniform = weights
+                    .next()
+                    .is_some_and(|first| first.is_some() && weights.all(|weight| weight == first));
+                if !colors.is_empty()
+                    && uniform
+                    && states.iter().all(|(name, groups)| {
+                        (colors.contains(&name.as_str()) || independent.contains(&name.as_str()))
+                            && groups.iter().all(|group| group.order.is_some())
+                    })
+                {
+                    state_colors = Some(colors.join(" "));
+                }
+            }
             plan.prepare_ordering().map(|order| {
                 let complete = order.ranks.len() == supported.len() + states.len()
                     || (partial.is_some() && covers_every_drawable);
@@ -350,7 +373,7 @@ fn render_candidate_module_impl(
     // existing owner-interaction domain, a resting barrier need not make
     // the entire conditional tier switch cascades. The fallback still
     // keeps its resting prefix, and must not pull in ambient-only writes.
-    let ranked_states = !complete
+    let fully_ranked_states = !complete
         && !states.is_empty()
         && ordering.as_ref().is_some_and(|(ordering, _, _)| {
             states.iter().all(|(name, groups)| {
@@ -358,6 +381,7 @@ fn render_candidate_module_impl(
                     && groups.iter().all(|group| group.order.is_some())
             })
         });
+    let ranked_states = fully_ranked_states || state_colors.is_some();
     // Only when there are any, so a project without state classes keeps the
     // module it had.
     let states_argument = if states.is_empty() {
@@ -566,7 +590,9 @@ fn render_candidate_module_impl(
             out.push_str(&format!(" {}: [{}],", quote(name), ranks.join(",")));
         }
         out.push_str(" }");
-        if ranked_states {
+        if let Some(colors) = state_colors {
+            out.push_str(&format!(", rankedStates: {}", quote(&colors)));
+        } else if fully_ranked_states {
             out.push_str(", rankedStates: true");
         }
         if let Some((barriers, independent)) = partial {

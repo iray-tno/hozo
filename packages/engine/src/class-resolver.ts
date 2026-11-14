@@ -123,8 +123,8 @@ export interface ClassResolverPlan {
     ranks: Readonly<Record<string, readonly number[]>>
     /** Compiler-proven disjoint sets: unranked colours and admitted ranked scalars. */
     independentColors?: readonly [barriers: string, independent: string]
-    /** All conditional groups have a shared rank, even with a resting barrier. */
-    rankedStates?: true
+    /** All state groups are ranked, except listed disjoint colour writers. */
+    rankedStates?: true | string
   }
 }
 
@@ -193,6 +193,7 @@ export function createClassResolver(
   let ranks: ClassResolverPlan['ordering']['ranks'] | undefined
   let independentColors: ClassResolverPlan['ordering']['independentColors']
   let rankedStates = false
+  let stateColors: Set<string> | undefined
   if (typeof stylesOrPlan.schema === 'number') {
     const plan = stylesOrPlan as ClassResolverPlan
     if (
@@ -209,7 +210,9 @@ export function createClassResolver(
     ambient = plan.ambient ?? {}
     ranks = plan.ordering.ranks
     independentColors = plan.ordering.independentColors
-    rankedStates = plan.ordering.rankedStates === true
+    rankedStates = plan.ordering.rankedStates !== undefined
+    if (typeof plan.ordering.rankedStates === 'string')
+      stateColors = new Set(plan.ordering.rankedStates.split(' '))
   } else styles = stylesOrPlan as Record<string, StyleObject>
   // Only mixed namespaces carrying the build-time proof allocate these.
   const barriers = independentColors && new Set(independentColors[0].split(' '))
@@ -268,7 +271,7 @@ export function createClassResolver(
   function resolve(value: string): Resolved {
     const base: StyleObject[] = []
     const groups: TemplateEntry[] = []
-    const stateRanks: number[] | undefined = rankedStates ? [] : undefined
+    const stateRanks: (number | undefined)[] | undefined = rankedStates ? [] : undefined
     const stateClasses: string[] = []
     const decided: StyleObject[] = []
     // Build transient ranked entries only for the generated-plan ABI. A
@@ -319,7 +322,9 @@ export function createClassResolver(
           groups.push(entry)
           if (stateRanks) {
             const rank = ranks![name]?.[index]
-            if (rank === undefined || !Number.isSafeInteger(rank) || rank < 0)
+            if (
+              rank === undefined ? !stateColors?.has(name) : !Number.isSafeInteger(rank) || rank < 0
+            )
               throw new Error('Invalid Hozo class plan state rank')
             stateRanks.push(rank)
           }
@@ -356,10 +361,23 @@ export function createClassResolver(
     // never on every state update. Mixed/unranked domains are left alone; ties
     // retain authored/caller order. Keep warning provenance beside each group.
     if (stateRanks) {
-      if (stateRanks.some((rank, index) => index > 0 && stateRanks[index - 1]! > rank)) {
-        const ordered = groups.map((entry, index) => ({ entry, rank: stateRanks[index]! }))
+      let previous = -1
+      if (
+        stateRanks.some((rank) => {
+          if (rank === undefined) return false
+          const inverted = previous > rank
+          previous = rank
+          return inverted
+        })
+      ) {
+        const ordered = groups.flatMap((entry, index) => {
+          const rank = stateRanks[index]
+          return rank === undefined ? [] : [{ entry, rank }]
+        })
         ordered.sort((a, b) => a.rank - b.rank)
-        for (let index = 0; index < groups.length; index++) groups[index] = ordered[index]!.entry
+        let next = 0
+        for (let index = 0; index < groups.length; index++)
+          if (stateRanks[index] !== undefined) groups[index] = ordered[next++]!.entry
       }
     } else if (
       groups.length > 1 &&

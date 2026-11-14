@@ -1882,7 +1882,7 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
     ...new Set(cases.flatMap((classes) => classes.split(' '))),
     'text-sm',
     'bg-brand',
-    'mt-2',
+    'hover:mt-2',
     'hover:bg-brand',
   ]
   const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
@@ -2084,7 +2084,7 @@ test('opaque typography needs captured rule order even when a caller string incl
   ]
   const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), [
     ...names,
-    'mt-2',
+    'hover:mt-2',
     'hover:bg-brand',
   ])
   const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
@@ -2098,11 +2098,22 @@ test('opaque typography needs captured rule order even when a caller string incl
   // The independent namespace no longer needs legacy ranks. Build the
   // negative control in a larger universe where the old route is reachable.
   const control = openCandidateCache()
-  control.scanFile('mixed.tsx', JSON.stringify([...names, 'mt-2', 'hover:bg-brand'].join(' ')), 1)
+  control.scanFile(
+    'mixed.tsx',
+    JSON.stringify([...names, 'hover:mt-2', 'hover:bg-brand'].join(' ')),
+    1,
+  )
   const controlCode = control
     .renderNativeModulePlan(context, theme)
     .code.replace(/^import .*$/gm, '')
     .replace(/^hozoClasses\.fontDefaults = .*$/m, '')
+  const withStateColor = openCandidateCache()
+  withStateColor.scanFile('colour.tsx', JSON.stringify([...names, 'hover:bg-brand'].join(' ')), 1)
+  const colorPlan = withStateColor.renderNativeModulePlan(context, theme)
+  assert.match(colorPlan.code, /rankedStates: "hover:bg-brand"/)
+  const renderColor = evaluate(colorPlan.code.replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  }).hozoClasses
   const withBarrier = (plan) => ({
     ...plan,
     ordering: { schema: 1, ranks: plan.ordering.ranks },
@@ -2179,6 +2190,7 @@ test('opaque typography needs captured rule order even when a caller string incl
         return [fontSize, lineHeight, paddingTop]
       }
       assert.deepEqual(read(renderCurrent(value)), expected, `${value}/current`)
+      assert.deepEqual(read(renderNative(renderColor)(`${value} hover:bg-brand`)), expected, value)
       assert.deepEqual(read(renderMasked(value)), fallback, `${value}/specificity-only`)
       if (fallback.some((metric, index) => metric !== expected[index])) maskedDisagrees++
     }

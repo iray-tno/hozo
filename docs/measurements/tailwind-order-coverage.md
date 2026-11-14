@@ -374,6 +374,17 @@ assessed properties can still lose their shared rank when an unassessed
 conditional write falls outside the proof. The differential below that
 boundary remains an exit blocker, even without a second variant table.
 
+Conditional colour-only rules now participate in the disjointness proof
+when their Native specificity weights tie. The compiler checks the
+captured rule footprints and actual Native keys. The resolver leaves those
+colour writes in authored positions, and reorders only the assessed
+writes in the other slots. All five opaque metric cases keep the real
+Tailwind winners even with an unranked hover background in the input.
+Overlapping custom declarations, non-admitted aliases/registers and
+different specificity weights among the colour barriers are still refused
+by this proof. This is neither custom declaration value projection nor a
+claim of general unassessed parity.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

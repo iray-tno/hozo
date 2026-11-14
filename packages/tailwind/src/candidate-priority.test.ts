@@ -266,6 +266,8 @@ test('adding an assessed state keeps shared ranks without legacy tuples', async 
 
 test('assessed conditional maps omit legacy tuples even with a resting barrier', async () => {
   const input = `${css}\n@tailwind utilities; @theme { --color-brand:#123456; }
+    @theme { --color-other:#abcdef; }
+    @utility bg-other { background-color:#abcdef; }
     @utility text-brand { color:#123456; --tw-leading: 41px; }`
   const theme = await loadTheme(input, base)
   const names = ['text-brand', 'active:text-2xl', 'hover:text-xl', 'hover:focus:text-3xl']
@@ -285,7 +287,13 @@ test('assessed conditional maps omit legacy tuples even with a resting barrier',
   assert.doesNotMatch(mixed, tuples)
   // The conditional colour has two upstream rule owners and cannot be
   // assigned one rank even though Native can still project its theme value.
-  const unassessed = await render([...names, 'hover:text-brand'])
+  const colourOnly = await render([...names, 'hover:bg-other'])
+  assert.match(colourOnly, /rankedStates: "hover:bg-other"/)
+  assert.doesNotMatch(colourOnly, tuples)
+  const mixedWeights = await render([...names, 'hover:bg-other', 'hover:focus:bg-other'])
+  assert.doesNotMatch(mixedWeights, /rankedStates:/)
+  assert.match(mixedWeights, tuples)
+  const unassessed = await render([...names, 'hover:text-brand', 'hover:mt-2'])
   assert.doesNotMatch(unassessed, /rankedStates: true/)
   // Only Native specificity survives (1 for hover/press, 2 for the
   // conjunction); do not encode the four built-in variant bits again.
