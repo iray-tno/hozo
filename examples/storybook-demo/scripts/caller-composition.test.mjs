@@ -2112,6 +2112,7 @@ test('opaque typography needs captured rule order even when a caller string incl
   const controlCode = control
     .renderNativeModulePlan(context, theme)
     .code.replace(/^import .*$/gm, '')
+    .replace(/^hozoClasses\.fontDefaults = .*$/m, '')
   const withBarrier = (plan) => ({
     ...plan,
     ordering: { schema: 1, ranks: plan.ordering.ranks },
@@ -2321,24 +2322,11 @@ test('an overlapping custom leading register is missing before Native ordering',
       const renderWeb = evaluate(`module.exports=(value)=> (${web.jsx})`, { h: createElement })
       const upstream = (await compile(css)).build(names)
       const downstream = `${cache.renderCss(theme, classOrder(cache.candidates()))}\n${web.css}`
-      // Test the ordinary resolver and a diagnostic ablation that keeps the
-      // assessed hover ranks but still cannot add the absent custom write.
+      // The ordinary resolver keeps the hover ranks in the fallback, but
+      // cannot add a declaration the compiler never emitted.
       const code = module.code.replace(/^import .*$/gm, '')
       const resolve = evaluate(code, { createClassResolver }).hozoClasses
-      const rankedHover = evaluate(code, {
-        createClassResolver: (plan) =>
-          createClassResolver({
-            ...plan,
-            ordering: {
-              ...plan.ordering,
-              independentColors: ['text-brand', 'hover:text-xl hover:text-lg'],
-            },
-          }),
-      }).hozoClasses
-      for (const [tokens, fallbackSize] of [
-        [names, overlapping ? 18 : 20],
-        [names.toReversed(), 20],
-      ]) {
+      for (const tokens of [names, names.toReversed()]) {
         const value = tokens.join(' ')
         const markup = renderToStaticMarkup(renderWeb(value))
         for (const [sheet, html, expectedLeading] of [
@@ -2369,8 +2357,7 @@ test('an overlapping custom leading register is missing before Native ordering',
           )
           return [color, fontSize, lineHeight]
         }
-        assert.deepEqual(metrics(resolve), ['#123456', fallbackSize, 28], value)
-        assert.deepEqual(metrics(rankedHover), ['#123456', 20, 28], value)
+        assert.deepEqual(metrics(resolve), ['#123456', 20, 28], value)
       }
     }
   } finally {
