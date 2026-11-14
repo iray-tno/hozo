@@ -48,11 +48,15 @@ const COMMANDS = {
     summary: 'Print what a file compiles to on the Web and on Native, with its diagnostics',
     run: show,
   },
+  add: {
+    summary: 'Copy an @hozo/ui component into the project as source, to own and edit',
+    run: add,
+  },
 }
 
 // Names a later RFC specifies (RFC 011 §7). Reserved so no other command
 // takes them, and refused with a reason rather than as a typo.
-const RESERVED = ['init', 'add', 'mcp']
+const RESERVED = ['init', 'mcp']
 
 const ALIASES = Object.fromEntries(
   Object.entries(COMMANDS)
@@ -160,6 +164,12 @@ async function show(argv, io) {
   const { runShow } = await import('./show.mjs')
   const { exit, error } = await runShow(argv, io)
   return error ? fail(io, 'hozo show', new CliError(error.message, error.code), argv) : exit
+}
+
+async function add(argv, io) {
+  const { runAdd } = await import('./add.mjs')
+  const { exit, error } = runAdd(argv, io)
+  return error ? fail(io, 'hozo add', new CliError(error.message, error.code), argv) : exit
 }
 
 /** Run `hozo` with `argv` (no `node`, no script path). Resolves to the exit code. */

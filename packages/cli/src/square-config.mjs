@@ -292,7 +292,7 @@ export function checkMetroState(project) {
 }
 
 /** The project's own source files: Git's view when there is one. */
-function sourceFiles(project) {
+export function sourceFiles(project) {
   try {
     const listed = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
       cwd: project,
