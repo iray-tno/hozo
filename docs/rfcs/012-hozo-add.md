@@ -222,6 +222,31 @@ and `square`'s Metro check, which compared only `metro.config`'s time with the
 state's, now reports `metro-state-stale` for each of them edited or deleted
 since Metro started.
 
+### 7.2 Step 2
+
+`hozo add` and `--list` are in `@hozo/cli` (`packages/cli/src/add.mjs`),
+with three choices the plan left open:
+
+- **A component's name finds its file.** Several components share a file
+  (`Badge` and `Alert` are in `status.tsx`; `Checkbox` and `Switch` in
+  `toggle.tsx`), so `hozo add badge` copies `status.tsx`. Names are read from
+  `@hozo/ui`'s `index.ts`.
+- **The caller list gives the import that takes the copy.** A copy exports
+  the name its file defines (`HozoButton`); it is `@hozo/ui`'s entry that
+  publishes it as `Button`. So each caller is listed with
+  `import { HozoButton as Button } from './components/ui/button'`, local
+  names and `type` kept. `--imports` (§8) would write that line.
+- **Only a file `add` did not create is guarded.** It is not overwritten
+  without `--force`, in a dry run as well. New files overwrite nothing, so
+  they need no Git check; an existing copy is never touched (`--update`,
+  step 3, is for that).
+
+The exit's "`pnpm test` passes in a project after `add button --write`" is
+measured by parts: the copy is the upstream file plus one comment line, so
+its types are the upstream's; its compiled output and its callers' are
+pinned by `packages/metro/src/copied-component.test.ts` (steps 1 and 1b);
+and the packages it imports are checked against `package.json`.
+
 ## 8. Resolved questions
 
 - **Moving callers: behind `--imports`.** By default `add` only lists the
@@ -257,3 +282,6 @@ since Metro started.
 - Draft (2026-11-14): step 1 measured (§7.1). A copy compiles the same; its
   Native callers lose text forwarding, so step 1b brings project components'
   forwarding to Metro before `add` ships.
+- Draft (2026-11-15): step 1b implemented; step 2 implemented (§7.2), with
+  component names accepted beside file names and each caller listed with the
+  import that takes the copy.
