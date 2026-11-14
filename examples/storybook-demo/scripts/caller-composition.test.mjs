@@ -78,6 +78,7 @@ function evaluate(code, context) {
     nativeDisabledProps,
     hozoAuthoredStyle,
     hozoGapSpreadStyles,
+    hozoMixedTextMetricStyles,
     hozoShadowStyles,
     ...context,
   })
