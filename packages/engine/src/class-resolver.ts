@@ -20,12 +20,16 @@ export function hozoTextMetricStyles(
   if (registers && styles.some((style) => registers.has(style))) {
     let leading: StyleObject | undefined
     let hasDefault = false
+    let hasExplicit = false
     for (const style of styles) {
       if (defaults.has(style)) hasDefault = true
-      else if (Object.hasOwn(style, 'lineHeight')) leading = undefined
+      else if (Object.hasOwn(style, 'lineHeight')) hasExplicit = true
       else leading = registers.get(style) ?? leading
     }
-    if (hasDefault && leading) {
+    // Until the direct declaration and the reader have a shared assessed
+    // order, keep the existing explicit-leading projection. A later
+    // register cannot become a direct line-height just by appearing last.
+    if (hasDefault && !hasExplicit && leading) {
       return [...styles.map((style) => defaults.get(style) ?? style), leading]
     }
   }

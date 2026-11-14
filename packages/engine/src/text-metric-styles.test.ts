@@ -18,7 +18,8 @@ test('a captured register affects only a selected font default and respects expl
   assert.deepEqual(apply([brand]), brand)
   assert.deepEqual(apply([brand, size]), { ...brand, ...size, lineHeight: 41 })
   assert.deepEqual(apply([size, brand, explicit]), { ...brand, ...size, lineHeight: 24 })
-  assert.deepEqual(apply([size, explicit, brand]), { ...brand, ...size, lineHeight: 41 })
+  assert.deepEqual(apply([size, explicit, brand]), { ...brand, ...size, lineHeight: 24 })
+  assert.deepEqual(apply([explicit, size, brand]), { ...brand, ...size, lineHeight: 24 })
 })
 
 test('generated font defaults lose only their line height to an active explicit write, never their font size', () => {
