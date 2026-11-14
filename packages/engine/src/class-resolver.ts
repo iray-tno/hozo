@@ -77,11 +77,11 @@ export function hozoMixedTextMetricStyles(
     hasDefault ||= endsWithDefault
     if (!endsWithDefault) {
       explicit = style
-      register = undefined
     }
   }
   for (const style of styles) visit(style)
-  if (hasDefault && register !== undefined) return [...styles, { lineHeight: register }]
+  if (hasDefault && !explicit && register !== undefined)
+    return [...styles, { lineHeight: register }]
   return endsWithDefault && explicit ? [...styles, { lineHeight: explicit.lineHeight }] : styles
 }
 

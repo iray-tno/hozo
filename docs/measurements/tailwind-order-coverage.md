@@ -406,6 +406,19 @@ of 53px still wins. The mixed Native helper reads the existing selected
 style identities; no per-state rank reads or sorts were added. Relative,
 nested and conflicting custom declarations are not covered by this receipt.
 
+A direct `leading-6` and a register are different writes. In both token
+orders of `text-brand text-xl leading-6`, pinned Tailwind computes
+**20px / 24px** even though the CSS register is **41px**. The generated
+Web and Native routes now retain that winner too; the old Native
+projection incorrectly returned 41px in the reversed string. Keep this
+as a separate control from the conditional case: with
+`hover:text-brand hover:text-xl active:text-2xl hover:leading-6` and
+both states active, Tailwind instead computes **24px / 41px**. The
+more specific `active:` size is the live reader there. Hozo does not
+yet capture the conditional custom register, or order that reader
+against a direct leading declaration by the captured rule priority.
+Do not count the resting fix as parity for the conditional case.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

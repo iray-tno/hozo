@@ -2423,6 +2423,67 @@ test('an overlapping custom leading register reaches ordinary Web and Native can
   }
 })
 
+test('a custom register does not replace a direct leading declaration in either class order', {
+  skip: !executablePath,
+}, async () => {
+  const base = tailwindPackageDir()
+  const css = `${readFileSync(path.join(base, 'theme.css'), 'utf8')}
+    @tailwind utilities; @theme { --color-brand: #123456; }
+    @utility text-brand { color: #123456; --tw-leading: 41px; }`
+  const names = ['text-brand', 'text-xl', 'leading-6']
+  const theme = await loadTheme(css, base)
+  const { snapshot, classOrder } = await prepareTailwindOrder(css, base, names)
+  const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const cache = openCandidateCache()
+  cache.scanFile('entry.ts', JSON.stringify(names.join(' ')), 1)
+  const code = cache.renderNativeModulePlan(context, theme).code.replace(/^import .*$/gm, '')
+  const resolve = evaluate(code, { createClassResolver, hozoTextMetricStyles }).hozoClasses
+  const upstream = (await compile(css)).build(names)
+  const candidateCss = cache.renderCss(theme, classOrder(names))
+  const compiler = createCompiler(theme)
+  const page = await browser.newPage()
+  try {
+    for (const tokens of [names, names.toReversed()]) {
+      const value = tokens.join(' ')
+      const markup = `<span class="${value}">Label</span>`
+      const literal = `import {Text} from '@hozo/core'; const el=<Text className="${value}">Label</Text>`
+      const web = compiler.prepareWebModule(literal).emit(context)[0]
+      const native = compiler.prepareNativeModule(literal).emit(context).components[0]
+      const nativeProps = evaluate(
+        `const hozoStyles=${native.styles};module.exports=(${native.jsx})`,
+        {
+          h: (_type, props) => props,
+          Text: 'text',
+        },
+      )
+      const compiledMarkup = renderToStaticMarkup(
+        evaluate(`module.exports=(${web.jsx})`, { h: createElement }),
+      )
+      for (const [sheet, html] of [
+        [upstream, markup],
+        [candidateCss, markup],
+        [web.css, compiledMarkup],
+      ]) {
+        await page.setContent(`<style>${sheet}</style>${html}`)
+        assert.deepEqual(
+          await page.locator('span').evaluate((element) => {
+            const { fontSize, lineHeight } = getComputedStyle(element)
+            return [fontSize, lineHeight]
+          }),
+          ['20px', '24px'],
+          value,
+        )
+      }
+      for (const styles of [resolve(value), [nativeProps.style].flat(Infinity)]) {
+        const { fontSize, lineHeight } = Object.assign({}, ...styles)
+        assert.deepEqual([fontSize, lineHeight], [20, 24], value)
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('absolute metric fallback preserves mixed tiers and projects cross-input leading', {
   skip: !executablePath,
 }, async () => {

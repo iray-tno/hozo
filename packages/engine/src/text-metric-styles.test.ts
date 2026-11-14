@@ -42,6 +42,10 @@ test('a register and its font-size reader can arrive from different input tiers'
     hozoMixedTextMetricStyles([color, size, explicit], [size], undefined, candidate).at(-1),
     explicit,
   )
+  assert.deepEqual(
+    hozoMixedTextMetricStyles([explicit, size, color], [size], undefined, candidate).at(-1),
+    explicit,
+  )
 })
 
 test('generated font defaults lose only their line height to an active explicit write, never their font size', () => {
