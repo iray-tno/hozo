@@ -2,7 +2,9 @@
 //! second scan/parse or a device ordering contract. Write indices name IR
 //! properties before Native expansion/deduplication/transform composition.
 use super::StateGroup;
-use hozo_ir::{Condition, StyleProperty, TailwindOrderContext, TailwindWriteEvidence};
+use hozo_ir::{
+    Condition, OrderRuleShape, StyleProperty, TailwindOrderContext, TailwindWriteEvidence,
+};
 use std::collections::{BTreeMap, HashMap};
 
 pub struct CandidateModulePlan {
@@ -186,6 +188,103 @@ impl<'a> CandidatePlanBuilder<'a> {
         self.ordering
             .get_or_insert_with(|| ordering(&self.entries))
             .as_ref()
+    }
+
+    /// The footprint must be known on both platforms, not just the keys
+    /// Hozo happened to emit. A project utility can reuse a built-in name
+    /// and write unrelated properties in a second Tailwind rule.
+    pub fn independent_backgrounds(&self) -> (Vec<&str>, Vec<&str>) {
+        let barriers: Vec<_> =
+            self.entries
+                .iter()
+                .filter(|entry| {
+                    entry.kind == "style"
+                        && matches!(entry.groups.as_slice(), [group]
+                        if !group.orderable
+                            && group.native_keys == ["backgroundColor"]
+                            && group.composition_keys.is_empty())
+                        && self
+                            .context
+                            .lookup(&entry.candidate)
+                            .is_some_and(|candidate| {
+                                !candidate.rules.is_empty() && candidate.rules.iter().all(|rule| {
+                                    !rule.important
+                                        && matches!(&rule.shape, OrderRuleShape::Rule { nodes, .. }
+                                        if !nodes.is_empty() && nodes.iter().all(|node| {
+                                            matches!(node, OrderRuleShape::Declaration {
+                                                property, important: false
+                                            } if property == "background-color")
+                                        }))
+                                })
+                            })
+                })
+                .map(|entry| entry.candidate.as_str())
+                .collect();
+        if barriers.is_empty() {
+            return (barriers, Vec::new());
+        }
+        // Deliberately start with closed scalar projections. An unfamiliar
+        // write (including a custom property or a register) does not gain
+        // independence just because React Native spells its key differently.
+        fn text_or_padding(property: &str) -> bool {
+            matches!(
+                property,
+                "font-size"
+                    | "line-height"
+                    | "letter-spacing"
+                    | "font-weight"
+                    | "--tw-font-weight"
+                    | "--tw-leading"
+                    | "--tw-tracking"
+                    | "padding"
+                    | "padding-top"
+                    | "padding-bottom"
+                    | "padding-left"
+                    | "padding-right"
+            )
+        }
+        let ranked = self
+            .entries
+            .iter()
+            .filter(|entry| {
+                !entry.groups.is_empty()
+                    && entry.groups.iter().all(|group| {
+                        group.orderable
+                            && !group.native_keys.is_empty()
+                            && group.composition_keys.is_empty()
+                            && group.native_keys.iter().all(|key| {
+                                matches!(
+                                    key.as_str(),
+                                    "fontSize"
+                                        | "fontWeight"
+                                        | "lineHeight"
+                                        | "letterSpacing"
+                                        | "paddingTop"
+                                        | "paddingBottom"
+                                        | "paddingLeft"
+                                        | "paddingRight"
+                                )
+                            })
+                    })
+                    && self
+                        .context
+                        .lookup(&entry.candidate)
+                        .is_some_and(|candidate| {
+                            candidate.rules.iter().all(|rule| {
+                                // Use the shared assessment: valid @property
+                                // registrations are not selector-owned writes.
+                                hozo_ir::assess_tailwind_rule(&entry.candidate, rule).is_ok_and(
+                                    |rule| {
+                                        !rule.child_scope
+                                            && rule.properties.into_iter().all(text_or_padding)
+                                    },
+                                )
+                            })
+                        })
+            })
+            .map(|entry| entry.candidate.as_str())
+            .collect();
+        (barriers, ranked)
     }
 
     pub fn finish(self, code: String) -> CandidateModulePlan {

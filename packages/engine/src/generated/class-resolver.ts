@@ -3,6 +3,7 @@ export {
   type ClassResolver,
   type ClassResolverPlan,
   createClassResolver,
+  hozoMixedTextMetricStyles,
   hozoTextMetricStyles,
   type StyleObject,
 } from '../class-resolver.ts'

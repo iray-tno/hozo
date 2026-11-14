@@ -245,6 +245,62 @@ production candidate resolver still selects 24px/32px for the first
 overlap. No runtime or ranking behavior changed. The ranked
 absolute-metric regression still uses real Tailwind's emitted rule order.
 
+A mixed-input probe compiles a Text nested in a Pressable, with both
+Tailwind/StyleX input orders, both authored guard orders, eight states,
+and three caller/inline combinations (96 observations). The Web oracle
+uses the official StyleX Babel output, Tailwind's actual caller CSS and
+an authored-order reference for the unassessed static list. Font size
+and tracking agree throughout, including explicit inline overrides.
+Before mixed projection, Native line height disagreed in 48 observations: a caller's
+`leading-6` writes 24px, but an active compiled size applies its 28px
+or 32px default over it. CSS reads the caller's `--tw-leading` inside
+that size rule. Masking the fallback variant tie cannot repair this:
+the residual has no state-conditioned rank to mask. The two sources
+need to preserve explicit versus default leading through composition.
+Ordinary compiled Native now matches all 96 observations; the same
+48 counterexamples remain when the mixed metric projection is disabled.
+The projection restores the last explicit leading only when a later font
+default would hide it. It runs only on mixed Native text/field sites with
+compiled metrics, before authored inline style, and never inspects ranks.
+
+An entirely opaque owner string is a different route: the Web candidate
+sheet does not know the caller's token order. With the same `bg-brand`
+barrier, real Tailwind and Hozo's captured Web candidate sheet choose
+`text-2xl` for `active:text-2xl hover:text-xl` when both states hold, even
+though hover was written second. Native's variant tie currently agrees
+on that case. Removing the tie leaves 20px instead of 24px and also changes
+the padding control. Separately, when both text utilities share the
+same hover guard, `hover:text-xl hover:text-lg` yields 18px on the current
+Native resolver and 20px on both sheets. The old rank cannot express
+this same-guard utility order. Across five opaque cases the current
+resolver differs in one, and the specificity-only ablation in three;
+a positive conjunction still wins in both. The ablation is not a safe
+replacement for the opaque route, even for absolute typography.
+
+The generated resolver now keeps its existing common ranks when every
+unassessed drawable token is a proven plain background-colour
+write and every other drawable token is assessed absolute text metrics
+or physical padding. Both the captured rule footprint and the actual
+Native projection must fit that boundary. A custom background utility
+also writing font size, logical padding or `--tw-leading` is not admitted.
+Multiple admitted background writes (including duplicate tokens) retain
+their fallback order relative to one another. This does not assign a rank
+to a background or change the static authored fallback. No claim is made
+about the winner between two unassessed colours on Web.
+
+The proof uses the shared rule assessment to exclude validated hoisted
+`@property` registrations, rather than mistaking them for selector-owned
+writes. This admits ranked font-weight and absolute tracking in the same
+scope: Chromium and Native both select weight 400 and tracking 2px for
+the competing hover utilities in both token orders.
+
+All five opaque cases now match Chromium for size, line height and
+padding. Removing just the proof gives the previous 4/5, and also
+masking the legacy variant tie gives 2/5. The proof is only read when
+preparing a new class string; cached state selection uses the same
+ordered template. The legacy tie remains reachable for potentially
+overlapping or unproven writes, so this is not the Stage 6 exit.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

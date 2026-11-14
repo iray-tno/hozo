@@ -26,6 +26,35 @@ export function hozoTextMetricStyles(
   return styles.map((style) => defaults.get(style) ?? style)
 }
 
+type TextMetricStyle = StyleObject | readonly TextMetricStyle[] | false | null | undefined
+
+/**
+ * A compiled text owner sees both its own entries and selected caller entries.
+ * Keep the array order for every other field, and keep the last explicit
+ * leading if a later font-size fallback would cover it.
+ */
+export function hozoMixedTextMetricStyles(
+  styles: readonly TextMetricStyle[],
+  ownDefaults: readonly StyleObject[],
+  candidateDefaults?: ReadonlySet<StyleObject> | ReadonlyMap<StyleObject, StyleObject>,
+): readonly TextMetricStyle[] {
+  let explicit: StyleObject | undefined
+  let endsWithDefault = false
+  function visit(value: TextMetricStyle): void {
+    if (!value || typeof value !== 'object') return
+    if (Array.isArray(value)) {
+      for (const part of value) visit(part)
+      return
+    }
+    const style = value as StyleObject
+    if (!Object.hasOwn(style, 'lineHeight')) return
+    endsWithDefault = ownDefaults.includes(style) || candidateDefaults?.has(style) === true
+    if (!endsWithDefault) explicit = style
+  }
+  for (const style of styles) visit(style)
+  return endsWithDefault && explicit ? [...styles, { lineHeight: explicit.lineHeight }] : styles
+}
+
 /**
  * The state an element is in when its runtime classes are resolved: what
  * its pressable reports (`pressed`, `hovered`, `focused`, `focusVisible`)
@@ -74,6 +103,8 @@ export type ClassResolver = ((
   gradientSlots?: ReadonlyMap<StyleObject, GradientSlots>
   transformSlots?: ReadonlyMap<StyleObject, TransformSlots>
   filterSlots?: ReadonlyMap<StyleObject, FilterSlots>
+  /** @internal Identity of implicit leading, including on maps without explicit leading. */
+  fontDefaults?: ReadonlySet<StyleObject> | ReadonlyMap<StyleObject, StyleObject>
   /** @internal Bit mask of this namespace's installed deferrable composers. */
   effectMask?: number
 }
@@ -87,7 +118,12 @@ export interface ClassResolverPlan {
   ambient?: ClassState
   compose?: Composer
   /** Ordinals from one complete compiler namespace. Missing means barrier. */
-  ordering: { schema: 1; ranks: Readonly<Record<string, readonly number[]>> }
+  ordering: {
+    schema: 1
+    ranks: Readonly<Record<string, readonly number[]>>
+    /** Compiler-proven disjoint sets: unranked backgrounds and ranked text/physical padding. */
+    independentBackgrounds?: readonly [barriers: string, independent: string]
+  }
 }
 
 interface TemplateEntry {
@@ -153,6 +189,7 @@ export function createClassResolver(
 ): ClassResolver {
   let styles: Record<string, StyleObject>
   let ranks: ClassResolverPlan['ordering']['ranks'] | undefined
+  let independentBackgrounds: ClassResolverPlan['ordering']['independentBackgrounds']
   if (typeof stylesOrPlan.schema === 'number') {
     const plan = stylesOrPlan as ClassResolverPlan
     if (
@@ -168,7 +205,11 @@ export function createClassResolver(
     states = plan.states ?? {}
     ambient = plan.ambient ?? {}
     ranks = plan.ordering.ranks
+    independentBackgrounds = plan.ordering.independentBackgrounds
   } else styles = stylesOrPlan as Record<string, StyleObject>
+  // Only mixed namespaces carrying the build-time proof allocate these.
+  const barriers = independentBackgrounds && new Set(independentBackgrounds[0].split(' '))
+  const independent = independentBackgrounds && new Set(independentBackgrounds[1].split(' '))
   const isAmbient = (key: string) => Object.hasOwn(ambient, key)
   // Class strings repeat constantly across renders and list items, and the
   // result is immutable, so each distinct string is resolved once.
@@ -226,16 +267,24 @@ export function createClassResolver(
     const stateClasses: string[] = []
     const decided: StyleObject[] = []
     // Build transient ranked entries only for the generated-plan ABI. A
-    // single unassessed object makes this whole string use the old path.
+    // single unassessed object still makes the whole string fall back unless
+    // every drawable candidate belongs to the compiler's disjoint sets.
     let ranked: { rank: number; entry: TemplateEntry }[] | undefined = ranks ? [] : undefined
+    let canKeepRanks = independent !== undefined
+    let backgrounds: TemplateEntry[] | undefined
     const take = ranks
       ? (index: number, entry: TemplateEntry) => {
           if (!ranked) return
           const rank = ranks![entry.name]?.[index]
           if (rank === undefined) {
-            ranked = undefined
+            if (canKeepRanks && barriers?.has(entry.name)) {
+              // Their colours still compete in fallback order. The ranked
+              // entries are only independent of these writes, not of one another.
+              ;(backgrounds ??= []).push(entry)
+            } else ranked = undefined
             return
           }
+          if (canKeepRanks && !independent?.has(entry.name)) canKeepRanks = false
           if (!Number.isSafeInteger(rank) || rank < 0)
             throw new Error('Invalid Hozo class plan rank')
           ranked.push({ rank, entry })
@@ -274,11 +323,11 @@ export function createClassResolver(
       const reason = unsupported[name]
       if (reason) warn(name, reason)
     }
-    if (ranked) {
+    if (ranked && (!backgrounds || canKeepRanks)) {
       // Stable ties keep input order. Strip rank objects before caching, so
       // neither cache hits nor state-only changes can read/sort priorities.
       ranked.sort((a, b) => a.rank - b.rank)
-      const ordered: TemplateEntry[] = []
+      const ordered: TemplateEntry[] = backgrounds ?? []
       for (const { entry } of ranked) {
         if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
           if (matches(entry.keys, entry.name, ambient)) ordered.push({ ...entry, keys: [] })

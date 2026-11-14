@@ -4,9 +4,14 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
-import { createCompiler, openCandidateCache, prepareTailwindContext } from '@hozo/compiler'
+import {
+  createCompiler,
+  openCandidateCache,
+  prepareFinalTailwindContext,
+  prepareTailwindContext,
+} from '@hozo/compiler'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
-import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
+import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 const base = tailwindPackageDir()
 const css = readFileSync(path.join(base, 'theme.css'), 'utf8')
@@ -158,6 +163,40 @@ test('a sidecar refuses missing context facts before publishing code and retains
   assert.deepEqual(plan.entries, [])
   assert.equal(plan.code, empty.renderNativeModule())
   assert.doesNotMatch(plan.code, /priorityRank|fingerprint|ruleId/)
+})
+
+test('partial ranks require a background-only footprint in both upstream CSS and Native output', async () => {
+  const names = [
+    'hover:text-lg',
+    'hover:text-xl',
+    'hover:font-bold',
+    'hover:tracking-[2px]',
+    'hover:ps-4',
+    'bg-brand',
+  ]
+  const cache = cacheFor(names)
+  for (const [extra, admitted] of [
+    ['@utility bg-brand { background-color:#abcdef; }', true],
+    ['@utility bg-brand { background-color:#abcdef; font-size:41px; }', false],
+    ['@utility bg-brand { background-color:#abcdef; padding-inline:16px; }', false],
+    ['@utility bg-brand { background-color:#abcdef; --tw-leading:41px; }', false],
+  ] as const) {
+    const input = `${css}\n@tailwind utilities; @theme { --color-brand:#123456; } ${extra}`
+    const theme = await loadTheme(input, base)
+    const { snapshot } = await prepareTailwindOrder(input, base, names)
+    const plan = cache.renderNativeModulePlan(
+      prepareFinalTailwindContext(JSON.stringify(snapshot)),
+      theme,
+    )
+    assert.equal(plan.ordering?.ranks['bg-brand'], undefined)
+    assert.ok(plan.ordering?.ranks['hover:text-xl'])
+    if (admitted)
+      assert.match(
+        plan.code,
+        /independentBackgrounds: \["bg-brand", "hover:font-bold hover:text-lg hover:text-xl hover:tracking-\[2px\]"\]/,
+      )
+    else assert.doesNotMatch(plan.code, /independentBackgrounds/)
+  }
 })
 
 test('empty, small and 256-candidate maps keep all priority sidecar bytes off the device', async (t) => {
