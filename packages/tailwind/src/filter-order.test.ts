@@ -137,7 +137,7 @@ test('non-completion resets rank in captured and built-in contexts', async () =>
   }
 })
 
-test('a drawable utility with ambiguous rule ownership retains fallback and tuple elision', async () => {
+test('an ambiguous drawable utility retains fallback for unproven writes and omits equal ranks', async () => {
   const ambiguous = `${css}
     @theme { --color-brand: #123456; }
     @utility bg-brand { background-color: #abcdef; }`
@@ -162,7 +162,9 @@ test('a drawable utility with ambiguous rule ownership retains fallback and tupl
   const resolve = runtime(uniform)
   assert.equal(flatten(resolve('bg-brand')).backgroundColor, '#123456')
   assert.equal(flatten(resolve('p-4 p-2')).paddingTop, 16)
-  assert.equal(flatten(resolve('p-4 bg-brand p-2')).paddingTop, 8)
+  // This plain background is independent of physical padding. Opacity
+  // below is outside that proof and keeps its authored/legacy behavior.
+  assert.equal(flatten(resolve('p-4 bg-brand p-2')).paddingTop, 16)
   assert.equal(flatten(resolve('p-2 bg-brand p-4')).paddingTop, 16)
   const state = { hovered: true, pressed: true }
   assert.equal(flatten(resolve('hover:opacity-75 bg-brand hover:opacity-25', state)).opacity, 0.25)
