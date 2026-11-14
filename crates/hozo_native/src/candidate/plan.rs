@@ -226,28 +226,22 @@ impl<'a> CandidatePlanBuilder<'a> {
         // Deliberately start with closed scalar projections. An unfamiliar
         // write (including a custom property or a register) does not gain
         // independence just because React Native spells its key differently.
-        fn text_or_padding(node: &OrderRuleShape) -> bool {
-            match node {
-                OrderRuleShape::Rule { nodes, .. } | OrderRuleShape::AtRule { nodes, .. } => {
-                    nodes.iter().all(text_or_padding)
-                }
-                OrderRuleShape::Declaration { property, .. } => matches!(
-                    property.as_str(),
-                    "font-size"
-                        | "line-height"
-                        | "letter-spacing"
-                        | "font-weight"
-                        | "--tw-leading"
-                        | "--tw-tracking"
-                        | "padding"
-                        | "padding-top"
-                        | "padding-bottom"
-                        | "padding-left"
-                        | "padding-right"
-                ),
-                OrderRuleShape::Comment => true,
-                _ => false,
-            }
+        fn text_or_padding(property: &str) -> bool {
+            matches!(
+                property,
+                "font-size"
+                    | "line-height"
+                    | "letter-spacing"
+                    | "font-weight"
+                    | "--tw-font-weight"
+                    | "--tw-leading"
+                    | "--tw-tracking"
+                    | "padding"
+                    | "padding-top"
+                    | "padding-bottom"
+                    | "padding-left"
+                    | "padding-right"
+            )
         }
         let ranked = self
             .entries
@@ -262,6 +256,7 @@ impl<'a> CandidatePlanBuilder<'a> {
                                 matches!(
                                     key.as_str(),
                                     "fontSize"
+                                        | "fontWeight"
                                         | "lineHeight"
                                         | "letterSpacing"
                                         | "paddingTop"
@@ -275,10 +270,16 @@ impl<'a> CandidatePlanBuilder<'a> {
                         .context
                         .lookup(&entry.candidate)
                         .is_some_and(|candidate| {
-                            candidate
-                                .rules
-                                .iter()
-                                .all(|rule| text_or_padding(&rule.shape))
+                            candidate.rules.iter().all(|rule| {
+                                // Use the shared assessment: valid @property
+                                // registrations are not selector-owned writes.
+                                hozo_ir::assess_tailwind_rule(&entry.candidate, rule).is_ok_and(
+                                    |rule| {
+                                        !rule.child_scope
+                                            && rule.properties.into_iter().all(text_or_padding)
+                                    },
+                                )
+                            })
                         })
             })
             .map(|entry| entry.candidate.as_str())

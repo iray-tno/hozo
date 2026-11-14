@@ -166,7 +166,14 @@ test('a sidecar refuses missing context facts before publishing code and retains
 })
 
 test('partial ranks require a background-only footprint in both upstream CSS and Native output', async () => {
-  const names = ['hover:text-lg', 'hover:text-xl', 'hover:ps-4', 'bg-brand']
+  const names = [
+    'hover:text-lg',
+    'hover:text-xl',
+    'hover:font-bold',
+    'hover:tracking-[2px]',
+    'hover:ps-4',
+    'bg-brand',
+  ]
   const cache = cacheFor(names)
   for (const [extra, admitted] of [
     ['@utility bg-brand { background-color:#abcdef; }', true],
@@ -186,7 +193,7 @@ test('partial ranks require a background-only footprint in both upstream CSS and
     if (admitted)
       assert.match(
         plan.code,
-        /independentBackgrounds: \["bg-brand", "hover:text-lg hover:text-xl"\]/,
+        /independentBackgrounds: \["bg-brand", "hover:font-bold hover:text-lg hover:text-xl hover:tracking-\[2px\]"\]/,
       )
     else assert.doesNotMatch(plan.code, /independentBackgrounds/)
   }

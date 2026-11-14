@@ -2006,6 +2006,10 @@ test('opaque typography needs captured rule order even when a caller string incl
     'active:p-2',
     'hover:p-4',
     'hover:focus:text-3xl',
+    'hover:font-bold',
+    'hover:font-normal',
+    'hover:tracking-[1px]',
+    'hover:tracking-[2px]',
   ]
   const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
@@ -2139,6 +2143,43 @@ test('opaque typography needs captured rule order even when a caller string incl
       if (masked.some((metric, index) => metric !== expected[index])) maskedDisagrees++
     }
     assert.deepEqual([currentDisagrees, maskedDisagrees], [1, 3])
+    const registered = [
+      'hover:font-normal',
+      'hover:font-bold',
+      'hover:tracking-[2px]',
+      'hover:tracking-[1px]',
+      'bg-brand',
+    ]
+    for (const tokens of [registered, registered.toReversed()]) {
+      const value = tokens.join(' ')
+      const html = renderToStaticMarkup(renderWeb(value))
+      for (const [sheet, markup] of [
+        [upstream, `<button class="${value}"></button>`],
+        [`${downstream}\n${web.css}`, html],
+      ]) {
+        await page.setContent(`<!doctype html><style>${sheet}</style>${markup}`)
+        const { root } = await cdp.send('DOM.getDocument')
+        const { nodeId } = await cdp.send('DOM.querySelector', {
+          nodeId: root.nodeId,
+          selector: 'button',
+        })
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover'] })
+        assert.deepEqual(
+          await page.locator('button').evaluate((element) => {
+            const { fontWeight, letterSpacing } = getComputedStyle(element)
+            return [fontWeight, letterSpacing]
+          }),
+          ['400', '2px'],
+          value,
+        )
+      }
+      const state = { hovered: true, pressed: false, focused: false, focusVisible: false }
+      const selected = Object.assign(
+        {},
+        ...renderCurrent(value).style(state).flat(Infinity).filter(Boolean),
+      )
+      assert.deepEqual([selected.fontWeight, selected.letterSpacing], ['400', 2], value)
+    }
   } finally {
     await page.close()
   }
