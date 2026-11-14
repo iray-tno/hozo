@@ -200,7 +200,7 @@ test('partial ranks require a background-only footprint in both upstream CSS and
   }
 })
 
-test('an unranked text colour preserves metric ranks but not across overlapping writes', async () => {
+test('overlapping writes refuse disjointness without discarding assessed state order', async () => {
   const names = ['active:text-2xl', 'hover:text-xl', 'text-brand']
   const cache = cacheFor(names)
   for (const [write, admitted] of [
@@ -219,11 +219,12 @@ test('an unranked text colour preserves metric ranks but not across overlapping 
     )
     assert.equal(plan.ordering?.ranks['text-brand'], undefined)
     assert.equal(plan.code.includes('independentColors:'), admitted, write)
-    assert.equal(/lineHeight: (?:28|32) \}, \d+\]/.test(plan.code), !admitted, write)
+    assert.equal(plan.code.includes('rankedStates: true'), !admitted, write)
+    assert.doesNotMatch(plan.code, /lineHeight: (?:28|32) \}, \d+\]/, write)
   }
 })
 
-test('legacy tuples disappear only while every drawable candidate is covered', async () => {
+test('adding an assessed state keeps shared ranks without legacy tuples', async () => {
   const input = `${css}\n@tailwind utilities; @theme { --color-brand:#123456; }
     @utility bg-brand { background-color:#abcdef; }`
   const theme = await loadTheme(input, base)
@@ -242,7 +243,8 @@ test('legacy tuples disappear only while every drawable candidate is covered', a
   assert.equal(before.entries.find((entry) => entry.candidate === 'md:p-4')?.kind, 'refused')
   const tuples = /\{ fontSize: (?:20|24), lineHeight: (?:28|32) \}, \d+\]/
   assert.doesNotMatch(before.code, tuples)
-  assert.match(after.code, tuples)
+  assert.doesNotMatch(after.code, tuples)
+  assert.match(after.code, /rankedStates: true/)
   const selected = (code: string, value: string) =>
     Object.assign(
       {},
@@ -262,7 +264,7 @@ test('legacy tuples disappear only while every drawable candidate is covered', a
   })
 })
 
-test('font-size-only state maps emit specificity without legacy variant bits', async () => {
+test('assessed conditional maps omit legacy tuples even with a resting barrier', async () => {
   const input = `${css}\n@tailwind utilities; @theme { --color-brand:#123456; }
     @utility text-brand { color:#123456; --tw-leading: 41px; }`
   const theme = await loadTheme(input, base)
@@ -275,12 +277,17 @@ test('font-size-only state maps emit specificity without legacy variant bits', a
     ).code
   }
   const onlySizes = await render(names)
-  assert.match(onlySizes, /fontSize: 24, lineHeight: 32 \}, 256\]/)
-  assert.match(onlySizes, /fontSize: 20, lineHeight: 28 \}, 256\]/)
-  assert.match(onlySizes, /fontSize: 30, lineHeight: 36 \}, 512\]/)
+  const tuples = /fontSize: (?:20|24|30), lineHeight: (?:28|32|36) \}, \d+\]/
+  assert.match(onlySizes, /rankedStates: true/)
+  assert.doesNotMatch(onlySizes, tuples)
   const mixed = await render([...names, 'hover:opacity-25'])
-  assert.doesNotMatch(mixed, /fontSize: 24, lineHeight: 32 \}, 256\]/)
-  assert.match(mixed, /fontSize: 24, lineHeight: 32 \}, 26\d\]/)
+  assert.match(mixed, /rankedStates: true/)
+  assert.doesNotMatch(mixed, tuples)
+  // The conditional colour has two upstream rule owners and cannot be
+  // assigned one rank even though Native can still project its theme value.
+  const unassessed = await render([...names, 'hover:text-brand'])
+  assert.doesNotMatch(unassessed, /rankedStates: true/)
+  assert.match(unassessed, tuples)
 })
 
 test('empty, small and 256-candidate maps keep all priority sidecar bytes off the device', async (t) => {

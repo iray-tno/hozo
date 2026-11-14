@@ -199,6 +199,37 @@ test('only adjacent assessed font-size defaults under the same guard are reranke
   assert.equal(flatten(resolve('brand xl lg', { ...facts, focused: false })).fontSize, 20)
 })
 
+test('a ranked state tier keeps existing resting order and does not read ranks on cache hits', () => {
+  const plan = data()
+  plan.styles.unknown = { color: 'resting' }
+  plan.ordering.rankedStates = true
+  let readRanks = true
+  plan.ordering.ranks = new Proxy(plan.ordering.ranks, {
+    get(target, key: string) {
+      assert.ok(readRanks, 'a cached state tier read ranks again')
+      return target[key]
+    },
+  })
+  const resolve = createClassResolver(plan)
+  for (const names of ['active base focus unknown both', 'both base unknown focus active']) {
+    assert.equal(
+      flatten(resolve(names, { focused: true, pressed: true, hovered: true })).color,
+      'both',
+    )
+    assert.equal(
+      flatten(resolve(names, { focused: false, pressed: false, hovered: false })).color,
+      'resting',
+    )
+  }
+  readRanks = false
+  assert.equal(
+    flatten(
+      resolve('active base focus unknown both', { focused: true, pressed: true, hovered: false }),
+    ).color,
+    'active',
+  )
+})
+
 test('invalid schema/ranks are explicit errors and a legacy class named schema is still an object', () => {
   assert.throws(
     () => createClassResolver({ ...data(), schema: 2 } as unknown as ClassResolverPlan),

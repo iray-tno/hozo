@@ -192,7 +192,7 @@ test('default Metro static output and generated metric composition agree without
   }
 })
 
-test('ordinary Metro restores legacy ranks only when a new drawable candidate needs them', async (t) => {
+test('ordinary Metro keeps shared state ranks across a candidate universe change', async (t) => {
   const { root, config, tokens, file } = fixture(t)
   const source = `import {Button} from '@hozo/core';export const A=({classes}) => <Button className={classes}/>`
   const classes = 'active:text-2xl hover:text-xl text-brand'
@@ -210,7 +210,8 @@ test('ordinary Metro restores legacy ranks only when a new drawable candidate ne
     else firstKey = key
     const code = readFileSync(path.join(root, CACHE_DIR, 'candidates.native.js'), 'utf8')
     assert.match(code, /independentColors/)
-    assert.equal(tuples.test(code), expanded)
+    assert.doesNotMatch(code, tuples)
+    assert.equal(code.includes('rankedStates: true'), expanded)
     const resolve = runInNewContext(
       `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,
       { createClassResolver },

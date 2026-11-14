@@ -1878,13 +1878,12 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
     'active:leading-8 hover:text-xl active:leading-6',
     'active:leading-8 hover:text-xl hover:focus:leading-6',
   ]
-  // Keep a drawable candidate outside the independent domain so the
-  // ablation can still inspect actual legacy ranks.
   const names = [
     ...new Set(cases.flatMap((classes) => classes.split(' '))),
     'text-sm',
     'bg-brand',
     'mt-2',
+    'hover:bg-brand',
   ]
   const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
@@ -2100,6 +2099,7 @@ test('opaque typography needs captured rule order even when a caller string incl
   const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), [
     ...names,
     'mt-2',
+    'hover:bg-brand',
   ])
   const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
   const local = createCompiler(theme)
@@ -2112,7 +2112,7 @@ test('opaque typography needs captured rule order even when a caller string incl
   // The independent namespace no longer needs legacy ranks. Build the
   // negative control in a larger universe where the old route is reachable.
   const control = openCandidateCache()
-  control.scanFile('mixed.tsx', JSON.stringify([...names, 'mt-2'].join(' ')), 1)
+  control.scanFile('mixed.tsx', JSON.stringify([...names, 'mt-2', 'hover:bg-brand'].join(' ')), 1)
   const controlCode = control
     .renderNativeModulePlan(context, theme)
     .code.replace(/^import .*$/gm, '')
@@ -2320,8 +2320,8 @@ test('an overlapping custom leading register is missing before Native ordering',
       assert.equal(module.ordering.ranks['text-brand'], undefined)
       assert.equal(module.code.includes('independentColors:'), !overlapping)
       if (overlapping) {
-        assert.match(module.code, /lineHeight: 28 \}, 256\]/)
-        assert.match(module.code, /lineHeight: 32 \}, 256\]/)
+        assert.match(module.code, /rankedStates: true/)
+        assert.doesNotMatch(module.code, /lineHeight: (?:28|32) \}, \d+\]/)
       }
 
       const local = createCompiler(theme)

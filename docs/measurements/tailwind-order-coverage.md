@@ -356,6 +356,14 @@ weight. With an additional non-size state writer the compiler still emits
 the legacy tuples. This removes the tie from the bounded size-only route,
 not from general mixed or unassessed input.
 
+The next deletion replaces that size-only tuple mode: when the entire
+conditional tier has shared ranks and an existing owner-interaction
+projection, no conditional tuple carries a legacy rank. The ordinary Metro
+fixture keeps its winners after adding a ranked hover margin. An
+unassessed resting write keeps its previous tier and ordering; an unassessed
+conditional write still prevents the deletion. The missing custom leading
+value is not treated as an independent write or a passing measurement.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

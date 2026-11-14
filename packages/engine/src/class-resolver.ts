@@ -123,6 +123,8 @@ export interface ClassResolverPlan {
     ranks: Readonly<Record<string, readonly number[]>>
     /** Compiler-proven disjoint sets: unranked colours and admitted ranked scalars. */
     independentColors?: readonly [barriers: string, independent: string]
+    /** All conditional groups have a shared rank, even with a resting barrier. */
+    rankedStates?: true
   }
 }
 
@@ -190,6 +192,7 @@ export function createClassResolver(
   let styles: Record<string, StyleObject>
   let ranks: ClassResolverPlan['ordering']['ranks'] | undefined
   let independentColors: ClassResolverPlan['ordering']['independentColors']
+  let rankedStates = false
   if (typeof stylesOrPlan.schema === 'number') {
     const plan = stylesOrPlan as ClassResolverPlan
     if (
@@ -206,6 +209,7 @@ export function createClassResolver(
     ambient = plan.ambient ?? {}
     ranks = plan.ordering.ranks
     independentColors = plan.ordering.independentColors
+    rankedStates = plan.ordering.rankedStates === true
   } else styles = stylesOrPlan as Record<string, StyleObject>
   // Only mixed namespaces carrying the build-time proof allocate these.
   const barriers = independentColors && new Set(independentColors[0].split(' '))
@@ -264,6 +268,7 @@ export function createClassResolver(
   function resolve(value: string): Resolved {
     const base: StyleObject[] = []
     const groups: TemplateEntry[] = []
+    const stateRanks: number[] | undefined = rankedStates ? [] : undefined
     const stateClasses: string[] = []
     const decided: StyleObject[] = []
     // Build transient ranked entries only for the generated-plan ABI. A
@@ -312,6 +317,12 @@ export function createClassResolver(
             continue
           }
           groups.push(entry)
+          if (stateRanks) {
+            const rank = ranks![name]?.[index]
+            if (rank === undefined || !Number.isSafeInteger(rank) || rank < 0)
+              throw new Error('Invalid Hozo class plan state rank')
+            stateRanks.push(rank)
+          }
           needsState = true
         }
         if (needsState) stateClasses.push(name)
@@ -344,7 +355,13 @@ export function createClassResolver(
     // Build-time Tailwind owner-state rank, sorted once per cached class string,
     // never on every state update. Mixed/unranked domains are left alone; ties
     // retain authored/caller order. Keep warning provenance beside each group.
-    if (
+    if (stateRanks) {
+      if (stateRanks.some((rank, index) => index > 0 && stateRanks[index - 1]! > rank)) {
+        const ordered = groups.map((entry, index) => ({ entry, rank: stateRanks[index]! }))
+        ordered.sort((a, b) => a.rank - b.rank)
+        for (let index = 0; index < groups.length; index++) groups[index] = ordered[index]!.entry
+      }
+    } else if (
       groups.length > 1 &&
       groups.every((group) => group.ownerRank !== undefined) &&
       groups.some((group, index) => index > 0 && groups[index - 1]!.ownerRank! > group.ownerRank!)
@@ -357,7 +374,7 @@ export function createClassResolver(
     // write across an unknown or an explicit leading register.
     const fontRanks = ranks
     const fontDefaults = hozoClasses.fontDefaults
-    if (fontRanks && fontDefaults && groups.length > 1) {
+    if (!rankedStates && fontRanks && fontDefaults && groups.length > 1) {
       const sizeRank = ({ name, style }: TemplateEntry) => {
         if (
           !fontDefaults.has(style) ||
