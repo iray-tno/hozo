@@ -12,7 +12,13 @@
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { type Compiler, createCompiler, type FontAvailability, type Theme } from '@hozo/compiler'
+import {
+  type Compiler,
+  createCompiler,
+  type FontAvailability,
+  type TextForwardingModule,
+  type Theme,
+} from '@hozo/compiler'
 import { dependencyTextForwarding } from '@hozo/compiler/manifest'
 import {
   CACHE_DIR,
@@ -127,6 +133,10 @@ interface CompilerState {
   compiler: Compiler
   stylexModules?: StylexModuleCache
   worker?: MetroTailwindWorker
+  /** The dependencies' forwarding, from their manifests, set at creation. */
+  dependencyForwarding: TextForwardingModule[]
+  /** Whether the last file compiled added project forwarding to it. */
+  projectForwarding?: boolean
 }
 
 /**
@@ -173,8 +183,9 @@ function createCompilerState(
     ? new StylexModuleCache(path.join(projectRoot, CACHE_DIR, 'stylex-modules.json'))
     : undefined
   if (stylexModules) compiler.setStylexModules(stylexModules.moduleSources())
-  if (projectRoot) compiler.setTextForwarding(dependencyTextForwarding(projectRoot).modules)
-  return { compiler, stylexModules }
+  const dependencyForwarding = projectRoot ? dependencyTextForwarding(projectRoot).modules : []
+  if (projectRoot) compiler.setTextForwarding(dependencyForwarding)
+  return { compiler, stylexModules, dependencyForwarding }
 }
 
 // Bounded to one active epoch per root/platform, including in-flight loads.
@@ -259,7 +270,13 @@ export function getCacheKey(options: CacheKeyOptions = {}): string {
   // file's output depends on them, and nothing else tells Metro it does.
   const state = options.projectRoot ? readMetroState(options.projectRoot) : undefined
   const helpers = createHash('sha256')
-    .update(JSON.stringify([state?.classHelpers ?? [], state?.foundClassHelpers ?? {}]))
+    .update(
+      JSON.stringify([
+        state?.classHelpers ?? [],
+        state?.foundClassHelpers ?? {},
+        state?.projectTextForwarding ?? {},
+      ]),
+    )
     .digest('hex')
   const key = [upstreamKey, manifests, helpers, state ? workerKey(state) : '']
   if (options.projectRoot && state?.ownerShadow)
@@ -306,6 +323,17 @@ export async function transform(params: TransformParams): Promise<unknown> {
   compilerState.compiler.setClassHelpers(
     resolveClassHelpers(state?.classHelpers, state?.foundClassHelpers?.[absoluteFile]),
   )
+  // What the project components this file imports hand a nested Text, under
+  // the specifiers it wrote (RFC 012 §7.1). Set the same way, and reset to
+  // the dependencies' alone after a file that had some.
+  const projectForwarding = state?.projectTextForwarding?.[absoluteFile]
+  if (projectForwarding || compilerState.projectForwarding) {
+    compilerState.compiler.setTextForwarding([
+      ...compilerState.dependencyForwarding,
+      ...(projectForwarding ?? []),
+    ])
+    compilerState.projectForwarding = projectForwarding !== undefined
+  }
   const selectedOwner =
     state?.ownerShadow?.mode === 'owner-caller-transform' &&
     semanticModuleEligible(absoluteFile, 'native') &&

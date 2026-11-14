@@ -165,6 +165,36 @@ test('metro: a config changed after Metro saved its state asks for a restart', a
   assert.equal((await square(root)).check('metro').status, 'passed')
 })
 
+test('metro: a project component edited after Metro started asks for a restart', async (t) => {
+  const root = project(t, ['@hozo/core', '@hozo/metro'], {
+    'metro.config.js':
+      "const { withHozo } = require('@hozo/metro/config')\nmodule.exports = withHozo({}, { css: 'global.css' })\n",
+    'global.css': THEME,
+    'src/components/ui/button.tsx': 'export function HozoButton() {}\n',
+  })
+  const button = path.join(root, 'src', 'components', 'ui', 'button.tsx')
+  const state = path.join(root, 'node_modules/.hozo/metro.json')
+  mkdirSync(path.dirname(state), { recursive: true })
+  writeFileSync(
+    state,
+    JSON.stringify({ css: 'global.css', projectTextForwardingSources: [button] }),
+  )
+  const past = new Date(Date.now() - 60_000)
+  utimesSync(path.join(root, 'metro.config.js'), new Date(past - 60_000), new Date(past - 60_000))
+  utimesSync(button, new Date(past - 60_000), new Date(past - 60_000))
+  utimesSync(state, past, past)
+  assert.equal((await square(root)).check('metro').status, 'passed')
+
+  utimesSync(button, new Date(), new Date())
+  const stale = await square(root)
+  assert.deepEqual(codes(stale.check('metro')), ['metro-state-stale'])
+  assert.equal(stale.check('metro').findings[0].path, 'src/components/ui/button.tsx')
+
+  // Deleted counts as changed: Metro still forwards what it read.
+  rmSync(button)
+  assert.deepEqual(codes((await square(root)).check('metro')), ['metro-state-stale'])
+})
+
 test('scan: a file importing @hozo/* that the last scan did not read', async (t) => {
   const root = project(t, ['@hozo/core', '@hozo/vite'], {
     'vite.config.ts': VITE,

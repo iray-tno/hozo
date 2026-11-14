@@ -3,11 +3,12 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import type { ClassHelper } from '@hozo/compiler'
+import type { ClassHelper, TextForwardingModule } from '@hozo/compiler'
 import {
   CACHE_DIR,
   type HozoProjectOptions,
   projectClassHelpers,
+  projectTextForwarding,
   StylexModuleCache,
   type StylexResolutionRequest,
   type StylexResolvedBindings,
@@ -103,6 +104,19 @@ export interface HozoMetroState {
    * which Metro asks for once at startup, can hash what was found.
    */
   foundClassHelpers?: Record<string, ClassHelper[]>
+  /**
+   * What the project's own components hand a nested `Text`, by absolute
+   * importer and keyed by the specifier it wrote (RFC 012 §7.1). A
+   * dependency's arrives in its manifest; a project component has none.
+   * Found at startup for the same reason as `foundClassHelpers`, with the
+   * same rule: a component edited while Metro runs needs a restart.
+   */
+  projectTextForwarding?: Record<string, TextForwardingModule[]>
+  /**
+   * The files those summaries were read from. `hozo square` compares them
+   * with this state's time to say a running Metro holds an older one.
+   */
+  projectTextForwardingSources?: string[]
   /**
    * Whether the project ships a CSS reset -- `preflight` with `'auto'`
    * already resolved, here rather than in the worker on purpose.
@@ -346,12 +360,19 @@ async function configureHozo<T extends MetroConfigShape>(
   // the candidate module does.
   // The candidate scan's own walk, rather than a second one.
   const foundClassHelpers = projectClassHelpers(projectRoot, files)
+  const forwarding = projectTextForwarding(projectRoot, files)
   const state: HozoMetroState = {
     upstreamTransformer,
     css: options.css,
     sources: options.sources,
     classHelpers: options.classHelpers,
     ...(Object.keys(foundClassHelpers).length > 0 ? { foundClassHelpers } : {}),
+    ...(forwarding.sources.length > 0
+      ? {
+          projectTextForwarding: forwarding.importers,
+          projectTextForwardingSources: forwarding.sources,
+        }
+      : {}),
     preflight,
     tailwind,
     fontFaceCssPath,

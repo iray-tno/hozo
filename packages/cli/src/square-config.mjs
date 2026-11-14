@@ -268,11 +268,31 @@ export function checkMetroState(project) {
       fix: 'Restart Metro with its cache cleared (npx expo start --clear, or npx react-native start --reset-cache)',
       path: metro.file,
     })
+  // What the project's own components hand a nested Text is read on start
+  // too (RFC 012 §7.1), so an edited one is the same restart.
+  let sources = []
+  try {
+    sources = JSON.parse(read(state)).projectTextForwardingSources ?? []
+  } catch {
+    // An unreadable state is Metro's to rewrite on its next start.
+  }
+  const saved = statSync(state).mtimeMs
+  for (const file of sources) {
+    const relative = path.relative(project, file).split(path.sep).join('/')
+    if (existsSync(file) && statSync(file).mtimeMs <= saved) continue
+    findings.push({
+      code: 'metro-state-stale',
+      severity: 'warning',
+      message: `${relative} changed after Metro last started, so a Text inside a component it defines still gets the text classes Metro read then`,
+      fix: 'Restart Metro with its cache cleared (npx expo start --clear, or npx react-native start --reset-cache)',
+      path: relative,
+    })
+  }
   return { findings, summary: 'node_modules/.hozo/metro.json' }
 }
 
 /** The project's own source files: Git's view when there is one. */
-function sourceFiles(project) {
+export function sourceFiles(project) {
   try {
     const listed = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
       cwd: project,

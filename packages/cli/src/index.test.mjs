@@ -69,7 +69,7 @@ test('exit codes: 1 is findings, 2 is a command that could not run', async (t) =
     [['squre'], 'unknown-command'],
     [['--verbose'], 'unknown-option'],
     [['init'], 'reserved-command'],
-    [['add', 'button'], 'reserved-command'],
+    [['mcp'], 'reserved-command'],
   ]) {
     const streams = io()
     assert.equal(await run(argv, streams), 2, argv.join(' '))
