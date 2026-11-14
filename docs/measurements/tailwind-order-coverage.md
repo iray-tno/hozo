@@ -278,12 +278,12 @@ a positive conjunction still wins in both. The ablation is not a safe
 replacement for the opaque route, even for absolute typography.
 
 The generated resolver now keeps its existing common ranks when every
-unassessed drawable token is a proven plain background-colour
+unassessed drawable token is a proven plain text- or background-colour
 write and every other drawable token is assessed absolute text metrics,
 physical padding or opacity. Both the captured rule footprint and the actual
 Native projection must fit that boundary. A custom background utility
 also writing font size, logical padding or `--tw-leading` is not admitted.
-Multiple admitted background writes (including duplicate tokens) retain
+Multiple admitted colour writes (including duplicate tokens) retain
 their fallback order relative to one another. This does not assign a rank
 to a background or change the static authored fallback. No claim is made
 about the winner between two unassessed colours on Web. Including

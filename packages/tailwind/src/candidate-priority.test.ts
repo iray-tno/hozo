@@ -193,9 +193,32 @@ test('partial ranks require a background-only footprint in both upstream CSS and
     if (admitted)
       assert.match(
         plan.code,
-        /independentBackgrounds: \["bg-brand", "hover:font-bold hover:text-lg hover:text-xl hover:tracking-\[2px\]"\]/,
+        /independentColors: \["bg-brand", "hover:font-bold hover:text-lg hover:text-xl hover:tracking-\[2px\]"\]/,
       )
-    else assert.doesNotMatch(plan.code, /independentBackgrounds/)
+    else assert.doesNotMatch(plan.code, /independentColors/)
+  }
+})
+
+test('an unranked text colour preserves metric ranks but not across overlapping writes', async () => {
+  const names = ['active:text-2xl', 'hover:text-xl', 'text-brand']
+  const cache = cacheFor(names)
+  for (const [write, admitted] of [
+    ['', true],
+    ['font-size: 41px', false],
+    ['font: 41px serif', false],
+    ['--tw-leading: 41px', false],
+  ] as const) {
+    const input = `${css}\n@tailwind utilities; @theme { --color-brand:#123456; }
+      @utility text-brand { color:#123456; ${write}; }`
+    const theme = await loadTheme(input, base)
+    const { snapshot } = await prepareTailwindOrder(input, base, names)
+    const plan = cache.renderNativeModulePlan(
+      prepareFinalTailwindContext(JSON.stringify(snapshot)),
+      theme,
+    )
+    assert.equal(plan.ordering?.ranks['text-brand'], undefined)
+    assert.equal(plan.code.includes('independentColors:'), admitted, write)
+    assert.equal(/lineHeight: (?:28|32) \}, \d+\]/.test(plan.code), !admitted, write)
   }
 })
 
@@ -213,8 +236,8 @@ test('legacy tuples disappear only while every drawable candidate is covered', a
   const before = cache.renderNativeModulePlan(await context(names), theme)
   cache.scanFile('increment.ts', JSON.stringify(extra), 2)
   const after = cache.renderNativeModulePlan(await context([...names, extra]), theme)
-  assert.match(before.code, /independentBackgrounds/)
-  assert.match(after.code, /independentBackgrounds/)
+  assert.match(before.code, /independentColors/)
+  assert.match(after.code, /independentColors/)
   assert.equal(before.entries.find((entry) => entry.candidate === 'md:p-4')?.kind, 'refused')
   const tuples = /\{ fontSize: (?:20|24), lineHeight: (?:28|32) \}, \d+\]/
   assert.doesNotMatch(before.code, tuples)

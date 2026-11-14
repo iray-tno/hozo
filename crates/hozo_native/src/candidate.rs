@@ -326,7 +326,7 @@ fn render_candidate_module_impl(
     out.push_str("}\n\n");
     let ordering = plan.and_then(|plan| {
         if plan.finalized {
-            let (barriers, independent) = plan.independent_backgrounds();
+            let (barriers, independent) = plan.independent_colors();
             let covers_every_drawable =
                 barriers.len() + independent.len() == supported.len() + states.len();
             let partial = (!barriers.is_empty() && independent.len() > 1)
@@ -342,7 +342,7 @@ fn render_candidate_module_impl(
     });
     // Compact ranks are emitted only for drawable entries, and only when
     // every group in that entry is ranked. When they cover every emitted
-    // entry, or ranked entries and independent backgrounds cover every
+    // entry, or ranked entries and independent colours cover every
     // drawable entry together, no string can reach the legacy state order.
     // Refused and unknown tokens never enter the resolver's rank lookup.
     let complete = ordering.as_ref().is_some_and(|(_, _, complete)| *complete);
@@ -555,7 +555,7 @@ fn render_candidate_module_impl(
         out.push_str(" }");
         if let Some((barriers, independent)) = partial {
             out.push_str(&format!(
-                ", independentBackgrounds: [{}, {}]",
+                ", independentColors: [{}, {}]",
                 quote(&barriers),
                 quote(&independent)
             ));

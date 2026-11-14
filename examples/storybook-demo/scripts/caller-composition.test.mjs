@@ -2003,10 +2003,12 @@ test('opaque typography needs captured rule order even when a caller string incl
 }, async () => {
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
     @tailwind utilities; @theme { --color-brand: #123456; }
-    @utility bg-brand { background-color: #abcdef; }`
+    @utility bg-brand { background-color: #abcdef; }
+    @utility text-brand { color: #123456; }`
   const theme = await loadTheme(css, tailwindPackageDir())
   const names = [
     'bg-brand',
+    'text-brand',
     'active:text-2xl',
     'hover:text-xl',
     'hover:text-lg',
@@ -2170,6 +2172,7 @@ test('opaque typography needs captured rule order even when a caller string incl
       'hover:opacity-75',
       'hover:opacity-25',
       'bg-brand',
+      'text-brand',
     ]
     for (const tokens of [registered, registered.toReversed()]) {
       const value = tokens.join(' ')

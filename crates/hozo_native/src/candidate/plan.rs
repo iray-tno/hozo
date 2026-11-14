@@ -193,27 +193,35 @@ impl<'a> CandidatePlanBuilder<'a> {
     /// The footprint must be known on both platforms, not just the keys
     /// Hozo happened to emit. A project utility can reuse a built-in name
     /// and write unrelated properties in a second Tailwind rule.
-    pub fn independent_backgrounds(&self) -> (Vec<&str>, Vec<&str>) {
+    pub fn independent_colors(&self) -> (Vec<&str>, Vec<&str>) {
         let barriers: Vec<_> =
             self.entries
                 .iter()
                 .filter(|entry| {
+                    let [group] = entry.groups.as_slice() else {
+                        return false;
+                    };
+                    let expected = match group.native_keys.as_slice() {
+                        [key] if key == "backgroundColor" => "background-color",
+                        [key] if key == "color" => "color",
+                        _ => return false,
+                    };
                     entry.kind == "style"
-                        && matches!(entry.groups.as_slice(), [group]
-                        if !group.orderable
-                            && group.native_keys == ["backgroundColor"]
-                            && group.composition_keys.is_empty())
+                        && !group.orderable
+                        && group.composition_keys.is_empty()
                         && self
                             .context
                             .lookup(&entry.candidate)
                             .is_some_and(|candidate| {
                                 !candidate.rules.is_empty() && candidate.rules.iter().all(|rule| {
                                     !rule.important
+                                        && hozo_ir::assess_tailwind_rule(&entry.candidate, rule)
+                                            .is_ok()
                                         && matches!(&rule.shape, OrderRuleShape::Rule { nodes, .. }
                                         if !nodes.is_empty() && nodes.iter().all(|node| {
                                             matches!(node, OrderRuleShape::Declaration {
                                                 property, important: false
-                                            } if property == "background-color")
+                                            } if property == expected)
                                         }))
                                 })
                             })
