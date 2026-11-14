@@ -21,9 +21,10 @@ const help = `Usage: hozo add <component>... [options]
        hozo add --list [options]
 
 Copies an @hozo/ui component into the project as source, with the relative
-files it imports, so the project owns and edits it. Callers are not changed:
-\`import { Button } from '@hozo/ui'\` keeps working, and add lists the files
-that import the component from @hozo/ui so the project can move them.
+files it imports, so the project owns and edits it. Callers are not changed
+unless --imports: \`import { Button } from '@hozo/ui'\` keeps working, and add
+lists each file that imports the component from @hozo/ui, with the import
+that takes the copy.
 Names are @hozo/ui's file names without extension (button, date-picker, ...)
 or a component's name (badge is in status, checkbox in toggle). \`theme\`
 copies @hozo/ui's theme.css, for a project that wants to own every token's
@@ -40,8 +41,9 @@ Options:
                         with the installed @hozo/ui (with --write); an edited
                         copy is shown and not merged (exit 2; --force
                         replaces it)
-  --imports             With theme: change the stylesheet Hozo reads to import
-                        the copied theme instead of @hozo/ui/theme.css
+  --imports             Move what imports the named components from @hozo/ui
+                        to the copies; with theme, change the stylesheet Hozo
+                        reads to import the copied theme instead
   --format text|json    Output format (default: text)
   --help                Show this help
 
@@ -311,14 +313,38 @@ function callers(project, published, files, dest) {
         moved.set(specifier, [...(moved.get(specifier) ?? []), { name, binding }])
       }
       if (moved.size === 0) continue
+      const names = [...moved.values()].flat().map((item) => item.name)
+      const quote = match[0].at(-1)
+      const semicolon = source[match.index + match[0].length] === ';' ? ';' : ''
+      const imports = [...moved].map(
+        ([specifier, items]) =>
+          `import { ${items.map((item) => item.binding).join(', ')} } from ${quote}${specifier}${quote}`,
+      )
+      // The names this statement keeps from @hozo/ui, as written.
+      const kept = match[2]
+        .split(',')
+        .map((part) => part.trim())
+        .filter(
+          (part) => part && !names.includes(part.replace(/^type\s+/, '').split(/\s+as\s+/)[0]),
+        )
       found.push({
         file,
         line: source.slice(0, match.index).split('\n').length,
-        names: [...moved.values()].flat().map((item) => item.name),
-        imports: [...moved].map(
-          ([specifier, items]) =>
-            `import { ${items.map((item) => item.binding).join(', ')} } from '${specifier}'`,
-        ),
+        names,
+        imports,
+        // What `--imports` puts in place of the statement (add-imports.mjs).
+        edit: {
+          start: match.index,
+          end: match.index + match[0].length + semicolon.length,
+          replacement: [
+            ...(kept.length
+              ? [
+                  `import ${match[1] ?? ''}{ ${kept.join(', ')} } from ${quote}@hozo/ui${quote}${semicolon}`,
+                ]
+              : []),
+            ...imports.map((line) => `${line}${semicolon}`),
+          ].join('\n'),
+        },
       })
     }
   }
@@ -486,11 +512,6 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
       const run = options.diff ? runDiff : runUpdate
       return await run(project, ui, dest.dir, names, { ...options, ...dependencies }, io)
     }
-    if (options.imports && !names.includes(THEME))
-      throw new AddError(
-        '--imports moves the stylesheet to a copied theme (hozo add theme --imports); moving component imports is not implemented yet',
-        'not-implemented',
-      )
     const { entries, packages } = plan(project, ui, dest.dir, names)
 
     const conflicts = entries.filter((entry) => entry.action === 'conflict')
@@ -502,15 +523,28 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
     const writes = entries.filter(
       (entry) => entry.action === 'create' || entry.action === 'conflict',
     )
-    // The stylesheet edit is decided before anything is written, so a
+    const missing = missingPackages(project, packages)
+    const found = callers(
+      project,
+      publishedNames(ui),
+      names.map((name) => `${name}.tsx`),
+      dest.dir,
+    )
+    // Every edit --imports makes is decided before anything is written, so a
     // refusal leaves the project as it was.
-    const { stillImportsUi, themeImportEdit } = await import('./add-imports.mjs')
+    const { callerEdits, stillImportsUi, themeImportEdit } = await import('./add-imports.mjs')
     const themeCopy = posix(path.join(dest.dir, 'theme.css'))
     const entryEdit =
       options.imports && names.includes(THEME) ? themeImportEdit(project, themeCopy) : undefined
-    if (options.write && entryEdit?.updated) {
+    const callerFileEdits = options.imports ? callerEdits(project, found) : undefined
+    const edits = [...(entryEdit?.updated ? [entryEdit] : []), ...(callerFileEdits ?? [])]
+    if (options.write && edits.length > 0) {
       const { overwriteRefusal } = await import('./write-contract.mjs')
-      const refusal = overwriteRefusal(project, [entryEdit.file], options.force)
+      const refusal = overwriteRefusal(
+        project,
+        edits.map((edit) => edit.file),
+        options.force,
+      )
       if (refusal) throw new AddError(refusal, 'uncommitted-changes')
     }
     if (options.write) {
@@ -519,24 +553,16 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
         mkdirSync(path.dirname(absolute), { recursive: true })
         writeFileSync(absolute, entry.text)
       }
-      if (entryEdit?.updated) writeFileSync(path.join(project, entryEdit.file), entryEdit.updated)
+      for (const edit of edits) writeFileSync(path.join(project, edit.file), edit.updated)
     }
-    // With the theme copied, @hozo/ui may be unused: say so, never remove it.
+    // @hozo/ui may be unused now: say so, never remove it.
     const removable =
       options.write &&
-      names.includes(THEME) &&
+      (names.includes(THEME) || options.imports) &&
       !stillImportsUi(
         project,
         sourceFiles(project).filter((file) => !file.startsWith(`${dest.dir}/`)),
       )
-
-    const missing = missingPackages(project, packages)
-    const found = callers(
-      project,
-      publishedNames(ui),
-      names.map((name) => `${name}.tsx`),
-      dest.dir,
-    )
 
     if (options.format === 'json') {
       io.stdout.write(
@@ -549,7 +575,8 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
             files: entries.map(({ text, component, ...entry }) => entry),
             missingPackages: missing,
             ...(missing.length ? { install: installCommand(project, missing) } : {}),
-            callers: found,
+            callers: found.map(({ edit, ...caller }) => caller),
+            ...(callerFileEdits ? { importsMoved: callerFileEdits.map((item) => item.file) } : {}),
             ...(entryEdit
               ? {
                   stylesheet: entryEdit.same
@@ -598,8 +625,20 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
         `The copies import ${missing.join(', ')}, which package.json does not declare. Install ${missing.length === 1 ? 'it' : 'them'}:`,
         `  ${installCommand(project, missing)}`,
       )
-    if (found.length > 0) {
-      lines.push('', `Still importing from @hozo/ui (unchanged; move them to the copy when ready):`)
+    if (callerFileEdits?.length)
+      for (const edit of callerFileEdits)
+        lines.push(
+          '',
+          `${options.write ? 'Moved' : 'Would move'} the imports in ${edit.file} to the copy:`,
+          unifiedDiff(edit.file, edit.file, edit.original, edit.updated)
+            .trimEnd()
+            .replace(/^/gm, '  '),
+        )
+    else if (found.length > 0) {
+      lines.push(
+        '',
+        'Still importing from @hozo/ui (unchanged; --imports moves them, or move them by hand):',
+      )
       for (const caller of found)
         lines.push(
           `  ${caller.file}:${caller.line}  ${caller.names.join(', ')}`,
@@ -625,7 +664,7 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
         '',
         'Nothing in the project imports @hozo/ui any more, so it can be removed. hozo add does not remove it. Declare the packages the copies import first (above), since @hozo/ui may be what installs them now.',
       )
-    if (!options.write && (writes.length > 0 || entryEdit?.updated))
+    if (!options.write && (writes.length > 0 || entryEdit?.updated || callerFileEdits?.length))
       lines.push('', 'Nothing was written. Run again with --write to apply.')
     io.stdout.write(`${lines.join('\n')}\n`)
     return { exit: 0 }

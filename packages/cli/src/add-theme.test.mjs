@@ -149,9 +149,6 @@ test('a stylesheet --imports cannot edit safely gets the line to change, and exi
 
   const unknown = project(t, { 'vite.config.ts': null, 'src/index.css': null })
   assert.equal((await add(unknown, 'theme', '--imports')).error.code, 'entry-not-found')
-
-  const components = project(t)
-  assert.equal((await add(components, 'button', '--imports')).error.code, 'not-implemented')
 })
 
 test('with the theme copied and nothing importing @hozo/ui, add says it can be removed', async (t) => {

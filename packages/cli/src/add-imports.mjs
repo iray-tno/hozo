@@ -55,6 +55,25 @@ export function themeImportEdit(project, copy) {
   return { file: entry, original, updated }
 }
 
+/**
+ * The edits that move each caller's import of a copied component from
+ * `@hozo/ui` to the copy (RFC 012 §8): per file, `{ file, original,
+ * updated }`. A statement that imports other components too keeps them.
+ */
+export function callerEdits(project, callers) {
+  const byFile = new Map()
+  for (const caller of callers)
+    byFile.set(caller.file, [...(byFile.get(caller.file) ?? []), caller.edit])
+  return [...byFile].map(([file, edits]) => {
+    const original = readFileSync(path.join(project, file), 'utf8')
+    let updated = original
+    // From the end, so earlier offsets stay right.
+    for (const edit of [...edits].sort((a, b) => b.start - a.start))
+      updated = updated.slice(0, edit.start) + edit.replacement + updated.slice(edit.end)
+    return { file, original, updated }
+  })
+}
+
 /** Whether anything in the project still imports `@hozo/ui`: a source file or the stylesheet. */
 export function stillImportsUi(project, sources) {
   for (const file of sources) {
