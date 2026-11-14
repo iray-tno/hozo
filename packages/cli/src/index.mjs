@@ -168,8 +168,15 @@ async function show(argv, io) {
 
 async function add(argv, io) {
   const { runAdd } = await import('./add.mjs')
-  const { exit, error } = runAdd(argv, io)
-  return error ? fail(io, 'hozo add', new CliError(error.message, error.code), argv) : exit
+  const { exit, error, reported } = await runAdd(argv, io)
+  if (!error) return exit
+  // `--update` refusing an edited copy has already printed its report, the
+  // JSON one included; only the stderr line is left to say.
+  if (reported) {
+    io.stderr.write(`hozo add: ${error.message} [${error.code}]\n`)
+    return exit
+  }
+  return fail(io, 'hozo add', new CliError(error.message, error.code), argv)
 }
 
 /** Run `hozo` with `argv` (no `node`, no script path). Resolves to the exit code. */

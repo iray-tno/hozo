@@ -31,6 +31,12 @@ Options:
   --force               Overwrite a file at the destination that add did not
                         create, or one Git has no copy of
   --list                Every component, and the state of each copy
+  --diff                What changed upstream since each named copy was made,
+                        and what the project changed in it
+  --update              Replace each named copy the project has not edited
+                        with the installed @hozo/ui (with --write); an edited
+                        copy is shown and not merged (exit 2; --force
+                        replaces it)
   --format text|json    Output format (default: text)
   --help                Show this help
 
@@ -46,9 +52,13 @@ Delete the line to detach the copy from @hozo/ui.`
 const ORIGIN = /^\/\/ hozo add: (@hozo\/ui)@(\S+) (\S+) sha256:([0-9a-f]{64})\r?\n/
 
 const sha256 = (text) => createHash('sha256').update(text).digest('hex')
-const posix = (file) => file.split(path.sep).join('/')
+export const posix = (file) => file.split(path.sep).join('/')
 
-class AddError extends Error {
+/** The origin line `add` writes first in a copy of `file` (a path under `src/`). */
+export const header = (version, file, text) =>
+  `// hozo add: @hozo/ui@${version} src/${file} sha256:${sha256(text)}\n`
+
+export class AddError extends Error {
   constructor(message, code) {
     super(message)
     this.code = code
@@ -160,7 +170,7 @@ const packageName = (specifier) =>
  * The component's file and the relative files it reaches, as paths under
  * `src/`, in the order they are found; and the packages they import.
  */
-function closure(ui, name) {
+export function closure(ui, name) {
   const files = []
   const packages = new Set()
   const visit = (file) => {
@@ -318,8 +328,12 @@ function plan(project, ui, dest, names) {
     const upstreamText = readFileSync(path.join(ui.root, 'src', file), 'utf8')
     const target = posix(path.join(dest, file))
     const absolute = path.join(project, target)
-    const header = `// hozo add: @hozo/ui@${ui.version} src/${file} sha256:${sha256(upstreamText)}\n`
-    const entry = { file: target, upstream: `src/${file}`, component, text: header + upstreamText }
+    const entry = {
+      file: target,
+      upstream: `src/${file}`,
+      component,
+      text: header(ui.version, file, upstreamText) + upstreamText,
+    }
     if (!existsSync(absolute)) entry.action = 'create'
     else {
       const current = readFileSync(absolute, 'utf8')
@@ -344,6 +358,8 @@ function parse(argv) {
     else if (argument === '--write') options.write = true
     else if (argument === '--force') options.force = true
     else if (argument === '--list') options.list = true
+    else if (argument === '--diff') options.diff = true
+    else if (argument === '--update') options.update = true
     else if (argument === '--format') {
       options.format = argv[++index]
       if (options.format !== 'text' && options.format !== 'json')
@@ -352,6 +368,11 @@ function parse(argv) {
       throw new AddError(`Unknown option ${argument}; use --help for usage`, 'unknown-option')
     else options.names.push(argument)
   }
+  if ([options.list, options.diff, options.update].filter(Boolean).length > 1)
+    throw new AddError(
+      '--list, --diff and --update are separate runs; pass one',
+      'unexpected-argument',
+    )
   if (options.list && options.names.length > 0)
     throw new AddError('--list takes no component names', 'unexpected-argument')
   if (!options.help && !options.list && options.names.length === 0)
@@ -406,7 +427,7 @@ function list(project, ui, dest, format, io) {
  * `2` it could not run or would overwrite what it should not. `error` is
  * `{ message, code }` for the caller to report.
  */
-export function runAdd(argv, io, project = process.cwd()) {
+export async function runAdd(argv, io, project = process.cwd(), dependencies = {}) {
   try {
     const options = parse(argv)
     if (options.help) {
@@ -443,6 +464,11 @@ export function runAdd(argv, io, project = process.cwd()) {
         )
       }
       if (!names.includes(file)) names.push(file)
+    }
+    if (options.diff || options.update) {
+      const { runDiff, runUpdate } = await import('./add-update.mjs')
+      const run = options.diff ? runDiff : runUpdate
+      return await run(project, ui, dest.dir, names, { ...options, ...dependencies }, io)
     }
     const { entries, packages } = plan(project, ui, dest.dir, names)
 
