@@ -1,5 +1,23 @@
 # @hozo/navigation
 
+## 0.5.0
+
+### Minor Changes
+
+- [#1919](https://github.com/iray-tno/hozo/pull/1919) [`9d20975`](https://github.com/iray-tno/hozo/commit/9d20975684383ed659085fc48dad34f70294505e) Thanks [@iray-tno](https://github.com/iray-tno)! - Add `hozo manifest` and `hozo links` to `@hozo/cli`. They run the same commands as `hozo-manifest` and `hozo-links`. Both old binaries keep working for one minor release and print a deprecation line on stderr.
+  
+  Both now use the `hozo` exit codes: `1` for a stale file under `--check`, and `2` for a command that could not run. A `2` ends its stderr line with a string code such as `[config-not-found]`. `hozo-links` used to exit `1` for configuration errors. `hozo-manifest` used to ignore unknown options and crash on a package it could not read.
+  
+  `hozo-links` now also runs when npm links it into `node_modules/.bin` as a symlink. Before, the linked binary did nothing and exited `0`.
+  
+  `@hozo/navigation` is an optional peer of `@hozo/cli`. Without it, `hozo links` exits `2` with `[missing-package]`.
+
+### Patch Changes
+
+- Updated dependencies [[`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b), [`052b447`](https://github.com/iray-tno/hozo/commit/052b447351a669a12c5b8ced61bef5d07dc8a604), [`43680e3`](https://github.com/iray-tno/hozo/commit/43680e3643ba9f3f6e01f5c7aa885feb8e5c7b04), [`b4cc4f6`](https://github.com/iray-tno/hozo/commit/b4cc4f6b4941ed6f9fb63ff1f942dad781b760e5)]:
+  - @hozo/engine@0.5.0
+  - @hozo/core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

@@ -1,5 +1,18 @@
 # @hozo/core
 
+## 0.5.0
+
+### Patch Changes
+
+- [#1760](https://github.com/iray-tno/hozo/pull/1760) [`b4cc4f6`](https://github.com/iray-tno/hozo/commit/b4cc4f6b4941ed6f9fb63ff1f942dad781b760e5) Thanks [@iray-tno](https://github.com/iray-tno)! - `Popover` is exported from `@hozo/core`, as `Dialog` and `Menu` are. Its trigger takes `triggerAccessibilityLabel`, `triggerAccessibilityHint` and `triggerTestID`, so an icon-only trigger has a name of its own and a test id, on the Web and on React Native.
+- Updated dependencies [[`e5c848d`](https://github.com/iray-tno/hozo/commit/e5c848de8f4ff732fc7fc4a2d343e34938df1800), [`1585408`](https://github.com/iray-tno/hozo/commit/1585408e2fa23581c6b4b9a51fc8fc978d7e035b), [`14a5d69`](https://github.com/iray-tno/hozo/commit/14a5d69df011aefe076fe95ce9f4e539e63dbcf6), [`fd2f761`](https://github.com/iray-tno/hozo/commit/fd2f7613690fd5d95a78abc9bbdfd5cf3e7ccec4), [`43d6add`](https://github.com/iray-tno/hozo/commit/43d6add1b83dce0acda189ce9a1b610fb4a9d70d), [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b), [`052b447`](https://github.com/iray-tno/hozo/commit/052b447351a669a12c5b8ced61bef5d07dc8a604), [`43680e3`](https://github.com/iray-tno/hozo/commit/43680e3643ba9f3f6e01f5c7aa885feb8e5c7b04), [`b4cc4f6`](https://github.com/iray-tno/hozo/commit/b4cc4f6b4941ed6f9fb63ff1f942dad781b760e5)]:
+  - @hozo/primitives@0.5.0
+  - @hozo/patterns@0.5.0
+  - @hozo/behaviors@0.5.0
+  - @hozo/engine@0.5.0
+  - @hozo/semantics@0.5.0
+  - @hozo/typography@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
