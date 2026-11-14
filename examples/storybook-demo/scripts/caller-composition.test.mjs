@@ -2289,6 +2289,59 @@ test('an overlapping custom leading register reaches ordinary Web and Native can
       const resolve = evaluate(code, { createClassResolver, hozoTextMetricStyles }).hozoClasses
       assert.deepEqual(Object.assign({}, ...resolve('text-brand')), { color: '#123456' })
       assert.doesNotMatch(downstream, /--tw-leading: 41px;[^}]*line-height:/)
+      if (overlapping) {
+        // Test both ways the register and reader can meet, without adding a
+        // static reader to the runtime candidate map for the first case.
+        for (const [literal, dynamic] of [
+          ['text-xl', 'text-brand'],
+          ['text-brand', 'text-xl'],
+        ]) {
+          const mixedSource = `import { Text, cx } from '@hozo/core';
+            const el=<Text className={cx("${literal}", value)} style={own}>Label</Text>`
+          const mixedCache = openCandidateCache()
+          mixedCache.scanFile('mixed-leading.ts', JSON.stringify(dynamic), 1)
+          const mixedOrder = await prepareTailwindOrder(css, base, [literal, dynamic])
+          const mixedContext = prepareFinalTailwindContext(JSON.stringify(mixedOrder.snapshot))
+          const mixedCode = mixedCache.renderNativeModulePlan(mixedContext, theme).code
+          const hozoClasses = evaluate(mixedCode.replace(/^import .*$/gm, ''), {
+            createClassResolver,
+            hozoTextMetricStyles,
+          }).hozoClasses
+          const mixed = local.prepareNativeModule(mixedSource).emit(mixedContext).components[0]
+          const win = evaluate(
+            `const hozoStyles=${mixed.styles};module.exports=(value, own)=>(${mixed.jsx})`,
+            {
+              h: (_type, props) => props,
+              Text: 'text',
+              HozoText: 'text',
+              hozoClasses,
+              hozoMixedTextMetricStyles,
+            },
+          )
+          for (const own of [undefined, { lineHeight: 53 }]) {
+            const selected = Object.assign(
+              {},
+              ...win(dynamic, own).style.flat(Infinity).filter(Boolean),
+            )
+            assert.equal(selected.fontSize, 20)
+            assert.equal(selected.lineHeight, own?.lineHeight ?? 41)
+            const mixedWeb = local.prepareWebModule(mixedSource).emit(mixedContext)[0]
+            const renderMixed = evaluate(`module.exports=(value,own)=>(${mixedWeb.jsx})`, {
+              h: createElement,
+              hozoDomStyle,
+            })
+            await page.setContent(
+              `<style>${mixedCache.renderCss(theme, [dynamic])}\n${mixedWeb.css}</style>${renderToStaticMarkup(
+                renderMixed(dynamic, own && { lineHeight: '53px' }),
+              )}`,
+            )
+            assert.equal(
+              await page.locator('span').evaluate((node) => getComputedStyle(node).lineHeight),
+              `${own?.lineHeight ?? 41}px`,
+            )
+          }
+        }
+      }
       for (const tokens of [names, names.toReversed()]) {
         const value = tokens.join(' ')
         const markup = renderToStaticMarkup(renderWeb(value))

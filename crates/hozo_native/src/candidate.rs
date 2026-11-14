@@ -10,6 +10,7 @@ pub(super) const DEFER_SHADOW: u8 = 1;
 pub(super) const DEFER_GRADIENT: u8 = 2;
 pub(super) const DEFER_TRANSFORM: u8 = 4;
 pub(super) const DEFER_FILTER: u8 = 8;
+pub(super) const DEFER_TEXT_METRICS: u8 = 16;
 mod plan;
 use plan::CandidatePlanBuilder;
 pub use plan::{
@@ -507,7 +508,7 @@ fn render_candidate_module_impl(
             out.push_str("])\n\n");
         }
     }
-    let uses_leading_registers = composes_text_metrics && !leading_registers.is_empty();
+    let uses_leading_registers = !leading_registers.is_empty();
     if uses_leading_registers {
         out.push_str("const leadingRegisters = new Map([\n");
         for (name, px) in leading_registers {
@@ -571,9 +572,15 @@ fn render_candidate_module_impl(
         } else {
             ""
         };
-        pipeline.push_str(&format!(
-            "const text = hozoTextMetricStyles({input}, fontDefaults{registers}); "
-        ));
+        if uses_leading_registers {
+            pipeline.push_str(&format!(
+                "const text = (deferred & {DEFER_TEXT_METRICS}) ? {input} : hozoTextMetricStyles({input}, fontDefaults{registers}); "
+            ));
+        } else {
+            pipeline.push_str(&format!(
+                "const text = hozoTextMetricStyles({input}, fontDefaults); "
+            ));
+        }
         input = "text";
     }
     if needs_transform_slots {
@@ -583,7 +590,8 @@ fn render_candidate_module_impl(
     let effect_mask = u8::from(needs_shadow_slots) * DEFER_SHADOW
         + u8::from(needs_gradient_slots) * DEFER_GRADIENT
         + u8::from(needs_transform_slots) * DEFER_TRANSFORM
-        + u8::from(needs_filter_slots) * DEFER_FILTER;
+        + u8::from(needs_filter_slots) * DEFER_FILTER
+        + u8::from(uses_leading_registers && composes_text_metrics) * DEFER_TEXT_METRICS;
     let compose = if pipeline.is_empty() {
         None
     } else {
@@ -647,6 +655,9 @@ fn render_candidate_module_impl(
     }
     if has_font_defaults {
         out.push_str("hozoClasses.fontDefaults = fontDefaults\n");
+    }
+    if uses_leading_registers {
+        out.push_str("hozoClasses.leadingRegisters = leadingRegisters\n");
     }
     if effect_mask != 0 {
         out.push_str(&format!("hozoClasses.effectMask = {effect_mask}\n"));

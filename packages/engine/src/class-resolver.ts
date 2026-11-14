@@ -54,9 +54,13 @@ export function hozoMixedTextMetricStyles(
   styles: readonly TextMetricStyle[],
   ownDefaults: readonly StyleObject[],
   candidateDefaults?: ReadonlySet<StyleObject> | ReadonlyMap<StyleObject, StyleObject>,
+  candidateRegisters?: ReadonlyMap<StyleObject, StyleObject>,
+  ownRegisters?: readonly (readonly [StyleObject, number])[],
 ): readonly TextMetricStyle[] {
   let explicit: StyleObject | undefined
   let endsWithDefault = false
+  let hasDefault = false
+  let register: number | undefined
   function visit(value: TextMetricStyle): void {
     if (!value || typeof value !== 'object') return
     if (Array.isArray(value)) {
@@ -64,11 +68,20 @@ export function hozoMixedTextMetricStyles(
       return
     }
     const style = value as StyleObject
+    const captured =
+      ownRegisters?.find(([entry]) => entry === style)?.[1] ??
+      (candidateRegisters?.get(style)?.lineHeight as number | undefined)
+    if (captured !== undefined) register = captured
     if (!Object.hasOwn(style, 'lineHeight')) return
     endsWithDefault = ownDefaults.includes(style) || candidateDefaults?.has(style) === true
-    if (!endsWithDefault) explicit = style
+    hasDefault ||= endsWithDefault
+    if (!endsWithDefault) {
+      explicit = style
+      register = undefined
+    }
   }
   for (const style of styles) visit(style)
+  if (hasDefault && register !== undefined) return [...styles, { lineHeight: register }]
   return endsWithDefault && explicit ? [...styles, { lineHeight: explicit.lineHeight }] : styles
 }
 
@@ -122,6 +135,8 @@ export type ClassResolver = ((
   filterSlots?: ReadonlyMap<StyleObject, FilterSlots>
   /** @internal Identity of implicit leading, including on maps without explicit leading. */
   fontDefaults?: ReadonlySet<StyleObject> | ReadonlyMap<StyleObject, StyleObject>
+  /** @internal Captured register writes keyed by original generated style. */
+  leadingRegisters?: ReadonlyMap<StyleObject, StyleObject>
   /** @internal Bit mask of this namespace's installed deferrable composers. */
   effectMask?: number
 }

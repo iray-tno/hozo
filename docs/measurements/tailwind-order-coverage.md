@@ -399,8 +399,12 @@ utility identity is dropped. With only absolute size readers, they use
 the shared metric ranks without assigning the register its own Tailwind
 priority. The pinned Chromium and Native resolver comparisons agree on
 both permutations and both states for static and dynamic inputs. Mixed
-static/dynamic readers, relative, nested and conflicting custom
-declarations are not covered by this receipt.
+static/dynamic readers are now verified for ordinary Text lowering as
+well: static size with a runtime register and static register with a
+runtime size each resolve to 41px. An explicitly authored line-height
+of 53px still wins. The mixed Native helper reads the existing selected
+style identities; no per-state rank reads or sorts were added. Relative,
+nested and conflicting custom declarations are not covered by this receipt.
 
 ## Progress
 

@@ -1103,9 +1103,17 @@ pub(super) fn render_node(
         && !node.class_name_fallback.is_empty())
     .then(|| {
         let mut has_metrics = false;
+        let mut registers = Vec::new();
         let defaults = own_entries
             .iter()
             .filter_map(|(name, props, _)| {
+                if let Some(px) = props.iter().find_map(|property| match property {
+                    StyleProperty::LeadingRegister(px) => Some(px),
+                    _ => None,
+                }) {
+                    has_metrics = true;
+                    registers.push(format!("[{STYLE_OBJECT}.{name}, {px}]"));
+                }
                 props.iter().find_map(|property| match property {
                     StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(_)) => {
                         has_metrics = true;
@@ -1119,9 +1127,10 @@ pub(super) fn render_node(
                 })
             })
             .collect::<Vec<_>>();
-        has_metrics.then(|| defaults.join(", "))
+        has_metrics.then(|| (defaults.join(", "), registers.join(", ")))
     })
     .flatten();
+    let mixed_registers = mixed_metric_defaults.is_some() && theme.has_utility_leading_registers();
     let transform_specs = if mixed_transforms
         || (own_declarations
             .iter()
@@ -1159,7 +1168,8 @@ pub(super) fn render_node(
     let deferred_effects = u8::from(mixed_shadows) * crate::candidate::DEFER_SHADOW
         + u8::from(mixed_gradients) * crate::candidate::DEFER_GRADIENT
         + u8::from(mixed_transforms) * crate::candidate::DEFER_TRANSFORM
-        + u8::from(mixed_filters) * crate::candidate::DEFER_FILTER;
+        + u8::from(mixed_filters) * crate::candidate::DEFER_FILTER
+        + u8::from(mixed_registers) * crate::candidate::DEFER_TEXT_METRICS;
     let starting_parts = frames.starting;
     let exit_parts = frames.exit;
     if own_declarations
@@ -1642,12 +1652,17 @@ pub(super) fn render_node(
             transform_specs
         )];
     }
-    if let Some(defaults) = mixed_metric_defaults {
+    if let Some((defaults, registers)) = mixed_metric_defaults {
         // Before the author's style array: its values (including an opaque
         // registered style) retain their last word without being inspected.
         cx.runtime.need_component("hozoMixedTextMetricStyles");
+        let register_args = if mixed_registers {
+            format!(", hozoClasses.leadingRegisters, [{registers}]")
+        } else {
+            String::new()
+        };
         style_array_parts = vec![format!(
-            "hozoMixedTextMetricStyles([{}], [{}], hozoClasses.fontDefaults)",
+            "hozoMixedTextMetricStyles([{}], [{}], hozoClasses.fontDefaults{register_args})",
             style_array_parts.join(", "),
             defaults
         )];
