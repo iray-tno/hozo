@@ -1,6 +1,6 @@
 # RFC 012: `hozo add` — an `@hozo/ui` component as project source
 
-- **Status**: Draft
+- **Status**: Implemented (§7: steps 1, 1b and 2–5, and `--imports` for callers)
 - **Authors**: iray-tno
 - **Tracking issue**: Not assigned
 - **Target packages**: `@hozo/cli`; `@hozo/ui`
@@ -247,6 +247,83 @@ its types are the upstream's; its compiled output and its callers' are
 pinned by `packages/metro/src/copied-component.test.ts` (steps 1 and 1b);
 and the packages it imports are checked against `package.json`.
 
+### 7.3 Step 3
+
+`--diff` and `--update` are in `packages/cli/src/add-update.mjs`.
+
+- **Where the old release comes from.** §6 said the package manager's
+  cache, or the registry once per version. Each package manager keeps its
+  cache differently (pnpm's is content-addressed by file), so `add` keeps
+  its own: the release's `src/` files under
+  `node_modules/.hozo/upstream/@hozo/ui@<version>`, fetched from the registry
+  (`npm_config_registry`, else npmjs.org) the first time a copy of that
+  version is compared. No credentials are sent; a private registry that
+  needs them leaves the two-way comparison, with the reason.
+- **The three-way comparison is two diffs** against the release the copy
+  came from: upstream's change since, and the project's. Without that
+  release, one diff against the installed upstream holds both.
+- **`--update` touches only copies whose upstream moved.** A copy of the
+  installed version, edited or not, has nothing to take. A detached file
+  (origin line deleted) is left alone; a file the closure gained upstream
+  is created.
+- The removed-state-class note (§8) is in `--diff` and in `--update`'s
+  report of an edited copy.
+
+### 7.4 Step 4
+
+`hozo square` has a `copies` check (`packages/cli/src/square-copies.mjs`):
+
+- **`copy-upstream-newer`**, severity `info`, a new severity that never
+  fails at any `--fail-on` and leaves the check `passed`.
+- **`theme-token-undefined`**, an error, per component file: the
+  `hozo-` tokens its class strings name through a token utility (`bg-`,
+  `text-`, `border-`, `rounded-`, `outline-`, `shadow-`, …), looked up
+  in the stylesheet the `css` check found and what it imports. The files
+  are every copy, and each `@hozo/ui` file the project imports a
+  component from. A token is defined when any `--<namespace>-<token>:`
+  declaration names it, which catches a rename or a removal without
+  modelling every utility's namespace.
+- Comments are skipped on both sides: an apostrophe in a source comment
+  would otherwise hide class strings, and `theme.css` shows its own
+  `@import` in a comment.
+- Measured on `examples/storybook-demo` (233 tokens in 33 files),
+  `apps/landing` (287 in 40) and `examples/native-showcase` (64 in 8):
+  no finding.
+
+### 7.5 Step 5
+
+`hozo add theme` and `--imports` for the stylesheet:
+
+- The copy's origin line is a block comment
+  (`/* hozo add: @hozo/ui@<version> src/theme.css sha256:… */`); `--list`,
+  `--diff theme` and `--update theme` treat it as any copy.
+- `--imports` finds the stylesheet as `square`'s css check does, and
+  rewrites its one `@import "@hozo/ui/theme.css"` (quotes and `url()`
+  kept) to the copy, relative to the stylesheet. No such line, more than
+  one, or no single stylesheet exits `2` with the change to make. The
+  rewrite is decided, and the write contract checked, before anything is
+  written, so a refusal leaves the theme uncopied too.
+- `square`'s css check accepts a stylesheet that imports a copied theme
+  (a relative import whose first line is the theme's origin) in place of
+  `@hozo/ui/theme.css`.
+- After `--write`, when no source file or stylesheet outside the copies
+  imports `@hozo/ui`, `add` says it can be removed, and does not remove it.
+- `--imports` for component callers (§8) is the next step; until then it
+  needs `theme` and exits `2` (`not-implemented`) without it.
+- The write contract is one helper now (`packages/cli/src/write-contract.mjs`),
+  used by `--update` and `--imports`.
+
+### 7.6 Moving callers
+
+`--imports` with component names (§8's first answer) rewrites each caller
+the list in §7.2 names: the moved names leave the `@hozo/ui` statement,
+which keeps any others, and one import per copied file follows it, with
+the file's quotes and semicolons. Every edit is decided and the write
+contract checked over all of them, stylesheet included, before anything is
+written. That the rewritten imports compile as the package's is step 1b's
+test: it imports the copies the same way (`{ HozoButton as Button }`, by a
+relative path).
+
 ## 8. Resolved questions
 
 - **Moving callers: behind `--imports`.** By default `add` only lists the
@@ -285,3 +362,10 @@ and the packages it imports are checked against `package.json`.
 - Draft (2026-11-15): step 1b implemented; step 2 implemented (§7.2), with
   component names accepted beside file names and each caller listed with the
   import that takes the copy.
+- Draft (2026-11-15): step 3 implemented (§7.3); the old release is kept in
+  `add`'s own cache rather than read from the package manager's.
+- Draft (2026-11-15): step 4 implemented (§7.4), with an `info` severity
+  in `square`.
+- Draft (2026-11-15): step 5 implemented (§7.5).
+- Draft (2026-11-15): `--imports` for callers implemented (§7.6). Every
+  step of §7 is implemented.

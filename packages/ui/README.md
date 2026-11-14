@@ -188,7 +188,7 @@ One limitation, inherited rather than introduced: a class resolved at *runtime* 
 
 ## Owning a component
 
-When a token is not enough and the project wants to change a component's classes, `npx @hozo/cli add button --write` copies `button.tsx` into the project (`src/components/ui` by default), shadcn/ui style ([RFC 012](../../docs/rfcs/012-hozo-add.md)). What is copied is only the look: the role, keyboard contract and state machine stay in the primitive or pattern it wraps, still installed and still verified. The copy keeps reading this package's tokens, so the theme above applies to it too. Each copied file's first line records the version and hash it came from; `hozo add --list` says whether it has been edited or `@hozo/ui` has moved on since.
+When a token is not enough and the project wants to change a component's classes, `npx @hozo/cli add button --write` copies `button.tsx` into the project (`src/components/ui` by default), shadcn/ui style ([RFC 012](../../docs/rfcs/012-hozo-add.md)). What is copied is only the look: the role, keyboard contract and state machine stay in the primitive or pattern it wraps, still installed and still verified. The copy keeps reading this package's tokens, so the theme above applies to it too. A project that wants to own every token's default, not only the ones it redefines, copies the theme as well: `npx @hozo/cli add theme --imports --write` copies `theme.css` and points the stylesheet at it. Each copied file's first line records the version and hash it came from; `hozo add --list` says whether it has been edited or `@hozo/ui` has moved on since.
 
 ## Status
 
