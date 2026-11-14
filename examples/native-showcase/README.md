@@ -469,6 +469,9 @@ the process was already reaped or Crashpad did not write a report.
 Compare `android-scenario=full` and `android-scenario=ui-docs` with the same
 APK and system image and `diagnostics=false` to test the effect of the
 preceding scenarios.
+For a graphics comparison, keep those inputs and the scenario fixed and
+select `android-gpu=swiftshader_indirect`, `swiftshader`, or `swangle`.
+The default remains `swiftshader_indirect` for PR, scheduled and release runs.
 
 `android-canvas-rounds=5` adds four more mount/assemble/disassemble/unmount rounds
 after the normal full sequence. Every mount requires the real completion state,

@@ -61,6 +61,11 @@ on:
         type: choice
         options: [google_apis, default]
         default: google_apis
+      android-gpu:
+        description: 'Android emulator graphics mode for a controlled comparison'
+        type: choice
+        options: [swiftshader_indirect, swiftshader, swangle]
+        default: swiftshader_indirect
       android-canvas-rounds:
         description: 'Total Canvas mounts (1-10); extra stress rounds abort on any failure, never retry it'
         type: string
@@ -91,7 +96,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: native-showcase-${{ github.workflow }}-${{ github.ref }}-${{ inputs.release-signing || false }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.android-scenario || 'full' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
+  group: native-showcase-${{ github.workflow }}-${{ github.ref }}-${{ inputs.release-signing || false }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.android-gpu || 'swiftshader_indirect' }}-${{ inputs.android-scenario || 'full' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
   cancel-in-progress: true
 
 jobs:
@@ -187,7 +192,7 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect ${{ (inputs.android-scenario == 'audio-output' || inputs.android-scenario == 'audio-settings') && '-verbose' || '-noaudio' }} -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
+          emulator-options: -no-window -gpu ${{ inputs.android-gpu || 'swiftshader_indirect' }} ${{ (inputs.android-scenario == 'audio-output' || inputs.android-scenario == 'audio-settings') && '-verbose' || '-noaudio' }} -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           script: node examples/native-showcase/scripts/android-scenarios.mjs
         env:
           HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
