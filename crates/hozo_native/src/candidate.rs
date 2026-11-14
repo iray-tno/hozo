@@ -745,7 +745,11 @@ fn state_groups(
                 filter: crate::filters::metadata(properties),
                 gradient: crate::gradients::metadata(properties, theme),
                 shadow: crate::shadows::metadata(properties, theme),
-                order: hozo_ir::builtin_owner_interaction_rank(condition),
+                // Preserve the existing tuple scale; the low bits no
+                // longer encode a second Tailwind variant precedence.
+                order: condition
+                    .owner_interaction_specificity()
+                    .map(|weight| u32::from(weight) * 256),
                 font_default: has_font_default(properties),
             })
         })
@@ -1293,7 +1297,7 @@ mod tests {
             &Theme::default(),
         );
         assert!(
-            module.contains(r#""active:opacity-80": [[["pressed"], { opacity: 0.8 }, 264]],"#),
+            module.contains(r#""active:opacity-80": [[["pressed"], { opacity: 0.8 }, 256]],"#),
             "{module}"
         );
         assert!(

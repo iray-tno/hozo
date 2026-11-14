@@ -1896,37 +1896,23 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
     'ambiguous-property-owner',
   )
   const candidateCode = candidates.code.replace(/^import .*$/gm, '')
-  const legacy = evaluate(candidateCode, { createClassResolver, hozoTextMetricStyles }).hozoClasses
   const resolve = evaluate(candidateCode, {
     hozoTextMetricStyles,
     // Exercise Native specificity on its own. Leaving the compact ranks in
     // this control also activates the production assessed-run projection.
     createClassResolver: (plan) =>
-      createClassResolver(
-        plan.styles,
-        plan.unsupported,
-        plan.compose,
-        Object.fromEntries(
-          Object.entries(plan.states).map(([name, groups]) => [
-            name,
-            groups.map(([keys, style, rank]) =>
-              rank === undefined ? [keys, style] : [keys, style, rank >>> 8],
-            ),
-          ]),
-        ),
-        plan.ambient,
-      ),
+      createClassResolver(plan.styles, plan.unsupported, plan.compose, plan.states, plan.ambient),
   }).hozoClasses
   const metrics = (style) => {
     const { fontSize, lineHeight } = Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
     return [fontSize, lineHeight]
   }
-  const overlap = { hovered: true, pressed: true, focused: false }
-  // A comparison that accidentally routes both sides through Tailwind's
-  // historical variant tiebreaker or the canonical candidate order must not
-  // look green: both choose the active size for this authored-order input.
-  assert.deepEqual(metrics(legacy(`text-sm ${cases[0]} bg-brand`, overlap)), [24, 32])
-  assert.deepEqual(metrics(resolve(`text-sm ${cases[0]} bg-brand`, overlap)), [20, 28])
+  assert.deepEqual(
+    metrics(
+      resolve(`text-sm ${cases[0]} bg-brand`, { hovered: true, pressed: true, focused: false }),
+    ),
+    [20, 28],
+  )
   // These inputs cannot use Tailwind's rule order. Independently give the
   // browser Tailwind's declaration bodies, but put them in authored order.
   const rules = {
@@ -2121,22 +2107,8 @@ test('opaque typography needs captured rule order even when a caller string incl
     ...plan,
     ordering: { schema: 1, ranks: plan.ordering.ranks },
   })
-  const legacy = evaluate(controlCode, {
-    createClassResolver: (plan) => createClassResolver(withBarrier(plan)),
-  }).hozoClasses
   const specificityOnly = evaluate(controlCode, {
-    createClassResolver: (plan) =>
-      createClassResolver({
-        ...withBarrier(plan),
-        states: Object.fromEntries(
-          Object.entries(plan.states).map(([name, groups]) => [
-            name,
-            groups.map(([keys, style, rank]) =>
-              rank === undefined ? [keys, style] : [keys, style, rank >>> 8],
-            ),
-          ]),
-        ),
-      }),
+    createClassResolver: (plan) => createClassResolver(withBarrier(plan)),
   }).hozoClasses
   const source = `import { Button } from '@hozo/core'; const el=<Button className={value}/>`
   const web = local.prepareWebModule(source).emit(context)[0]
@@ -2154,53 +2126,26 @@ test('opaque typography needs captured rule order even when a caller string incl
       hozoClasses: resolve,
     })
   const renderCurrent = renderNative(production)
-  const renderLegacy = renderNative(legacy)
   const renderMasked = renderNative(specificityOnly)
   const upstream = (await compile(css)).build(names)
   const downstream = cache.renderCss(theme, classOrder(cache.candidates()))
   const page = await browser.newPage()
   const cdp = await page.context().newCDPSession(page)
-  let currentDisagrees = 0
   let maskedDisagrees = 0
   try {
     await cdp.send('DOM.enable')
     await cdp.send('CSS.enable')
-    for (const [authored, focus, expected, current, masked] of [
-      [
-        'active:text-2xl hover:text-xl active:p-2 hover:p-4',
-        false,
-        [24, 32, 8],
-        [24, 32, 8],
-        [20, 28, 16],
-      ],
-      [
-        'hover:text-xl active:text-2xl hover:p-4 active:p-2',
-        false,
-        [24, 32, 8],
-        [24, 32, 8],
-        [24, 32, 8],
-      ],
+    for (const [authored, focus, expected, fallback] of [
+      ['active:text-2xl hover:text-xl active:p-2 hover:p-4', false, [24, 32, 8], [20, 28, 16]],
+      ['hover:text-xl active:text-2xl hover:p-4 active:p-2', false, [24, 32, 8], [24, 32, 8]],
       [
         'active:text-2xl hover:focus:text-3xl hover:text-xl active:p-2 hover:p-4',
         true,
         [30, 36, 8],
-        [30, 36, 8],
         [30, 36, 16],
       ],
-      [
-        'hover:text-xl hover:text-lg active:p-2 hover:p-4',
-        false,
-        [20, 28, 8],
-        [18, 28, 8],
-        [18, 28, 16],
-      ],
-      [
-        'hover:text-lg hover:text-xl hover:p-4 active:p-2',
-        false,
-        [20, 28, 8],
-        [20, 28, 8],
-        [20, 28, 8],
-      ],
+      ['hover:text-xl hover:text-lg active:p-2 hover:p-4', false, [20, 28, 8], [18, 28, 16]],
+      ['hover:text-lg hover:text-xl hover:p-4 active:p-2', false, [20, 28, 8], [20, 28, 8]],
     ]) {
       const value = `${authored} bg-brand`
       const html = renderToStaticMarkup(renderWeb(value))
@@ -2234,12 +2179,10 @@ test('opaque typography needs captured rule order even when a caller string incl
         return [fontSize, lineHeight, paddingTop]
       }
       assert.deepEqual(read(renderCurrent(value)), expected, `${value}/current`)
-      assert.deepEqual(read(renderLegacy(value)), current, `${value}/legacy-barrier`)
-      assert.deepEqual(read(renderMasked(value)), masked, `${value}/specificity-only`)
-      if (current.some((metric, index) => metric !== expected[index])) currentDisagrees++
-      if (masked.some((metric, index) => metric !== expected[index])) maskedDisagrees++
+      assert.deepEqual(read(renderMasked(value)), fallback, `${value}/specificity-only`)
+      if (fallback.some((metric, index) => metric !== expected[index])) maskedDisagrees++
     }
-    assert.deepEqual([currentDisagrees, maskedDisagrees], [1, 3])
+    assert.equal(maskedDisagrees, 3)
     const registered = [
       'hover:font-serif',
       'hover:font-sans',
@@ -2579,38 +2522,23 @@ test('unranked owner gaps follow authored order on both layout engines', {
     ['active:gap-4 hover:gap-x-6', [16, 24]],
     ['active:gap-4 hover:gap-x-6', [28, 28], { gap: 28 }],
   ]
-  const names = [...new Set(cases.flatMap(([classes]) => classes.split(' '))), 'bg-brand']
+  const names = [
+    ...new Set(cases.flatMap(([classes]) => classes.split(' '))),
+    'bg-brand',
+    'hover:bg-brand',
+  ]
   const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
   const cache = openCandidateCache()
   cache.scanFile('gap-fallback.ts', JSON.stringify(names.join(' ')), 1)
   const candidates = cache.renderNativeModulePlan(final, theme)
   assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
-  const makeSpecificityOnlyResolver = (plan) => {
-    assert.equal(plan.schema, 1)
-    // This control deliberately tests authored ties; a ranked state tier
-    // would instead compare Tailwind's emission order against them.
-    return createClassResolver(
-      plan.styles,
-      plan.unsupported,
-      plan.compose,
-      Object.fromEntries(
-        Object.entries(plan.states).map(([name, groups]) => [
-          name,
-          groups.map(([keys, style, rank]) => [
-            keys,
-            style,
-            rank === undefined ? keys.length : rank >>> 8,
-          ]),
-        ]),
-      ),
-      plan.ambient,
-    )
-  }
-  const masked = evaluate(
+  assert.equal(candidates.ordering.ranks['hover:bg-brand'], undefined)
+  assert.doesNotMatch(candidates.code, /rankedStates: true/)
+  const resolve = evaluate(
     `${candidates.code.replace(/^import[^\n]*\n/gm, '').replaceAll('export const ', 'const ')}
       module.exports = hozoClasses`,
-    { createClassResolver: makeSpecificityOnlyResolver },
+    { createClassResolver },
   )
   const state = { hovered: true, pressed: true, focused: false }
   const flatten = (style) => Object.assign({}, ...style.flat(Infinity).filter(Boolean))
@@ -2638,7 +2566,10 @@ test('unranked owner gaps follow authored order on both layout engines', {
       for (const layout of gapLayouts) {
         assert.deepEqual(yogaGapGeometry(flatten(nativeProps.style(state)), layout), gap, input)
         assert.deepEqual(
-          yogaGapGeometry(flatten([masked(input, state), hozoAuthoredStyle(own)]), layout),
+          yogaGapGeometry(
+            flatten([resolve(`${input} hover:bg-brand`, state), hozoAuthoredStyle(own)]),
+            layout,
+          ),
           gap,
           input,
         )

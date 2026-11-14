@@ -53,7 +53,7 @@ Reading it:
 | Web candidate stylesheet emission | Tailwind's upstream first-rule ordinals with a project hint; otherwise the shared built-in rule comparator over the scanned candidate's descriptors. CSS itself resolves specificity. | One rule-emission authority per context, not a declaration rank. A whole-candidate sort cannot prove multi-rule ordering. Verify final ordinary output, not bootstrap output. |
 | Native assessed runtime candidates | `candidate/plan.rs` projects ranks onto emitted objects and real conflict keys. `class-resolver.ts` applies them on a class-string cache miss and selects state matches afterward. | Keep data projection and selection; neither may decide a new Tailwind priority. |
 | Native static specificity and JSX composition | `plan_native_condition_groups` linearizes known weights when needed; unknown weight is not zero. `conditions.rs` preserves authored tiers and [ADR 011](../decisions/011-styling-inputs-keep-their-own-cascade.md) preserves input boundaries. | Keep, including for arbitrary/unranked and mixed inputs. Web needs no parallel weight sort. StyleX keeps its own atomic order; `twMerge` removes classes before ranking and is not cascade. |
-| Native runtime fallback owner ranks | `builtin_owner_interaction_rank` uses the same selector weight as the static Native projection, plus the shared built-in variant positions; `class-resolver.ts` may sort these tuples when the string cannot use the complete plan. It leaves equal ranks in authored order and does not sort a group set containing unknown ranks. Fully ranked namespaces [no longer emit the fallback tuples](tailwind-order-old-path.md#omit-fallback-ranks-when-the-fallback-cannot-run). | Keep necessary specificity/selection. The variant tie policy is still observable on genuinely unassessed input. |
+| Native runtime fallback specificity | Candidate tuples project `Condition::owner_interaction_specificity`, the same weights as static Native. No built-in variant mask is generated. The resolver retains authored order for equal specificity, and does not treat an unknown weight as zero. Fully assessed conditional tiers use the shared rule ranks instead. | Keep specificity and state selection. Do not assign Tailwind priorities to unassessed writes. |
 | Style projection after ordering | Logical edges, implicit line-height, register assembly (transform/filter/shadow/gradient), and authored style/spread precedence. | Keep semantics; never use these projections as a second utility-priority table. |
 
 The parser interaction sort, Web condition-weight sort, duplicate owner
@@ -363,6 +363,16 @@ fixture keeps its winners after adding a ranked hover margin. An
 unassessed resting write keeps its previous tier and ordering; an unassessed
 conditional write still prevents the deletion. The missing custom leading
 value is not treated as an independent write or a passing measurement.
+
+The remaining generator no longer packs built-in variant positions into
+Native's selector weight. The old producer and its parser re-export are
+deleted; newly generated partial/fallback tuples carry only the scaled
+selector weight. The authored-order gap regression now exercises the
+actual resolver against Yoga and Chromium, not a tuple-masking ablation.
+This does not prove pinned Tailwind parity for mixed opaque states:
+assessed properties can still lose their shared rank when an unassessed
+conditional write falls outside the proof. The differential below that
+boundary remains an exit blocker, even without a second variant table.
 
 ## Progress
 

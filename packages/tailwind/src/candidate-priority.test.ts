@@ -287,7 +287,10 @@ test('assessed conditional maps omit legacy tuples even with a resting barrier',
   // assigned one rank even though Native can still project its theme value.
   const unassessed = await render([...names, 'hover:text-brand'])
   assert.doesNotMatch(unassessed, /rankedStates: true/)
-  assert.match(unassessed, tuples)
+  // Only Native specificity survives (1 for hover/press, 2 for the
+  // conjunction); do not encode the four built-in variant bits again.
+  assert.match(unassessed, /fontSize: 24, lineHeight: 32 \}, 256\]/)
+  assert.match(unassessed, /fontSize: 30, lineHeight: 36 \}, 512\]/)
 })
 
 test('empty, small and 256-candidate maps keep all priority sidecar bytes off the device', async (t) => {
