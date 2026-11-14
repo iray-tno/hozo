@@ -137,7 +137,7 @@ test('non-completion resets rank in captured and built-in contexts', async () =>
   }
 })
 
-test('an ambiguous drawable utility retains fallback for unproven writes and omits equal ranks', async () => {
+test('a plain unranked background keeps ranked opacity and only elides unreachable legacy tuples', async () => {
   const ambiguous = `${css}
     @theme { --color-brand: #123456; }
     @utility bg-brand { background-color: #abcdef; }`
@@ -162,12 +162,10 @@ test('an ambiguous drawable utility retains fallback for unproven writes and omi
   const resolve = runtime(uniform)
   assert.equal(flatten(resolve('bg-brand')).backgroundColor, '#123456')
   assert.equal(flatten(resolve('p-4 p-2')).paddingTop, 16)
-  // This plain background is independent of physical padding. Opacity
-  // below is outside that proof and keeps its authored/legacy behavior.
   assert.equal(flatten(resolve('p-4 bg-brand p-2')).paddingTop, 16)
   assert.equal(flatten(resolve('p-2 bg-brand p-4')).paddingTop, 16)
   const state = { hovered: true, pressed: true }
-  assert.equal(flatten(resolve('hover:opacity-75 bg-brand hover:opacity-25', state)).opacity, 0.25)
+  assert.equal(flatten(resolve('hover:opacity-75 bg-brand hover:opacity-25', state)).opacity, 0.75)
   assert.equal(flatten(resolve('hover:opacity-25 bg-brand hover:opacity-75', state)).opacity, 0.75)
   const competing = await generate([
     'hover:opacity-25',
@@ -175,7 +173,7 @@ test('an ambiguous drawable utility retains fallback for unproven writes and omi
     'hover:focus:opacity-50',
     'bg-brand',
   ])
-  assert.match(competing, /\{ opacity: 0.75 \}, \d+\]/)
+  assert.doesNotMatch(competing, /\{ opacity: 0.75 \}, \d+\]/)
   assert.equal(
     flatten(runtime(competing)('active:opacity-75 bg-brand hover:opacity-25', state)).opacity,
     0.75,
@@ -186,4 +184,6 @@ test('an ambiguous drawable utility retains fallback for unproven writes and omi
   ]) {
     assert.equal(flatten(runtime(competing)(classes, { ...state, focused: true })).opacity, 0.5)
   }
+  const outside = await generate(['hover:opacity-25', 'active:opacity-75', 'bg-brand', 'mt-2'])
+  assert.match(outside, /\{ opacity: 0.75 \}, \d+\]/)
 })

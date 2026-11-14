@@ -278,21 +278,28 @@ a positive conjunction still wins in both. The ablation is not a safe
 replacement for the opaque route, even for absolute typography.
 
 The generated resolver now keeps its existing common ranks when every
-unassessed drawable token is a proven plain background-colour
-write and every other drawable token is assessed absolute text metrics
-or physical padding. Both the captured rule footprint and the actual
+unassessed drawable token is a proven plain text- or background-colour
+write and every other drawable token is assessed absolute text metrics,
+physical padding or opacity. Both the captured rule footprint and the actual
 Native projection must fit that boundary. A custom background utility
 also writing font size, logical padding or `--tw-leading` is not admitted.
-Multiple admitted background writes (including duplicate tokens) retain
+Multiple admitted colour writes (including duplicate tokens) retain
 their fallback order relative to one another. This does not assign a rank
 to a background or change the static authored fallback. No claim is made
-about the winner between two unassessed colours on Web.
+about the winner between two unassessed colours on Web. Including
+`hover:opacity-75 hover:opacity-25` alongside the text fixture now matches
+Chromium at 0.75 in both orders; adding an out-of-scope margin candidate
+still restores the legacy rank tuples for that namespace.
 
 The proof uses the shared rule assessment to exclude validated hoisted
 `@property` registrations, rather than mistaking them for selector-owned
 writes. This admits ranked font-weight and absolute tracking in the same
 scope: Chromium and Native both select weight 400 and tracking 2px for
-the competing hover utilities in both token orders.
+the competing hover utilities in both token orders. Named font families
+also keep their existing ranks across that barrier: with Arial and
+Georgia as project tokens, `hover:font-serif` wins both permutations.
+Tailwind's accompanying font feature and variation declarations are
+still independent of the colour, but are not new Native output claims.
 
 All five opaque cases now match Chromium for size, line height and
 padding. Removing just the proof gives the previous 4/5, and also
@@ -300,6 +307,36 @@ masking the legacy variant tie gives 2/5. The proof is only read when
 preparing a new class string; cached state selection uses the same
 ordered template. The legacy tie remains reachable for potentially
 overlapping or unproven writes, so this is not the Stage 6 exit.
+
+Static authored fallback now preserves repeated guards for font weight
+and named font family as well as absolute metrics. With an opaque columns
+write and `hover:font-bold active:font-medium hover:font-normal`, the
+combined hover/active state uses 400 rather than the earlier active 500.
+The same check covers competing themed sans/mono/serif names. Both
+compiled Web and Native selected styles match an authored-order CSS
+reference in both token orders, for six state observations per route.
+This leaves ranked input handling and Native arbitrary-family refusals
+unchanged.
+
+An overlapping `@utility text-brand` that also writes `--tw-leading: 41px`
+exposes two separate gaps. With `hover:text-xl hover:text-lg` both token
+orders give Tailwind **20px / 41px** (font size / line height) in Chromium.
+Hozo's generated Web candidate CSS gives **20px / 28px** in both orders;
+the generated Native resolver gives **18px / 28px** when `hover:text-lg`
+is last and **20px / 28px** in reverse. Its `text-brand` candidate writes
+only `color`. In a test-only ablation, retaining the assessed hover ranks
+fixes font size in both orders but leaves line height at 28px. Removing the
+custom register declaration restores the independent-colour proof and all
+three routes give **20px / 28px** in both orders.
+
+The overlapping case is not solvable by a different tie-break alone: the
+capture records the declaration footprint but does not deliver the authored
+register value. Keep it out of the independent-colour proof. Before retiring
+the fallback for this domain, separate the known hover precedence from the
+unassessed write without treating it as disjoint; supporting the custom
+register itself would also require value projection or an explicit refusal
+instead of silently counting it as a correct Tailwind winner. This receipt
+changes neither routing nor the Stage 6 score.
 
 ## Progress
 

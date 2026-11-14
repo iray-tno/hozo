@@ -96,7 +96,7 @@ test('proven independent backgrounds keep the existing ranks only for an admitte
     ordering: {
       schema: 1,
       ranks: { small: [0], large: [1], otherBg: [2] },
-      independentBackgrounds: ['bg second', 'small large'],
+      independentColors: ['bg second', 'small large'],
     },
   }
   const resolve = createClassResolver(plan)

@@ -121,8 +121,8 @@ export interface ClassResolverPlan {
   ordering: {
     schema: 1
     ranks: Readonly<Record<string, readonly number[]>>
-    /** Compiler-proven disjoint sets: unranked backgrounds and ranked text/physical padding. */
-    independentBackgrounds?: readonly [barriers: string, independent: string]
+    /** Compiler-proven disjoint sets: unranked colours and admitted ranked scalars. */
+    independentColors?: readonly [barriers: string, independent: string]
   }
 }
 
@@ -189,7 +189,7 @@ export function createClassResolver(
 ): ClassResolver {
   let styles: Record<string, StyleObject>
   let ranks: ClassResolverPlan['ordering']['ranks'] | undefined
-  let independentBackgrounds: ClassResolverPlan['ordering']['independentBackgrounds']
+  let independentColors: ClassResolverPlan['ordering']['independentColors']
   if (typeof stylesOrPlan.schema === 'number') {
     const plan = stylesOrPlan as ClassResolverPlan
     if (
@@ -205,11 +205,11 @@ export function createClassResolver(
     states = plan.states ?? {}
     ambient = plan.ambient ?? {}
     ranks = plan.ordering.ranks
-    independentBackgrounds = plan.ordering.independentBackgrounds
+    independentColors = plan.ordering.independentColors
   } else styles = stylesOrPlan as Record<string, StyleObject>
   // Only mixed namespaces carrying the build-time proof allocate these.
-  const barriers = independentBackgrounds && new Set(independentBackgrounds[0].split(' '))
-  const independent = independentBackgrounds && new Set(independentBackgrounds[1].split(' '))
+  const barriers = independentColors && new Set(independentColors[0].split(' '))
+  const independent = independentColors && new Set(independentColors[1].split(' '))
   const isAmbient = (key: string) => Object.hasOwn(ambient, key)
   // Class strings repeat constantly across renders and list items, and the
   // result is immutable, so each distinct string is resolved once.
@@ -271,7 +271,7 @@ export function createClassResolver(
     // every drawable candidate belongs to the compiler's disjoint sets.
     let ranked: { rank: number; entry: TemplateEntry }[] | undefined = ranks ? [] : undefined
     let canKeepRanks = independent !== undefined
-    let backgrounds: TemplateEntry[] | undefined
+    let colors: TemplateEntry[] | undefined
     const take = ranks
       ? (index: number, entry: TemplateEntry) => {
           if (!ranked) return
@@ -280,7 +280,7 @@ export function createClassResolver(
             if (canKeepRanks && barriers?.has(entry.name)) {
               // Their colours still compete in fallback order. The ranked
               // entries are only independent of these writes, not of one another.
-              ;(backgrounds ??= []).push(entry)
+              ;(colors ??= []).push(entry)
             } else ranked = undefined
             return
           }
@@ -323,11 +323,11 @@ export function createClassResolver(
       const reason = unsupported[name]
       if (reason) warn(name, reason)
     }
-    if (ranked && (!backgrounds || canKeepRanks)) {
+    if (ranked && (!colors || canKeepRanks)) {
       // Stable ties keep input order. Strip rank objects before caching, so
       // neither cache hits nor state-only changes can read/sort priorities.
       ranked.sort((a, b) => a.rank - b.rank)
-      const ordered: TemplateEntry[] = backgrounds ?? []
+      const ordered: TemplateEntry[] = colors ?? []
       for (const { entry } of ranked) {
         if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
           if (matches(entry.keys, entry.name, ambient)) ordered.push({ ...entry, keys: [] })

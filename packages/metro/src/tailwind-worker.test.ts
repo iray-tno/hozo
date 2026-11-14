@@ -192,6 +192,46 @@ test('default Metro static output and generated metric composition agree without
   }
 })
 
+test('ordinary Metro restores legacy ranks only when a new drawable candidate needs them', async (t) => {
+  const { root, config, tokens, file } = fixture(t)
+  const source = `import {Button} from '@hozo/core';export const A=({classes}) => <Button className={classes}/>`
+  const classes = 'active:text-2xl hover:text-xl text-brand'
+  const dynamicFile = path.join(root, 'src', 'metrics.ts')
+  writeFileSync(file, source)
+  writeFileSync(dynamicFile, `export const metrics=()=> '${classes}'`)
+  writeFileSync(tokens, '@theme { --color-brand:#123456; } @utility text-brand { color:#123456; }')
+  const tuples = /\{ fontSize: (?:20|24), lineHeight: (?:28|32) \}, \d+\]/
+  let firstKey: string | undefined
+  for (const expanded of [false, true]) {
+    if (expanded) writeFileSync(dynamicFile, `export const metrics=()=> '${classes} hover:mt-2'`)
+    await withHozo(config)
+    const key = getCacheKey({ projectRoot: root })
+    if (expanded) assert.notEqual(key, firstKey)
+    else firstKey = key
+    const code = readFileSync(path.join(root, CACHE_DIR, 'candidates.native.js'), 'utf8')
+    assert.match(code, /independentColors/)
+    assert.equal(tuples.test(code), expanded)
+    const resolve = runInNewContext(
+      `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,
+      { createClassResolver },
+    )
+    for (const input of [classes, classes.split(' ').toReversed().join(' ')]) {
+      const state = { hovered: true, pressed: true, focused: false, focusVisible: false }
+      assert.deepEqual(Object.assign({}, ...resolve(input, state)), {
+        color: '#123456',
+        fontSize: 24,
+        lineHeight: 32,
+      })
+    }
+    const output = await transform({
+      src: source,
+      filename: file,
+      options: { projectRoot: root, platform: 'android' },
+    })
+    assert.match(output, /hozoClasses\(classes, \{ pressed, hovered, focused, focusVisible \}\)/)
+  }
+})
+
 test('full lexical startup names give one retained parse followed by ready hits without ordinary lowering', async (t) => {
   const { root, source, config } = fixture(t)
   await withHozo(config)

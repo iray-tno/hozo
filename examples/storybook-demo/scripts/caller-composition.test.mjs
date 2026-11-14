@@ -1878,7 +1878,14 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
     'active:leading-8 hover:text-xl active:leading-6',
     'active:leading-8 hover:text-xl hover:focus:leading-6',
   ]
-  const names = [...new Set(cases.flatMap((classes) => classes.split(' '))), 'text-sm', 'bg-brand']
+  // Keep a drawable candidate outside the independent domain so the
+  // ablation can still inspect actual legacy ranks.
+  const names = [
+    ...new Set(cases.flatMap((classes) => classes.split(' '))),
+    'text-sm',
+    'bg-brand',
+    'mt-2',
+  ]
   const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
   const cache = openCandidateCache()
@@ -1991,15 +1998,86 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
   }
 })
 
+test('unranked font weight and family retain repeated owner runs in Web and Native', {
+  skip: !executablePath,
+}, async () => {
+  // The opaque unit deliberately disables canonical ordering. Compare to
+  // CSS declaration order rather than the opaque candidate sheet.
+  const cases = [
+    ['hover:font-bold', ':hover', 'font-weight:700'],
+    ['active:font-medium', ':active', 'font-weight:500'],
+    ['hover:font-normal', ':hover', 'font-weight:400'],
+    ['hover:font-sans', ':hover', 'font-family: Arial'],
+    ['active:font-mono', ':active', 'font-family: Courier'],
+    ['hover:font-serif', ':hover', 'font-family: Georgia'],
+  ]
+  const local = createCompiler({
+    colors: [],
+    fontFamilies: [
+      { name: 'sans', web: 'Arial', value: 'Arial' },
+      { name: 'mono', web: 'Courier', value: 'Courier' },
+      { name: 'serif', web: 'Georgia', value: 'Georgia' },
+    ],
+  })
+  const page = await browser.newPage()
+  try {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const input of [cases, cases.toReversed()]) {
+      const classes = input.map(([name]) => name).join(' ')
+      const source = `import { Pressable,Text } from '@hozo/core';const el=<Pressable><Text className="${classes} columns-(--layout)"/></Pressable>`
+      const web = local.compile(source)[0]
+      const native = local.compileNativeModule(source).components[0]
+      const getChild = (_type, props, child) => child ?? props
+      const { className } = evaluate(`module.exports=(${web.jsx})`, { h: getChild })
+      const { style: selectStyle } = evaluate(
+        `const hozoStyles=${native.styles}; module.exports=(${native.jsx})`,
+        { HozoPressable: 'host', HozoText: 'text', h: getChild },
+      )
+      await page.setContent(`<!doctype html><style>
+        ${input.map(([, guard, declaration]) => `#oracle${guard}{${declaration}}`).join('\n')}
+        ${web.css}
+        </style><button id="oracle"></button><button id="compiled" class="${className}"></button>`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const ids = []
+      for (const selector of ['#oracle', '#compiled'])
+        ids.push((await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })).nodeId)
+      for (const [hovered, pressed] of [
+        [true, true],
+        [true, false],
+        [false, true],
+      ]) {
+        const forcedPseudoClasses = [hovered && 'hover', pressed && 'active'].filter(Boolean)
+        for (const nodeId of ids)
+          await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses })
+        const [expected, actual] = await page.locator('button').evaluateAll((nodes) =>
+          nodes.map((node) => {
+            const { fontFamily, fontWeight } = getComputedStyle(node)
+            return [fontFamily, fontWeight]
+          }),
+        )
+        const style = Object.assign({}, ...selectStyle({ hovered, pressed }).filter(Boolean))
+        assert.deepEqual(actual, expected, classes)
+        assert.deepEqual([style.fontFamily, style.fontWeight], expected, classes)
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('opaque typography needs captured rule order even when a caller string includes a barrier', {
   skip: !executablePath,
 }, async () => {
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
-    @tailwind utilities; @theme { --color-brand: #123456; }
-    @utility bg-brand { background-color: #abcdef; }`
+    @tailwind utilities; @theme { --color-brand: #123456; --font-sans: Arial; --font-serif: Georgia; }
+    @utility bg-brand { background-color: #abcdef; }
+    @utility text-brand { color: #123456; }`
   const theme = await loadTheme(css, tailwindPackageDir())
   const names = [
     'bg-brand',
+    'text-brand',
     'active:text-2xl',
     'hover:text-xl',
     'hover:text-lg',
@@ -2008,10 +2086,17 @@ test('opaque typography needs captured rule order even when a caller string incl
     'hover:focus:text-3xl',
     'hover:font-bold',
     'hover:font-normal',
+    'hover:font-sans',
+    'hover:font-serif',
     'hover:tracking-[1px]',
     'hover:tracking-[2px]',
+    'hover:opacity-25',
+    'hover:opacity-75',
   ]
-  const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), [
+    ...names,
+    'mt-2',
+  ])
   const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
   const local = createCompiler(theme)
   const cache = openCandidateCache()
@@ -2020,14 +2105,21 @@ test('opaque typography needs captured rule order even when a caller string incl
   assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
   const candidateCode = candidates.code.replace(/^import .*$/gm, '')
   const production = evaluate(candidateCode, { createClassResolver }).hozoClasses
+  // The independent namespace no longer needs legacy ranks. Build the
+  // negative control in a larger universe where the old route is reachable.
+  const control = openCandidateCache()
+  control.scanFile('mixed.tsx', JSON.stringify([...names, 'mt-2'].join(' ')), 1)
+  const controlCode = control
+    .renderNativeModulePlan(context, theme)
+    .code.replace(/^import .*$/gm, '')
   const withBarrier = (plan) => ({
     ...plan,
     ordering: { schema: 1, ranks: plan.ordering.ranks },
   })
-  const legacy = evaluate(candidateCode, {
+  const legacy = evaluate(controlCode, {
     createClassResolver: (plan) => createClassResolver(withBarrier(plan)),
   }).hozoClasses
-  const specificityOnly = evaluate(candidateCode, {
+  const specificityOnly = evaluate(controlCode, {
     createClassResolver: (plan) =>
       createClassResolver({
         ...withBarrier(plan),
@@ -2144,11 +2236,16 @@ test('opaque typography needs captured rule order even when a caller string incl
     }
     assert.deepEqual([currentDisagrees, maskedDisagrees], [1, 3])
     const registered = [
+      'hover:font-serif',
+      'hover:font-sans',
       'hover:font-normal',
       'hover:font-bold',
       'hover:tracking-[2px]',
       'hover:tracking-[1px]',
+      'hover:opacity-75',
+      'hover:opacity-25',
       'bg-brand',
+      'text-brand',
     ]
     for (const tokens of [registered, registered.toReversed()]) {
       const value = tokens.join(' ')
@@ -2166,10 +2263,10 @@ test('opaque typography needs captured rule order even when a caller string incl
         await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover'] })
         assert.deepEqual(
           await page.locator('button').evaluate((element) => {
-            const { fontWeight, letterSpacing } = getComputedStyle(element)
-            return [fontWeight, letterSpacing]
+            const { fontFamily, fontWeight, letterSpacing, opacity } = getComputedStyle(element)
+            return [fontFamily, fontWeight, letterSpacing, opacity]
           }),
-          ['400', '2px'],
+          ['Georgia', '400', '2px', '0.75'],
           value,
         )
       }
@@ -2178,7 +2275,103 @@ test('opaque typography needs captured rule order even when a caller string incl
         {},
         ...renderCurrent(value).style(state).flat(Infinity).filter(Boolean),
       )
-      assert.deepEqual([selected.fontWeight, selected.letterSpacing], ['400', 2], value)
+      assert.deepEqual(
+        [selected.fontFamily, selected.fontWeight, selected.letterSpacing, selected.opacity],
+        ['Georgia', '400', 2, 0.75],
+        value,
+      )
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('an overlapping custom leading register is missing before Native ordering', {
+  skip: !executablePath,
+}, async () => {
+  const base = tailwindPackageDir()
+  const names = ['text-brand', 'hover:text-xl', 'hover:text-lg']
+  const cache = openCandidateCache()
+  cache.scanFile('custom-leading.tsx', JSON.stringify(names.join(' ')), 1)
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const overlapping of [false, true]) {
+      const css = `${readFileSync(path.join(base, 'theme.css'), 'utf8')}
+        @tailwind utilities; @theme { --color-brand: #123456; }
+        @utility text-brand { color: #123456; ${overlapping ? '--tw-leading: 41px;' : ''} }`
+      const theme = await loadTheme(css, base)
+      const { snapshot, classOrder } = await prepareTailwindOrder(css, base, names)
+      const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
+      const module = cache.renderNativeModulePlan(context, theme)
+      const branded = module.entries.find((entry) => entry.candidate === 'text-brand')
+      assert.equal(branded.kind, 'style')
+      assert.deepEqual(
+        branded.groups.map(({ nativeKeys }) => nativeKeys),
+        [['color']],
+      )
+      assert.equal(module.ordering.ranks['text-brand'], undefined)
+      assert.equal(module.code.includes('independentColors:'), !overlapping)
+
+      const local = createCompiler(theme)
+      const opaque = `import { Text } from '@hozo/core'; const el=<Text className={value}/>`
+      const web = local.prepareWebModule(opaque).emit(context)[0]
+      const renderWeb = evaluate(`module.exports=(value)=> (${web.jsx})`, { h: createElement })
+      const upstream = (await compile(css)).build(names)
+      const downstream = `${cache.renderCss(theme, classOrder(cache.candidates()))}\n${web.css}`
+      // Test the ordinary resolver and a diagnostic ablation that keeps the
+      // assessed hover ranks but still cannot add the absent custom write.
+      const code = module.code.replace(/^import .*$/gm, '')
+      const resolve = evaluate(code, { createClassResolver }).hozoClasses
+      const rankedHover = evaluate(code, {
+        createClassResolver: (plan) =>
+          createClassResolver({
+            ...plan,
+            ordering: {
+              ...plan.ordering,
+              independentColors: ['text-brand', 'hover:text-xl hover:text-lg'],
+            },
+          }),
+      }).hozoClasses
+      for (const [tokens, fallbackSize] of [
+        [names, overlapping ? 18 : 20],
+        [names.toReversed(), 20],
+      ]) {
+        const value = tokens.join(' ')
+        const markup = renderToStaticMarkup(renderWeb(value))
+        for (const [sheet, html, expectedLeading] of [
+          [upstream, `<span class="${value}"></span>`, overlapping ? '41px' : '28px'],
+          [downstream, markup, '28px'],
+        ]) {
+          await page.setContent(`<!doctype html><style>${sheet}</style>${html}`)
+          const { root } = await cdp.send('DOM.getDocument')
+          const { nodeId } = await cdp.send('DOM.querySelector', {
+            nodeId: root.nodeId,
+            selector: 'span',
+          })
+          assert.ok(nodeId, html)
+          await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover'] })
+          assert.deepEqual(
+            await page.locator('span').evaluate((node) => {
+              const { fontSize, lineHeight } = getComputedStyle(node)
+              return [fontSize, lineHeight]
+            }),
+            ['20px', expectedLeading],
+            value,
+          )
+        }
+        const metrics = (resolver) => {
+          const { color, fontSize, lineHeight } = Object.assign(
+            {},
+            ...resolver(value, { hovered: true }),
+          )
+          return [color, fontSize, lineHeight]
+        }
+        assert.deepEqual(metrics(resolve), ['#123456', fallbackSize, 28], value)
+        assert.deepEqual(metrics(rankedHover), ['#123456', 20, 28], value)
+      }
     }
   } finally {
     await page.close()
