@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { sourceFiles } from './square-config.mjs'
+import { unifiedDiff } from './text-diff.mjs'
 
 export const SCHEMA_VERSION = 1
 
@@ -24,7 +25,9 @@ files it imports, so the project owns and edits it. Callers are not changed:
 \`import { Button } from '@hozo/ui'\` keeps working, and add lists the files
 that import the component from @hozo/ui so the project can move them.
 Names are @hozo/ui's file names without extension (button, date-picker, ...)
-or a component's name (badge is in status, checkbox in toggle).
+or a component's name (badge is in status, checkbox in toggle). \`theme\`
+copies @hozo/ui's theme.css, for a project that wants to own every token's
+default; redefining tokens in your own @theme needs no copy.
 
 Options:
   --write               Create the files (without it, a dry run)
@@ -37,6 +40,8 @@ Options:
                         with the installed @hozo/ui (with --write); an edited
                         copy is shown and not merged (exit 2; --force
                         replaces it)
+  --imports             With theme: change the stylesheet Hozo reads to import
+                        the copied theme instead of @hozo/ui/theme.css
   --format text|json    Output format (default: text)
   --help                Show this help
 
@@ -48,15 +53,24 @@ Each copied file starts with one line naming its origin:
   // hozo add: @hozo/ui@<version> src/<file> sha256:<hash>
 Delete the line to detach the copy from @hozo/ui.`
 
-/** The first line of a copied file. The hash is of the upstream file as copied. */
-const ORIGIN = /^\/\/ hozo add: (@hozo\/ui)@(\S+) (\S+) sha256:([0-9a-f]{64})\r?\n/
+/**
+ * The first line of a copied file, a line comment in a script and a block
+ * comment in a stylesheet. The hash is of the upstream file as copied.
+ */
+const ORIGIN =
+  /^(?:\/\/|\/\*) hozo add: (@hozo\/ui)@(\S+) (\S+) sha256:([0-9a-f]{64})(?: \*\/)?\r?\n/
 
 const sha256 = (text) => createHash('sha256').update(text).digest('hex')
 export const posix = (file) => file.split(path.sep).join('/')
 
 /** The origin line `add` writes first in a copy of `file` (a path under `src/`). */
-export const header = (version, file, text) =>
-  `// hozo add: @hozo/ui@${version} src/${file} sha256:${sha256(text)}\n`
+export const header = (version, file, text) => {
+  const line = `hozo add: @hozo/ui@${version} src/${file} sha256:${sha256(text)}`
+  return file.endsWith('.css') ? `/* ${line} */\n` : `// ${line}\n`
+}
+
+/** `hozo add theme` names the stylesheet, not a component (RFC 012 §6.1). */
+export const THEME = 'theme'
 
 export class AddError extends Error {
   constructor(message, code) {
@@ -171,6 +185,8 @@ const packageName = (specifier) =>
  * `src/`, in the order they are found; and the packages they import.
  */
 export function closure(ui, name) {
+  // The theme imports nothing: it is tokens, for Tailwind to read.
+  if (name === THEME) return { files: ['theme.css'], packages: new Set() }
   const files = []
   const packages = new Set()
   const visit = (file) => {
@@ -360,6 +376,7 @@ function parse(argv) {
     else if (argument === '--list') options.list = true
     else if (argument === '--diff') options.diff = true
     else if (argument === '--update') options.update = true
+    else if (argument === '--imports') options.imports = true
     else if (argument === '--format') {
       options.format = argv[++index]
       if (options.format !== 'text' && options.format !== 'json')
@@ -401,8 +418,8 @@ export function copies(project, dest) {
 
 function list(project, ui, dest, format, io) {
   const found = copies(project, dest)
-  const rows = components(ui).map((name) => {
-    const copy = found.get(`src/${name}.tsx`)
+  const rows = [...components(ui), THEME].map((name) => {
+    const copy = found.get(name === THEME ? 'src/theme.css' : `src/${name}.tsx`)
     return copy
       ? { name, file: copy.file, version: copy.version, state: copyState(copy, ui.version) }
       : { name, state: 'not copied' }
@@ -448,11 +465,10 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
     }
     const names = []
     for (const name of options.names) {
-      if (name === 'theme')
-        throw new AddError(
-          '`hozo add theme` is RFC 012 step 5 and not implemented yet; import @hozo/ui/theme.css and redefine tokens in your @theme',
-          'not-implemented',
-        )
+      if (name === THEME) {
+        if (!names.includes(THEME)) names.push(THEME)
+        continue
+      }
       const file = known.includes(name)
         ? name
         : byComponent.get(name.replaceAll('-', '').toLowerCase())
@@ -470,6 +486,11 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
       const run = options.diff ? runDiff : runUpdate
       return await run(project, ui, dest.dir, names, { ...options, ...dependencies }, io)
     }
+    if (options.imports && !names.includes(THEME))
+      throw new AddError(
+        '--imports moves the stylesheet to a copied theme (hozo add theme --imports); moving component imports is not implemented yet',
+        'not-implemented',
+      )
     const { entries, packages } = plan(project, ui, dest.dir, names)
 
     const conflicts = entries.filter((entry) => entry.action === 'conflict')
@@ -481,12 +502,33 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
     const writes = entries.filter(
       (entry) => entry.action === 'create' || entry.action === 'conflict',
     )
-    if (options.write)
+    // The stylesheet edit is decided before anything is written, so a
+    // refusal leaves the project as it was.
+    const { stillImportsUi, themeImportEdit } = await import('./add-imports.mjs')
+    const themeCopy = posix(path.join(dest.dir, 'theme.css'))
+    const entryEdit =
+      options.imports && names.includes(THEME) ? themeImportEdit(project, themeCopy) : undefined
+    if (options.write && entryEdit?.updated) {
+      const { overwriteRefusal } = await import('./write-contract.mjs')
+      const refusal = overwriteRefusal(project, [entryEdit.file], options.force)
+      if (refusal) throw new AddError(refusal, 'uncommitted-changes')
+    }
+    if (options.write) {
       for (const entry of writes) {
         const absolute = path.join(project, entry.file)
         mkdirSync(path.dirname(absolute), { recursive: true })
         writeFileSync(absolute, entry.text)
       }
+      if (entryEdit?.updated) writeFileSync(path.join(project, entryEdit.file), entryEdit.updated)
+    }
+    // With the theme copied, @hozo/ui may be unused: say so, never remove it.
+    const removable =
+      options.write &&
+      names.includes(THEME) &&
+      !stillImportsUi(
+        project,
+        sourceFiles(project).filter((file) => !file.startsWith(`${dest.dir}/`)),
+      )
 
     const missing = missingPackages(project, packages)
     const found = callers(
@@ -508,6 +550,23 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
             missingPackages: missing,
             ...(missing.length ? { install: installCommand(project, missing) } : {}),
             callers: found,
+            ...(entryEdit
+              ? {
+                  stylesheet: entryEdit.same
+                    ? { file: entryEdit.file, action: 'same' }
+                    : {
+                        file: entryEdit.file,
+                        action: 'rewrite',
+                        diff: unifiedDiff(
+                          entryEdit.file,
+                          entryEdit.file,
+                          entryEdit.original,
+                          entryEdit.updated,
+                        ),
+                      },
+                }
+              : {}),
+            ...(removable ? { uiRemovable: true } : {}),
           },
           null,
           2,
@@ -547,7 +606,26 @@ export async function runAdd(argv, io, project = process.cwd(), dependencies = {
           ...caller.imports.map((line) => `    ${line}`),
         )
     }
-    if (!options.write && writes.length > 0)
+    if (entryEdit?.same) lines.push('', `${entryEdit.file} already imports ${themeCopy}.`)
+    else if (entryEdit)
+      lines.push(
+        '',
+        `${options.write ? 'Rewrote' : 'Would rewrite'} ${entryEdit.file} to import the copied theme:`,
+        unifiedDiff(entryEdit.file, entryEdit.file, entryEdit.original, entryEdit.updated)
+          .trimEnd()
+          .replace(/^/gm, '  '),
+      )
+    else if (names.includes(THEME))
+      lines.push(
+        '',
+        `Your stylesheet still imports @hozo/ui/theme.css. Point it at ${themeCopy} with --imports, or change the line by hand; until then the copy is not read.`,
+      )
+    if (removable)
+      lines.push(
+        '',
+        'Nothing in the project imports @hozo/ui any more, so it can be removed. hozo add does not remove it. Declare the packages the copies import first (above), since @hozo/ui may be what installs them now.',
+      )
+    if (!options.write && (writes.length > 0 || entryEdit?.updated))
       lines.push('', 'Nothing was written. Run again with --write to apply.')
     io.stdout.write(`${lines.join('\n')}\n`)
     return { exit: 0 }

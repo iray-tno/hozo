@@ -172,6 +172,23 @@ export function checkAdapter(project, { names }) {
 
 const metroState = (project) => path.join(project, 'node_modules', '.hozo', 'metro.json')
 
+/**
+ * Whether `text` (the stylesheet at `file`) imports a copy of `@hozo/ui`'s
+ * theme made by `hozo add theme`: a relative import whose first line is its
+ * origin (RFC 012 §6.1).
+ */
+function importsCopiedTheme(file, text) {
+  for (const [, specifier] of text.matchAll(/@import\s+(?:url\(\s*)?['"](\.[^'"]+)['"]/g)) {
+    const target = path.resolve(path.dirname(file), specifier)
+    if (
+      existsSync(target) &&
+      /^\/\* hozo add: @hozo\/ui@\S+ src\/theme\.css sha256:/.test(read(target))
+    )
+      return true
+  }
+  return false
+}
+
 export function checkCss(project, { names }) {
   const hozo = configs(project).filter(usesAdapter)
   if (!hozo.length) return { skipped: 'No bundler config uses Hozo, so no stylesheet is read' }
@@ -230,7 +247,11 @@ export function checkCss(project, { names }) {
         fix: `Add @import "tailwindcss"; at the top of ${file}`,
         path: file,
       })
-    if (names.has('@hozo/ui') && !/@import\s+(?:url\(\s*)?['"]@hozo\/ui\/theme\.css['"]/.test(text))
+    if (
+      names.has('@hozo/ui') &&
+      !/@import\s+(?:url\(\s*)?['"]@hozo\/ui\/theme\.css['"]/.test(text) &&
+      !importsCopiedTheme(full, text)
+    )
       findings.push({
         code: 'css-no-ui-theme',
         severity: 'error',

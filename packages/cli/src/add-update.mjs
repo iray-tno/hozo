@@ -6,12 +6,12 @@
 // 2, the write contract's answer to a change it cannot make safely; `--force`
 // overwrites it.
 
-import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { AddError, closure, header, origin, posix } from './add.mjs'
 import { upstreamAt } from './add-upstream.mjs'
 import { unifiedDiff } from './text-diff.mjs'
+import { overwriteRefusal } from './write-contract.mjs'
 
 /**
  * The state variants the look of an interactive component is built around
@@ -22,26 +22,6 @@ const STATE_CLASS = /(?<![\w-])(?:focus-visible|disabled|aria-[\w-]+|data-[\w-]+
 function removedStateClasses(from, to) {
   const kept = new Set(to.match(STATE_CLASS) ?? [])
   return [...new Set(from.match(STATE_CLASS) ?? [])].filter((name) => !kept.has(name)).sort()
-}
-
-/** Files Git has no copy of: changed since the last commit, or untracked. `null` outside Git. */
-function unrecorded(project, files) {
-  try {
-    const git = (args) =>
-      execFileSync('git', ['--no-optional-locks', '-C', project, ...args], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      })
-        .split('\0')
-        .filter(Boolean)
-    const changed = git(['status', '--porcelain', '-z', '--', ...files]).map((entry) =>
-      entry.slice(3),
-    )
-    const tracked = new Set(git(['ls-files', '-z', '--', ...files]))
-    return new Set([...changed, ...files.filter((file) => !tracked.has(file))])
-  } catch {
-    return null
-  }
 }
 
 /**
@@ -162,19 +142,13 @@ export async function runUpdate(project, ui, dest, names, options, io) {
             : 'replace'
   const refused = entries.filter((entry) => entry.action === 'refuse')
   const replaced = entries.filter((entry) => entry.action === 'replace')
-  if (options.write && !options.force && refused.length === 0 && replaced.length > 0) {
-    const dirty = unrecorded(
+  if (options.write && refused.length === 0) {
+    const refusal = overwriteRefusal(
       project,
       replaced.map((entry) => entry.file),
+      options.force,
     )
-    const blocked = dirty === null ? replaced : replaced.filter((entry) => dirty.has(entry.file))
-    if (blocked.length > 0)
-      throw new AddError(
-        dirty === null
-          ? '--update --write needs a Git checkout to confirm the copies are committed; pass --force to write anyway'
-          : `--write would overwrite work Git has no copy of (uncommitted changes, or an untracked file) in ${blocked.map((entry) => entry.file).join(', ')}; commit them or pass --force`,
-        'uncommitted-changes',
-      )
+    if (refusal) throw new AddError(refusal, 'uncommitted-changes')
   }
   const write = options.write && refused.length === 0
   if (write)
