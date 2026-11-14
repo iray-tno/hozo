@@ -9,6 +9,7 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { parseVersion, satisfies } from './range.mjs'
 import { checkAdapter, checkCss, checkMetroState, checkScan } from './square-config.mjs'
+import { checkCopies } from './square-copies.mjs'
 
 // The code half (`./square-code.mjs`) is imported only after the setup half
 // has run: it loads the compiler.
@@ -42,6 +43,9 @@ Setup checks:
   metro     Metro's saved state is newer than metro.config, and than each
             project component whose text classes it read (else: restart it)
   scan      Every file importing @hozo/* was read by the last candidate scan
+  copies    Every theme token a @hozo/ui component names, copied by hozo add
+            or installed, is defined; and which copies @hozo/ui has moved on
+            from (information only)
 
 Code: the audit \`hozo dry-fit\` runs, against the stylesheet the css check
 found. A fatal setup finding (no adapter) skips it, and says so. It compiles
@@ -50,7 +54,8 @@ version, a warning says so (run \`npx @hozo/cli@<that version> square\`).
 
 On a project with no @hozo/* dependency, use \`hozo dry-fit\` instead.`
 
-const SEVERITY_RANK = { warning: 1, error: 2 }
+// `info` is reported and never fails, at any --fail-on.
+const SEVERITY_RANK = { info: 0, warning: 1, error: 2 }
 // For setup findings. `new-errors` is about code; a setup error is never in a
 // baseline, so setup counts errors under it.
 const FAIL_ON = { none: Number.POSITIVE_INFINITY, warning: 1, error: 2, 'new-errors': 2 }
@@ -261,6 +266,7 @@ const CHECKS = [
   ['css', 'The stylesheet Hozo reads imports Tailwind and the themes it needs', checkCss],
   ['metro', "Metro's saved state matches its config", checkMetroState],
   ['scan', 'The candidate scan reads every file that imports @hozo/*', checkScan],
+  ['copies', 'Every token a @hozo/ui component names is in the theme', checkCopies],
 ]
 
 /** The setup checks; `found.css` is set to the stylesheet the css check found. */
@@ -272,12 +278,16 @@ function setup(project, declared, found) {
   return CHECKS.map(([id, title, check]) => {
     try {
       const { findings = [], summary, skipped, fatal, css } = check(project, graph)
-      if (css) found.css = css
+      if (css) {
+        found.css = css
+        // The copies check reads the theme this stylesheet resolves.
+        graph.css = css
+      }
       if (skipped) return { id, title, status: 'skipped', reason: skipped, findings }
       return {
         id,
         title,
-        status: findings.length ? 'failed' : 'passed',
+        status: findings.some((finding) => finding.severity !== 'info') ? 'failed' : 'passed',
         summary,
         findings,
         // A finding that leaves nothing for the code half to compile.

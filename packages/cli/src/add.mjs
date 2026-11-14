@@ -105,7 +105,7 @@ export function destination(project) {
 }
 
 /** The installed `@hozo/ui`: its directory and version. */
-function upstream(project) {
+export function upstream(project) {
   let file
   try {
     file = createRequire(path.join(project, 'package.json')).resolve('@hozo/ui/package.json')
@@ -242,7 +242,7 @@ function missingPackages(project, packages) {
  * './x.tsx'` blocks: each published name → the file and the name that file
  * defines it under. `Button` → `button.tsx`, `HozoButton`.
  */
-function publishedNames(ui) {
+export function publishedNames(ui) {
   const entry = readFileSync(path.join(ui.root, 'src', 'index.ts'), 'utf8')
   const names = new Map()
   for (const match of entry.matchAll(/export\s*\{([^}]*)\}\s*from\s*['"]\.\/([^'"]+)['"]/g)) {
@@ -381,7 +381,7 @@ function parse(argv) {
 }
 
 /** Every copy under the destination, by the upstream file it records. */
-function copies(project, dest) {
+export function copies(project, dest) {
   const found = new Map()
   const dir = path.join(project, dest)
   if (!existsSync(dir)) return found
