@@ -1998,6 +1998,75 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
   }
 })
 
+test('unranked font weight and family retain repeated owner runs in Web and Native', {
+  skip: !executablePath,
+}, async () => {
+  // The opaque unit deliberately disables canonical ordering. Compare to
+  // CSS declaration order rather than the opaque candidate sheet.
+  const cases = [
+    ['hover:font-bold', ':hover', 'font-weight:700'],
+    ['active:font-medium', ':active', 'font-weight:500'],
+    ['hover:font-normal', ':hover', 'font-weight:400'],
+    ['hover:font-sans', ':hover', 'font-family: Arial'],
+    ['active:font-mono', ':active', 'font-family: Courier'],
+    ['hover:font-serif', ':hover', 'font-family: Georgia'],
+  ]
+  const local = createCompiler({
+    colors: [],
+    fontFamilies: [
+      { name: 'sans', web: 'Arial', value: 'Arial' },
+      { name: 'mono', web: 'Courier', value: 'Courier' },
+      { name: 'serif', web: 'Georgia', value: 'Georgia' },
+    ],
+  })
+  const page = await browser.newPage()
+  try {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    for (const input of [cases, cases.toReversed()]) {
+      const classes = input.map(([name]) => name).join(' ')
+      const source = `import { Pressable,Text } from '@hozo/core';const el=<Pressable><Text className="${classes} columns-(--layout)"/></Pressable>`
+      const web = local.compile(source)[0]
+      const native = local.compileNativeModule(source).components[0]
+      const getChild = (_type, props, child) => child ?? props
+      const { className } = evaluate(`module.exports=(${web.jsx})`, { h: getChild })
+      const { style: selectStyle } = evaluate(
+        `const hozoStyles=${native.styles}; module.exports=(${native.jsx})`,
+        { HozoPressable: 'host', HozoText: 'text', h: getChild },
+      )
+      await page.setContent(`<!doctype html><style>
+        ${input.map(([, guard, declaration]) => `#oracle${guard}{${declaration}}`).join('\n')}
+        ${web.css}
+        </style><button id="oracle"></button><button id="compiled" class="${className}"></button>`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const ids = []
+      for (const selector of ['#oracle', '#compiled'])
+        ids.push((await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })).nodeId)
+      for (const [hovered, pressed] of [
+        [true, true],
+        [true, false],
+        [false, true],
+      ]) {
+        const forcedPseudoClasses = [hovered && 'hover', pressed && 'active'].filter(Boolean)
+        for (const nodeId of ids)
+          await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses })
+        const [expected, actual] = await page.locator('button').evaluateAll((nodes) =>
+          nodes.map((node) => {
+            const { fontFamily, fontWeight } = getComputedStyle(node)
+            return [fontFamily, fontWeight]
+          }),
+        )
+        const style = Object.assign({}, ...selectStyle({ hovered, pressed }).filter(Boolean))
+        assert.deepEqual(actual, expected, classes)
+        assert.deepEqual([style.fontFamily, style.fontWeight], expected, classes)
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('opaque typography needs captured rule order even when a caller string includes a barrier', {
   skip: !executablePath,
 }, async () => {

@@ -304,6 +304,16 @@ preparing a new class string; cached state selection uses the same
 ordered template. The legacy tie remains reachable for potentially
 overlapping or unproven writes, so this is not the Stage 6 exit.
 
+Static authored fallback now preserves repeated guards for font weight
+and named font family as well as absolute metrics. With an opaque columns
+write and `hover:font-bold active:font-medium hover:font-normal`, the
+combined hover/active state uses 400 rather than the earlier active 500.
+The same check covers competing themed sans/mono/serif names. Both
+compiled Web and Native selected styles match an authored-order CSS
+reference in both token orders, for six state observations per route.
+This leaves ranked input handling and Native arbitrary-family refusals
+unchanged.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

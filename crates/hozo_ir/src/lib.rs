@@ -5942,6 +5942,8 @@ fn independent_owner_guard_runs(
             }
             match &item.property {
                 StyleProperty::Opacity(_)
+                | StyleProperty::FontWeight(_)
+                | StyleProperty::FontFamily(_)
                 | StyleProperty::PaddingTop(_)
                 | StyleProperty::PaddingRight(_)
                 | StyleProperty::PaddingBottom(_)
