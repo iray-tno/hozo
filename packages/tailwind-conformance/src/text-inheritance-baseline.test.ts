@@ -16,7 +16,14 @@ test('inheritance inventory matches the Native compiler rather than arbitrary Te
   const body = /fn is_text_property\([\s\S]*?\n}/.exec(rust)?.[0]
   assert.ok(body)
   const variants = [...body.matchAll(/StyleProperty::(\w+)/g)].map((match) => match[1])
-  assert.deepEqual(variants.sort(), Object.keys(TEXT_PROPERTIES).sort())
+  // A leading register is text-related for an owner's style partition,
+  // but it has no TextStyle key of its own and must not be inherited.
+  const [painted, registers] = [
+    variants.filter((name) => name !== 'LeadingRegister'),
+    variants.filter((name) => name === 'LeadingRegister'),
+  ]
+  assert.deepEqual(registers, ['LeadingRegister'])
+  assert.deepEqual(painted.sort(), Object.keys(TEXT_PROPERTIES).sort())
   assert.equal(Object.keys(TEXT_PROPERTIES).length, 7)
 })
 
