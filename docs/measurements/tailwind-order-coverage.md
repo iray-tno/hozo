@@ -295,7 +295,11 @@ The proof uses the shared rule assessment to exclude validated hoisted
 `@property` registrations, rather than mistaking them for selector-owned
 writes. This admits ranked font-weight and absolute tracking in the same
 scope: Chromium and Native both select weight 400 and tracking 2px for
-the competing hover utilities in both token orders.
+the competing hover utilities in both token orders. Named font families
+also keep their existing ranks across that barrier: with Arial and
+Georgia as project tokens, `hover:font-serif` wins both permutations.
+Tailwind's accompanying font feature and variation declarations are
+still independent of the colour, but are not new Native output claims.
 
 All five opaque cases now match Chromium for size, line height and
 padding. Removing just the proof gives the previous 4/5, and also

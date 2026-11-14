@@ -2071,7 +2071,7 @@ test('opaque typography needs captured rule order even when a caller string incl
   skip: !executablePath,
 }, async () => {
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
-    @tailwind utilities; @theme { --color-brand: #123456; }
+    @tailwind utilities; @theme { --color-brand: #123456; --font-sans: Arial; --font-serif: Georgia; }
     @utility bg-brand { background-color: #abcdef; }
     @utility text-brand { color: #123456; }`
   const theme = await loadTheme(css, tailwindPackageDir())
@@ -2086,6 +2086,8 @@ test('opaque typography needs captured rule order even when a caller string incl
     'hover:focus:text-3xl',
     'hover:font-bold',
     'hover:font-normal',
+    'hover:font-sans',
+    'hover:font-serif',
     'hover:tracking-[1px]',
     'hover:tracking-[2px]',
     'hover:opacity-25',
@@ -2234,6 +2236,8 @@ test('opaque typography needs captured rule order even when a caller string incl
     }
     assert.deepEqual([currentDisagrees, maskedDisagrees], [1, 3])
     const registered = [
+      'hover:font-serif',
+      'hover:font-sans',
       'hover:font-normal',
       'hover:font-bold',
       'hover:tracking-[2px]',
@@ -2259,10 +2263,10 @@ test('opaque typography needs captured rule order even when a caller string incl
         await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover'] })
         assert.deepEqual(
           await page.locator('button').evaluate((element) => {
-            const { fontWeight, letterSpacing, opacity } = getComputedStyle(element)
-            return [fontWeight, letterSpacing, opacity]
+            const { fontFamily, fontWeight, letterSpacing, opacity } = getComputedStyle(element)
+            return [fontFamily, fontWeight, letterSpacing, opacity]
           }),
-          ['400', '2px', '0.75'],
+          ['Georgia', '400', '2px', '0.75'],
           value,
         )
       }
@@ -2272,8 +2276,8 @@ test('opaque typography needs captured rule order even when a caller string incl
         ...renderCurrent(value).style(state).flat(Infinity).filter(Boolean),
       )
       assert.deepEqual(
-        [selected.fontWeight, selected.letterSpacing, selected.opacity],
-        ['400', 2, 0.75],
+        [selected.fontFamily, selected.fontWeight, selected.letterSpacing, selected.opacity],
+        ['Georgia', '400', 2, 0.75],
         value,
       )
     }

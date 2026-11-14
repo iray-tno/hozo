@@ -170,6 +170,7 @@ test('partial ranks require a background-only footprint in both upstream CSS and
     'hover:text-lg',
     'hover:text-xl',
     'hover:font-bold',
+    'hover:font-sans',
     'hover:tracking-[2px]',
     'hover:ps-4',
     'bg-brand',
@@ -193,7 +194,7 @@ test('partial ranks require a background-only footprint in both upstream CSS and
     if (admitted)
       assert.match(
         plan.code,
-        /independentColors: \["bg-brand", "hover:font-bold hover:text-lg hover:text-xl hover:tracking-\[2px\]"\]/,
+        /independentColors: \["bg-brand", "hover:font-bold hover:font-sans hover:text-lg hover:text-xl hover:tracking-\[2px\]"\]/,
       )
     else assert.doesNotMatch(plan.code, /independentColors/)
   }

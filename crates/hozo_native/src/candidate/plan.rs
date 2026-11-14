@@ -241,6 +241,9 @@ impl<'a> CandidatePlanBuilder<'a> {
                     | "line-height"
                     | "letter-spacing"
                     | "font-weight"
+                    | "font-family"
+                    | "font-feature-settings"
+                    | "font-variation-settings"
                     | "--tw-font-weight"
                     | "--tw-leading"
                     | "--tw-tracking"
@@ -266,6 +269,7 @@ impl<'a> CandidatePlanBuilder<'a> {
                                     key.as_str(),
                                     "fontSize"
                                         | "fontWeight"
+                                        | "fontFamily"
                                         | "lineHeight"
                                         | "letterSpacing"
                                         | "paddingTop"
