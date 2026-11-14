@@ -351,6 +351,51 @@ export function createClassResolver(
     ) {
       groups.sort((a, b) => a.ownerRank! - b.ownerRank!)
     }
+    // Even behind a barrier, adjacent assessed font-size defaults under the
+    // same guard can use the captured rule rank. Both write the same fields
+    // and either both apply or neither does. Do not move a write across an
+    // unknown, a different guard, or an explicit leading register.
+    const fontRanks = ranks
+    const fontDefaults = hozoClasses.fontDefaults
+    if (fontRanks && fontDefaults && groups.length > 1) {
+      const sizeRank = ({ name, style }: TemplateEntry) => {
+        if (
+          !fontDefaults.has(style) ||
+          !Object.hasOwn(style, 'fontSize') ||
+          !Object.hasOwn(style, 'lineHeight') ||
+          Object.keys(style).length !== 2
+        )
+          return undefined
+        const row = fontRanks[name]
+        return row?.length === 1 ? row[0] : undefined
+      }
+      for (let start = 0; start < groups.length - 1; ) {
+        const first = groups[start]!
+        let previous = sizeRank(first)
+        let end = start + 1
+        let inverted = false
+        if (previous !== undefined) {
+          for (; end < groups.length; end++) {
+            const next = groups[end]!
+            if (
+              first.ownerRank !== next.ownerRank ||
+              first.keys.length !== next.keys.length ||
+              !first.keys.every((key, index) => key === next.keys[index])
+            )
+              break
+            const rank = sizeRank(next)
+            if (rank === undefined) break
+            inverted ||= previous > rank
+            previous = rank
+          }
+        }
+        if (inverted) {
+          const ordered = groups.slice(start, end).sort((a, b) => sizeRank(a)! - sizeRank(b)!)
+          for (let index = start; index < end; index++) groups[index] = ordered[index - start]!
+        }
+        start = end
+      }
+    }
     base.push(...decided)
     return {
       base: compose ? compose(base) : base,

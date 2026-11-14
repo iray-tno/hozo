@@ -338,6 +338,15 @@ register itself would also require value projection or an explicit refusal
 instead of silently counting it as a correct Tailwind winner. This receipt
 changes neither routing nor the Stage 6 score.
 
+The Native fallback now uses the assessed priority for adjacent implicit
+font-size defaults under the same guard. Both token orders in the
+overlapping-register fixture select **20px / 28px** without the rank
+ablation. This only changes ties among those jointly selected writes. An
+unranked state write, an explicit leading write, or a different effective
+guard keeps its previous relationship to the run. State-only updates do
+not read the priorities. The missing custom value and inter-guard fallback
+are still open; this is a narrower production change, not the exit.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

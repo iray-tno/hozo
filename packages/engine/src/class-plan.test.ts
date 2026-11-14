@@ -153,6 +153,52 @@ test('ambient decisions, composition and missing-state warnings retain the exist
   assert.equal(warnings.length, 1)
 })
 
+test('only adjacent assessed font-size defaults under the same guard are reranked in fallback', () => {
+  const xl = { fontSize: 20, lineHeight: 28 }
+  const lg = { fontSize: 18, lineHeight: 27 }
+  const unknown = { fontSize: 99, lineHeight: 101 }
+  const combined = { fontSize: 30, lineHeight: 36 }
+  const explicit = { fontSize: 19, lineHeight: 41 }
+  let readRanks = true
+  const resolve = createClassResolver({
+    schema: 1,
+    styles: { brand: { color: 'blue' } },
+    states: {
+      xl: [[['hovered'], xl, 256]],
+      lg: [[['hovered'], lg, 256]],
+      unknown: [[['hovered'], unknown, 256]],
+      combined: [[['hovered', 'focused'], combined, 512]],
+      explicit: [[['hovered'], explicit, 256]],
+    },
+    ordering: {
+      schema: 1,
+      ranks: new Proxy(
+        { lg: [1], xl: [2], explicit: [3], combined: [4] },
+        {
+          get(target, key: keyof typeof target) {
+            assert.ok(readRanks, 'a cached fallback read ranks again')
+            return target[key]
+          },
+        },
+      ),
+    },
+  })
+  resolve.fontDefaults = new Set([xl, lg, unknown, combined])
+  const facts = { hovered: true, focused: true }
+  for (const value of ['brand xl lg', 'brand lg xl']) {
+    assert.deepEqual(flatten(resolve(value, facts)), { ...xl, color: 'blue' })
+    assert.deepEqual(flatten(resolve(value, { ...facts, hovered: false })), { color: 'blue' })
+  }
+  assert.deepEqual(resolve('brand xl unknown lg', facts).slice(1), [xl, unknown, lg])
+  assert.deepEqual(resolve('brand xl explicit lg', facts).slice(1), [xl, explicit, lg])
+  assert.deepEqual(flatten(resolve('brand combined xl lg', facts)), {
+    ...combined,
+    color: 'blue',
+  })
+  readRanks = false
+  assert.equal(flatten(resolve('brand xl lg', { ...facts, focused: false })).fontSize, 20)
+})
+
 test('invalid schema/ranks are explicit errors and a legacy class named schema is still an object', () => {
   assert.throws(
     () => createClassResolver({ ...data(), schema: 2 } as unknown as ClassResolverPlan),
