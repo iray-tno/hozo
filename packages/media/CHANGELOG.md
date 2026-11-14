@@ -1,5 +1,15 @@
 # @hozo/media
 
+## 0.5.0
+
+### Patch Changes
+
+- [#1931](https://github.com/iray-tno/hozo/pull/1931) [`eebff26`](https://github.com/iray-tno/hozo/commit/eebff260a36ce11bc2e8258a028d8aad112c3642) Thanks [@iray-tno](https://github.com/iray-tno)! - `expo-video`'s peer range is now `>=58.0.13 <59`, matching `expo-audio` and `expo-asset`. It had stayed at `>=57.0.5 <58` when the other Expo peers moved to SDK 58, so a project on Expo SDK 58 got a peer warning for `expo-video`.
+
+- [#1686](https://github.com/iray-tno/hozo/pull/1686) [`5c488f3`](https://github.com/iray-tno/hozo/commit/5c488f31bbf0d312222a8c290a9e379e674aa908) Thanks [@iray-tno](https://github.com/iray-tno)! - `Video` works on a page that is rendered to static markup and never hydrated ([#1674](https://github.com/iray-tno/hozo/issues/1674)). On Web, `autoPlay`, `muted`, `loop` and `poster` are now also the `<video>`'s own attributes. The poster overlay joins only once mounted. New props: `width` and `height` (intrinsic size: the box takes their aspect ratio instead of the fixed 180 height), `className` for the box, `preload`, and `nativeID`. Given a `className`, the Web box no longer applies its inline 100% × 180 default, so the classes size it. On Native the classes resolve at runtime on top of the default, which is why `@hozo/media` now depends on `@hozo/engine`.
+- Updated dependencies [[`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b), [`052b447`](https://github.com/iray-tno/hozo/commit/052b447351a669a12c5b8ced61bef5d07dc8a604), [`43680e3`](https://github.com/iray-tno/hozo/commit/43680e3643ba9f3f6e01f5c7aa885feb8e5c7b04)]:
+  - @hozo/engine@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

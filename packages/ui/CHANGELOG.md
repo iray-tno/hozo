@@ -1,5 +1,16 @@
 # @hozo/ui
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [[`e5c848d`](https://github.com/iray-tno/hozo/commit/e5c848de8f4ff732fc7fc4a2d343e34938df1800), [`1585408`](https://github.com/iray-tno/hozo/commit/1585408e2fa23581c6b4b9a51fc8fc978d7e035b), [`14a5d69`](https://github.com/iray-tno/hozo/commit/14a5d69df011aefe076fe95ce9f4e539e63dbcf6), [`fd2f761`](https://github.com/iray-tno/hozo/commit/fd2f7613690fd5d95a78abc9bbdfd5cf3e7ccec4), [`43d6add`](https://github.com/iray-tno/hozo/commit/43d6add1b83dce0acda189ce9a1b610fb4a9d70d), [`129cf57`](https://github.com/iray-tno/hozo/commit/129cf57606c40599c34352f85caab5a38ab33da0), [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b), [`b4cc4f6`](https://github.com/iray-tno/hozo/commit/b4cc4f6b4941ed6f9fb63ff1f942dad781b760e5)]:
+  - @hozo/primitives@0.5.0
+  - @hozo/patterns@0.5.0
+  - @hozo/form@0.5.0
+  - @hozo/core@0.5.0
+  - @hozo/typography@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

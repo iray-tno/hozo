@@ -1,5 +1,15 @@
 # @hozo/engine
 
+## 0.5.0
+
+### Patch Changes
+
+- [#1684](https://github.com/iray-tno/hozo/pull/1684) [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b) Thanks [@iray-tno](https://github.com/iray-tno)! - `Image` declares `width`, `height`, `loading`, `decoding` and `fetchPriority`. The uncompiled Web `Image` now forwards them to the `<img>`, as compiled output already did, so a server-rendered page reserves the image's box and lazy-loads it with or without the compiler ([#1674](https://github.com/iray-tno/hozo/issues/1674)). On React Native, `width` and `height` are React Native's own props, and the three loading hints type-check but are ignored.
+
+- [#1977](https://github.com/iray-tno/hozo/pull/1977) [`052b447`](https://github.com/iray-tno/hozo/commit/052b447351a669a12c5b8ced61bef5d07dc8a604) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep shared Tailwind order for dynamic Native text and physical padding when an independent background-colour candidate is unranked.
+
+- [#1977](https://github.com/iray-tno/hozo/pull/1977) [`43680e3`](https://github.com/iray-tno/hozo/commit/43680e3643ba9f3f6e01f5c7aa885feb8e5c7b04) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep explicit line height when a Native Text or TextInput mixes compiled font sizes with runtime classes.
+
 ## 0.4.0
 
 ### Minor Changes

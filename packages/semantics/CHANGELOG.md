@@ -1,5 +1,13 @@
 # @hozo/semantics
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [[`43d6add`](https://github.com/iray-tno/hozo/commit/43d6add1b83dce0acda189ce9a1b610fb4a9d70d), [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b), [`052b447`](https://github.com/iray-tno/hozo/commit/052b447351a669a12c5b8ced61bef5d07dc8a604), [`43680e3`](https://github.com/iray-tno/hozo/commit/43680e3643ba9f3f6e01f5c7aa885feb8e5c7b04)]:
+  - @hozo/behaviors@0.5.0
+  - @hozo/engine@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
