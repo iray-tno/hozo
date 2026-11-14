@@ -254,6 +254,17 @@ control was 27.65 ms; empty and single-candidate output are unchanged.
 
 ## Share Native selector weight in the fallback
 
+### Omit legacy ties from fully covered independent candidate maps
+
+When every drawable candidate is either a proven independent background
+or an admitted ranked write, the authored fallback is unreachable.
+The generator no longer serializes the legacy state ranks for these
+maps. Refused or unrecognized tokens do not invalidate that proof.
+Adding a drawable opacity candidate outside the independent domain
+restores the tuples and leaves the original text/background result
+unchanged. This is a deletion from emitted output, not removal of the
+legacy policy for mixed namespaces where it still runs.
+
 The legacy Native candidate rank no longer counts positive owner selectors
 itself. It uses the same bounded specificity projection as the static
 Native arrays. The variant mask still supplies the historical tiebreaker

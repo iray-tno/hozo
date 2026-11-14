@@ -199,6 +199,45 @@ test('partial ranks require a background-only footprint in both upstream CSS and
   }
 })
 
+test('legacy tuples disappear only while every drawable candidate is covered', async () => {
+  const input = `${css}\n@tailwind utilities; @theme { --color-brand:#123456; }
+    @utility bg-brand { background-color:#abcdef; }`
+  const theme = await loadTheme(input, base)
+  const names = ['active:text-2xl', 'hover:text-xl', 'bg-brand', 'md:p-4']
+  const extra = 'hover:opacity-75'
+  const cache = cacheFor(names)
+  const context = async (names: string[]) => {
+    const { snapshot } = await prepareTailwindOrder(input, base, names)
+    return prepareFinalTailwindContext(JSON.stringify(snapshot))
+  }
+  const before = cache.renderNativeModulePlan(await context(names), theme)
+  cache.scanFile('increment.ts', JSON.stringify(extra), 2)
+  const after = cache.renderNativeModulePlan(await context([...names, extra]), theme)
+  assert.match(before.code, /independentBackgrounds/)
+  assert.match(after.code, /independentBackgrounds/)
+  assert.equal(before.entries.find((entry) => entry.candidate === 'md:p-4')?.kind, 'refused')
+  const tuples = /\{ fontSize: (?:20|24), lineHeight: (?:28|32) \}, \d+\]/
+  assert.doesNotMatch(before.code, tuples)
+  assert.match(after.code, tuples)
+  const selected = (code: string, value: string) =>
+    Object.assign(
+      {},
+      ...runInNewContext(
+        `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`,
+        { createClassResolver },
+      )(value, { pressed: true, hovered: true }),
+    )
+  const value = 'active:text-2xl hover:text-xl bg-brand'
+  assert.deepEqual(selected(before.code, value), selected(after.code, value))
+  assert.equal(selected(before.code, value).fontSize, 24)
+  assert.deepEqual(selected(after.code, `${value} ${extra}`), {
+    fontSize: 24,
+    lineHeight: 32,
+    backgroundColor: '#123456',
+    opacity: 0.75,
+  })
+})
+
 test('empty, small and 256-candidate maps keep all priority sidecar bytes off the device', async (t) => {
   for (const names of [[], ['p-2'], Array.from({ length: 256 }, (_, index) => `p-${index + 1}`)]) {
     const cache = cacheFor(names)

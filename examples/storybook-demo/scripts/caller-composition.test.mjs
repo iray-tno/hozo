@@ -1878,7 +1878,14 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
     'active:leading-8 hover:text-xl active:leading-6',
     'active:leading-8 hover:text-xl hover:focus:leading-6',
   ]
-  const names = [...new Set(cases.flatMap((classes) => classes.split(' '))), 'text-sm', 'bg-brand']
+  // Keep a drawable candidate outside the independent domain so the
+  // ablation can still inspect actual legacy ranks.
+  const names = [
+    ...new Set(cases.flatMap((classes) => classes.split(' '))),
+    'text-sm',
+    'bg-brand',
+    'opacity-50',
+  ]
   const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
   const cache = openCandidateCache()
@@ -2011,7 +2018,10 @@ test('opaque typography needs captured rule order even when a caller string incl
     'hover:tracking-[1px]',
     'hover:tracking-[2px]',
   ]
-  const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), [
+    ...names,
+    'opacity-50',
+  ])
   const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
   const local = createCompiler(theme)
   const cache = openCandidateCache()
@@ -2020,14 +2030,21 @@ test('opaque typography needs captured rule order even when a caller string incl
   assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
   const candidateCode = candidates.code.replace(/^import .*$/gm, '')
   const production = evaluate(candidateCode, { createClassResolver }).hozoClasses
+  // The independent namespace no longer needs legacy ranks. Build the
+  // negative control in a larger universe where the old route is reachable.
+  const control = openCandidateCache()
+  control.scanFile('mixed.tsx', JSON.stringify([...names, 'opacity-50'].join(' ')), 1)
+  const controlCode = control
+    .renderNativeModulePlan(context, theme)
+    .code.replace(/^import .*$/gm, '')
   const withBarrier = (plan) => ({
     ...plan,
     ordering: { schema: 1, ranks: plan.ordering.ranks },
   })
-  const legacy = evaluate(candidateCode, {
+  const legacy = evaluate(controlCode, {
     createClassResolver: (plan) => createClassResolver(withBarrier(plan)),
   }).hozoClasses
-  const specificityOnly = evaluate(candidateCode, {
+  const specificityOnly = evaluate(controlCode, {
     createClassResolver: (plan) =>
       createClassResolver({
         ...withBarrier(plan),

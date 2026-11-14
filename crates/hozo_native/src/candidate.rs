@@ -327,20 +327,25 @@ fn render_candidate_module_impl(
     let ordering = plan.and_then(|plan| {
         if plan.finalized {
             let (barriers, independent) = plan.independent_backgrounds();
+            let covers_every_drawable =
+                barriers.len() + independent.len() == supported.len() + states.len();
             let partial = (!barriers.is_empty() && independent.len() > 1)
                 .then(|| (barriers.join(" "), independent.join(" ")));
-            plan.prepare_ordering().map(|order| (order, partial))
+            plan.prepare_ordering().map(|order| {
+                let complete = order.ranks.len() == supported.len() + states.len()
+                    || (partial.is_some() && covers_every_drawable);
+                (order, partial, complete)
+            })
         } else {
             None
         }
     });
     // Compact ranks are emitted only for drawable entries, and only when
     // every group in that entry is ranked. When they cover every emitted
-    // entry, no string can reach the authored fallback: refused and unknown
-    // tokens never enter the resolver's rank lookup.
-    let complete = ordering
-        .as_ref()
-        .is_some_and(|(ordering, _)| ordering.ranks.len() == supported.len() + states.len());
+    // entry, or ranked entries and independent backgrounds cover every
+    // drawable entry together, no string can reach the legacy state order.
+    // Refused and unknown tokens never enter the resolver's rank lookup.
+    let complete = ordering.as_ref().is_some_and(|(_, _, complete)| *complete);
     // Only when there are any, so a project without state classes keeps the
     // module it had.
     let states_argument = if states.is_empty() {
@@ -529,7 +534,7 @@ fn render_candidate_module_impl(
         };
         Some(format!("{args} => {{ {pipeline}return {input} }}"))
     };
-    if let Some((ordering, partial)) = ordering {
+    if let Some((ordering, partial, _)) = ordering {
         out.push_str(
             "export const hozoClasses = createClassResolver({ schema: 1, styles, unsupported,",
         );
