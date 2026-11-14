@@ -165,10 +165,8 @@ needs its own RFC.
   everything in §6 together. Until then, the getting-started guides and
   `square`'s setup findings tell a project what to add.
 - **`hozo add <component>`**: copies an `@hozo/ui` component into the
-  project as source, shadcn/ui style, so the project owns and edits it. The
-  RFC for it decides what is copied (the component, its variants, its
-  dependencies within `@hozo/ui`), how a copied component is updated later,
-  and how the compiler treats it as project code rather than a dependency.
+  project as source, shadcn/ui style, so the project owns and edits it.
+  Specified in [RFC 012](012-hozo-add.md).
 - **`npm create hozo`** (package `create-hozo`): a new project from the
   upstream creator followed by `init`; it depends on `init`.
 - **`hozo mcp`**: the commands above as MCP tools. Deferred because
@@ -197,4 +195,5 @@ needs its own RFC.
   candidate-scan check stated as a file-to-root comparison.
 - Implemented, steps 1–4 (2026-11-14): progress recorded in §6; the open
   questions resolved in §8; the three old binaries deprecated alike, the
-  `@hozo/migration-audit` package kept under its name.
+  `@hozo/migration-audit` package kept under its name. `add` specified in
+  RFC 012.
