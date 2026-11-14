@@ -1,6 +1,6 @@
 # RFC 012: `hozo add` — an `@hozo/ui` component as project source
 
-- **Status**: Draft
+- **Status**: Implemented (§7: steps 1, 1b and 2–5, and `--imports` for callers)
 - **Authors**: iray-tno
 - **Tracking issue**: Not assigned
 - **Target packages**: `@hozo/cli`; `@hozo/ui`
