@@ -51,7 +51,7 @@ export const textFixtureManifest = {
     route: 'per-region proof; runtime fallback on missing proof',
     sourceSha256: {
       'packages/compiler/src/index.ts':
-        'ba16c21c0c8c2251c1fb74490fd20ce404a071e6578b50b4678c0f553e42c704',
+        'c5a7d96b46968fdbb979a1238aa402b2464bd315d943d8921c9c02f56b1eb297',
       'packages/metro/src/transform.ts':
         '85bffa328dcf0320248f92e7baffbba774e1a4b6bffd99414bc7e918da570106',
       'packages/metro/src/native-source-evidence.ts':
