@@ -277,13 +277,22 @@ resolver differs in one, and the specificity-only ablation in three;
 a positive conjunction still wins in both. The ablation is not a safe
 replacement for the opaque route, even for absolute typography.
 
-The next deletion needs shared, assessed rule ranks to remain usable
-for an independent set of writes when another candidate is unassessed.
-Keep a barrier when its writes might compete with that set, including
-aliases and register dependencies; do not give it an invented rank.
-An entirely opaque string and a static authored fallback must not be
-treated as having the same reference order merely to remove the legacy
-code. This is a requirement for the next change, not a new default.
+The generated resolver now keeps its existing common ranks when the
+only unassessed drawable token is a proven plain background-colour
+write and every other drawable token is assessed absolute text metrics
+or physical padding. Both the captured rule footprint and the actual
+Native projection must fit that boundary. A custom background utility
+also writing font size, logical padding or `--tw-leading` is not admitted.
+Two unassessed tokens, even if individually admitted, keep the whole
+string on its previous route. This does not assign a rank to the
+background or change the static authored fallback.
+
+All five opaque cases now match Chromium for size, line height and
+padding. Removing just the proof gives the previous 4/5, and also
+masking the legacy variant tie gives 2/5. The proof is only read when
+preparing a new class string; cached state selection uses the same
+ordered template. The legacy tie remains reachable for potentially
+overlapping or unproven writes, so this is not the Stage 6 exit.
 
 ## Progress
 

@@ -1896,6 +1896,7 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
     createClassResolver: (plan) =>
       createClassResolver({
         ...plan,
+        ordering: { schema: 1, ranks: plan.ordering.ranks },
         states: Object.fromEntries(
           Object.entries(plan.states).map(([name, groups]) => [
             name,
@@ -1912,7 +1913,8 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
   }
   const overlap = { hovered: true, pressed: true, focused: false }
   // A comparison that accidentally routes both sides through Tailwind's
-  // historical variant tiebreaker must not look green.
+  // historical variant tiebreaker or the canonical candidate order must not
+  // look green: both choose the active size for this authored-order input.
   assert.deepEqual(metrics(legacy(`text-sm ${cases[0]} bg-brand`, overlap)), [24, 32])
   assert.deepEqual(metrics(resolve(`text-sm ${cases[0]} bg-brand`, overlap)), [20, 28])
   // These inputs cannot use Tailwind's rule order. Independently give the
@@ -2014,10 +2016,17 @@ test('opaque typography needs captured rule order even when a caller string incl
   assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
   const candidateCode = candidates.code.replace(/^import .*$/gm, '')
   const production = evaluate(candidateCode, { createClassResolver }).hozoClasses
+  const withBarrier = (plan) => ({
+    ...plan,
+    ordering: { schema: 1, ranks: plan.ordering.ranks },
+  })
+  const legacy = evaluate(candidateCode, {
+    createClassResolver: (plan) => createClassResolver(withBarrier(plan)),
+  }).hozoClasses
   const specificityOnly = evaluate(candidateCode, {
     createClassResolver: (plan) =>
       createClassResolver({
-        ...plan,
+        ...withBarrier(plan),
         states: Object.fromEntries(
           Object.entries(plan.states).map(([name, groups]) => [
             name,
@@ -2044,6 +2053,7 @@ test('opaque typography needs captured rule order even when a caller string incl
       hozoClasses: resolve,
     })
   const renderCurrent = renderNative(production)
+  const renderLegacy = renderNative(legacy)
   const renderMasked = renderNative(specificityOnly)
   const upstream = (await compile(css)).build(names)
   const downstream = cache.renderCss(theme, classOrder(cache.candidates()))
@@ -2122,7 +2132,8 @@ test('opaque typography needs captured rule order even when a caller string incl
         )
         return [fontSize, lineHeight, paddingTop]
       }
-      assert.deepEqual(read(renderCurrent(value)), current, `${value}/current`)
+      assert.deepEqual(read(renderCurrent(value)), expected, `${value}/current`)
+      assert.deepEqual(read(renderLegacy(value)), current, `${value}/legacy-barrier`)
       assert.deepEqual(read(renderMasked(value)), masked, `${value}/specificity-only`)
       if (current.some((metric, index) => metric !== expected[index])) currentDisagrees++
       if (masked.some((metric, index) => metric !== expected[index])) maskedDisagrees++

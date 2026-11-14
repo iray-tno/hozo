@@ -80,6 +80,37 @@ test('one unranked object is a barrier and preserves the whole legacy string, no
   }
 })
 
+test('a proven independent background keeps the existing ranks only for an admitted string', () => {
+  const plan: ClassResolverPlan = {
+    schema: 1,
+    styles: { bg: { backgroundColor: 'blue' }, otherBg: { backgroundColor: 'red' } },
+    states: {
+      small: [[['hovered'], { fontSize: 18 }, 1]],
+      large: [[['hovered'], { fontSize: 20 }, 1]],
+      unknown: [[['hovered'], { fontSize: 27 }, 1]],
+    },
+    ordering: {
+      schema: 1,
+      ranks: { small: [0], large: [1], otherBg: [2] },
+      independentBackgrounds: ['bg', 'small large'],
+    },
+  }
+  const resolve = createClassResolver(plan)
+  const on = { hovered: true }
+  const off = { hovered: false }
+  assert.deepEqual(flatten(resolve('large bg small', on)), {
+    backgroundColor: 'blue',
+    fontSize: 20,
+  })
+  const resting = resolve('large bg small', off)
+  assert.deepEqual(flatten(resting), { backgroundColor: 'blue' })
+  assert.equal(resolve('large bg small', off), resting)
+  for (const value of ['bg large unknown small', 'large unknown small bg', 'bg large bg small'])
+    assert.equal(flatten(resolve(value, on)).fontSize, 18, value)
+  for (const value of ['bg large otherBg small', 'otherBg large bg small'])
+    assert.equal(flatten(resolve(value, on)).fontSize, 18, value)
+})
+
 test('ambient decisions, composition and missing-state warnings retain the existing contracts', (t) => {
   const warnings: string[] = []
   const warn = console.warn

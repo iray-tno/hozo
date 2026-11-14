@@ -118,7 +118,12 @@ export interface ClassResolverPlan {
   ambient?: ClassState
   compose?: Composer
   /** Ordinals from one complete compiler namespace. Missing means barrier. */
-  ordering: { schema: 1; ranks: Readonly<Record<string, readonly number[]>> }
+  ordering: {
+    schema: 1
+    ranks: Readonly<Record<string, readonly number[]>>
+    /** Compiler-proven disjoint sets: unranked backgrounds and ranked text/physical padding. */
+    independentBackgrounds?: readonly [barriers: string, independent: string]
+  }
 }
 
 interface TemplateEntry {
@@ -184,6 +189,7 @@ export function createClassResolver(
 ): ClassResolver {
   let styles: Record<string, StyleObject>
   let ranks: ClassResolverPlan['ordering']['ranks'] | undefined
+  let independentBackgrounds: ClassResolverPlan['ordering']['independentBackgrounds']
   if (typeof stylesOrPlan.schema === 'number') {
     const plan = stylesOrPlan as ClassResolverPlan
     if (
@@ -199,7 +205,11 @@ export function createClassResolver(
     states = plan.states ?? {}
     ambient = plan.ambient ?? {}
     ranks = plan.ordering.ranks
+    independentBackgrounds = plan.ordering.independentBackgrounds
   } else styles = stylesOrPlan as Record<string, StyleObject>
+  // Only mixed namespaces carrying the build-time proof allocate these.
+  const barriers = independentBackgrounds && new Set(independentBackgrounds[0].split(' '))
+  const independent = independentBackgrounds && new Set(independentBackgrounds[1].split(' '))
   const isAmbient = (key: string) => Object.hasOwn(ambient, key)
   // Class strings repeat constantly across renders and list items, and the
   // result is immutable, so each distinct string is resolved once.
@@ -257,16 +267,22 @@ export function createClassResolver(
     const stateClasses: string[] = []
     const decided: StyleObject[] = []
     // Build transient ranked entries only for the generated-plan ABI. A
-    // single unassessed object makes this whole string use the old path.
+    // single unassessed object still makes the whole string fall back unless
+    // every drawable candidate belongs to the compiler's disjoint sets.
     let ranked: { rank: number; entry: TemplateEntry }[] | undefined = ranks ? [] : undefined
+    let canKeepRanks = independent !== undefined
+    let background: StyleObject | undefined
     const take = ranks
       ? (index: number, entry: TemplateEntry) => {
           if (!ranked) return
           const rank = ranks![entry.name]?.[index]
           if (rank === undefined) {
-            ranked = undefined
+            if (canKeepRanks && !background && barriers?.has(entry.name)) {
+              background = entry.style
+            } else ranked = undefined
             return
           }
+          if (canKeepRanks && !independent?.has(entry.name)) canKeepRanks = false
           if (!Number.isSafeInteger(rank) || rank < 0)
             throw new Error('Invalid Hozo class plan rank')
           ranked.push({ rank, entry })
@@ -305,7 +321,7 @@ export function createClassResolver(
       const reason = unsupported[name]
       if (reason) warn(name, reason)
     }
-    if (ranked) {
+    if (ranked && (!background || canKeepRanks)) {
       // Stable ties keep input order. Strip rank objects before caching, so
       // neither cache hits nor state-only changes can read/sort priorities.
       ranked.sort((a, b) => a.rank - b.rank)
@@ -316,6 +332,12 @@ export function createClassResolver(
         } else ordered.push(entry)
       }
       const raw = ordered.filter((entry) => !entry.keys.length).map((entry) => entry.style)
+      // An admitted background has no state or register, and no other
+      // selected entry writes it. Keep it in base and in the state template.
+      if (background) {
+        raw.unshift(background)
+        ordered.unshift({ name: '', keys: [], style: background, ownerRank: undefined })
+      }
       return {
         base: compose ? compose(raw) : raw,
         raw,

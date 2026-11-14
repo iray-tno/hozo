@@ -326,7 +326,10 @@ fn render_candidate_module_impl(
     out.push_str("}\n\n");
     let ordering = plan.and_then(|plan| {
         if plan.finalized {
-            plan.prepare_ordering()
+            let (barriers, independent) = plan.independent_backgrounds();
+            let partial = (!barriers.is_empty() && independent.len() > 1)
+                .then(|| (barriers.join(" "), independent.join(" ")));
+            plan.prepare_ordering().map(|order| (order, partial))
         } else {
             None
         }
@@ -335,8 +338,9 @@ fn render_candidate_module_impl(
     // every group in that entry is ranked. When they cover every emitted
     // entry, no string can reach the authored fallback: refused and unknown
     // tokens never enter the resolver's rank lookup.
-    let complete =
-        ordering.is_some_and(|ordering| ordering.ranks.len() == supported.len() + states.len());
+    let complete = ordering
+        .as_ref()
+        .is_some_and(|(ordering, _)| ordering.ranks.len() == supported.len() + states.len());
     // Only when there are any, so a project without state classes keeps the
     // module it had.
     let states_argument = if states.is_empty() {
@@ -525,7 +529,7 @@ fn render_candidate_module_impl(
         };
         Some(format!("{args} => {{ {pipeline}return {input} }}"))
     };
-    if let Some(ordering) = ordering {
+    if let Some((ordering, partial)) = ordering {
         out.push_str(
             "export const hozoClasses = createClassResolver({ schema: 1, styles, unsupported,",
         );
@@ -543,7 +547,15 @@ fn render_candidate_module_impl(
             let ranks: Vec<_> = ranks.iter().map(u32::to_string).collect();
             out.push_str(&format!(" {}: [{}],", quote(name), ranks.join(",")));
         }
-        out.push_str(" } } })\n");
+        out.push_str(" }");
+        if let Some((barriers, independent)) = partial {
+            out.push_str(&format!(
+                ", independentBackgrounds: [{}, {}]",
+                quote(&barriers),
+                quote(&independent)
+            ));
+        }
+        out.push_str(" } })\n");
     } else if let Some(compose) = compose {
         out.push_str(&format!("export const hozoClasses = createClassResolver(styles, unsupported, {compose}{states_argument})\n"));
     } else if states.is_empty() {
