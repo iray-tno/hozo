@@ -1900,11 +1900,14 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
   const legacy = evaluate(candidateCode, { createClassResolver, hozoTextMetricStyles }).hozoClasses
   const resolve = evaluate(candidateCode, {
     hozoTextMetricStyles,
+    // Exercise Native specificity on its own. Leaving the compact ranks in
+    // this control also activates the production assessed-run projection.
     createClassResolver: (plan) =>
-      createClassResolver({
-        ...plan,
-        ordering: { schema: 1, ranks: plan.ordering.ranks },
-        states: Object.fromEntries(
+      createClassResolver(
+        plan.styles,
+        plan.unsupported,
+        plan.compose,
+        Object.fromEntries(
           Object.entries(plan.states).map(([name, groups]) => [
             name,
             groups.map(([keys, style, rank]) =>
@@ -1912,7 +1915,8 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
             ),
           ]),
         ),
-      }),
+        plan.ambient,
+      ),
   }).hozoClasses
   const metrics = (style) => {
     const { fontSize, lineHeight } = Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
