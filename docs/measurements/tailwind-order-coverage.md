@@ -277,15 +277,16 @@ resolver differs in one, and the specificity-only ablation in three;
 a positive conjunction still wins in both. The ablation is not a safe
 replacement for the opaque route, even for absolute typography.
 
-The generated resolver now keeps its existing common ranks when the
-only unassessed drawable token is a proven plain background-colour
+The generated resolver now keeps its existing common ranks when every
+unassessed drawable token is a proven plain background-colour
 write and every other drawable token is assessed absolute text metrics
 or physical padding. Both the captured rule footprint and the actual
 Native projection must fit that boundary. A custom background utility
 also writing font size, logical padding or `--tw-leading` is not admitted.
-Two unassessed tokens, even if individually admitted, keep the whole
-string on its previous route. This does not assign a rank to the
-background or change the static authored fallback.
+Multiple admitted background writes (including duplicate tokens) retain
+their fallback order relative to one another. This does not assign a rank
+to a background or change the static authored fallback. No claim is made
+about the winner between two unassessed colours on Web.
 
 All five opaque cases now match Chromium for size, line height and
 padding. Removing just the proof gives the previous 4/5, and also

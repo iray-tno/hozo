@@ -80,10 +80,14 @@ test('one unranked object is a barrier and preserves the whole legacy string, no
   }
 })
 
-test('a proven independent background keeps the existing ranks only for an admitted string', () => {
+test('proven independent backgrounds keep the existing ranks only for an admitted string', () => {
   const plan: ClassResolverPlan = {
     schema: 1,
-    styles: { bg: { backgroundColor: 'blue' }, otherBg: { backgroundColor: 'red' } },
+    styles: {
+      bg: { backgroundColor: 'blue' },
+      second: { backgroundColor: 'green' },
+      otherBg: { backgroundColor: 'red' },
+    },
     states: {
       small: [[['hovered'], { fontSize: 18 }, 1]],
       large: [[['hovered'], { fontSize: 20 }, 1]],
@@ -92,7 +96,7 @@ test('a proven independent background keeps the existing ranks only for an admit
     ordering: {
       schema: 1,
       ranks: { small: [0], large: [1], otherBg: [2] },
-      independentBackgrounds: ['bg', 'small large'],
+      independentBackgrounds: ['bg second', 'small large'],
     },
   }
   const resolve = createClassResolver(plan)
@@ -105,7 +109,13 @@ test('a proven independent background keeps the existing ranks only for an admit
   const resting = resolve('large bg small', off)
   assert.deepEqual(flatten(resting), { backgroundColor: 'blue' })
   assert.equal(resolve('large bg small', off), resting)
-  for (const value of ['bg large unknown small', 'large unknown small bg', 'bg large bg small'])
+  for (const [value, color] of [
+    ['bg large bg small', 'blue'],
+    ['bg large second small', 'green'],
+    ['second large bg small', 'blue'],
+  ] as const)
+    assert.deepEqual(flatten(resolve(value, on)), { backgroundColor: color, fontSize: 20 })
+  for (const value of ['bg large unknown small', 'large unknown small bg'])
     assert.equal(flatten(resolve(value, on)).fontSize, 18, value)
   for (const value of ['bg large otherBg small', 'otherBg large bg small'])
     assert.equal(flatten(resolve(value, on)).fontSize, 18, value)

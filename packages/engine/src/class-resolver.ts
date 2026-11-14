@@ -271,14 +271,16 @@ export function createClassResolver(
     // every drawable candidate belongs to the compiler's disjoint sets.
     let ranked: { rank: number; entry: TemplateEntry }[] | undefined = ranks ? [] : undefined
     let canKeepRanks = independent !== undefined
-    let background: StyleObject | undefined
+    let backgrounds: TemplateEntry[] | undefined
     const take = ranks
       ? (index: number, entry: TemplateEntry) => {
           if (!ranked) return
           const rank = ranks![entry.name]?.[index]
           if (rank === undefined) {
-            if (canKeepRanks && !background && barriers?.has(entry.name)) {
-              background = entry.style
+            if (canKeepRanks && barriers?.has(entry.name)) {
+              // Their colours still compete in fallback order. The ranked
+              // entries are only independent of these writes, not of one another.
+              ;(backgrounds ??= []).push(entry)
             } else ranked = undefined
             return
           }
@@ -321,23 +323,17 @@ export function createClassResolver(
       const reason = unsupported[name]
       if (reason) warn(name, reason)
     }
-    if (ranked && (!background || canKeepRanks)) {
+    if (ranked && (!backgrounds || canKeepRanks)) {
       // Stable ties keep input order. Strip rank objects before caching, so
       // neither cache hits nor state-only changes can read/sort priorities.
       ranked.sort((a, b) => a.rank - b.rank)
-      const ordered: TemplateEntry[] = []
+      const ordered: TemplateEntry[] = backgrounds ?? []
       for (const { entry } of ranked) {
         if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
           if (matches(entry.keys, entry.name, ambient)) ordered.push({ ...entry, keys: [] })
         } else ordered.push(entry)
       }
       const raw = ordered.filter((entry) => !entry.keys.length).map((entry) => entry.style)
-      // An admitted background has no state or register, and no other
-      // selected entry writes it. Keep it in base and in the state template.
-      if (background) {
-        raw.unshift(background)
-        ordered.unshift({ name: '', keys: [], style: background, ownerRank: undefined })
-      }
       return {
         base: compose ? compose(raw) : raw,
         raw,
