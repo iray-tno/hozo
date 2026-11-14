@@ -319,9 +319,12 @@ fn lower_capturing(
         css.push_str(CONTENT_BASE_CSS);
     }
     if contains_prop(root, |node| {
-        node.style
-            .iter()
-            .any(|d| matches!(d.property, hozo_ir::StyleProperty::LineHeight(_)))
+        node.style.iter().any(|d| {
+            matches!(
+                d.property,
+                hozo_ir::StyleProperty::LineHeight(_) | hozo_ir::StyleProperty::LeadingRegister(_)
+            )
+        })
     }) {
         css.push_str(LEADING_BASE_CSS);
     }

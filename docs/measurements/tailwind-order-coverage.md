@@ -394,8 +394,13 @@ the register without setting line-height. Native applies it only when a
 selected candidate reads the font-size default, preserving the colour-only
 case and using the existing explicit-leading composition. The ordinary
 Metro fixture also replaces 41px with 43px on a stylesheet epoch change.
-This does not cover literal compiled classes or cross-input readers, nor
-relative, nested or conflicting custom declarations.
+Literal compiled classes also retain a typed register write before their
+utility identity is dropped. With only absolute size readers, they use
+the shared metric ranks without assigning the register its own Tailwind
+priority. The pinned Chromium and Native resolver comparisons agree on
+both permutations and both states for static and dynamic inputs. Mixed
+static/dynamic readers, relative, nested and conflicting custom
+declarations are not covered by this receipt.
 
 ## Progress
 

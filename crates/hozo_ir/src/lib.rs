@@ -2243,6 +2243,8 @@ pub enum StyleProperty {
     FontSize(Length),
     FontWeight(FontWeight),
     LineHeight(LineHeight),
+    /// A CSS leading register write, not a direct line-height declaration.
+    LeadingRegister(f64),
     /// Letter spacing, always in `em` -- Tailwind's `tracking-*` scale is
     /// defined relative to the element's own font size. Web-only: React
     /// Native's `letterSpacing` is an absolute number, and the font size to
@@ -2961,6 +2963,7 @@ impl StyleProperty {
             | StyleProperty::ContainerName(..)
             | StyleProperty::Content(..)
             | StyleProperty::Keyword(..)
+            | StyleProperty::LeadingRegister(..)
             | StyleProperty::Arbitrary(..)
             | StyleProperty::WebOnly(..)
             | StyleProperty::GridTemplateColumns(..)

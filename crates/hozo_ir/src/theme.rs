@@ -164,6 +164,10 @@ impl Theme {
             .filter(|value| value.is_finite() && *value >= 0.0)
     }
 
+    pub fn has_utility_leading_registers(&self) -> bool {
+        !self.utility_leading_registers.is_empty()
+    }
+
     pub fn new(
         colors: HashMap<String, ThemeColor>,
         spacing_px: Option<f64>,

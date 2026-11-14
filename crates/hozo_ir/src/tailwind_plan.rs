@@ -89,10 +89,39 @@ impl<'a> TailwindWritePlan<'a> {
             if region.len() < 2 {
                 continue;
             }
+            // A supplemental register and its resting colour do not
+            // compete with font-size priority. Only keep this exception
+            // for a region of default readers, not other register writers
+            // or a second colour rule with unproven ownership.
+            let supplemental = region.iter().find_map(|declaration| {
+                matches!(
+                    declaration.property,
+                    crate::StyleProperty::LeadingRegister(_)
+                )
+                .then_some(declaration.source)
+            });
+            let can_keep_metric_order = supplemental.is_some_and(|source| {
+                region.iter().all(|declaration| {
+                    use crate::StyleProperty::*;
+                    match declaration.property {
+                        LeadingRegister(_) | TextColor(_) => {
+                            declaration.source == source
+                                && declaration.condition == Condition::Always
+                        }
+                        FontSize(_) | LineHeight(crate::LineHeight::FontDefault(_)) => true,
+                        _ => false,
+                    }
+                })
+            });
             let ranks: Option<Vec<_>> = region
                 .iter()
                 .enumerate()
                 .map(|(index, decl)| {
+                    if can_keep_metric_order && Some(decl.source) == supplemental {
+                        // Neither write participates in the metric race.
+                        // Sort them last rather than assigning Tailwind rank zero.
+                        return Some((usize::MAX, index, [0; 3]));
+                    }
                     let utility = match decl.source {
                         StyleSource::TailwindUtility { utility, .. }
                         | StyleSource::TailwindOrdered { utility, .. } => utility,

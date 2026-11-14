@@ -302,6 +302,15 @@ pub(super) fn build_style_entries(
     // condition, a breakpoint, `dark:`, a className branch -- is (0,1,0) and
     // loses to it.
     let mut state_parts: Vec<String> = Vec::new();
+    let register = declarations
+        .iter()
+        .rev()
+        .find_map(|declaration| match declaration.property {
+            StyleProperty::LeadingRegister(px) if declaration.condition == Condition::Always => {
+                Some(px)
+            }
+            _ => None,
+        });
     let hozo_ir::NativeConditionGroupPlan {
         mut groups,
         canonical_input,
@@ -310,6 +319,16 @@ pub(super) fn build_style_entries(
     let mut has_interactive = false;
     for (_, props) in &mut groups {
         *props = hozo_ir::dedupe_last_wins(theme.resolve_shadow_tokens(std::mem::take(props)));
+        if let Some(px) = register {
+            for property in props.iter_mut() {
+                if let StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(length)) =
+                    property
+                {
+                    *length = hozo_ir::Length::Px(px);
+                }
+            }
+            props.retain(|property| !matches!(property, StyleProperty::LeadingRegister(_)));
+        }
     }
     let is_default = |property: &StyleProperty| {
         matches!(

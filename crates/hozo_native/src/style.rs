@@ -743,6 +743,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // reaching here means `fold_font_relative` found no font size on the
         // element to resolve it against, and it was refused by name there --
         // emitting nothing keeps the object valid if that error is ignored.
+        StyleProperty::LeadingRegister(_) => Vec::new(),
         StyleProperty::LineHeight(lh) => match lh {
             LineHeight::Length(l) | LineHeight::FontDefault(l) => vec![("lineHeight", number(l, theme))],
             LineHeight::Ratio(_) => Vec::new(),

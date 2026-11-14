@@ -309,6 +309,7 @@ pub(super) fn is_text_property(property: &StyleProperty) -> bool {
         StyleProperty::FontSize(_)
             | StyleProperty::FontWeight(_)
             | StyleProperty::LineHeight(_)
+            | StyleProperty::LeadingRegister(_)
             | StyleProperty::LetterSpacing(_)
             | StyleProperty::TextColor(_)
             | StyleProperty::TextAlign(_)

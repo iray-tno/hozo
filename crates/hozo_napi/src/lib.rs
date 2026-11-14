@@ -471,6 +471,7 @@ fn emit_web(
     parsed: &mut hozo_parser::ParseOutput,
     options: WebModuleOptions<'_>,
 ) -> Vec<CompiledComponent> {
+    hozo_parser::capture_utility_leading(parsed, theme);
     let mut plans = options.tailwind.apply(parsed).into_iter();
     let evidence = options.evidence;
     let offsets = Utf16Offsets::new(source);
@@ -1612,6 +1613,7 @@ fn lower_native(
         text_forwarding,
         class_helpers,
     );
+    hozo_parser::capture_utility_leading(&mut parsed, theme);
     let plans = tailwind.apply(&mut parsed);
     lower_native_components(
         source,
@@ -1700,6 +1702,7 @@ fn emit_native_module(
     parsed: &mut hozo_parser::ParseOutput,
     options: NativeModuleOptions<'_>,
 ) -> CompiledNativeModule {
+    hozo_parser::capture_utility_leading(parsed, theme);
     let plans = options.tailwind.apply(parsed);
     let mut components = lower_native_components(source, theme, parsed, &options, plans);
     let imports = parsed

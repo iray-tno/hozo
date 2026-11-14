@@ -2292,18 +2292,42 @@ test('an overlapping custom leading register reaches ordinary Web and Native can
       for (const tokens of [names, names.toReversed()]) {
         const value = tokens.join(' ')
         const markup = renderToStaticMarkup(renderWeb(value))
+        const literal = `import { Pressable } from '@hozo/core';
+          const el=<Pressable className="${value}"/>`
+        const staticWeb = overlapping ? local.prepareWebModule(literal).emit(context)[0] : null
+        const staticNative = overlapping
+          ? local.prepareNativeModule(literal).emit(context).components[0]
+          : null
+        const staticProps =
+          staticNative &&
+          evaluate(`const hozoStyles=${staticNative.styles};module.exports=(${staticNative.jsx})`, {
+            HozoPressable: 'host',
+            Pressable: 'host',
+            h: (_type, props) => props,
+          })
         for (const pressed of [false, true]) {
           const expectedSize = pressed ? 24 : 20
           const defaultLeading = overlapping ? 41 : pressed ? 32 : 28
           for (const [sheet, html, expectedLeading] of [
             [upstream, `<span class="${value}"></span>`, defaultLeading],
             [downstream, markup, defaultLeading],
+            ...(staticWeb
+              ? [
+                  [
+                    staticWeb.css,
+                    renderToStaticMarkup(
+                      evaluate(`module.exports=(${staticWeb.jsx})`, { h: createElement }),
+                    ),
+                    defaultLeading,
+                  ],
+                ]
+              : []),
           ]) {
             await page.setContent(`<!doctype html><style>${sheet}</style>${html}`)
             const { root } = await cdp.send('DOM.getDocument')
             const { nodeId } = await cdp.send('DOM.querySelector', {
               nodeId: root.nodeId,
-              selector: 'span',
+              selector: 'body > *',
             })
             assert.ok(nodeId, html)
             await cdp.send('CSS.forcePseudoState', {
@@ -2311,7 +2335,7 @@ test('an overlapping custom leading register reaches ordinary Web and Native can
               forcedPseudoClasses: pressed ? ['hover', 'active'] : ['hover'],
             })
             assert.deepEqual(
-              await page.locator('span').evaluate((node) => {
+              await page.locator('body > *').evaluate((node) => {
                 const { fontSize, lineHeight } = getComputedStyle(node)
                 return [fontSize, lineHeight]
               }),
@@ -2328,6 +2352,16 @@ test('an overlapping custom leading register reaches ordinary Web and Native can
             ['#123456', expectedSize, defaultLeading],
             value,
           )
+          if (staticProps) {
+            const { fontSize, lineHeight } = Object.assign(
+              {},
+              ...staticProps
+                .hozoTextStyle({ hovered: true, pressed })
+                .flat(Infinity)
+                .filter(Boolean),
+            )
+            assert.deepEqual([fontSize, lineHeight], [expectedSize, defaultLeading], value)
+          }
         }
       }
     }

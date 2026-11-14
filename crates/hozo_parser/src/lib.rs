@@ -23,8 +23,9 @@ mod stylex;
 mod tailwind;
 mod tailwind_plan;
 pub use tailwind_plan::{
-    builtin_tailwind_context, order_module_tailwind, order_module_tailwind_builtin,
-    plan_module_tailwind, TailwindPlanBlock, TailwindPlanSite, TailwindPlanWrite, TailwindRootPlan,
+    builtin_tailwind_context, capture_utility_leading, order_module_tailwind,
+    order_module_tailwind_builtin, plan_module_tailwind, TailwindPlanBlock, TailwindPlanSite,
+    TailwindPlanWrite, TailwindRootPlan,
 };
 mod text_forwarding;
 mod text_regions;

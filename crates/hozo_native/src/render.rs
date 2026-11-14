@@ -916,6 +916,7 @@ pub(super) fn render_node(
         .chain(
             text_declarations
                 .iter()
+                .filter(|d| !matches!(d.property, StyleProperty::LeadingRegister(_)))
                 .map(|d| bound_to_disabled(d, disabled.as_ref())),
         )
         .collect();
