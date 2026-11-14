@@ -96,8 +96,8 @@ another file at its root does not need one:
 
 - **`@hozo/ui`'s theme** (`@hozo/ui/theme.css`). The copied classes name its
   tokens (`bg-hozo-accent`, `rounded-hozo-surface`), so the CSS entry keeps
-  importing it, and `@hozo/ui` stays a dependency. Copying the theme as well
-  is §8.
+  importing it, and `@hozo/ui` stays a dependency. A project re-themes by
+  redefining tokens in its own `@theme`, not by copying `theme.css` (§8).
 - **The primitives and patterns** a component wraps (§2).
 - **Tests.** `@hozo/ui`'s tests are not copied: they test the package's
   file, and the behaviour they care about is the wrapped primitive's.
@@ -148,22 +148,44 @@ callers differently, `add` would hand the project a component that behaves
 worse than the one it replaced, and the fix belongs in the compiler, not in
 `add`.
 
-## 8. Open questions
+## 8. Resolved questions
 
-- **Moving callers.** `add` lists the files importing the component from
-  `@hozo/ui`. Should a flag rewrite them to the copy, under the write
-  contract? The recommendation is yes, behind `--imports`, once step 2 shows
-  the list is right.
-- **Copying the theme.** A project that wants to own its tokens would copy
-  `theme.css` too, and could then drop `@hozo/ui`. Is that `hozo add theme`,
-  or out of scope?
-- **A copied component and the Verification Matrix.** The matrix covers the
-  primitive, which the copy still uses. Should `square` say when a copy has
-  removed a class the matrix relies on (a focus ring, say), or is that the
-  project's to own?
+- **Moving callers: behind `--imports`.** By default `add` only lists the
+  files importing the component from `@hozo/ui`. `--imports` rewrites those
+  imports to the copy, under the write contract (`--imports --write`). Without
+  the flag, an agent would repeat the same rewrite by hand after every `add`;
+  doing it by default would make `add` edit files the project did not name.
+  It is implemented after step 2 shows the list is right.
+- **The theme is overridden, not copied.** Every `@hozo/ui` class names a
+  token, and the project's build resolves tokens against the project's own
+  `@theme` (`packages/ui/README.md`, "Theming"). A token redefined there:
+
+  ```css
+  @import "@hozo/ui/theme.css";
+  @theme {
+    --color-hozo-accent: var(--color-emerald-600);
+    --color-hozo-accent--dark: var(--color-emerald-400);
+  }
+  ```
+
+  moves copied and package components alike, on both backends. A copied
+  `theme.css` would give the tokens two owners while components still
+  installed from `@hozo/ui` keep reading them, so there is no
+  `hozo add theme`, and the name is not reserved.
+- **A copied component and the Verification Matrix: noted in `--diff`, never
+  a `square` finding.** The matrix covers the wrapped primitive, which the
+  copy still uses, and the look is the project's. But a copy that drops
+  `focus-visible:` or another state variant loses something the matrix's
+  look was built around (README: the focus ring is part of the only class
+  list an interactive component can have). `--diff` marks a removed state
+  variant (`focus-visible:`, `disabled:`, `aria-*:`, `data-*:`) as a note,
+  so there is one place an edit like that is seen; CI does not fail on it.
 
 ## History
 
 - Draft (2026-11-14): first version. Configuration in `package.json` or
   `hozo.json`, both accepted; origin recorded in each copied file, not in the
   config; edited copies are diffed, never merged.
+- Draft (2026-11-14): open questions resolved. `--imports` rewrites callers
+  on request; the theme is overridden through the project's `@theme`, never
+  copied; a removed state variant is a note in `--diff`.
