@@ -262,6 +262,27 @@ test('legacy tuples disappear only while every drawable candidate is covered', a
   })
 })
 
+test('font-size-only state maps emit specificity without legacy variant bits', async () => {
+  const input = `${css}\n@tailwind utilities; @theme { --color-brand:#123456; }
+    @utility text-brand { color:#123456; --tw-leading: 41px; }`
+  const theme = await loadTheme(input, base)
+  const names = ['text-brand', 'active:text-2xl', 'hover:text-xl', 'hover:focus:text-3xl']
+  const render = async (candidates: string[]) => {
+    const { snapshot } = await prepareTailwindOrder(input, base, candidates)
+    return cacheFor(candidates).renderNativeModulePlan(
+      prepareFinalTailwindContext(JSON.stringify(snapshot)),
+      theme,
+    ).code
+  }
+  const onlySizes = await render(names)
+  assert.match(onlySizes, /fontSize: 24, lineHeight: 32 \}, 256\]/)
+  assert.match(onlySizes, /fontSize: 20, lineHeight: 28 \}, 256\]/)
+  assert.match(onlySizes, /fontSize: 30, lineHeight: 36 \}, 512\]/)
+  const mixed = await render([...names, 'hover:opacity-25'])
+  assert.doesNotMatch(mixed, /fontSize: 24, lineHeight: 32 \}, 256\]/)
+  assert.match(mixed, /fontSize: 24, lineHeight: 32 \}, 26\d\]/)
+})
+
 test('empty, small and 256-candidate maps keep all priority sidecar bytes off the device', async (t) => {
   for (const names of [[], ['p-2'], Array.from({ length: 256 }, (_, index) => `p-${index + 1}`)]) {
     const cache = cacheFor(names)

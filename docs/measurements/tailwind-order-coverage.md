@@ -347,6 +347,15 @@ guard keeps its previous relationship to the run. State-only updates do
 not read the priorities. The missing custom value and inter-guard fallback
 are still open; this is a narrower production change, not the exit.
 
+In a namespace whose only conditional writes are assessed font-size
+defaults, Native now emits specificity without the built-in variant tie
+bits. A resting barrier can still reach the fallback but cannot insert a
+conditional style among those writes. Same-specificity hover and press
+use the shared rank, while a hover/focus conjunction retains its higher
+weight. With an additional non-size state writer the compiler still emits
+the legacy tuples. This removes the tie from the bounded size-only route,
+not from general mixed or unassessed input.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

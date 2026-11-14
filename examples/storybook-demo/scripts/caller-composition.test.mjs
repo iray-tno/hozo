@@ -2291,7 +2291,7 @@ test('an overlapping custom leading register is missing before Native ordering',
   skip: !executablePath,
 }, async () => {
   const base = tailwindPackageDir()
-  const names = ['text-brand', 'hover:text-xl', 'hover:text-lg']
+  const names = ['text-brand', 'hover:text-xl', 'hover:text-lg', 'active:text-2xl']
   const cache = openCandidateCache()
   cache.scanFile('custom-leading.tsx', JSON.stringify(names.join(' ')), 1)
   const page = await browser.newPage()
@@ -2315,6 +2315,10 @@ test('an overlapping custom leading register is missing before Native ordering',
       )
       assert.equal(module.ordering.ranks['text-brand'], undefined)
       assert.equal(module.code.includes('independentColors:'), !overlapping)
+      if (overlapping) {
+        assert.match(module.code, /lineHeight: 28 \}, 256\]/)
+        assert.match(module.code, /lineHeight: 32 \}, 256\]/)
+      }
 
       const local = createCompiler(theme)
       const opaque = `import { Text } from '@hozo/core'; const el=<Text className={value}/>`
@@ -2329,35 +2333,43 @@ test('an overlapping custom leading register is missing before Native ordering',
       for (const tokens of [names, names.toReversed()]) {
         const value = tokens.join(' ')
         const markup = renderToStaticMarkup(renderWeb(value))
-        for (const [sheet, html, expectedLeading] of [
-          [upstream, `<span class="${value}"></span>`, overlapping ? '41px' : '28px'],
-          [downstream, markup, '28px'],
-        ]) {
-          await page.setContent(`<!doctype html><style>${sheet}</style>${html}`)
-          const { root } = await cdp.send('DOM.getDocument')
-          const { nodeId } = await cdp.send('DOM.querySelector', {
-            nodeId: root.nodeId,
-            selector: 'span',
-          })
-          assert.ok(nodeId, html)
-          await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover'] })
+        for (const pressed of [false, true]) {
+          const expectedSize = pressed ? 24 : 20
+          const defaultLeading = pressed ? 32 : 28
+          for (const [sheet, html, expectedLeading] of [
+            [upstream, `<span class="${value}"></span>`, overlapping ? 41 : defaultLeading],
+            [downstream, markup, defaultLeading],
+          ]) {
+            await page.setContent(`<!doctype html><style>${sheet}</style>${html}`)
+            const { root } = await cdp.send('DOM.getDocument')
+            const { nodeId } = await cdp.send('DOM.querySelector', {
+              nodeId: root.nodeId,
+              selector: 'span',
+            })
+            assert.ok(nodeId, html)
+            await cdp.send('CSS.forcePseudoState', {
+              nodeId,
+              forcedPseudoClasses: pressed ? ['hover', 'active'] : ['hover'],
+            })
+            assert.deepEqual(
+              await page.locator('span').evaluate((node) => {
+                const { fontSize, lineHeight } = getComputedStyle(node)
+                return [fontSize, lineHeight]
+              }),
+              [`${expectedSize}px`, `${expectedLeading}px`],
+              value,
+            )
+          }
+          const { color, fontSize, lineHeight } = Object.assign(
+            {},
+            ...resolve(value, { hovered: true, pressed }),
+          )
           assert.deepEqual(
-            await page.locator('span').evaluate((node) => {
-              const { fontSize, lineHeight } = getComputedStyle(node)
-              return [fontSize, lineHeight]
-            }),
-            ['20px', expectedLeading],
+            [color, fontSize, lineHeight],
+            ['#123456', expectedSize, defaultLeading],
             value,
           )
         }
-        const metrics = (resolver) => {
-          const { color, fontSize, lineHeight } = Object.assign(
-            {},
-            ...resolver(value, { hovered: true }),
-          )
-          return [color, fontSize, lineHeight]
-        }
-        assert.deepEqual(metrics(resolve), ['#123456', 20, 28], value)
       }
     }
   } finally {
