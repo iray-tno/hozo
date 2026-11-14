@@ -313,6 +313,17 @@ and the packages it imports are checked against `package.json`.
 - The write contract is one helper now (`packages/cli/src/write-contract.mjs`),
   used by `--update` and `--imports`.
 
+### 7.6 Moving callers
+
+`--imports` with component names (§8's first answer) rewrites each caller
+the list in §7.2 names: the moved names leave the `@hozo/ui` statement,
+which keeps any others, and one import per copied file follows it, with
+the file's quotes and semicolons. Every edit is decided and the write
+contract checked over all of them, stylesheet included, before anything is
+written. That the rewritten imports compile as the package's is step 1b's
+test: it imports the copies the same way (`{ HozoButton as Button }`, by a
+relative path).
+
 ## 8. Resolved questions
 
 - **Moving callers: behind `--imports`.** By default `add` only lists the
@@ -356,3 +367,5 @@ and the packages it imports are checked against `package.json`.
 - Draft (2026-11-15): step 4 implemented (§7.4), with an `info` severity
   in `square`.
 - Draft (2026-11-15): step 5 implemented (§7.5).
+- Draft (2026-11-15): `--imports` for callers implemented (§7.6). Every
+  step of §7 is implemented.
