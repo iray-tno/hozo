@@ -414,7 +414,7 @@ projection incorrectly returned 41px in the reversed string. Keep this
 as a separate control from the conditional case: with
 `hover:text-brand hover:text-xl active:text-2xl hover:leading-6` and
 both states active, Tailwind instead computes **24px / 41px**. The
-more specific `active:` size is the live reader there. Hozo does not
+later `active:` rule at equal specificity is the live reader there. Hozo does not
 yet capture the conditional custom register, or order that reader
 against a direct leading declaration by the captured rule priority.
 Do not count the resting fix as parity for the conditional case.
