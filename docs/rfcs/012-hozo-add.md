@@ -290,6 +290,29 @@ and the packages it imports are checked against `package.json`.
   `apps/landing` (287 in 40) and `examples/native-showcase` (64 in 8):
   no finding.
 
+### 7.5 Step 5
+
+`hozo add theme` and `--imports` for the stylesheet:
+
+- The copy's origin line is a block comment
+  (`/* hozo add: @hozo/ui@<version> src/theme.css sha256:… */`); `--list`,
+  `--diff theme` and `--update theme` treat it as any copy.
+- `--imports` finds the stylesheet as `square`'s css check does, and
+  rewrites its one `@import "@hozo/ui/theme.css"` (quotes and `url()`
+  kept) to the copy, relative to the stylesheet. No such line, more than
+  one, or no single stylesheet exits `2` with the change to make. The
+  rewrite is decided, and the write contract checked, before anything is
+  written, so a refusal leaves the theme uncopied too.
+- `square`'s css check accepts a stylesheet that imports a copied theme
+  (a relative import whose first line is the theme's origin) in place of
+  `@hozo/ui/theme.css`.
+- After `--write`, when no source file or stylesheet outside the copies
+  imports `@hozo/ui`, `add` says it can be removed, and does not remove it.
+- `--imports` for component callers (§8) is the next step; until then it
+  needs `theme` and exits `2` (`not-implemented`) without it.
+- The write contract is one helper now (`packages/cli/src/write-contract.mjs`),
+  used by `--update` and `--imports`.
+
 ## 8. Resolved questions
 
 - **Moving callers: behind `--imports`.** By default `add` only lists the
@@ -332,3 +355,4 @@ and the packages it imports are checked against `package.json`.
   `add`'s own cache rather than read from the package manager's.
 - Draft (2026-11-15): step 4 implemented (§7.4), with an `info` severity
   in `square`.
+- Draft (2026-11-15): step 5 implemented (§7.5).
