@@ -998,21 +998,39 @@ export function projectClassHelpers(
  * `index.ts` barrel works. Specifiers that leave the project (a package, or a
  * path alias into `node_modules`) are a manifest's business and are skipped.
  * Files that import no forwarding component are left out.
+ *
+ * `sources` lists every file a summary that found something was read from,
+ * barrels included: what has to change for the result to change, so
+ * `hozo square` can say a running Metro holds an old one.
  */
 export function projectTextForwarding(
   root: string,
   files: readonly string[],
-): Record<string, TextForwardingModule[]> {
+): { importers: Record<string, TextForwardingModule[]>; sources: string[] } {
   const resolve = staticResolver(root)
   const summaries = new Map<string, TextForwardingModule['components']>()
+  const sources = new Set<string>()
   const summarise = (target: string) => {
     let components = summaries.get(target)
     if (components === undefined) {
+      const read: string[] = []
       try {
-        components = textForwardingModule('', buildManifest({ entry: target })).components
+        components = textForwardingModule(
+          '',
+          buildManifest({
+            entry: target,
+            readSource: (file) => {
+              // A re-export of a directory probes its bare path first.
+              if (!existsSync(file) || !statSync(file).isFile()) return undefined
+              read.push(path.resolve(file))
+              return readFileSync(file, 'utf8')
+            },
+          }),
+        ).components
       } catch {
         components = []
       }
+      if (components.length > 0) for (const file of read) sources.add(file)
       summaries.set(target, components)
     }
     return components
@@ -1040,12 +1058,13 @@ export function projectTextForwarding(
     }
     const found: TextForwardingModule[] = []
     for (const specifier of specifiers) {
-      const target = resolve(specifier, importer)
+      const resolved = resolve(specifier, importer)
+      const target = resolved && path.resolve(resolved)
       if (!target || !SCRIPT.test(target) || outside(target)) continue
       const components = summarise(target)
       if (components.length > 0) found.push({ module: specifier, components })
     }
     if (found.length > 0) out[importer] = found
   }
-  return out
+  return { importers: out, sources: [...sources].sort() }
 }

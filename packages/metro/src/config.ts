@@ -113,6 +113,11 @@ export interface HozoMetroState {
    */
   projectTextForwarding?: Record<string, TextForwardingModule[]>
   /**
+   * The files those summaries were read from. `hozo square` compares them
+   * with this state's time to say a running Metro holds an older one.
+   */
+  projectTextForwardingSources?: string[]
+  /**
    * Whether the project ships a CSS reset -- `preflight` with `'auto'`
    * already resolved, here rather than in the worker on purpose.
    *
@@ -362,7 +367,12 @@ async function configureHozo<T extends MetroConfigShape>(
     sources: options.sources,
     classHelpers: options.classHelpers,
     ...(Object.keys(foundClassHelpers).length > 0 ? { foundClassHelpers } : {}),
-    ...(Object.keys(forwarding).length > 0 ? { projectTextForwarding: forwarding } : {}),
+    ...(forwarding.sources.length > 0
+      ? {
+          projectTextForwarding: forwarding.importers,
+          projectTextForwardingSources: forwarding.sources,
+        }
+      : {}),
     preflight,
     tailwind,
     fontFaceCssPath,

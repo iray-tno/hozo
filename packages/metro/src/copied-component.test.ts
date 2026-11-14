@@ -153,6 +153,15 @@ test("a caller of a copied @hozo/ui component compiles as a caller of the packag
       writeFileSync(path.join(root, 'src', `${shape}.tsx`), sources[shape])
     }
     await withHozo({ projectRoot: root, transformer: { babelTransformerPath: upstream } }, { root })
+    // What `hozo square` compares with the state's time: every file a summary
+    // was read from, the barrel included.
+    const state = JSON.parse(readFileSync(path.join(root, 'node_modules/.hozo/metro.json'), 'utf8'))
+    assert.deepEqual(
+      state.projectTextForwardingSources,
+      ['button', 'index', 'stack', 'status', 'toggle'].map((name) =>
+        path.join(copies, `${name}.${name === 'index' ? 'ts' : 'tsx'}`),
+      ),
+    )
     for (const platform of ['ios', 'android', 'web']) {
       const outputs: Record<string, string> = {}
       for (const [shape, imports] of Object.entries(SHAPES)) {
