@@ -75,6 +75,28 @@ because the browser inherits text styles itself, and Vite, Next and Astro
 never set it. No caller output there depends on whether the component is
 copied.
 
+## After step 1b
+
+`withHozo` now summarises the project's own components
+(`projectTextForwarding` in `@hozo/compiler/project`) and `transform` adds
+them to the dependencies' forwarding for the file that imports them.
+`packages/metro/src/copied-component.test.ts` copies the five components'
+files (`button`, `stack`, `status`, `toggle`) into a project and compiles the
+same 33 bodies imported four ways: from `@hozo/ui`, by a relative path to the
+defining file (`import { HozoButton as Button } from './components/ui/button'`),
+through a `tsconfig` `paths` alias, and through an `index.ts` barrel. On
+`ios`, `android` and `web`, all three copy callers equal the package caller.
+Editing the copy and restarting Metro changes the cache key and the output.
+
+The probe above imported each copy by its published name (`Button`), which
+the copied file does not export (it defines `HozoButton`; the package's
+`index.ts` renames it). That does not change the result: before step 1b no
+name had an entry for a relative specifier.
+
+Cost, warm (the addon already loaded, as it is when Metro starts): 27 ms for
+`examples/native-showcase` (23 files), 26 ms for `examples/storybook-demo`
+(44), 44 ms for `apps/landing` (103).
+
 ## Not measured here
 
 - The pixels on a device. The difference above is in the compiled output;

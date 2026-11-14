@@ -209,10 +209,18 @@ So steps 2–5 wait on one compiler change, added as step 1b:
 
 | Step | Work | Exit |
 | --- | --- | --- |
-| 1b | **Text forwarding for project components on Metro.** `withHozo` summarises the project's own component files the way the manifest builder summarises a package's (`summarizeTextForwarding`), and records the result by file in `metro.json`, as it records class helpers (#964). `transform` resolves the caller's imports (relative, and `tsconfig` `paths`) to files and registers each recorded file's forwarding under the specifier the caller wrote, for that compile only. The summary joins the cache key | The 14 differing cases of step 1 compile the same; a copy edited after Metro started is reported by `square`'s existing stale-`metro.json` check, the same restart rule as class helpers |
+| 1b | **Text forwarding for project components on Metro.** `withHozo` summarises the project's own component files the way the manifest builder summarises a package's (`summarizeTextForwarding`), and records the result by file in `metro.json`, as it records class helpers (#964). `transform` resolves the caller's imports (relative, and `tsconfig` `paths`) to files and registers each recorded file's forwarding under the specifier the caller wrote, for that compile only. The summary joins the cache key | The 14 differing cases of step 1 compile the same; a copy edited after Metro started is reported by `square` (`metro-state-stale`), the same restart rule as class helpers |
 
 Step 1b is the project-file half of RFC 010's F6, which #1307's per-file
 record would later absorb; it does not wait for #1307.
+
+**Step 1b is implemented** (`projectTextForwarding` in
+`@hozo/compiler/project`, wired in `@hozo/metro`): a copy's callers compile
+as the package's, imported by a relative path, a `tsconfig` alias or an
+`index` barrel. `metro.json` records the files the summaries were read from,
+and `square`'s Metro check, which compared only `metro.config`'s time with the
+state's, now reports `metro-state-stale` for each of them edited or deleted
+since Metro started.
 
 ## 8. Resolved questions
 
