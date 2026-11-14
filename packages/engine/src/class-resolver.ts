@@ -352,9 +352,9 @@ export function createClassResolver(
       groups.sort((a, b) => a.ownerRank! - b.ownerRank!)
     }
     // Even behind a barrier, adjacent assessed font-size defaults under the
-    // same guard can use the captured rule rank. Both write the same fields
-    // and either both apply or neither does. Do not move a write across an
-    // unknown, a different guard, or an explicit leading register.
+    // same specificity can use the captured rule rank. Both write the same
+    // fields, and state selection still tests each guard. Do not move a
+    // write across an unknown or an explicit leading register.
     const fontRanks = ranks
     const fontDefaults = hozoClasses.fontDefaults
     if (fontRanks && fontDefaults && groups.length > 1) {
@@ -377,12 +377,16 @@ export function createClassResolver(
         if (previous !== undefined) {
           for (; end < groups.length; end++) {
             const next = groups[end]!
-            if (
-              first.ownerRank !== next.ownerRank ||
-              first.keys.length !== next.keys.length ||
-              !first.keys.every((key, index) => key === next.keys[index])
-            )
-              break
+            // The upper bits of the emitted owner rank are Native
+            // specificity. If the emitter omitted the ranks entirely,
+            // only matching predicates prove equal specificity here.
+            const sameSpecificity =
+              first.ownerRank !== undefined && next.ownerRank !== undefined
+                ? first.ownerRank >>> 8 === next.ownerRank >>> 8
+                : first.ownerRank === next.ownerRank &&
+                  first.keys.length === next.keys.length &&
+                  first.keys.every((key, index) => key === next.keys[index])
+            if (!sameSpecificity) break
             const rank = sizeRank(next)
             if (rank === undefined) break
             inverted ||= previous > rank

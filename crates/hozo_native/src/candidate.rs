@@ -346,6 +346,31 @@ fn render_candidate_module_impl(
     // drawable entry together, no string can reach the legacy state order.
     // Refused and unknown tokens never enter the resolver's rank lookup.
     let complete = ordering.as_ref().is_some_and(|(_, _, complete)| *complete);
+    // This entire conditional namespace can resolve same-specificity ties
+    // from the assessed font-size ranks. Resting barriers can still reach
+    // the fallback, but its tuples need only the Native specificity weight.
+    let use_font_size_ranks = ordering.as_ref().is_some_and(|(ordering, _, _)| {
+        states.iter().all(|(name, groups)| {
+            let [group] = groups.as_slice() else {
+                return false;
+            };
+            ordering.ranks.contains_key(name.as_str())
+                && group.order.is_some()
+                && group.font_default
+                && group.pairs.len() == 2
+                && group.pairs.iter().any(|(key, _)| key == "fontSize")
+                && group.pairs.iter().any(|(key, _)| key == "lineHeight")
+        })
+    });
+    // Retain uniform weights as well: they tell the resolver that different
+    // predicates belong to one specificity run.
+    let owner_order = |rank: u32| {
+        if use_font_size_ranks {
+            rank & !255
+        } else {
+            rank
+        }
+    };
     // Only when there are any, so a project without state classes keeps the
     // module it had.
     let states_argument = if states.is_empty() {
@@ -358,9 +383,10 @@ fn render_candidate_module_impl(
             .iter()
             .flat_map(|(_, groups)| groups.iter().filter_map(|group| group.order));
         let emit_owner_ranks = !complete
-            && owner_ranks
-                .next()
-                .is_some_and(|first| owner_ranks.any(|rank| rank != first));
+            && (use_font_size_ranks
+                || owner_ranks
+                    .next()
+                    .is_some_and(|first| owner_ranks.any(|rank| rank != first)));
         out.push_str("const states = {\n");
         for (name, groups) in &states {
             let groups: Vec<String> = groups
@@ -375,6 +401,7 @@ fn render_candidate_module_impl(
                     let order = group
                         .order
                         .filter(|_| emit_owner_ranks)
+                        .map(owner_order)
                         .map(|key| format!(", {key}"))
                         .unwrap_or_default();
                     format!("[[{}], {{ {} }}{order}]", keys.join(", "), pairs.join(", "))
