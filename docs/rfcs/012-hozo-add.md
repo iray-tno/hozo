@@ -247,6 +247,28 @@ its types are the upstream's; its compiled output and its callers' are
 pinned by `packages/metro/src/copied-component.test.ts` (steps 1 and 1b);
 and the packages it imports are checked against `package.json`.
 
+### 7.3 Step 3
+
+`--diff` and `--update` are in `packages/cli/src/add-update.mjs`.
+
+- **Where the old release comes from.** §6 said the package manager's
+  cache, or the registry once per version. Each package manager keeps its
+  cache differently (pnpm's is content-addressed by file), so `add` keeps
+  its own: the release's `src/` files under
+  `node_modules/.hozo/upstream/@hozo/ui@<version>`, fetched from the registry
+  (`npm_config_registry`, else npmjs.org) the first time a copy of that
+  version is compared. No credentials are sent; a private registry that
+  needs them leaves the two-way comparison, with the reason.
+- **The three-way comparison is two diffs** against the release the copy
+  came from: upstream's change since, and the project's. Without that
+  release, one diff against the installed upstream holds both.
+- **`--update` touches only copies whose upstream moved.** A copy of the
+  installed version, edited or not, has nothing to take. A detached file
+  (origin line deleted) is left alone; a file the closure gained upstream
+  is created.
+- The removed-state-class note (§8) is in `--diff` and in `--update`'s
+  report of an edited copy.
+
 ## 8. Resolved questions
 
 - **Moving callers: behind `--imports`.** By default `add` only lists the
@@ -285,3 +307,5 @@ and the packages it imports are checked against `package.json`.
 - Draft (2026-11-15): step 1b implemented; step 2 implemented (§7.2), with
   component names accepted beside file names and each caller listed with the
   import that takes the copy.
+- Draft (2026-11-15): step 3 implemented (§7.3); the old release is kept in
+  `add`'s own cache rather than read from the package manager's.
