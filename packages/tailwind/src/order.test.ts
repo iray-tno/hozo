@@ -133,22 +133,17 @@ test('fully ranked Native namespaces emit only compact order, not a second owner
   }
 
   // A drawable token that the real project CSS did not generate can force
-  // this namespace into fallback. The legacy specificity/order data must
-  // still be present there; a refused utility alone cannot force fallback.
+  // this namespace into fallback. The Native specificity data must remain
+  // there, but it must not carry the old variant tie.
   cache.scanFile('unassessed.tsx', JSON.stringify('text-brand'), 1)
   const mixed = await captured()
   assert.equal(mixed.entries.find((entry) => entry.candidate === 'text-brand')?.kind, 'style')
   assert.equal(mixed.ordering?.ranks['text-brand'], undefined)
   const states = readStates(mixed.code)
-  const ranked = names.map((name) => {
+  for (const name of names) {
     const rank = states[name]?.[0]?.[2]
-    assert.equal(typeof rank, 'number', name)
-    return { name, rank: rank! }
-  })
-  assert.deepEqual(
-    ranked.sort((a, b) => a.rank - b.rank).map(({ name }) => name),
-    expected,
-  )
+    assert.equal(rank, (specificity(name) - 1) * 256, name)
+  }
   assert.equal(states['disabled:opacity-50']?.length, 1)
   assert.equal(states['disabled:opacity-50']![0]![2], undefined)
 })
