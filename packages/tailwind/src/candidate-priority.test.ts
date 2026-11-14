@@ -204,7 +204,7 @@ test('legacy tuples disappear only while every drawable candidate is covered', a
     @utility bg-brand { background-color:#abcdef; }`
   const theme = await loadTheme(input, base)
   const names = ['active:text-2xl', 'hover:text-xl', 'bg-brand', 'md:p-4']
-  const extra = 'hover:opacity-75'
+  const extra = 'hover:mt-2'
   const cache = cacheFor(names)
   const context = async (names: string[]) => {
     const { snapshot } = await prepareTailwindOrder(input, base, names)
@@ -234,7 +234,7 @@ test('legacy tuples disappear only while every drawable candidate is covered', a
     fontSize: 24,
     lineHeight: 32,
     backgroundColor: '#123456',
-    opacity: 0.75,
+    marginTop: 8,
   })
 })
 

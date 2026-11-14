@@ -121,7 +121,7 @@ export interface ClassResolverPlan {
   ordering: {
     schema: 1
     ranks: Readonly<Record<string, readonly number[]>>
-    /** Compiler-proven disjoint sets: unranked backgrounds and ranked text/physical padding. */
+    /** Compiler-proven disjoint sets: unranked backgrounds and admitted ranked scalars. */
     independentBackgrounds?: readonly [barriers: string, independent: string]
   }
 }

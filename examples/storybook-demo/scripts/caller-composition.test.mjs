@@ -1884,7 +1884,7 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
     ...new Set(cases.flatMap((classes) => classes.split(' '))),
     'text-sm',
     'bg-brand',
-    'opacity-50',
+    'mt-2',
   ]
   const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
@@ -2017,10 +2017,12 @@ test('opaque typography needs captured rule order even when a caller string incl
     'hover:font-normal',
     'hover:tracking-[1px]',
     'hover:tracking-[2px]',
+    'hover:opacity-25',
+    'hover:opacity-75',
   ]
   const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), [
     ...names,
-    'opacity-50',
+    'mt-2',
   ])
   const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
   const local = createCompiler(theme)
@@ -2033,7 +2035,7 @@ test('opaque typography needs captured rule order even when a caller string incl
   // The independent namespace no longer needs legacy ranks. Build the
   // negative control in a larger universe where the old route is reachable.
   const control = openCandidateCache()
-  control.scanFile('mixed.tsx', JSON.stringify([...names, 'opacity-50'].join(' ')), 1)
+  control.scanFile('mixed.tsx', JSON.stringify([...names, 'mt-2'].join(' ')), 1)
   const controlCode = control
     .renderNativeModulePlan(context, theme)
     .code.replace(/^import .*$/gm, '')
@@ -2165,6 +2167,8 @@ test('opaque typography needs captured rule order even when a caller string incl
       'hover:font-bold',
       'hover:tracking-[2px]',
       'hover:tracking-[1px]',
+      'hover:opacity-75',
+      'hover:opacity-25',
       'bg-brand',
     ]
     for (const tokens of [registered, registered.toReversed()]) {
@@ -2183,10 +2187,10 @@ test('opaque typography needs captured rule order even when a caller string incl
         await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover'] })
         assert.deepEqual(
           await page.locator('button').evaluate((element) => {
-            const { fontWeight, letterSpacing } = getComputedStyle(element)
-            return [fontWeight, letterSpacing]
+            const { fontWeight, letterSpacing, opacity } = getComputedStyle(element)
+            return [fontWeight, letterSpacing, opacity]
           }),
-          ['400', '2px'],
+          ['400', '2px', '0.75'],
           value,
         )
       }
@@ -2195,7 +2199,11 @@ test('opaque typography needs captured rule order even when a caller string incl
         {},
         ...renderCurrent(value).style(state).flat(Infinity).filter(Boolean),
       )
-      assert.deepEqual([selected.fontWeight, selected.letterSpacing], ['400', 2], value)
+      assert.deepEqual(
+        [selected.fontWeight, selected.letterSpacing, selected.opacity],
+        ['400', 2, 0.75],
+        value,
+      )
     }
   } finally {
     await page.close()

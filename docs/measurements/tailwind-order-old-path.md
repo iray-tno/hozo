@@ -260,7 +260,7 @@ When every drawable candidate is either a proven independent background
 or an admitted ranked write, the authored fallback is unreachable.
 The generator no longer serializes the legacy state ranks for these
 maps. Refused or unrecognized tokens do not invalidate that proof.
-Adding a drawable opacity candidate outside the independent domain
+Adding a drawable margin candidate outside the independent domain
 restores the tuples and leaves the original text/background result
 unchanged. This is a deletion from emitted output, not removal of the
 legacy policy for mixed namespaces where it still runs.

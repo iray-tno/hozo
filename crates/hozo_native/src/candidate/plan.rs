@@ -226,7 +226,7 @@ impl<'a> CandidatePlanBuilder<'a> {
         // Deliberately start with closed scalar projections. An unfamiliar
         // write (including a custom property or a register) does not gain
         // independence just because React Native spells its key differently.
-        fn text_or_padding(property: &str) -> bool {
+        fn independent_scalar(property: &str) -> bool {
             matches!(
                 property,
                 "font-size"
@@ -241,6 +241,7 @@ impl<'a> CandidatePlanBuilder<'a> {
                     | "padding-bottom"
                     | "padding-left"
                     | "padding-right"
+                    | "opacity"
             )
         }
         let ranked = self
@@ -263,6 +264,7 @@ impl<'a> CandidatePlanBuilder<'a> {
                                         | "paddingBottom"
                                         | "paddingLeft"
                                         | "paddingRight"
+                                        | "opacity"
                                 )
                             })
                     })
@@ -276,7 +278,7 @@ impl<'a> CandidatePlanBuilder<'a> {
                                 hozo_ir::assess_tailwind_rule(&entry.candidate, rule).is_ok_and(
                                     |rule| {
                                         !rule.child_scope
-                                            && rule.properties.into_iter().all(text_or_padding)
+                                            && rule.properties.into_iter().all(independent_scalar)
                                     },
                                 )
                             })
