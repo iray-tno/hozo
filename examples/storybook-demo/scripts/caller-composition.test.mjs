@@ -2588,17 +2588,24 @@ test('unranked owner gaps follow authored order on both layout engines', {
   assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
   const makeSpecificityOnlyResolver = (plan) => {
     assert.equal(plan.schema, 1)
-    return createClassResolver({
-      ...plan,
-      states: Object.fromEntries(
+    // This control deliberately tests authored ties; a ranked state tier
+    // would instead compare Tailwind's emission order against them.
+    return createClassResolver(
+      plan.styles,
+      plan.unsupported,
+      plan.compose,
+      Object.fromEntries(
         Object.entries(plan.states).map(([name, groups]) => [
           name,
-          groups.map(([keys, style, rank]) =>
-            rank === undefined ? [keys, style] : [keys, style, rank >>> 8],
-          ),
+          groups.map(([keys, style, rank]) => [
+            keys,
+            style,
+            rank === undefined ? keys.length : rank >>> 8,
+          ]),
         ]),
       ),
-    })
+      plan.ambient,
+    )
   }
   const masked = evaluate(
     `${candidates.code.replace(/^import[^\n]*\n/gm, '').replaceAll('export const ', 'const ')}
