@@ -49,11 +49,12 @@ hozo add <component>... --write
 hozo add --list                # every component, and each copy's state
 hozo add --diff <component>    # what changed upstream since the copy, and what the project changed
 hozo add --update <component> --write
+hozo add theme --write         # the theme as well (§6.1)
 ```
 
 - **Names** are the `@hozo/ui` file names without extension: `button`,
-  `date-picker`, `command-palette`. A name that is not a component exits `2`
-  with the nearest names.
+  `date-picker`, `command-palette`. `theme` names `theme.css`. A name that is
+  neither exits `2` with the nearest names.
 - **The closure** of relative imports is copied with the component. A file
   already copied (`calendar-look.ts`, shared by four components) is not
   copied twice.
@@ -94,10 +95,10 @@ another file at its root does not need one:
 
 ## 5. What stays a package
 
-- **`@hozo/ui`'s theme** (`@hozo/ui/theme.css`). The copied classes name its
-  tokens (`bg-hozo-accent`, `rounded-hozo-surface`), so the CSS entry keeps
-  importing it, and `@hozo/ui` stays a dependency. A project re-themes by
-  redefining tokens in its own `@theme`, not by copying `theme.css` (§8).
+- **`@hozo/ui`'s theme** (`@hozo/ui/theme.css`), by default. The copied
+  classes name its tokens (`bg-hozo-accent`, `rounded-hozo-surface`), so the
+  CSS entry keeps importing it, and `@hozo/ui` stays a dependency. A project
+  may copy the theme as well (§6.1).
 - **The primitives and patterns** a component wraps (§2).
 - **Tests.** `@hozo/ui`'s tests are not copied: they test the package's
   file, and the behaviour they care about is the wrapped primitive's.
@@ -134,6 +135,45 @@ The hash is of the upstream file as it was copied, without this line.
 - **Deleting the line** detaches the copy. It is then project code with no
   upstream, and `add` leaves it alone.
 
+### 6.1 The theme: overridden or copied
+
+Components, copied or installed, name tokens and nothing else. The project's
+build resolves every token against the one theme the CSS entry imports
+(`packages/ui/README.md`, "Theming"). Which file that is decides who owns the
+defaults; either way there is one theme, so tokens never have two owners.
+
+- **Overridden** (the default). The entry imports the package's theme and
+  redefines what the project wants in its own `@theme`:
+
+  ```css
+  @import "@hozo/ui/theme.css";
+  @theme {
+    --color-hozo-accent: var(--color-emerald-600);
+    --color-hozo-accent--dark: var(--color-emerald-400);
+  }
+  ```
+
+  Upgrading `@hozo/ui` brings its new defaults: a token the project did not
+  redefine can change value, and every component using it, copied ones
+  included, changes look with it. That is intended, since it is how palette
+  and contrast fixes reach a project, and `--list` says so next to each copy.
+- **Copied**: `hozo add theme` copies `theme.css` to the destination, with
+  the origin line as a CSS comment
+  (`/* hozo add: @hozo/ui@0.5.0 src/theme.css sha256:… */`). `--imports`
+  rewrites the entry's `@import "@hozo/ui/theme.css"` to the copy, under the
+  write contract; an entry it cannot edit safely gets the line to change
+  printed, and exit `2`. Upgrades then change no token, and `--diff theme` /
+  `--update theme` work as in §6, which is where a token added upstream
+  shows up. With every component and the theme copied and callers moved,
+  `@hozo/ui` can be removed; `add` says so, and does not remove it.
+- **Every token named must be defined.** `hozo square` reads the tokens each
+  component's classes name, copied and installed alike, and looks each up in
+  the theme the entry resolves. A missing one is a finding (CI fails): its
+  class is dropped from the output, so the look is lost without any file in
+  the project changing. One check catches both ways this happens: upstream
+  renaming or removing a token a copy still names, and a copied theme older
+  than a component installed or copied after it.
+
 ## 7. Plan
 
 | Step | Work | Exit |
@@ -141,9 +181,10 @@ The hash is of the upstream file as it was copied, without this line.
 | 1 | **Measure first**: compile, on both backends, a caller of each `@hozo/ui` component against the package and against a copy of the component in the project | The caller's output is the same both ways, or each difference is named with its cause. `@hozo/ui` ships `hozo.manifest.json` (text forwarding and variants) for callers in other packages; a copy is project code and has no manifest, so this step shows whether project-local facts reach its callers, or what RFC 010 and #1307 have to provide first |
 | 2 | `hozo add` and `--list`: closure, origin line, config, the dependency check, the caller list | A fixture project per destination rule (config in `package.json`, in `hozo.json`, both, neither); a second run changes nothing; `pnpm test` passes in a project after `add button --write` |
 | 3 | `--diff` and `--update` | One fixture for each state in §6, and the cache-less fallback |
-| 4 | `hozo square`: the *upstream newer* information | Reported, and exit `0` |
+| 4 | `hozo square`: the *upstream newer* information, and the undefined-token finding (§6.1) | *Upstream newer* reported with exit `0`; a fixture whose copy names a token the theme lacks, and one whose copied theme predates a component, each exit `1` |
+| 5 | `hozo add theme`, and `--imports` for the CSS entry | The overridden and copied fixtures compile to the same output when the copy is unedited; an entry whose import is computed exits `2` with the line to change |
 
-Step 1 decides whether steps 2–4 can ship as written. If a copy compiles its
+Step 1 decides whether steps 2–5 can ship as written. If a copy compiles its
 callers differently, `add` would hand the project a component that behaves
 worse than the one it replaced, and the fix belongs in the compiler, not in
 `add`.
@@ -156,22 +197,12 @@ worse than the one it replaced, and the fix belongs in the compiler, not in
   the flag, an agent would repeat the same rewrite by hand after every `add`;
   doing it by default would make `add` edit files the project did not name.
   It is implemented after step 2 shows the list is right.
-- **The theme is overridden, not copied.** Every `@hozo/ui` class names a
-  token, and the project's build resolves tokens against the project's own
-  `@theme` (`packages/ui/README.md`, "Theming"). A token redefined there:
-
-  ```css
-  @import "@hozo/ui/theme.css";
-  @theme {
-    --color-hozo-accent: var(--color-emerald-600);
-    --color-hozo-accent--dark: var(--color-emerald-400);
-  }
-  ```
-
-  moves copied and package components alike, on both backends. A copied
-  `theme.css` would give the tokens two owners while components still
-  installed from `@hozo/ui` keep reading them, so there is no
-  `hozo add theme`, and the name is not reserved.
+- **The theme: both, overridden by default (§6.1).** Overriding tokens in
+  the project's `@theme` is the default, and keeps upstream's defaults
+  arriving on upgrade. `hozo add theme` copies it for a project that wants
+  to own every default or drop `@hozo/ui`. Installed components read tokens
+  by name, so a copied theme does not split ownership as long as the entry
+  imports one theme. `square`'s undefined-token finding covers both modes.
 - **A copied component and the Verification Matrix: noted in `--diff`, never
   a `square` finding.** The matrix covers the wrapped primitive, which the
   copy still uses, and the look is the project's. But a copy that drops
@@ -187,5 +218,6 @@ worse than the one it replaced, and the fix belongs in the compiler, not in
   `hozo.json`, both accepted; origin recorded in each copied file, not in the
   config; edited copies are diffed, never merged.
 - Draft (2026-11-14): open questions resolved. `--imports` rewrites callers
-  on request; the theme is overridden through the project's `@theme`, never
-  copied; a removed state variant is a note in `--diff`.
+  on request; the theme is overridden by default and copied by
+  `hozo add theme` (§6.1), with `square` failing on a token the theme does
+  not define; a removed state variant is a note in `--diff`.
