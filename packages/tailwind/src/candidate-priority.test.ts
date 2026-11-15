@@ -403,10 +403,12 @@ test('the compact Rust contract drives a rank-free cached template over the actu
               ? '#220000'
               : '#110000',
       )
-      assert.deepEqual(
-        resolve(`${list} text-brand`, state),
-        legacy(`${list} text-brand`, state),
-        'unranked Native shorthand freezes this string, not just the unknown group',
+      const mixed = flatten(resolve(`${list} text-brand`, state))
+      assert.equal(mixed.backgroundColor, style.backgroundColor, 'shared state priority')
+      assert.equal(
+        mixed.paddingTop,
+        flatten(legacy(`${list} text-brand`, state)).paddingTop,
+        'resting barrier',
       )
     }
   }

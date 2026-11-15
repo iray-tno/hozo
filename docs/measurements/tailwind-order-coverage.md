@@ -419,6 +419,19 @@ yet capture the conditional custom register, or order that reader
 against a direct leading declaration by the captured rule priority.
 Do not count the resting fix as parity for the conditional case.
 
+The generated Native resolver now uses the same captured ranks for
+adjacent assessed state writes even when an unranked resting write keeps
+the whole string out of the compact plan. This replaces the fallback's
+font-size-only reordering heuristic. The resolver retains Native
+specificity boundaries, stable ties and unranked state writes; only
+compiler-proven disjoint holes can be crossed. The Storybook caller test
+checks the generated dynamic path against pinned Tailwind in Chromium
+and reads the selected Native layout in Yoga. Unassessed authored input
+is a separate control, not included in the parity claim. Conditional
+custom leading remains a value-projection follow-up ([#2008]).
+
+[#2008]: https://github.com/iray-tno/hozo/issues/2008
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

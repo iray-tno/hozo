@@ -2116,11 +2116,12 @@ test('opaque typography needs captured rule order even when a caller string incl
   }).hozoClasses
   const withBarrier = (plan) => ({
     ...plan,
-    ordering: { schema: 1, ranks: plan.ordering.ranks },
+    ordering: { schema: 1, ranks: {} },
   })
   const specificityOnly = evaluate(controlCode, {
     createClassResolver: (plan) => createClassResolver(withBarrier(plan)),
   }).hozoClasses
+  const partial = evaluate(controlCode, { createClassResolver }).hozoClasses
   const source = `import { Button } from '@hozo/core'; const el=<Button className={value}/>`
   const web = local.prepareWebModule(source).emit(context)[0]
   const native = local.prepareNativeModule(source).emit(context).components[0]
@@ -2138,6 +2139,7 @@ test('opaque typography needs captured rule order even when a caller string incl
     })
   const renderCurrent = renderNative(production)
   const renderMasked = renderNative(specificityOnly)
+  const renderPartial = renderNative(partial)
   const upstream = (await compile(css)).build(names)
   const downstream = cache.renderCss(theme, classOrder(cache.candidates()))
   const page = await browser.newPage()
@@ -2190,6 +2192,11 @@ test('opaque typography needs captured rule order even when a caller string incl
         return [fontSize, lineHeight, paddingTop]
       }
       assert.deepEqual(read(renderCurrent(value)), expected, `${value}/current`)
+      assert.deepEqual(
+        read(renderPartial(`${value} hover:bg-brand`)),
+        expected,
+        `${value}/assessed-run-before-barrier`,
+      )
       assert.deepEqual(read(renderNative(renderColor)(`${value} hover:bg-brand`)), expected, value)
       assert.deepEqual(read(renderMasked(value)), fallback, `${value}/specificity-only`)
       if (fallback.some((metric, index) => metric !== expected[index])) maskedDisagrees++
@@ -2668,10 +2675,11 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
   }
 })
 
-test('unranked owner gaps follow authored order on both layout engines', {
+test('literal fallback keeps authored gaps while assessed dynamic runs keep Tailwind order', {
   skip: !executablePath,
 }, async () => {
-  const css = `@import "tailwindcss/theme.css" layer(theme); @tailwind utilities;
+  const base = tailwindPackageDir()
+  const css = `${readFileSync(path.join(base, 'theme.css'), 'utf8')} @tailwind utilities;
     @theme { --color-brand: #123456; }
     @utility bg-brand { background-color: #abcdef; }`
   const theme = await loadTheme(css, tailwindPackageDir())
@@ -2689,6 +2697,7 @@ test('unranked owner gaps follow authored order on both layout engines', {
   ]
   const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const upstream = (await compile(css)).build(names)
   const cache = openCandidateCache()
   cache.scanFile('gap-fallback.ts', JSON.stringify(names.join(' ')), 1)
   const candidates = cache.renderNativeModulePlan(final, theme)
@@ -2725,14 +2734,6 @@ test('unranked owner gaps follow authored order on both layout engines', {
       })
       for (const layout of gapLayouts) {
         assert.deepEqual(yogaGapGeometry(flatten(nativeProps.style(state)), layout), gap, input)
-        assert.deepEqual(
-          yogaGapGeometry(
-            flatten([resolve(`${input} hover:bg-brand`, state), hozoAuthoredStyle(own)]),
-            layout,
-          ),
-          gap,
-          input,
-        )
         const markup = renderToStaticMarkup(
           createElement(
             'button',
@@ -2757,20 +2758,33 @@ test('unranked owner gaps follow authored order on both layout engines', {
             ),
           ),
         )
-        await page.setContent(`<style>${web.css}</style>${markup}`)
-        const { root } = await cdp.send('DOM.getDocument')
-        const { nodeId } = await cdp.send('DOM.querySelector', {
-          nodeId: root.nodeId,
-          selector: 'button',
-        })
-        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['hover', 'active'] })
-        const positions = await page.locator('button').evaluate((owner) =>
-          [...owner.children].map((child) => {
-            const box = child.getBoundingClientRect()
-            return [box.left, box.top]
-          }),
+        const compare = async (sheet, html) => {
+          await page.setContent(`<style>${sheet}</style>${html}`)
+          const { root } = await cdp.send('DOM.getDocument')
+          const { nodeId } = await cdp.send('DOM.querySelector', {
+            nodeId: root.nodeId,
+            selector: 'button',
+          })
+          await cdp.send('CSS.forcePseudoState', {
+            nodeId,
+            forcedPseudoClasses: ['hover', 'active'],
+          })
+          const positions = await page.locator('button').evaluate((owner) =>
+            [...owner.children].map((child) => {
+              const box = child.getBoundingClientRect()
+              return [box.left, box.top]
+            }),
+          )
+          return gapGeometry(positions, layout.flexDirection)
+        }
+        assert.deepEqual(await compare(web.css, markup), gap, input)
+        const value = `${input} hover:bg-brand`
+        const upstreamMarkup = markup.replace(/class="[^"]*"/, `class="${value}"`)
+        assert.deepEqual(
+          yogaGapGeometry(flatten([resolve(value, state), hozoAuthoredStyle(own)]), layout),
+          await compare(upstream, upstreamMarkup),
+          value,
         )
-        assert.deepEqual(gapGeometry(positions, layout.flexDirection), gap, input)
       }
     }
   } finally {

@@ -67,15 +67,28 @@ test('cached hits and state updates neither read rank metadata nor sort again', 
   assert.equal(reads, 4)
 })
 
-test('one unranked object is a barrier and preserves the whole legacy string, not a partial sort', () => {
+test('an unranked resting write preserves its tier without freezing the state tier', () => {
   const plan = data()
   plan.styles.unknown = { color: 'unknown' }
-  const legacy = createClassResolver(plan.styles, {}, undefined, plan.states)
+  const { focus, active, both } = plan.states!
+  focus![0]![2] = active![0]![2] = 256
+  both![0]![2] = 512
   const planned = createClassResolver(plan)
   for (const names of ['base unknown focus active both', 'both active unknown base focus']) {
     for (let bits = 0; bits < 8; bits++) {
       const state = { focused: !!(bits & 1), pressed: !!(bits & 2), hovered: !!(bits & 4) }
-      assert.deepEqual(planned(names, state), legacy(names, state))
+      assert.equal(
+        flatten(planned(names, state)).color,
+        state.focused && state.hovered
+          ? 'both'
+          : state.pressed
+            ? 'active'
+            : state.focused
+              ? 'focus'
+              : names.endsWith('focus')
+                ? 'base'
+                : 'unknown',
+      )
     }
   }
 })
@@ -118,7 +131,7 @@ test('proven independent backgrounds keep the existing ranks only for an admitte
   for (const value of ['bg large unknown small', 'large unknown small bg'])
     assert.equal(flatten(resolve(value, on)).fontSize, 18, value)
   for (const value of ['bg large otherBg small', 'otherBg large bg small'])
-    assert.equal(flatten(resolve(value, on)).fontSize, 18, value)
+    assert.equal(flatten(resolve(value, on)).fontSize, 20, value)
 })
 
 test('ambient decisions, composition and missing-state warnings retain the existing contracts', (t) => {
@@ -153,7 +166,7 @@ test('ambient decisions, composition and missing-state warnings retain the exist
   assert.equal(warnings.length, 1)
 })
 
-test('only adjacent assessed font-size defaults under the same guard are reranked in fallback', () => {
+test('assessed state runs keep shared ranks without moving across unranked writes', () => {
   const xl = { fontSize: 20, lineHeight: 28 }
   const lg = { fontSize: 18, lineHeight: 27 }
   const unknown = { fontSize: 99, lineHeight: 101 }
@@ -173,7 +186,9 @@ test('only adjacent assessed font-size defaults under the same guard are reranke
     ordering: {
       schema: 1,
       ranks: new Proxy(
-        { lg: [1], xl: [2], explicit: [3], combined: [4] },
+        // Even if the order table puts it first, a stronger Native selector
+        // is not in the same fallback run as the single-state selectors.
+        { combined: [0], lg: [1], xl: [2], explicit: [3] },
         {
           get(target, key: keyof typeof target) {
             assert.ok(readRanks, 'a cached fallback read ranks again')
@@ -183,14 +198,13 @@ test('only adjacent assessed font-size defaults under the same guard are reranke
       ),
     },
   })
-  resolve.fontDefaults = new Set([xl, lg, unknown, combined])
   const facts = { hovered: true, focused: true }
   for (const value of ['brand xl lg', 'brand lg xl']) {
     assert.deepEqual(flatten(resolve(value, facts)), { ...xl, color: 'blue' })
     assert.deepEqual(flatten(resolve(value, { ...facts, hovered: false })), { color: 'blue' })
   }
   assert.deepEqual(resolve('brand xl unknown lg', facts).slice(1), [xl, unknown, lg])
-  assert.deepEqual(resolve('brand xl explicit lg', facts).slice(1), [xl, explicit, lg])
+  assert.deepEqual(resolve('brand xl explicit lg', facts).slice(1), [lg, xl, explicit])
   assert.deepEqual(flatten(resolve('brand combined xl lg', facts)), {
     ...combined,
     color: 'blue',
