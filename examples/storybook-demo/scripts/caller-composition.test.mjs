@@ -2675,90 +2675,108 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
   }
 })
 
-test('literal fallback keeps authored gaps while assessed dynamic runs keep Tailwind order', {
+test('static and generated gaps share Tailwind order beside a proven independent background', {
   skip: !executablePath,
 }, async () => {
   const base = tailwindPackageDir()
   const css = `${readFileSync(path.join(base, 'theme.css'), 'utf8')} @tailwind utilities;
-    @theme { --color-brand: #123456; }
-    @utility bg-brand { background-color: #abcdef; }`
-  const theme = await loadTheme(css, tailwindPackageDir())
-  const local = createCompiler(theme)
+    @theme { --color-brand: #123456; }`
   const cases = [
     ['hover:gap-2 active:gap-4 hover:gap-6', [24, 24]],
     ['hover:gap-x-6 active:gap-4', [16, 16]],
     ['active:gap-4 hover:gap-x-6', [16, 24]],
     ['active:gap-4 hover:gap-x-6', [28, 28], { gap: 28 }],
   ]
-  const names = [
-    ...new Set(cases.flatMap(([classes]) => classes.split(' '))),
-    'bg-brand',
-    'hover:bg-brand',
-  ]
-  const { snapshot } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
-  const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
-  const upstream = (await compile(css)).build(names)
+  const names = [...new Set(cases.flatMap(([classes]) => classes.split(' '))), 'bg-brand']
+  const prepare = async (writes) => {
+    const stylesheet = `${css} @utility bg-brand { ${writes} }`
+    const theme = await loadTheme(stylesheet, tailwindPackageDir())
+    const { snapshot, classOrder } = await prepareTailwindOrder(
+      stylesheet,
+      tailwindPackageDir(),
+      names,
+    )
+    return {
+      final: prepareFinalTailwindContext(JSON.stringify(snapshot)),
+      local: createCompiler(theme),
+      theme,
+      classOrder,
+      upstream: (await compile(stylesheet)).build(names),
+    }
+  }
+  const { final, local, theme, classOrder, upstream } = await prepare('background-color: #abcdef;')
+  // Same candidate, same parsed background, but its real CSS also writes
+  // gap. An IR spelling or name-only shortcut would rank this input too.
+  const overlap = await prepare('background-color: #abcdef; gap: 37px;')
   const cache = openCandidateCache()
   cache.scanFile('gap-fallback.ts', JSON.stringify(names.join(' ')), 1)
+  const webCandidates = cache.renderCss(theme, classOrder(cache.candidates()))
   const candidates = cache.renderNativeModulePlan(final, theme)
   assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
-  assert.equal(candidates.ordering.ranks['hover:bg-brand'], undefined)
-  assert.doesNotMatch(candidates.code, /rankedStates: true/)
   const resolve = evaluate(
     `${candidates.code.replace(/^import[^\n]*\n/gm, '').replaceAll('export const ', 'const ')}
       module.exports = hozoClasses`,
     { createClassResolver },
   )
-  const state = { hovered: true, pressed: true, focused: false }
   const flatten = (style) => Object.assign({}, ...style.flat(Infinity).filter(Boolean))
   const page = await browser.newPage()
   try {
     const cdp = await page.context().newCDPSession(page)
     await cdp.send('DOM.enable')
     await cdp.send('CSS.enable')
-    for (const [classes, gap, own] of cases) {
-      const input = `${classes} bg-brand`
+    let controlsDisagree = 0
+    for (const [index, [classes, authoredGap, own]] of cases.entries()) {
+      // Exercise a background on either side of the writes and between
+      // conflicting shorthand and axis rules.
+      const tokens = classes.split(' ')
+      tokens.splice(index % (tokens.length + 1), 0, 'bg-brand')
+      const input = tokens.join(' ')
       const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${input}" ${own ? 'style={own}' : ''}/>`
-      const native = local.prepareNativeModule(source).emit(final).components[0]
-      const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
-        h: (_type, props) => props,
-        HozoPressable: 'host',
-        own,
-        hozoStyles: runInNewContext(`(${native.styles})`),
-      })
-      const web = local.prepareWebModule(source).emit(final)[0]
-      const webProps = evaluate(`module.exports=(${web.jsx})`, {
-        h: (_type, props) => props,
-        own,
-        hozoDomStyle,
-      })
+      const lower = (compiler, order) => {
+        const native = compiler.prepareNativeModule(source).emit(order).components[0]
+        const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
+          h: (_type, props) => props,
+          HozoPressable: 'host',
+          own,
+          hozoStyles: runInNewContext(`(${native.styles})`),
+        })
+        const web = compiler.prepareWebModule(source).emit(order)[0]
+        const webProps = evaluate(`module.exports=(${web.jsx})`, {
+          h: (_type, props) => props,
+          own,
+          hozoDomStyle,
+        })
+        return { nativeProps, webProps, web }
+      }
+      const output = lower(local, final)
+      const untouched = lower(overlap.local, overlap.final)
       for (const layout of gapLayouts) {
-        assert.deepEqual(yogaGapGeometry(flatten(nativeProps.style(state)), layout), gap, input)
-        const markup = renderToStaticMarkup(
-          createElement(
-            'button',
-            {
-              className: webProps.className,
-              style: {
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignContent: 'flex-start',
-                alignItems: 'flex-start',
-                boxSizing: 'content-box',
-                border: 0,
-                padding: 0,
-                width: 140,
-                height: 140,
-                ...layout,
-                ...webProps.style,
+        const markup = (webProps, className = webProps.className) =>
+          renderToStaticMarkup(
+            createElement(
+              'button',
+              {
+                className,
+                style: {
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignContent: 'flex-start',
+                  alignItems: 'flex-start',
+                  boxSizing: 'content-box',
+                  border: 0,
+                  padding: 0,
+                  width: 140,
+                  height: 140,
+                  ...layout,
+                  ...webProps.style,
+                },
               },
-            },
-            ...[0, 1, 2].map((key) =>
-              createElement('span', { key, style: { flex: 'none', width: 50, height: 50 } }),
+              ...[0, 1, 2].map((key) =>
+                createElement('span', { key, style: { flex: 'none', width: 50, height: 50 } }),
+              ),
             ),
-          ),
-        )
-        const compare = async (sheet, html) => {
+          )
+        const compare = async (sheet, html, { hovered, pressed }) => {
           await page.setContent(`<style>${sheet}</style>${html}`)
           const { root } = await cdp.send('DOM.getDocument')
           const { nodeId } = await cdp.send('DOM.querySelector', {
@@ -2767,7 +2785,7 @@ test('literal fallback keeps authored gaps while assessed dynamic runs keep Tail
           })
           await cdp.send('CSS.forcePseudoState', {
             nodeId,
-            forcedPseudoClasses: ['hover', 'active'],
+            forcedPseudoClasses: [hovered && 'hover', pressed && 'active'].filter(Boolean),
           })
           const positions = await page.locator('button').evaluate((owner) =>
             [...owner.children].map((child) => {
@@ -2777,16 +2795,47 @@ test('literal fallback keeps authored gaps while assessed dynamic runs keep Tail
           )
           return gapGeometry(positions, layout.flexDirection)
         }
-        assert.deepEqual(await compare(web.css, markup), gap, input)
-        const value = `${input} hover:bg-brand`
-        const upstreamMarkup = markup.replace(/class="[^"]*"/, `class="${value}"`)
-        assert.deepEqual(
-          yogaGapGeometry(flatten([resolve(value, state), hozoAuthoredStyle(own)]), layout),
-          await compare(upstream, upstreamMarkup),
-          value,
-        )
+        for (let bits = 0; bits < 4; bits++) {
+          const state = { hovered: !!(bits & 1), pressed: !!(bits & 2), focused: false }
+          const expected = await compare(upstream, markup(output.webProps, input), state)
+          const label = `${input}, state ${bits}`
+          assert.deepEqual(
+            await compare(output.web.css, markup(output.webProps), state),
+            expected,
+            `${label} / static Web`,
+          )
+          assert.deepEqual(
+            await compare(webCandidates, markup(output.webProps, input), state),
+            expected,
+            `${label} / generated Web`,
+          )
+          assert.deepEqual(
+            yogaGapGeometry(flatten(output.nativeProps.style(state)), layout),
+            expected,
+            `${label} / static Native`,
+          )
+          assert.deepEqual(
+            yogaGapGeometry(flatten([resolve(input, state), hozoAuthoredStyle(own)]), layout),
+            expected,
+            `${label} / generated Native`,
+          )
+          if (bits === 3) {
+            assert.deepEqual(
+              await compare(untouched.web.css, markup(untouched.webProps), state),
+              authoredGap,
+              `${label} / overlapping unknown, static Web`,
+            )
+            assert.deepEqual(
+              yogaGapGeometry(flatten(untouched.nativeProps.style(state)), layout),
+              authoredGap,
+              `${label} / overlapping unknown, static Native`,
+            )
+            if (authoredGap.some((value, axis) => value !== expected[axis])) controlsDisagree++
+          }
+        }
       }
     }
+    assert.ok(controlsDisagree > 0, 'the overlapping control must detect unproved reordering')
   } finally {
     await page.close()
   }

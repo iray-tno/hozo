@@ -158,6 +158,29 @@ pub(crate) fn root_selector(candidate: &str) -> Option<String> {
     Some(out)
 }
 
+impl OrderCandidateDescriptor {
+    /// Use the entire captured footprint, not just the subset a backend
+    /// managed to lower. A resting proof also refuses nested branches.
+    pub fn writes_only_on_owner(&self, resting: bool, allowed: impl Fn(&str) -> bool) -> bool {
+        !self.rules.is_empty()
+            && self.rules.iter().all(|rule| {
+                !rule.important
+                    && (!resting
+                        || matches!(&rule.shape, OrderRuleShape::Rule { nodes, .. }
+                        if !nodes.is_empty() && nodes.iter().all(|node| {
+                            matches!(node, OrderRuleShape::Declaration {
+                                property, important: false
+                            } if allowed(property))
+                        })))
+                    && assess_tailwind_rule(&self.candidate, rule).is_ok_and(|rule| {
+                        !rule.child_scope
+                            && !rule.properties.is_empty()
+                            && rule.properties.into_iter().all(&allowed)
+                    })
+            })
+    }
+}
+
 pub fn assess_tailwind_rule<'a>(
     candidate: &str,
     rule: &'a OrderRuleDescriptor,

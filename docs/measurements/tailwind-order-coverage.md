@@ -432,6 +432,26 @@ custom leading remains a value-projection follow-up ([#2008]).
 
 [#2008]: https://github.com/iray-tno/hozo/issues/2008
 
+### Static gaps beside a resting colour
+
+In v61 the static write plan no longer sends the whole class input to
+authored order when only one resting background colour lacks a rank and
+the other writes are assessed gaps. The static and candidate planners
+share the captured owner-footprint check. The resting rule must write
+only `background-color`, and the gap rules only `gap`, `row-gap` or
+`column-gap`. The colour takes no part in determining the gap winner.
+StyleX, additional authored inputs, and Native specificity are not
+reclassified by this proof.
+
+Pinned Tailwind in Chromium, compiled Web and generated Web, and both
+Native routes in Yoga agree on gap geometry for **128** combinations
+(four exact input strings, four hover/press states and eight layouts).
+This includes reversed shorthand and axis utilities and an authored
+`style` override. If the same `bg-brand` rule adds a `gap` write, both
+static backends still keep the authored-order fallback. That overlapping
+control is not counted as parity. The repository inventory remains
+**318/320** (819 files; none failed standalone compilation).
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

@@ -2,9 +2,7 @@
 //! second scan/parse or a device ordering contract. Write indices name IR
 //! properties before Native expansion/deduplication/transform composition.
 use super::StateGroup;
-use hozo_ir::{
-    Condition, OrderRuleShape, StyleProperty, TailwindOrderContext, TailwindWriteEvidence,
-};
+use hozo_ir::{Condition, StyleProperty, TailwindOrderContext, TailwindWriteEvidence};
 use std::collections::{BTreeMap, HashMap};
 
 pub struct CandidateModulePlan {
@@ -213,27 +211,9 @@ impl<'a> CandidatePlanBuilder<'a> {
                         .context
                         .lookup(&entry.candidate)
                         .is_some_and(|candidate| {
-                            !candidate.rules.is_empty()
-                                && candidate.rules.iter().all(|rule| {
-                                    !rule.important
-                                        && (kind != "style"
-                                            || matches!(&rule.shape,
-                                            OrderRuleShape::Rule { nodes, .. }
-                                            if !nodes.is_empty() && nodes.iter().all(|node| {
-                                                matches!(node, OrderRuleShape::Declaration {
-                                                    property, important: false
-                                                } if property == expected)
-                                            })))
-                                        && hozo_ir::assess_tailwind_rule(&entry.candidate, rule)
-                                            .is_ok_and(|rule| {
-                                                !rule.child_scope
-                                                    && !rule.properties.is_empty()
-                                                    && rule
-                                                        .properties
-                                                        .into_iter()
-                                                        .all(|property| property == expected)
-                                            })
-                                })
+                            candidate.writes_only_on_owner(kind == "style", |property| {
+                                property == expected
+                            })
                         })
             })
             .map(|entry| entry.candidate.as_str())

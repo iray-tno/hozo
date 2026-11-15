@@ -1,12 +1,15 @@
 //! A write plan owns the declaration allocation. Scalar ordering moves IR
 //! writes, never source expressions, and is shared by both platform emitters.
 //! Explicit pass-through remains available as an unassessed-domain control.
-use crate::{Condition, StyleDeclaration, StyleSource, TailwindRuleBinding, TailwindUnitBindings};
+use crate::{
+    Condition, StyleDeclaration, StyleProperty, StyleSource, TailwindRuleBinding,
+    TailwindUnitBindings,
+};
 use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v60";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v61";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
@@ -74,9 +77,9 @@ impl<'a> TailwindWritePlan<'a> {
         }
     }
 
-    /// All-or-nothing per contiguous frontend input. Unassessed writes are
-    /// barriers for that input, not holes that known writes can leap across.
-    /// The caller must opt in only with a compatible complete namespace.
+    /// Plan within a contiguous frontend input. Unassessed writes are
+    /// barriers unless their entire captured footprint proves independence.
+    /// The caller must use a compatible complete namespace.
     pub fn order_scalars(mut self) -> Self {
         let mut dominated = vec![false; self.declarations.len()];
         let mut offset = 0;
@@ -122,19 +125,12 @@ impl<'a> TailwindWritePlan<'a> {
                         // Sort them last rather than assigning Tailwind rank zero.
                         return Some((usize::MAX, index, [0; 3]));
                     }
-                    let utility = match decl.source {
-                        StyleSource::TailwindUtility { utility, .. }
-                        | StyleSource::TailwindOrdered { utility, .. } => utility,
-                        _ => return None,
-                    };
-                    let name = self.bindings.units().candidate(utility)?;
-                    self.bindings
-                        .context()
-                        .scalar_write_priority(name, &decl.condition, &decl.property)
-                        .map(|priority| (priority.rank, index, priority.specificity))
+                    write_rank(self.bindings, decl, index)
                 })
                 .collect();
-            let Some(mut ranks) = ranks else {
+            let Some(mut ranks) =
+                ranks.or_else(|| gaps_beside_resting_background(self.bindings, region))
+            else {
                 continue;
             };
             if ranks.windows(2).any(|pair| pair[0].0 > pair[1].0) {
@@ -220,6 +216,76 @@ impl<'a> TailwindWritePlan<'a> {
     pub fn into_declarations(self) -> Vec<StyleDeclaration> {
         self.declarations
     }
+}
+
+type WriteRank = (usize, usize, [u32; 3]);
+
+fn write_rank(
+    bindings: &TailwindUnitBindings<'_>,
+    declaration: &StyleDeclaration,
+    index: usize,
+) -> Option<WriteRank> {
+    let name = bindings.units().candidate(declaration.source.utility()?)?;
+    bindings
+        .context()
+        .scalar_write_priority(name, &declaration.condition, &declaration.property)
+        .map(|priority| (priority.rank, index, priority.specificity))
+}
+
+/// A single unranked background-colour write has no other colour to
+/// compete with. Prove the full CSS footprints too: a project utility
+/// with the same name could write `gap` or target another element.
+fn gaps_beside_resting_background(
+    bindings: &TailwindUnitBindings<'_>,
+    region: &[StyleDeclaration],
+) -> Option<Vec<WriteRank>> {
+    // Do not re-assess unrelated fallback inputs or allocate a rank vector
+    // for them. Both namespaces have to be closed and disjoint.
+    let mut backgrounds = 0;
+    for declaration in region {
+        match declaration.property {
+            StyleProperty::BackgroundColor(_) if declaration.condition == Condition::Always => {
+                backgrounds += 1;
+                if backgrounds > 1 {
+                    return None;
+                }
+            }
+            StyleProperty::Gap(_) | StyleProperty::RowGap(_) | StyleProperty::ColumnGap(_)
+                if declaration.condition == Condition::Always
+                    || declaration
+                        .condition
+                        .owner_interaction_specificity()
+                        .is_some() => {}
+            _ => return None,
+        }
+    }
+    if backgrounds != 1 {
+        return None;
+    }
+    region
+        .iter()
+        .enumerate()
+        .map(|(index, declaration)| {
+            let TailwindRuleBinding::Described(candidate) =
+                bindings.get(declaration.source.utility()?)?
+            else {
+                return None;
+            };
+            if matches!(declaration.property, StyleProperty::BackgroundColor(_)) {
+                // Placement of this independent write is not a Tailwind
+                // priority. It cannot participate in any gap comparison.
+                return candidate
+                    .writes_only_on_owner(true, |property| property == "background-color")
+                    .then_some((usize::MAX, index, [0; 3]));
+            }
+            if !candidate.writes_only_on_owner(false, |property| {
+                matches!(property, "gap" | "row-gap" | "column-gap")
+            }) {
+                return None;
+            }
+            write_rank(bindings, declaration, index)
+        })
+        .collect()
 }
 
 #[cfg(test)]
