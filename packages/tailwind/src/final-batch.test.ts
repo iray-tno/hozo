@@ -209,10 +209,11 @@ test('empty/static-only/runtime-only batches still prepare once and keep fallbac
 })
 
 test('an unassessed object keeps its position without discarding adjacent resting ranks', async () => {
-  for (const [classes, padding, staticRun] of [
+  for (const [classes, padding, hasAssessedRun] of [
     ['p-4 p-2 bg-brand', 16, true],
     ['p-4 bg-brand p-2', 8, false],
-    ['p-4 p-2 text-brand rtl:p-4', 16, false],
+    // An RTL write after the barrier must not pin the adjacent resting pair.
+    ['p-4 p-2 text-brand rtl:p-4', 16, true],
   ] as const) {
     const row = runtime('runtime', 'one', classes)
     const compiler = createCompiler()
@@ -236,11 +237,13 @@ test('an unassessed object keeps its position without discarding adjacent restin
     const web = result.modules.find(({ id }) => id === 'w')!.output
     const native = result.modules.find(({ id }) => id === 'n')!.output
     assert.ok(Array.isArray(web) && !Array.isArray(native))
-    if (staticRun) {
+    if (hasAssessedRun) {
       assert.notEqual(web[0]!.css, oldWeb.css)
       assert.notEqual(native.components[0]!.styles, oldNative.styles)
-      assert.match(web[0]!.css, /padding-top: 16px/)
-      assert.match(native.components[0]!.styles, /paddingTop: 16/)
+      // Inspect the resting styles: the RTL rule also writes 16px.
+      assert.match(web[0]!.css, /\.hozo-0\s*\{[^}]*padding-top: 16px;/, classes)
+      const styles = runInNewContext(`(${native.components[0]!.styles})`)
+      assert.equal(styles.hozo0.paddingTop, 16, classes)
     } else {
       assert.equal(web[0]!.css, oldWeb.css)
       assert.equal(native.components[0]!.styles, oldNative.styles)
