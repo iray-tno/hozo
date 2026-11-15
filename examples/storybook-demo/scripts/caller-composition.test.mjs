@@ -1869,7 +1869,7 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
     @tailwind utilities;
     @theme { --color-brand: #123456; }
-    @utility bg-brand { background-color: #abcdef; }`
+    @utility bg-brand { background-color: #abcdef; font-size: 14px; }`
   const theme = await loadTheme(css, tailwindPackageDir())
   const local = createCompiler(theme)
   const cases = [
@@ -1913,8 +1913,9 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
     ),
     [20, 28],
   )
-  // These inputs cannot use Tailwind's rule order. Independently give the
-  // browser Tailwind's declaration bodies, but put them in authored order.
+  // The background spelling is not a proof of independence: its real
+  // rule also owns font-size. Exercise the authored fallback by supplying
+  // the metric declarations in authored order.
   const rules = {
     'hover:text-lg': ':hover { font-size: 18px; line-height: var(--tw-leading, 28px) }',
     'hover:text-xl': ':hover { font-size: 20px; line-height: var(--tw-leading, 28px) }',
@@ -2495,8 +2496,9 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
   skip: !executablePath,
 }, async () => {
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
-    @tailwind utilities; @theme { --color-brand: #123456; }
-    @utility bg-brand { background-color: #abcdef; }`
+    @tailwind utilities; @theme { --color-brand: #123456; --color-opaque: #123456; }
+    @utility bg-brand { background-color: #abcdef; }
+    @utility bg-opaque { background-color: #abcdef; font-size: 14px; }`
   const theme = await loadTheme(css, tailwindPackageDir())
   const local = createCompiler(theme)
   const sx = `import * as stylex from '@stylexjs/stylex';
@@ -2524,6 +2526,7 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
     'tracking-[3px]',
     'leading-6',
     'bg-brand',
+    'bg-opaque',
   ]
   const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
@@ -2556,7 +2559,7 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
     for (const guarded of [names.slice(1, 4), names.slice(1, 4).toReversed()])
       for (const stylexLast of [false, true]) {
         const known = ['text-sm', ...guarded]
-        const input = `${known.join(' ')} bg-brand`
+        const input = `${known.join(' ')} bg-opaque`
         const attributes = [
           `className={cx("${input}", runtimeNames)}`,
           '{...stylex.props(metric.label)}',
