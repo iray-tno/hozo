@@ -285,3 +285,33 @@ test('assessed ambient runs keep ranks and cannot cross an unranked ambient writ
   assert.equal(resolve(value), resolve(value), 'resolved ambient output stays cached')
   assert.deepEqual(resolve('large unknown restore small'), [restore, large, unknown, small])
 })
+
+test('resting ranks survive state fallback but cannot cross an unproven slot', () => {
+  const small = { paddingTop: 8 }
+  const large = { paddingTop: 16 }
+  const opaque = { paddingTop: 99 }
+  const brand = { color: 'blue' }
+  const state = { marginTop: 4 }
+  const resolve = createClassResolver({
+    schema: 1,
+    styles: { small, large, opaque, brand },
+    states: { state: [[['pressed'], state]] },
+    ordering: {
+      schema: 1,
+      ranks: { small: [1], large: [2] },
+      independentColors: ['brand', 'small large'],
+    },
+  })
+  assert.deepEqual(resolve('large brand small state', { pressed: true }), [
+    small,
+    brand,
+    large,
+    state,
+  ])
+  assert.deepEqual(resolve('large opaque small state', { pressed: true }), [
+    large,
+    opaque,
+    small,
+    state,
+  ])
+})

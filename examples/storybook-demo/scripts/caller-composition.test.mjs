@@ -2868,11 +2868,18 @@ test('static and generated scalars share Tailwind order beside a proven independ
   }
 })
 
-test('ambient scalar ranks agree with real Tailwind behind a resting candidate barrier', {
+test('resting and ambient scalar ranks agree with real Tailwind behind a resting candidate barrier', {
   skip: !executablePath,
 }, async () => {
-  const lists = ['rtl:p-4 rtl:p-2 p-1 bg-brand m-2', 'm-2 bg-brand p-1 rtl:p-2 rtl:p-4']
-  const names = [...new Set(lists.flatMap((value) => value.split(' ')))]
+  const lists = [
+    ['rtl:p-4 rtl:p-2 p-1 bg-brand m-2', true],
+    ['p-4 p-2 bg-brand m-2', false],
+    ['p-4 bg-brand p-2 m-2', false],
+  ].flatMap(([classes, directional]) => [
+    { classes, directional },
+    { classes: classes.split(' ').toReversed().join(' '), directional },
+  ])
+  const names = [...new Set(lists.flatMap(({ classes }) => classes.split(' ')))]
   const base = tailwindPackageDir()
   const css = `@theme { --spacing: .25rem; --color-brand: #123456; } @tailwind utilities;
     @utility bg-brand { background-color: #123456; }`
@@ -2893,7 +2900,7 @@ test('ambient scalar ranks agree with real Tailwind behind a resting candidate b
   const upstream = (await compile(css)).build(names)
   const page = await browser.newPage()
   try {
-    for (const classes of lists) {
+    for (const { classes, directional } of lists) {
       const code = `import { View } from '@hozo/core'; const el=<View className="${classes}"/>`
       const web = compiler.prepareWebModule(code).emit(final)[0]
       const webMarkup = renderToStaticMarkup(
@@ -2920,7 +2927,7 @@ test('ambient scalar ranks agree with real Tailwind behind a resting candidate b
         const selected = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
         const markup = `<div class="${classes}"></div>`
         const expected = await read(upstream, markup)
-        assert.equal(expected, isRTL ? '16px' : '4px')
+        assert.equal(expected, !directional || isRTL ? '16px' : '4px')
         assert.equal(await read(web.css, webMarkup), expected, `${classes} / ${dir} static Web`)
         assert.equal(
           await read(candidateWeb, markup),

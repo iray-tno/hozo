@@ -407,11 +407,7 @@ test('the compact Rust contract drives a rank-free cached template over the actu
       )
       const mixed = flatten(resolve(`${list} text-brand`, state))
       assert.equal(mixed.backgroundColor, style.backgroundColor, 'shared state priority')
-      assert.equal(
-        mixed.paddingTop,
-        flatten(legacy(`${list} text-brand`, state)).paddingTop,
-        'resting barrier',
-      )
+      assert.equal(mixed.paddingTop, style.paddingTop, 'shared resting priority within the run')
     }
   }
   assert.notDeepEqual(

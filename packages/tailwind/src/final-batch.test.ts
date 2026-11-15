@@ -208,8 +208,12 @@ test('empty/static-only/runtime-only batches still prepare once and keep fallbac
   }
 })
 
-test('unassessed emitted objects keep the whole string on its old path, including ambient conditions', async () => {
-  for (const classes of ['p-4 p-2 bg-brand', 'p-4 p-2 text-brand rtl:p-4']) {
+test('an unassessed object keeps its position without discarding ranks in a known Native run', async () => {
+  for (const [classes, padding] of [
+    ['p-4 p-2 bg-brand', 16],
+    ['p-4 bg-brand p-2', 8],
+    ['p-4 p-2 text-brand rtl:p-4', 16],
+  ] as const) {
     const row = runtime('runtime', 'one', classes)
     const compiler = createCompiler()
     // The old path is authored order. A plain compile is not it: the
@@ -241,14 +245,13 @@ test('unassessed emitted objects keep the whole string on its old path, includin
         { createClassResolver, hozoTransformStyles, I18nManager: { isRTL } },
       )
       const resolved = Object.assign({}, ...resolve(classes))
-      assert.equal(resolved.paddingTop, isRTL && classes.includes('rtl:') ? 16 : 8)
-      if (classes.includes('rotate')) assert.equal(resolved.transform[0].rotate, '45deg')
+      assert.equal(resolved.paddingTop, padding, classes)
     }
   }
 })
 
 test('a ranked rule with a mismatched actual owner is a barrier in both static and generated output', async () => {
-  const classes = 'p-4 p-2 active:p-4'
+  const classes = 'p-4 p-2 active:p-6'
   const row = runtime('runtime', 'one', classes)
   const compiler = createCompiler()
   // A barrier keeps authored order; the built-in default would rank this
@@ -268,7 +271,7 @@ test('a ranked rule with a mismatched actual owner is a barrier in both static a
     runtime: { expected: [row], contributions: [row] },
     async prepare(names) {
       const snapshot = JSON.parse(await order(names))
-      const active = snapshot.candidates.find((entry) => entry.candidate === 'active:p-4')
+      const active = snapshot.candidates.find((entry) => entry.candidate === 'active:p-6')
       active.rules = JSON.parse(JSON.stringify(active.rules).replaceAll('&:active', '&:focus'))
       return JSON.stringify(snapshot)
     },
@@ -278,14 +281,14 @@ test('a ranked rule with a mismatched actual owner is a barrier in both static a
   assert.ok(Array.isArray(web) && !Array.isArray(native))
   assert.equal(web[0]!.css, oldWeb.css)
   assert.equal(native.components[0]!.styles, oldNative.styles)
-  assert.equal(result.native.ordering?.ranks['active:p-4'], undefined)
+  assert.equal(result.native.ordering?.ranks['active:p-6'], undefined)
   const resolve = runInNewContext(
     result.native.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ') +
       '\nhozoClasses',
     { createClassResolver },
   )
-  assert.equal(Object.assign({}, ...resolve(classes, { pressed: false })).paddingTop, 8)
-  assert.equal(Object.assign({}, ...resolve(classes, { pressed: true })).paddingTop, 16)
+  assert.equal(Object.assign({}, ...resolve(classes, { pressed: false })).paddingTop, 16)
+  assert.equal(Object.assign({}, ...resolve(classes, { pressed: true })).paddingTop, 24)
 })
 
 test('the same publication accepts the real post-Canvas full lowering handle, not only primitive output arrays', async () => {

@@ -167,21 +167,26 @@ interface TemplateEntry {
   ownerRank: number | undefined
 }
 
-interface RankedStateEntry extends TemplateEntry {
+interface RankedEntry extends TemplateEntry {
   rank: number | undefined
 }
 
 /** An assessed run may not move across a Native specificity boundary or
  * unknown write. The compiler can separately prove that specific holes do
  * not interact with the whole tier. */
-function orderRankedRuns(entries: RankedStateEntry[], sharedTier: boolean, disjointHoles: boolean) {
-  let start = 0
-  while (start < entries.length - 1) {
+function orderRankedRuns(
+  entries: RankedEntry[],
+  sharedTier: boolean,
+  disjointHoles: boolean,
+  start = 0,
+  limit = entries.length,
+) {
+  while (start < limit - 1) {
     let end = start
     let previous = -1
     let inverted = false
     const specificity = entries[start]!.ownerRank
-    for (; end < entries.length; end++) {
+    for (; end < limit; end++) {
       const { rank, ownerRank } = entries[end]!
       if (!sharedTier && ownerRank !== specificity) break
       if (rank === undefined) {
@@ -206,8 +211,35 @@ function orderRankedRuns(entries: RankedStateEntry[], sharedTier: boolean, disjo
     }
     // A different specificity starts a new run; an unranked write pins
     // its own position and can be skipped.
-    start = end + (end < entries.length && entries[end]!.rank === undefined ? 1 : 0)
+    start = end + (end < limit && entries[end]!.rank === undefined ? 1 : 0)
   }
+}
+
+function orderRestingRuns(
+  entries: RankedEntry[],
+  barriers: ReadonlySet<string> | undefined,
+  independent: ReadonlySet<string> | undefined,
+  disjoint: boolean,
+) {
+  if (disjoint || !independent || !barriers) {
+    orderRankedRuns(entries, true, disjoint)
+    return
+  }
+  // The full input did not qualify, but the same compiler proof can
+  // admit an island bounded by an unrelated or overlapping write.
+  let start = 0
+  let hasColour = false
+  for (let end = 0; end <= entries.length; end++) {
+    const entry = entries[end]
+    if (entry && (entry.rank === undefined ? barriers : independent).has(entry.name)) {
+      hasColour ||= entry.rank === undefined
+      continue
+    }
+    if (hasColour) orderRankedRuns(entries, true, true, start, end)
+    start = end + 1
+    hasColour = false
+  }
+  orderRankedRuns(entries, true, false)
 }
 
 interface Resolved {
@@ -343,14 +375,15 @@ export function createClassResolver(
 
   function resolve(value: string): Resolved {
     const base: StyleObject[] = []
-    const groups: RankedStateEntry[] = []
+    const resting: RankedEntry[] | undefined = ranks ? [] : undefined
+    const groups: RankedEntry[] = []
     const stateClasses: string[] = []
-    const decided: RankedStateEntry[] = []
-    // Build transient ranked entries only for the generated-plan ABI. A
-    // single unassessed object still makes the whole string fall back unless
-    // every drawable candidate belongs to the compiler's disjoint sets.
-    let ranked: { rank: number; entry: TemplateEntry }[] | undefined = ranks ? [] : undefined
+    const decided: RankedEntry[] = []
+    // A compact plan orders all writes together; an unassessed object
+    // without a disjointness proof keeps the existing selection tiers.
+    let ranked: RankedEntry[] | undefined = ranks ? [] : undefined
     let canKeepRanks = independent !== undefined
+    let restingHolesDisjoint = canKeepRanks
     let hasUnrankedState = false
     let colors: TemplateEntry[] | undefined
     const rankFor = (name: string, index: number) => {
@@ -360,9 +393,9 @@ export function createClassResolver(
       return rank
     }
     const take = ranks
-      ? (rank: number | undefined, entry: TemplateEntry) => {
+      ? (entry: RankedEntry) => {
           if (!ranked) return
-          if (rank === undefined) {
+          if (entry.rank === undefined) {
             if (canKeepRanks && barriers?.has(entry.name)) {
               // Their colours still compete in fallback order. The ranked
               // entries are only independent of these writes, not of one another.
@@ -371,7 +404,7 @@ export function createClassResolver(
             return
           }
           if (canKeepRanks && !independent?.has(entry.name)) canKeepRanks = false
-          ranked.push({ rank, entry })
+          ranked.push(entry)
         }
       : undefined
     for (const name of value.split(/\s+/)) {
@@ -380,8 +413,14 @@ export function createClassResolver(
       }
       const style = styles[name]
       if (style) {
-        base.push(style)
-        if (ranked) take?.(rankFor(name, 0), { name, keys: [], style, ownerRank: undefined })
+        if (resting) {
+          const rank = rankFor(name, 0)
+          const entry = { name, keys: [], style, ownerRank: undefined, rank }
+          resting.push(entry)
+          if (restingHolesDisjoint && !(rank === undefined ? barriers : independent)?.has(name))
+            restingHolesDisjoint = false
+          take?.(entry)
+        } else base.push(style)
         continue
       }
       const conditional = states[name]
@@ -397,7 +436,7 @@ export function createClassResolver(
             ownerRank: group[2],
             rank,
           }
-          take?.(rank, entry)
+          take?.(entry)
           if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
             if (matches(entry.keys, name, ambient)) decided.push(entry)
             continue
@@ -420,11 +459,11 @@ export function createClassResolver(
       if (reason) warn(name, reason)
     }
     if (ranked && (!colors || canKeepRanks)) {
-      // Stable ties keep input order. Strip rank objects before caching, so
-      // neither cache hits nor state-only changes can read/sort priorities.
-      ranked.sort((a, b) => a.rank - b.rank)
+      // Stable ties keep input order. Cache the selected entry order; hot
+      // state changes only test guards, never read or sort priorities.
+      ranked.sort((a, b) => a.rank! - b.rank!)
       const ordered: TemplateEntry[] = colors ?? []
-      for (const { entry } of ranked) {
+      for (const entry of ranked) {
         if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
           if (matches(entry.keys, entry.name, ambient)) ordered.push({ ...entry, keys: [] })
         } else ordered.push(entry)
@@ -455,6 +494,10 @@ export function createClassResolver(
       // resting tier, but it must not throw away known Tailwind order.
       orderRankedRuns(decided, true, false)
       orderRankedRuns(groups, sharedTier, stateColors !== undefined)
+    }
+    if (resting) {
+      orderRestingRuns(resting, barriers, independent, restingHolesDisjoint)
+      for (const { style } of resting) base.push(style)
     }
     for (const { style } of decided) base.push(style)
     return {

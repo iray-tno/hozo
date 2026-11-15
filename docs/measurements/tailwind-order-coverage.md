@@ -486,6 +486,21 @@ One bounded Node measurement (CPU 1, alternating same-process samples,
 1.214 → 1.185 µs per cold lookup and 0.123 → 0.134 µs per warm selection
 at the median. It is not a device/frame-time or speedup claim.
 
+The Native resolver now also uses that same rank sorter for resting runs.
+`p-4 p-2 bg-brand m-2` and `p-4 bg-brand p-2 m-2` both select 16px in
+compiled and generated Web/Native under both class orders and directions.
+The colour in the second string is crossed only inside a run admitted by
+the compiler's existing footprint proof. A genuinely unassessed write
+in that position still keeps its authored boundary. The rest, ambient
+and event tiers keep their existing relative composition order.
+
+In a CPU-1 Node probe of the mixed resting/event path with a proven
+colour inside the run, the median went from 0.836 to 1.101 µs per cold
+lookup, and from 0.121 to 0.121 µs on warm selection (11 measured
+alternating samples; 4,000 fresh strings and 70,000 warm selections per
+sample). The old winner was 8px; the new winner was 16px. This quantifies
+the bounded cache-fill cost, not an application measurement.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it
