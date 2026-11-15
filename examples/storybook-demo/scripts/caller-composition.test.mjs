@@ -2982,7 +2982,7 @@ test('an unassessed owner write pins the boundary inside its own selector weight
 }, async () => {
   const css = `@theme { --spacing: .25rem; } @tailwind utilities;
     @utility p-7 { padding: 28px; }`
-  const names = ['active:p-2', 'hover:p-4', 'hover:focus:p-6', 'focus:p-7']
+  const names = ['active:p-2', 'hover:p-4', 'hover:focus:p-6', 'focus:p-7', 'rtl:m-2', 'ltr:m-2']
   const base = tailwindPackageDir()
   const theme = await loadTheme(css, base)
   const { snapshot } = await prepareTailwindOrder(css, base, names)
@@ -2995,6 +2995,7 @@ test('an unassessed owner write pins the boundary inside its own selector weight
   assert.ok(plan.ordering.ranks['hover:focus:p-6'])
   const resolve = evaluate(plan.code.replace(/^import .*$/gm, ''), {
     createClassResolver,
+    I18nManager: { isRTL: true },
   }).hozoClasses
   const upstream = (await compile(css)).build(names)
   const page = await browser.newPage()
@@ -3004,7 +3005,7 @@ test('an unassessed owner write pins the boundary inside its own selector weight
     await cdp.send('CSS.enable')
     const read = async (sheet, className, focused) => {
       await page.setContent(
-        `<!doctype html><style>${sheet}</style><button class="${className}">Target</button>`,
+        `<!doctype html><html dir="rtl"><style>${sheet}</style><button class="${className}">Target</button>`,
       )
       const { root } = await cdp.send('DOM.getDocument')
       const { nodeId } = await cdp.send('DOM.querySelector', {
@@ -3026,6 +3027,7 @@ test('an unassessed owner write pins the boundary inside its own selector weight
       ['active:p-2 hover:focus:p-6 hover:p-4 focus:p-7', true, 24, true],
       ['active:p-2 focus:p-7 hover:p-4', false, 16, false],
       ['hover:p-4 focus:p-7 active:p-2', false, 8, true],
+      ['active:p-2 rtl:m-2 hover:p-4 focus:p-7 ltr:m-2', false, 8, true],
     ]) {
       const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${classes}"/>`
       const web = local.prepareWebModule(source).emit(final)[0]
@@ -3035,6 +3037,8 @@ test('an unassessed owner write pins the boundary inside its own selector weight
         h: (_type, props) => props,
         HozoPressable: 'owner',
         hozoStyles: runInNewContext(`(${native.styles})`),
+        __hozoEnv_rtl: true,
+        __hozoEnv_ltr: false,
       })
       const state = { pressed: true, hovered: true, focused, focusVisible: false }
       const selected = (value) =>
@@ -3057,17 +3061,20 @@ test('resting and ambient scalar ranks agree with real Tailwind behind a resting
   skip: !executablePath,
 }, async () => {
   const lists = [
-    ['rtl:p-4 rtl:p-2 p-1 bg-brand m-2', true],
-    ['p-4 p-2 bg-brand m-2', false],
-    ['p-4 bg-brand p-2 m-2', false],
-  ].flatMap(([classes, directional]) => [
-    { classes, directional },
-    { classes: classes.split(' ').toReversed().join(' '), directional },
+    ['rtl:p-4 rtl:p-2 p-1 bg-brand m-2', 'rtl'],
+    ['rtl:p-4 rtl:p-2 p-1 bg-overlap m-2', 'rtl'],
+    ['ltr:p-4 ltr:p-2 p-1 bg-overlap m-2', 'ltr'],
+    ['p-4 p-2 bg-brand m-2'],
+    ['p-4 bg-brand p-2 m-2'],
+  ].flatMap(([classes, direction]) => [
+    { classes, direction },
+    { classes: classes.split(' ').toReversed().join(' '), direction },
   ])
   const names = [...new Set(lists.flatMap(({ classes }) => classes.split(' ')))]
   const base = tailwindPackageDir()
-  const css = `@theme { --spacing: .25rem; --color-brand: #123456; } @tailwind utilities;
-    @utility bg-brand { background-color: #123456; }`
+  const css = `@theme { --spacing: .25rem; --color-brand: #123456; --color-overlap: #112233; } @tailwind utilities;
+    @utility bg-brand { background-color: #123456; }
+    @utility bg-overlap { background-color: #112233; border-width: 3px; }`
   const theme = await loadTheme(css, base)
   const { snapshot, classOrder } = await prepareTailwindOrder(css, base, names)
   const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
@@ -3078,6 +3085,7 @@ test('resting and ambient scalar ranks agree with real Tailwind behind a resting
   assert.ok(candidatePlan.ordering.ranks['rtl:p-2'])
   assert.ok(candidatePlan.ordering.ranks['rtl:p-4'])
   assert.equal(candidatePlan.ordering.ranks['bg-brand'], undefined)
+  assert.equal(candidatePlan.ordering.ranks['bg-overlap'], undefined)
   // m-2's Native projected keys are not in the compact colour-independent
   // admission. This exact string must actually take the resolver fallback.
   assert.match(candidatePlan.code, /independentColors: \["bg-brand", "(?![^"]*m-2)/)
@@ -3085,7 +3093,7 @@ test('resting and ambient scalar ranks agree with real Tailwind behind a resting
   const upstream = (await compile(css)).build(names)
   const page = await browser.newPage()
   try {
-    for (const { classes, directional } of lists) {
+    for (const { classes, direction } of lists) {
       const code = `import { View } from '@hozo/core'; const el=<View className="${classes}"/>`
       const web = compiler.prepareWebModule(code).emit(final)[0]
       const webMarkup = renderToStaticMarkup(
@@ -3103,6 +3111,7 @@ test('resting and ambient scalar ranks agree with real Tailwind behind a resting
           View: 'view',
           hozoStyles: runInNewContext(`(${native.styles})`),
           __hozoEnv_rtl: isRTL,
+          __hozoEnv_ltr: !isRTL,
         }).style
         const resolve = evaluate(
           `${candidatePlan.code.replace(/^import[^\n]*\n/gm, '').replaceAll('export const ', 'const ')}
@@ -3112,7 +3121,7 @@ test('resting and ambient scalar ranks agree with real Tailwind behind a resting
         const selected = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
         const markup = `<div class="${classes}"></div>`
         const expected = await read(upstream, markup)
-        assert.equal(expected, !directional || isRTL ? '16px' : '4px')
+        assert.equal(expected, !direction || direction === dir ? '16px' : '4px')
         assert.equal(await read(web.css, webMarkup), expected, `${classes} / ${dir} static Web`)
         assert.equal(
           await read(candidateWeb, markup),

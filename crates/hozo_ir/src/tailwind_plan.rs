@@ -131,7 +131,7 @@ impl<'a> TailwindWritePlan<'a> {
             let Some(mut ranks) =
                 ranks.or_else(|| scalars_beside_owner_background(self.bindings, region))
             else {
-                order_partial_owner_input(self.bindings, region);
+                order_partial_input(self.bindings, region);
                 continue;
             };
             apply_ranked_order(region, &mut ranks);
@@ -233,11 +233,12 @@ fn apply_indexed_order(
     }
 }
 
-/// Separate resting writes from the one tier whose known, positive owner
-/// selectors are always more specific than a resting write. This is the
-/// same partition Native already delivers: base first, then owner states.
-/// Neither a resting hole nor an unrelated authored input acquires a rank.
-fn order_partial_owner_input(bindings: &TailwindUnitBindings<'_>, region: &mut [StyleDeclaration]) {
+/// Apply known ranks in the bounded resting/direction and positive owner
+/// channels without assigning a priority to any of their holes.
+fn order_partial_input(bindings: &TailwindUnitBindings<'_>, region: &mut [StyleDeclaration]) {
+    use crate::Environment::{Ltr, Rtl};
+
+    let mut direction = false;
     let mut owner = Vec::new();
     for (index, declaration) in region.iter().enumerate() {
         if declaration.source.utility().is_none() {
@@ -245,6 +246,7 @@ fn order_partial_owner_input(bindings: &TailwindUnitBindings<'_>, region: &mut [
         }
         match &declaration.condition {
             Condition::Always => {}
+            Condition::Environment(Ltr | Rtl) => direction = true,
             guard if positive_owner_guard(guard) => owner.push(index),
             _ => return,
         }
@@ -253,30 +255,44 @@ fn order_partial_owner_input(bindings: &TailwindUnitBindings<'_>, region: &mut [
     if owner.is_empty() {
         let len = region.len();
         order_assessed_runs(bindings, region, len, |index| index);
-    } else {
-        let ranks = owner
-            .iter()
-            .enumerate()
-            .map(|(index, &position)| write_rank(bindings, &region[position], index))
-            .collect::<Option<Vec<_>>>();
-        match ranks {
-            Some(mut ranks) if ranks.len() > 1 => {
-                apply_indexed_order(region, &mut ranks, |index| owner[index]);
-            }
-            Some(_) => {}
-            None => order_partial_owner_runs(bindings, region, &owner),
-        }
-        // The resting tier never crosses one of its own unknown writes.
-        // Owner selectors cannot split it: their write slots stay put.
-        let resting: Vec<_> = region
-            .iter()
-            .enumerate()
-            .filter_map(|(index, declaration)| {
-                (declaration.condition == Condition::Always).then_some(index)
-            })
-            .collect();
-        order_assessed_runs(bindings, region, resting.len(), |index| resting[index]);
+        return;
     }
+
+    let ranks = owner
+        .iter()
+        .enumerate()
+        .map(|(index, &position)| write_rank(bindings, &region[position], index))
+        .collect::<Option<Vec<_>>>();
+    match ranks {
+        Some(mut ranks) if ranks.len() > 1 => {
+            apply_indexed_order(region, &mut ranks, |index| owner[index]);
+        }
+        Some(_) => {}
+        None => order_partial_owner_runs(bindings, region, &owner),
+    }
+    if direction {
+        // CSS direction selectors can tie with resting selectors. Preserve
+        // their relative slots across any unassessed ambient write, even
+        // if the write has a different guard. Do not join runs across live
+        // owner guards in mixed-direction input without a separate proof.
+        for run in region.chunk_by_mut(|a, b| {
+            positive_owner_guard(&a.condition) == positive_owner_guard(&b.condition)
+        }) {
+            if !positive_owner_guard(&run[0].condition) {
+                order_assessed_runs(bindings, run, run.len(), |index| index);
+            }
+        }
+        return;
+    }
+    // Other guards cannot split the resting tier; their slots stay put.
+    let resting: Vec<_> = region
+        .iter()
+        .enumerate()
+        .filter_map(|(index, declaration)| {
+            (declaration.condition == Condition::Always).then_some(index)
+        })
+        .collect();
+    order_assessed_runs(bindings, region, resting.len(), |index| resting[index]);
 }
 
 fn order_partial_owner_runs(
@@ -576,6 +592,37 @@ mod tests {
             let unknown_index = if middle { 2 } else { 3 };
             assert_eq!(after[unknown_index], before[unknown_index]);
         }
+    }
+
+    #[test]
+    fn unranked_ambient_writes_pin_both_resting_and_direction_groups() {
+        let rtl = Condition::Environment(crate::Environment::Rtl);
+        let context = TailwindOrderContext::new(crate::builtin_tailwind_snapshot(
+            ["p-2", "p-4", "rtl:p-2", "rtl:p-4"].map(|name| {
+                (
+                    name,
+                    vec![StyleProperty::PaddingTop(crate::Length::Px(8.0))],
+                )
+            }),
+        ))
+        .unwrap();
+        let (declarations, units) = fixture(&[
+            ("rtl:p-4", 10, rtl.clone()),
+            ("p-4", 10, Condition::Always),
+            ("opaque-resting", 10, Condition::Always),
+            ("rtl:p-2", 10, rtl),
+            ("p-2", 10, Condition::Always),
+        ]);
+        let before = declarations.clone();
+        let bindings = context.bind(&units);
+        let after = TailwindWritePlan::passthrough(declarations, &bindings)
+            .order_scalars()
+            .into_declarations();
+        for (index, prior) in [1, 0, 2, 4, 3].into_iter().enumerate() {
+            assert_eq!(after[index].property, before[prior].property);
+            assert_eq!(after[index].condition, before[prior].condition);
+        }
+        assert_eq!(after[2], before[2]);
     }
 
     #[test]

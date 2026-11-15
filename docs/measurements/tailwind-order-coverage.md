@@ -547,6 +547,17 @@ unassessed run; the Tailwind oracle still reads 8px and this row is not
 counted as parity. Inserting a higher-weight conjunction never splits a
 lower-weight run, and the selected conjunction wins when active.
 
+V67 applies the same rank runs to adjacent assessed resting and fixed
+direction writes. A captured background with a second CSS write cannot
+use the earlier colour-only proof. With that unranked class,
+`rtl:p-4 rtl:p-2 p-1` previously selected 4px in static Web and 8px in
+static Native but 16px in generated Native and pinned Tailwind in RTL.
+Both directions and token orders now agree across all four Hozo routes.
+Resting and direction selectors can tie in CSS, so an unknown write
+between them still pins the run; they are not unconditionally moved to
+different authored tiers. Adding a fixed direction margin to the
+separate owner fallback no longer discards known hover/active ranks.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it
