@@ -7,7 +7,8 @@ import { runInNewContext } from 'node:vm'
 import { transformSync } from 'esbuild'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
-import { createCompiler, openCandidateCache } from './index.ts'
+import { authoredOwnerContext } from '../fixtures/authored-owner-context.ts'
+import { createCompiler, openCandidateCache, type PreparedTailwindContext } from './index.ts'
 
 const variants = [
   'hover:bg-[#111111]',
@@ -17,10 +18,18 @@ const variants = [
 ]
 const compiler = createCompiler()
 const flatten = (style) => Object.assign({}, ...style.flat(Infinity).filter(Boolean))
-function props(source: string, inherited = false, errors: string[] = []) {
-  const component = compiler.compileNativeModule(source, undefined, undefined, {
-    textInheritance: inherited,
-  }).components[0]
+function props(
+  source: string,
+  inherited = false,
+  errors: string[] = [],
+  authored?: PreparedTailwindContext,
+) {
+  const options = { textInheritance: inherited }
+  const component = (
+    authored
+      ? compiler.prepareNativeModule(source, undefined, undefined, options).emit(authored)
+      : compiler.compileNativeModule(source, undefined, undefined, options)
+  ).components[0]
   assert.deepEqual(
     component.diagnostics.filter((entry) => entry.severity === 'error').map((entry) => entry.code),
     errors,
@@ -125,13 +134,14 @@ test('a whole filter reset does not reverse overlapping hover and active rules',
   }
 })
 
-test('a Tailwind barrier keeps Native specificity and lets CSS arbitrate independently', () => {
+test('authored output keeps Native specificity and lets CSS arbitrate independently', () => {
   const source = `import {Button} from '@hozo/core';export const Scene=({children})=><Button className="hover:focus:p-2 active:p-4 columns-(--layout)">{children}</Button>`
-  const [web] = compiler.compile(source)
-  // The unassessed utility leaves the conjunction before active in CSS.
+  const authored = authoredOwnerContext(source)
+  const [web] = compiler.prepareWebModule(source).emit(authored)
+  // Authored order leaves the conjunction before active in CSS.
   // Its extra selector weight, not the source order, makes it win in Chrome.
   assert.match(web!.css, /:hover:focus[\s\S]*:active/)
-  const { style } = props(source, false, ['WEB_ONLY_PROPERTY_ON_NATIVE'])
+  const { style } = props(source, false, ['WEB_ONLY_PROPERTY_ON_NATIVE'], authored)
   for (const hovered of [false, true]) {
     for (const focused of [false, true]) {
       for (const pressed of [false, true]) {
@@ -156,11 +166,12 @@ test('authored scalar state writes do not move back into an earlier visit to the
     ['hover:ms-2 active:ms-4 hover:ms-6', 'marginStart', 24, 16, 24],
   ] as const) {
     const source = `import {Pressable} from '@hozo/core';const el=<Pressable className="${classes} columns-(--layout)"/>`
-    const { style } = props(source, false, ['WEB_ONLY_PROPERTY_ON_NATIVE'])
+    const authored = authoredOwnerContext(source)
+    const { style } = props(source, false, ['WEB_ONLY_PROPERTY_ON_NATIVE'], authored)
     assert.equal(flatten(style({ hovered: true, pressed: false }))[key], hover)
     assert.equal(flatten(style({ hovered: false, pressed: true }))[key], press)
     assert.equal(flatten(style({ hovered: true, pressed: true }))[key], both)
-    const [web] = compiler.compile(source)
+    const [web] = compiler.prepareWebModule(source).emit(authored)
     assert.match(
       web!.css,
       classes.startsWith('hover:')
