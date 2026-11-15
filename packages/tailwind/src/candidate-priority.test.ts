@@ -219,7 +219,8 @@ test('overlapping writes refuse disjointness without discarding assessed state o
     )
     assert.equal(plan.ordering?.ranks['text-brand'], undefined)
     assert.equal(plan.code.includes('independentColors:'), admitted, write)
-    assert.equal(plan.code.includes('rankedStates: true'), !admitted, write)
+    assert.doesNotMatch(plan.code, /rankedStates: true/, write)
+    assert.ok(plan.ordering?.ranks['active:text-2xl'], write)
     assert.doesNotMatch(plan.code, /lineHeight: (?:28|32) \}, \d+\]/, write)
   }
 })
@@ -244,7 +245,8 @@ test('adding an assessed state keeps shared ranks without legacy tuples', async 
   const tuples = /\{ fontSize: (?:20|24), lineHeight: (?:28|32) \}, \d+\]/
   assert.doesNotMatch(before.code, tuples)
   assert.doesNotMatch(after.code, tuples)
-  assert.match(after.code, /rankedStates: true/)
+  assert.doesNotMatch(after.code, /rankedStates: true/)
+  assert.ok(after.ordering?.ranks[extra])
   const selected = (code: string, value: string) =>
     Object.assign(
       {},
@@ -280,10 +282,10 @@ test('assessed conditional maps omit legacy tuples even with a resting barrier',
   }
   const onlySizes = await render(names)
   const tuples = /fontSize: (?:20|24|30), lineHeight: (?:28|32|36) \}, \d+\]/
-  assert.match(onlySizes, /rankedStates: true/)
+  assert.doesNotMatch(onlySizes, /rankedStates: true/)
   assert.doesNotMatch(onlySizes, tuples)
   const mixed = await render([...names, 'hover:opacity-25'])
-  assert.match(mixed, /rankedStates: true/)
+  assert.doesNotMatch(mixed, /rankedStates: true/)
   assert.doesNotMatch(mixed, tuples)
   // The conditional colour has two upstream rule owners and cannot be
   // assigned one rank even though Native can still project its theme value.

@@ -155,7 +155,7 @@ export interface ClassResolverPlan {
     ranks: Readonly<Record<string, readonly number[]>>
     /** Compiler-proven disjoint sets: unranked colours and admitted ranked scalars. */
     independentColors?: readonly [barriers: string, independent: string]
-    /** All state groups are ranked, except listed disjoint colour writers. */
+    /** Lists disjoint colour writers. Older schema-1 maps may send a redundant true. */
     rankedStates?: true | string
   }
 }
@@ -174,7 +174,11 @@ interface RankedStateEntry extends TemplateEntry {
 /** An assessed run may not move across a Native specificity boundary or
  * unknown write. The compiler can separately prove that specific holes do
  * not interact with the whole tier. */
-function orderRankedStateRuns(entries: RankedStateEntry[], disjointHoles: boolean) {
+function orderRankedStateRuns(
+  entries: RankedStateEntry[],
+  sharedTier: boolean,
+  disjointHoles: boolean,
+) {
   let start = 0
   while (start < entries.length - 1) {
     let end = start
@@ -183,7 +187,7 @@ function orderRankedStateRuns(entries: RankedStateEntry[], disjointHoles: boolea
     const specificity = entries[start]!.ownerRank
     for (; end < entries.length; end++) {
       const { rank, ownerRank } = entries[end]!
-      if (ownerRank !== specificity) break
+      if (!sharedTier && ownerRank !== specificity) break
       if (rank === undefined) {
         if (!disjointHoles) break
         continue
@@ -201,7 +205,7 @@ function orderRankedStateRuns(entries: RankedStateEntry[], disjointHoles: boolea
     }
     // A different specificity starts a new run; an unranked write pins
     // its own position and can be skipped.
-    start = end + (end < entries.length && entries[end]!.ownerRank === specificity ? 1 : 0)
+    start = end + (end < entries.length && entries[end]!.rank === undefined ? 1 : 0)
   }
 }
 
@@ -262,7 +266,6 @@ export function createClassResolver(
   let styles: Record<string, StyleObject>
   let ranks: ClassResolverPlan['ordering']['ranks'] | undefined
   let independentColors: ClassResolverPlan['ordering']['independentColors']
-  let rankedStates = false
   let stateColors: Set<string> | undefined
   if (typeof stylesOrPlan.schema === 'number') {
     const plan = stylesOrPlan as ClassResolverPlan
@@ -280,7 +283,6 @@ export function createClassResolver(
     ambient = plan.ambient ?? {}
     ranks = plan.ordering.ranks
     independentColors = plan.ordering.independentColors
-    rankedStates = plan.ordering.rankedStates !== undefined
     if (typeof plan.ordering.rankedStates === 'string')
       stateColors = new Set(plan.ordering.rankedStates.split(' '))
   } else styles = stylesOrPlan as Record<string, StyleObject>
@@ -348,6 +350,7 @@ export function createClassResolver(
     // every drawable candidate belongs to the compiler's disjoint sets.
     let ranked: { rank: number; entry: TemplateEntry }[] | undefined = ranks ? [] : undefined
     let canKeepRanks = independent !== undefined
+    let hasUnrankedState = false
     let colors: TemplateEntry[] | undefined
     const rankFor = (name: string, index: number) => {
       const rank = ranks?.[name]?.[index]
@@ -390,8 +393,7 @@ export function createClassResolver(
             name,
             keys: group[0],
             style: group[1],
-            // The compiler's whole-tier proof supersedes fallback weights.
-            ownerRank: rankedStates ? undefined : group[2],
+            ownerRank: group[2],
             rank,
           }
           take?.(rank, entry)
@@ -400,8 +402,11 @@ export function createClassResolver(
             continue
           }
           groups.push(entry)
-          if (rankedStates && rank === undefined && !stateColors?.has(name))
-            throw new Error('Invalid Hozo class plan state rank')
+          if (rank === undefined) {
+            hasUnrankedState = true
+            if (stateColors && !stateColors.has(name))
+              throw new Error('Invalid Hozo class plan state rank')
+          }
           needsState = true
         }
         if (needsState) stateClasses.push(name)
@@ -431,17 +436,20 @@ export function createClassResolver(
         template: groups.length ? { entries: ordered, appendToBase: false } : undefined,
       }
     }
+    // The selected tier (not the whole map) can already have exact CSS
+    // priorities. Use Native weights only when there is a real hole.
+    const sharedTier = ranks !== undefined && (!hasUnrankedState || stateColors !== undefined)
     // Native can linearize known selector weights, but it must not order
     // unknown weights by pretending they have zero specificity.
     if (
-      !rankedStates &&
+      !sharedTier &&
       groups.length > 1 &&
       groups.every((group) => group.ownerRank !== undefined) &&
       groups.some((group, index) => index > 0 && groups[index - 1]!.ownerRank! > group.ownerRank!)
     ) {
       groups.sort((a, b) => a.ownerRank! - b.ownerRank!)
     }
-    if (ranks) orderRankedStateRuns(groups, stateColors !== undefined)
+    if (ranks) orderRankedStateRuns(groups, sharedTier, stateColors !== undefined)
     base.push(...decided)
     return {
       base: compose ? compose(base) : base,

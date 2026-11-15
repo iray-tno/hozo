@@ -205,7 +205,7 @@ test('assessed state runs keep shared ranks without moving across unranked write
   }
   assert.deepEqual(resolve('brand xl unknown lg', facts).slice(1), [xl, unknown, lg])
   assert.deepEqual(resolve('brand xl explicit lg', facts).slice(1), [lg, xl, explicit])
-  assert.deepEqual(flatten(resolve('brand combined xl lg', facts)), {
+  assert.deepEqual(flatten(resolve('brand combined unknown xl lg', facts)), {
     ...combined,
     color: 'blue',
   })
@@ -213,10 +213,12 @@ test('assessed state runs keep shared ranks without moving across unranked write
   assert.equal(flatten(resolve('brand xl lg', { ...facts, focused: false })).fontSize, 20)
 })
 
-test('a ranked state tier keeps existing resting order and does not read ranks on cache hits', () => {
+test('only the selected state groups need ranks; a legacy whole-tier marker is redundant', () => {
   const plan = data()
   plan.styles.unknown = { color: 'resting' }
-  plan.ordering.rankedStates = true
+  // An unrelated unassessed group from the same namespace must not
+  // choose which comparator applies to this request.
+  plan.states!.unrelated = [[['pressed'], { opacity: 1 }, 256]]
   let readRanks = true
   plan.ordering.ranks = new Proxy(plan.ordering.ranks, {
     get(target, key: string) {
@@ -225,11 +227,14 @@ test('a ranked state tier keeps existing resting order and does not read ranks o
     },
   })
   const resolve = createClassResolver(plan)
+  const oldSchemaOne = createClassResolver({
+    ...plan,
+    ordering: { ...plan.ordering, rankedStates: true },
+  })
   for (const names of ['active base focus unknown both', 'both base unknown focus active']) {
-    assert.equal(
-      flatten(resolve(names, { focused: true, pressed: true, hovered: true })).color,
-      'both',
-    )
+    const facts = { focused: true, pressed: true, hovered: true }
+    assert.equal(flatten(resolve(names, facts)).color, 'both')
+    assert.deepEqual(oldSchemaOne(names, facts), resolve(names, facts))
     assert.equal(
       flatten(resolve(names, { focused: false, pressed: false, hovered: false })).color,
       'resting',

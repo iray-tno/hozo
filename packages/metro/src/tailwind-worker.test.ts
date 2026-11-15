@@ -211,7 +211,7 @@ test('ordinary Metro keeps shared state ranks across a candidate universe change
     const code = readFileSync(path.join(root, CACHE_DIR, 'candidates.native.js'), 'utf8')
     assert.match(code, /independentColors/)
     assert.doesNotMatch(code, tuples)
-    assert.equal(code.includes('rankedStates: true'), expanded)
+    assert.doesNotMatch(code, /rankedStates: true/)
     const resolve = runInNewContext(
       `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,
       { createClassResolver },

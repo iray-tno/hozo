@@ -2282,7 +2282,7 @@ test('an overlapping custom leading register reaches ordinary Web and Native can
       assert.equal(module.ordering.ranks['text-brand'], undefined)
       assert.equal(module.code.includes('independentColors:'), !overlapping)
       if (overlapping) {
-        assert.match(module.code, /rankedStates: true/)
+        assert.doesNotMatch(module.code, /rankedStates: true/)
         assert.doesNotMatch(module.code, /lineHeight: (?:28|32) \}, \d+\]/)
       }
 

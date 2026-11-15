@@ -377,19 +377,14 @@ fn render_candidate_module_impl(
     // drawable entry together, no string can reach the legacy state order.
     // Refused and unknown tokens never enter the resolver's rank lookup.
     let complete = ordering.as_ref().is_some_and(|(_, _, complete)| *complete);
-    // If every conditional group has a common rank and belongs to the
-    // existing owner-interaction domain, a resting barrier need not make
-    // the entire conditional tier switch cascades. The fallback still
-    // keeps its resting prefix, and must not pull in ambient-only writes.
-    let fully_ranked_states = !complete
-        && !states.is_empty()
-        && ordering.as_ref().is_some_and(|(ordering, _, _)| {
-            states.iter().all(|(name, groups)| {
-                ordering.ranks.contains_key(name.as_str())
-                    && groups.iter().all(|group| group.order.is_some())
-            })
-        });
-    let ranked_states = fully_ranked_states || state_colors.is_some();
+    // No request needs Native specificity when every state group has a
+    // shared rank. The resolver can read that fact from the ranks themselves;
+    // this namespace-wide check only avoids shipping unused tuples.
+    let all_states_assessed = ordering.as_ref().is_some_and(|(ordering, _, _)| {
+        states
+            .iter()
+            .all(|(name, _)| ordering.ranks.contains_key(name.as_str()))
+    });
     // Only when there are any, so a project without state classes keeps the
     // module it had.
     let states_argument = if states.is_empty() {
@@ -402,7 +397,8 @@ fn render_candidate_module_impl(
             .iter()
             .flat_map(|(_, groups)| groups.iter().filter_map(|group| group.order));
         let emit_owner_ranks = !complete
-            && !ranked_states
+            && !all_states_assessed
+            && state_colors.is_none()
             && owner_ranks
                 .next()
                 .is_some_and(|first| owner_ranks.any(|rank| rank != first));
@@ -623,8 +619,6 @@ fn render_candidate_module_impl(
         out.push_str(" }");
         if let Some(colors) = state_colors {
             out.push_str(&format!(", rankedStates: {}", quote(&colors)));
-        } else if fully_ranked_states {
-            out.push_str(", rankedStates: true");
         }
         if let Some((barriers, independent)) = partial {
             out.push_str(&format!(
