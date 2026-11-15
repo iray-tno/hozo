@@ -9,7 +9,7 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v65";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v66";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
@@ -250,20 +250,21 @@ fn order_partial_owner_input(bindings: &TailwindUnitBindings<'_>, region: &mut [
         }
     }
 
-    // An unknown state write can compete with either neighbouring guard.
-    // Keep that tier authored rather than extrapolating its precedence.
     if owner.is_empty() {
         let len = region.len();
-        order_resting_runs(bindings, region, len, |index| index);
+        order_assessed_runs(bindings, region, len, |index| index);
     } else {
-        if let Some(mut ranks) = owner
+        let ranks = owner
             .iter()
             .enumerate()
             .map(|(index, &position)| write_rank(bindings, &region[position], index))
-            .collect::<Option<Vec<_>>>()
-            .filter(|ranks| ranks.len() > 1)
-        {
-            apply_indexed_order(region, &mut ranks, |index| owner[index]);
+            .collect::<Option<Vec<_>>>();
+        match ranks {
+            Some(mut ranks) if ranks.len() > 1 => {
+                apply_indexed_order(region, &mut ranks, |index| owner[index]);
+            }
+            Some(_) => {}
+            None => order_partial_owner_runs(bindings, region, &owner),
         }
         // The resting tier never crosses one of its own unknown writes.
         // Owner selectors cannot split it: their write slots stay put.
@@ -274,11 +275,37 @@ fn order_partial_owner_input(bindings: &TailwindUnitBindings<'_>, region: &mut [
                 (declaration.condition == Condition::Always).then_some(index)
             })
             .collect();
-        order_resting_runs(bindings, region, resting.len(), |index| resting[index]);
+        order_assessed_runs(bindings, region, resting.len(), |index| resting[index]);
     }
 }
 
-fn order_resting_runs(
+fn order_partial_owner_runs(
+    bindings: &TailwindUnitBindings<'_>,
+    region: &mut [StyleDeclaration],
+    owner: &[usize],
+) {
+    // Use a stable view of the same selector weights Native projects.
+    // Sort only within a weight and never across an unassessed write in
+    // that view. Only the positions of *ranked* writes can change.
+    let Some(mut by_weight) = owner
+        .iter()
+        .map(|&index| {
+            region[index]
+                .condition
+                .owner_interaction_specificity()
+                .map(|weight| (weight, index))
+        })
+        .collect::<Option<Vec<_>>>()
+    else {
+        return;
+    };
+    by_weight.sort_by_key(|&(weight, _)| weight);
+    for tier in by_weight.chunk_by(|a, b| a.0 == b.0) {
+        order_assessed_runs(bindings, region, tier.len(), |index| tier[index].1);
+    }
+}
+
+fn order_assessed_runs(
     bindings: &TailwindUnitBindings<'_>,
     region: &mut [StyleDeclaration],
     len: usize,
@@ -518,6 +545,37 @@ mod tests {
         assert_eq!(after[1], before[1]);
         assert_eq!(after[0].property, before[2].property);
         assert_eq!(after[2].property, before[0].property);
+    }
+
+    #[test]
+    fn unknown_owner_write_pins_only_its_own_selector_weight() {
+        let context = TailwindOrderContext::new(crate::portable_tailwind_snapshot()).unwrap();
+        let conjunction = Condition::all(vec![Condition::Hover, Condition::Focus]);
+        for (middle, expected) in [(false, [2, 1, 0, 3]), (true, [0, 1, 2, 3])] {
+            let unknown = ("opaque-focus", 10, Condition::Focus);
+            let hover = ("hover:p-4", 10, Condition::Hover);
+            let (declarations, units) = fixture(&[
+                ("active:p-4", 10, Condition::Pressed),
+                ("hover:focus:p-4", 10, conjunction.clone()),
+                if middle {
+                    unknown.clone()
+                } else {
+                    hover.clone()
+                },
+                if middle { hover } else { unknown },
+            ]);
+            let before = declarations.clone();
+            let bindings = context.bind(&units);
+            let after = TailwindWritePlan::passthrough(declarations, &bindings)
+                .order_scalars()
+                .into_declarations();
+            for (index, prior) in expected.into_iter().enumerate() {
+                assert_eq!(after[index].property, before[prior].property);
+                assert_eq!(after[index].condition, before[prior].condition);
+            }
+            let unknown_index = if middle { 2 } else { 3 };
+            assert_eq!(after[unknown_index], before[unknown_index]);
+        }
     }
 
     #[test]

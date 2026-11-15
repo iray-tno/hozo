@@ -1886,7 +1886,9 @@ test('an unknown owner write keeps repeated metric runs without losing explicit 
     @tailwind utilities;
     @theme { --color-brand: #123456; }
     @utility bg-brand { background-color: #abcdef; }
-    @utility text-xl { font-size: 20px; }`
+    @utility text-xl { font-size: 20px; }
+    @utility text-2xl { font-size: 24px; }
+    @utility leading-8 { line-height: 32px; }`
   const theme = await loadTheme(css, tailwindPackageDir())
   const local = createCompiler(theme)
   const cases = [
@@ -1931,8 +1933,8 @@ test('an unknown owner write keeps repeated metric runs without losing explicit 
     ),
     [20, 28],
   )
-  // The two rules for hover:text-xl make its font-size owner ambiguous.
-  // Exercise the authored fallback using the rendered metric declarations.
+  // Ambiguous active and hover metric owners pin the authored boundary.
+  // The independent CSS checks the declarations Hozo can project.
   const rules = {
     'hover:text-lg': ':hover { font-size: 18px; line-height: var(--tw-leading, 28px) }',
     'hover:text-xl': ':hover { font-size: 20px; line-height: var(--tw-leading, 28px) }',
@@ -2515,7 +2517,8 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
     @tailwind utilities; @theme { --color-brand: #123456; }
     @utility bg-brand { background-color: #abcdef; }
-    @utility text-xl { font-size: 20px; }`
+    @utility text-xl { font-size: 20px; }
+    @utility text-2xl { font-size: 24px; }`
   const theme = await loadTheme(css, tailwindPackageDir())
   const local = createCompiler(theme)
   const sx = `import * as stylex from '@stylexjs/stylex';
@@ -2968,6 +2971,82 @@ test('an unassessed resting write does not discard assessed owner precedence', {
         assert.equal(selected(nativeProps.style(state)), expected, `${label}/static Native`)
         assert.equal(selected(resolve(classes, state)), expected, `${label}/generated Native`)
       }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('an unassessed owner write pins the boundary inside its own selector weight', {
+  skip: !executablePath,
+}, async () => {
+  const css = `@theme { --spacing: .25rem; } @tailwind utilities;
+    @utility p-7 { padding: 28px; }`
+  const names = ['active:p-2', 'hover:p-4', 'hover:focus:p-6', 'focus:p-7']
+  const base = tailwindPackageDir()
+  const theme = await loadTheme(css, base)
+  const { snapshot } = await prepareTailwindOrder(css, base, names)
+  const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const local = createCompiler(theme)
+  const cache = openCandidateCache()
+  cache.scanFile('mixed-owner-run.ts', JSON.stringify(names.join(' ')), 1)
+  const plan = cache.renderNativeModulePlan(final, theme)
+  assert.equal(plan.ordering.ranks['focus:p-7'], undefined)
+  assert.ok(plan.ordering.ranks['hover:focus:p-6'])
+  const resolve = evaluate(plan.code.replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  }).hozoClasses
+  const upstream = (await compile(css)).build(names)
+  const page = await browser.newPage()
+  try {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    const read = async (sheet, className, focused) => {
+      await page.setContent(
+        `<!doctype html><style>${sheet}</style><button class="${className}">Target</button>`,
+      )
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', {
+        nodeId: root.nodeId,
+        selector: 'button',
+      })
+      await cdp.send('CSS.forcePseudoState', {
+        nodeId,
+        forcedPseudoClasses: ['active', 'hover', ...(focused ? ['focus'] : [])],
+      })
+      return page
+        .locator('button')
+        .evaluate((node) => parseFloat(getComputedStyle(node).paddingTop))
+    }
+    for (const [classes, focused, expected, matchesOracle] of [
+      ['active:p-2 hover:p-4 focus:p-7', false, 8, true],
+      ['focus:p-7 hover:p-4 active:p-2', false, 8, true],
+      ['active:p-2 hover:focus:p-6 hover:p-4 focus:p-7', false, 8, true],
+      ['active:p-2 hover:focus:p-6 hover:p-4 focus:p-7', true, 24, true],
+      ['active:p-2 focus:p-7 hover:p-4', false, 16, false],
+      ['hover:p-4 focus:p-7 active:p-2', false, 8, true],
+    ]) {
+      const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${classes}"/>`
+      const web = local.prepareWebModule(source).emit(final)[0]
+      const native = local.prepareNativeModule(source).emit(final).components[0]
+      const { className } = evaluate(`module.exports=(${web.jsx})`, { h: (_type, props) => props })
+      const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
+        h: (_type, props) => props,
+        HozoPressable: 'owner',
+        hozoStyles: runInNewContext(`(${native.styles})`),
+      })
+      const state = { pressed: true, hovered: true, focused, focusVisible: false }
+      const selected = (value) =>
+        Object.assign({}, ...[value].flat(Infinity).filter(Boolean)).paddingTop
+      const tailwind = await read(upstream, classes, focused)
+      assert.equal(tailwind, focused ? 24 : 8)
+      assert.equal(await read(web.css, className, focused), expected, classes)
+      assert.equal(selected(nativeProps.style(state)), expected, classes)
+      assert.equal(selected(resolve(classes, state)), expected, classes)
+      // The fifth row deliberately keeps an ambiguous owner between
+      // same-weight writes. It is a boundary control, not a parity pass.
+      assert.equal(expected === tailwind, matchesOracle, classes)
     }
   } finally {
     await page.close()

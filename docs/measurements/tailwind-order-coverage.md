@@ -532,6 +532,21 @@ routes retain the assessed 16px resting winner. Real ambiguous owners
 remain in the metric/gap fallback controls. Foreign guards and authored
 StyleX/input tiers are not promoted by this proof.
 
+V66 closes the remaining positive-owner fallback difference. An unknown
+state write stays in its authored position, but no longer disables ranks
+in neighbouring assessed runs of the same selector weight. The static
+plan uses an indexed view of Native's existing specificity projection;
+only assessed positions within each run are exchanged, by the common
+Tailwind rank. No Native comparator or runtime work was added.
+
+With both hover and active, `active:p-2 hover:p-4 focus:p-7` now selects
+8px in static Web/Native and generated Native, matching pinned Tailwind.
+The duplicate captured focus rule still has no unique rank. Moving it
+between active and hover pins the authored 16px winner for that
+unassessed run; the Tailwind oracle still reads 8px and this row is not
+counted as parity. Inserting a higher-weight conjunction never splits a
+lower-weight run, and the selected conjunction wins when active.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it
