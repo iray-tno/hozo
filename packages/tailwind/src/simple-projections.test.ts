@@ -99,7 +99,7 @@ test('simple projections acquire actual ownership and common static/fallback win
   }
 })
 
-test('relative text metrics, border style and transform neighbors still preserve their whole old input rather than receive guessed scalar priorities', async () => {
+test('unassessed text, layout and paint writes still prevent ranks from crossing them', async () => {
   const theme = await loadTheme(css, base)
   const compiler = createCompiler(theme)
   for (const neighbor of [
@@ -111,7 +111,7 @@ test('relative text metrics, border style and transform neighbors still preserve
     'align-baseline',
     'bg-[url(x.png)]',
   ]) {
-    const classes = `p-4 p-2 ${neighbor}`
+    const classes = `p-4 ${neighbor} p-2`
     const names = classes.split(' ')
     const prepared = await prepareTailwindOrder(css, base, names)
     const final = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))

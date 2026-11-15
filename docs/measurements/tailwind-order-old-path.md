@@ -277,3 +277,19 @@ using an unresolved colour as a stand-in. A positive conjunction beats a
 single state in either order; the [equal-weight and repeated-guard
 counterexamples](tailwind-order-coverage.md#proposed-stage-6-gate-1230)
 still block deleting the variant mask.
+
+## Remove the whole-map ranked-state marker
+
+The variant mask was removed separately. The resolver now uses the compact
+rule priorities whenever all state groups in the actual input have ranks,
+even in a namespace containing some other unranked candidate. It preserves
+the resting prefix when that prefix is unassessed. The compiler no longer
+serializes `rankedStates: true` (20 raw bytes wherever it appeared); it
+still omits unnecessary specificity tuples and retains the string form
+only for proven disjoint colour holes. Older schema-1 maps with the boolean
+produce the same result without relying on it.
+
+An unranked state write still prevents the whole-tier sort unless the
+compiler supplied the disjoint-footprint proof. Without that proof, bounded
+Native specificity and authored ties remain; no winner is inferred for an
+unknown selector. Cache hits do not access ranks or sort.

@@ -1,12 +1,15 @@
 //! A write plan owns the declaration allocation. Scalar ordering moves IR
 //! writes, never source expressions, and is shared by both platform emitters.
 //! Explicit pass-through remains available as an unassessed-domain control.
-use crate::{Condition, StyleDeclaration, StyleSource, TailwindRuleBinding, TailwindUnitBindings};
+use crate::{
+    owner_colour_independent_scalar, Condition, StyleDeclaration, StyleProperty, StyleSource,
+    TailwindRuleBinding, TailwindUnitBindings,
+};
 use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v60";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v64";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
@@ -74,9 +77,9 @@ impl<'a> TailwindWritePlan<'a> {
         }
     }
 
-    /// All-or-nothing per contiguous frontend input. Unassessed writes are
-    /// barriers for that input, not holes that known writes can leap across.
-    /// The caller must opt in only with a compatible complete namespace.
+    /// Plan within a contiguous frontend input. Unassessed writes are
+    /// barriers unless their entire captured footprint proves independence.
+    /// The caller must use a compatible complete namespace.
     pub fn order_scalars(mut self) -> Self {
         let mut dominated = vec![false; self.declarations.len()];
         let mut offset = 0;
@@ -122,37 +125,16 @@ impl<'a> TailwindWritePlan<'a> {
                         // Sort them last rather than assigning Tailwind rank zero.
                         return Some((usize::MAX, index, [0; 3]));
                     }
-                    let utility = match decl.source {
-                        StyleSource::TailwindUtility { utility, .. }
-                        | StyleSource::TailwindOrdered { utility, .. } => utility,
-                        _ => return None,
-                    };
-                    let name = self.bindings.units().candidate(utility)?;
-                    self.bindings
-                        .context()
-                        .scalar_write_priority(name, &decl.condition, &decl.property)
-                        .map(|priority| (priority.rank, index, priority.specificity))
+                    write_rank(self.bindings, decl, index)
                 })
                 .collect();
-            let Some(mut ranks) = ranks else {
+            let Some(mut ranks) =
+                ranks.or_else(|| scalars_beside_owner_background(self.bindings, region))
+            else {
+                order_contiguous_resting_runs(self.bindings, region);
                 continue;
             };
-            if ranks.windows(2).any(|pair| pair[0].0 > pair[1].0) {
-                ranks.sort_by_key(|(rank, _, _)| *rank);
-                let mut destination = vec![0; ranks.len()];
-                for (new, &(_, old, _)) in ranks.iter().enumerate() {
-                    destination[old] = new;
-                }
-                // Move declarations in place: no cloned expression/condition
-                // payloads and no replacement of the original Vec allocation.
-                for index in 0..region.len() {
-                    while destination[index] != index {
-                        let next = destination[index];
-                        region.swap(index, next);
-                        destination.swap(index, next);
-                    }
-                }
-            }
+            apply_ranked_order(region, &mut ranks);
             // A breakpoint branch of an unprefixed rule (`container`'s
             // `max-width` at each width) sits at that rule's place in the
             // order, which can be before an unprefixed write of the same
@@ -181,11 +163,6 @@ impl<'a> TailwindWritePlan<'a> {
                             && later.property.same_property_as(&declaration.property)
                             && *weight >= specificity[index]
                     });
-            }
-            for declaration in region {
-                if let StyleSource::TailwindUtility { input, utility } = declaration.source {
-                    declaration.source = StyleSource::TailwindOrdered { input, utility };
-                }
             }
         }
         if dominated.contains(&true) {
@@ -220,6 +197,138 @@ impl<'a> TailwindWritePlan<'a> {
     pub fn into_declarations(self) -> Vec<StyleDeclaration> {
         self.declarations
     }
+}
+
+type WriteRank = (usize, usize, [u32; 3]);
+
+fn apply_ranked_order(region: &mut [StyleDeclaration], ranks: &mut [WriteRank]) {
+    if ranks.windows(2).any(|pair| pair[0].0 > pair[1].0) {
+        ranks.sort_by_key(|(rank, _, _)| *rank);
+        let mut destination = vec![0; ranks.len()];
+        for (new, &(_, old, _)) in ranks.iter().enumerate() {
+            destination[old] = new;
+        }
+        // Move declarations in place, without cloning expression payloads.
+        for index in 0..region.len() {
+            while destination[index] != index {
+                let next = destination[index];
+                region.swap(index, next);
+                destination.swap(index, next);
+            }
+        }
+    }
+    for declaration in region {
+        if let StyleSource::TailwindUtility { input, utility } = declaration.source {
+            declaration.source = StyleSource::TailwindOrdered { input, utility };
+        }
+    }
+}
+
+/// One resting cascade channel: a genuinely unknown write stays exactly in
+/// place. Do not give a partially ranked region permission to move across
+/// JSX/StyleX sources or interleave conditional delivery channels.
+fn order_contiguous_resting_runs(
+    bindings: &TailwindUnitBindings<'_>,
+    region: &mut [StyleDeclaration],
+) {
+    if !region.iter().all(|declaration| {
+        declaration.condition == Condition::Always && declaration.source.utility().is_some()
+    }) {
+        return;
+    }
+    let mut start = 0;
+    while start + 1 < region.len() {
+        let mut ranks: Vec<_> = region[start..]
+            .iter()
+            .enumerate()
+            .map_while(|(index, declaration)| write_rank(bindings, declaration, index))
+            .collect();
+        let end = start + ranks.len();
+        if ranks.len() > 1 {
+            apply_ranked_order(&mut region[start..end], &mut ranks);
+        }
+        start = end + 1;
+    }
+}
+
+fn write_rank(
+    bindings: &TailwindUnitBindings<'_>,
+    declaration: &StyleDeclaration,
+    index: usize,
+) -> Option<WriteRank> {
+    let name = bindings.units().candidate(declaration.source.utility()?)?;
+    bindings
+        .context()
+        .scalar_write_priority(name, &declaration.condition, &declaration.property)
+        .map(|priority| (priority.rank, index, priority.specificity))
+}
+
+/// A single unranked background-colour write has no other colour to
+/// compete with. Prove the full CSS footprints too: a project utility
+/// with the same name could write another slot or target another element.
+fn scalars_beside_owner_background(
+    bindings: &TailwindUnitBindings<'_>,
+    region: &[StyleDeclaration],
+) -> Option<Vec<WriteRank>> {
+    // Do not re-assess unrelated fallback inputs or allocate a rank vector
+    // for them. Both namespaces have to be closed and disjoint.
+    let mut backgrounds = 0;
+    let (mut direction, mut interaction) = (false, false);
+    for declaration in region {
+        match declaration.condition {
+            Condition::Always => {}
+            Condition::Environment(crate::Environment::Ltr | crate::Environment::Rtl)
+                if !matches!(declaration.property, StyleProperty::BackgroundColor(_)) =>
+            {
+                direction = true;
+            }
+            ref guard if guard.owner_interaction_specificity().is_some() => interaction = true,
+            _ => return None,
+        }
+        // A fixed direction and an owner event are different selection
+        // channels on Native; this proof does not order them against each
+        // other when both can write the same slot.
+        if direction && interaction {
+            return None;
+        }
+        match declaration.property {
+            StyleProperty::BackgroundColor(_) => {
+                backgrounds += 1;
+                if backgrounds > 1 {
+                    return None;
+                }
+            }
+            _ if scalar_tailwind_property(&declaration.property) => {}
+            _ => return None,
+        }
+    }
+    if backgrounds != 1 {
+        return None;
+    }
+    region
+        .iter()
+        .enumerate()
+        .map(|(index, declaration)| {
+            let TailwindRuleBinding::Described(candidate) =
+                bindings.get(declaration.source.utility()?)?
+            else {
+                return None;
+            };
+            if matches!(declaration.property, StyleProperty::BackgroundColor(_)) {
+                // Placement of this independent write is not a Tailwind
+                // priority. It cannot participate in any scalar comparison.
+                return candidate
+                    .writes_only_on_owner(declaration.condition == Condition::Always, |property| {
+                        property == "background-color"
+                    })
+                    .then_some((usize::MAX, index, [0; 3]));
+            }
+            if !candidate.writes_only_on_owner(false, owner_colour_independent_scalar) {
+                return None;
+            }
+            write_rank(bindings, declaration, index)
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -310,6 +419,31 @@ mod tests {
             assert_eq!(&after[..3], &before[..3], "{unknown}");
             assert_eq!(after[3].property, before[4].property);
             assert_eq!(after[4].property, before[3].property);
+        }
+    }
+
+    #[test]
+    fn unknown_resting_write_pins_its_position_between_independently_ranked_runs() {
+        let context = TailwindOrderContext::new(crate::portable_tailwind_snapshot()).unwrap();
+        let (declarations, units) = fixture(&[
+            ("p-4", 10, Condition::Always),
+            ("p-2", 10, Condition::Always),
+            ("unknown", 10, Condition::Always),
+            ("p-4", 10, Condition::Always),
+            ("p-2", 10, Condition::Always),
+        ]);
+        let before = declarations.clone();
+        let bindings = context.bind(&units);
+        let after = TailwindWritePlan::passthrough(declarations, &bindings)
+            .order_scalars()
+            .into_declarations();
+        assert_eq!(after[2], before[2]);
+        for (index, previous) in [(0, 1), (1, 0), (3, 4), (4, 3)] {
+            assert_eq!(after[index].property, before[previous].property);
+            assert!(matches!(
+                after[index].source,
+                StyleSource::TailwindOrdered { .. }
+            ));
         }
     }
 

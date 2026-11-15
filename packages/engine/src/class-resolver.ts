@@ -155,7 +155,7 @@ export interface ClassResolverPlan {
     ranks: Readonly<Record<string, readonly number[]>>
     /** Compiler-proven disjoint sets: unranked colours and admitted ranked scalars. */
     independentColors?: readonly [barriers: string, independent: string]
-    /** All state groups are ranked, except listed disjoint colour writers. */
+    /** Lists disjoint colour writers. Older schema-1 maps may send a redundant true. */
     rankedStates?: true | string
   }
 }
@@ -165,6 +165,81 @@ interface TemplateEntry {
   style: StyleObject
   name: string
   ownerRank: number | undefined
+}
+
+interface RankedEntry extends TemplateEntry {
+  rank: number | undefined
+}
+
+/** An assessed run may not move across a Native specificity boundary or
+ * unknown write. The compiler can separately prove that specific holes do
+ * not interact with the whole tier. */
+function orderRankedRuns(
+  entries: RankedEntry[],
+  sharedTier: boolean,
+  disjointHoles: boolean,
+  start = 0,
+  limit = entries.length,
+) {
+  while (start < limit - 1) {
+    let end = start
+    let previous = -1
+    let inverted = false
+    const specificity = entries[start]!.ownerRank
+    for (; end < limit; end++) {
+      const { rank, ownerRank } = entries[end]!
+      if (!sharedTier && ownerRank !== specificity) break
+      if (rank === undefined) {
+        if (!disjointHoles) break
+        continue
+      }
+      inverted ||= previous > rank
+      previous = rank
+    }
+    if (inverted && end === start + 2) {
+      // Both entries had ranks, otherwise no inversion was possible.
+      const first = entries[start]!
+      entries[start] = entries[start + 1]!
+      entries[start + 1] = first
+    } else if (inverted) {
+      const run = entries.slice(start, end)
+      const ranked = disjointHoles ? run.filter((entry) => entry.rank !== undefined) : run
+      ranked.sort((a, b) => a.rank! - b.rank!)
+      let next = 0
+      for (let index = start; index < end; index++)
+        if (entries[index]!.rank !== undefined) entries[index] = ranked[next++]!
+    }
+    // A different specificity starts a new run; an unranked write pins
+    // its own position and can be skipped.
+    start = end + (end < limit && entries[end]!.rank === undefined ? 1 : 0)
+  }
+}
+
+function orderRestingRuns(
+  entries: RankedEntry[],
+  barriers: ReadonlySet<string> | undefined,
+  independent: ReadonlySet<string> | undefined,
+  disjoint: boolean,
+) {
+  if (disjoint || !independent || !barriers) {
+    orderRankedRuns(entries, true, disjoint)
+    return
+  }
+  // The full input did not qualify, but the same compiler proof can
+  // admit an island bounded by an unrelated or overlapping write.
+  let start = 0
+  let hasColour = false
+  for (let end = 0; end <= entries.length; end++) {
+    const entry = entries[end]
+    if (entry && (entry.rank === undefined ? barriers : independent).has(entry.name)) {
+      hasColour ||= entry.rank === undefined
+      continue
+    }
+    if (hasColour) orderRankedRuns(entries, true, true, start, end)
+    start = end + 1
+    hasColour = false
+  }
+  orderRankedRuns(entries, true, false)
 }
 
 interface Resolved {
@@ -224,7 +299,6 @@ export function createClassResolver(
   let styles: Record<string, StyleObject>
   let ranks: ClassResolverPlan['ordering']['ranks'] | undefined
   let independentColors: ClassResolverPlan['ordering']['independentColors']
-  let rankedStates = false
   let stateColors: Set<string> | undefined
   if (typeof stylesOrPlan.schema === 'number') {
     const plan = stylesOrPlan as ClassResolverPlan
@@ -242,7 +316,6 @@ export function createClassResolver(
     ambient = plan.ambient ?? {}
     ranks = plan.ordering.ranks
     independentColors = plan.ordering.independentColors
-    rankedStates = plan.ordering.rankedStates !== undefined
     if (typeof plan.ordering.rankedStates === 'string')
       stateColors = new Set(plan.ordering.rankedStates.split(' '))
   } else styles = stylesOrPlan as Record<string, StyleObject>
@@ -302,21 +375,27 @@ export function createClassResolver(
 
   function resolve(value: string): Resolved {
     const base: StyleObject[] = []
-    const groups: TemplateEntry[] = []
-    const stateRanks: (number | undefined)[] | undefined = rankedStates ? [] : undefined
+    const resting: RankedEntry[] | undefined = ranks ? [] : undefined
+    const groups: RankedEntry[] = []
     const stateClasses: string[] = []
-    const decided: StyleObject[] = []
-    // Build transient ranked entries only for the generated-plan ABI. A
-    // single unassessed object still makes the whole string fall back unless
-    // every drawable candidate belongs to the compiler's disjoint sets.
-    let ranked: { rank: number; entry: TemplateEntry }[] | undefined = ranks ? [] : undefined
+    const decided: RankedEntry[] = []
+    // A compact plan orders all writes together; an unassessed object
+    // without a disjointness proof keeps the existing selection tiers.
+    let ranked: RankedEntry[] | undefined = ranks ? [] : undefined
     let canKeepRanks = independent !== undefined
+    let restingHolesDisjoint = canKeepRanks
+    let hasUnrankedState = false
     let colors: TemplateEntry[] | undefined
+    const rankFor = (name: string, index: number) => {
+      const rank = ranks?.[name]?.[index]
+      if (rank !== undefined && (!Number.isSafeInteger(rank) || rank < 0))
+        throw new Error('Invalid Hozo class plan rank')
+      return rank
+    }
     const take = ranks
-      ? (index: number, entry: TemplateEntry) => {
+      ? (entry: RankedEntry) => {
           if (!ranked) return
-          const rank = ranks![entry.name]?.[index]
-          if (rank === undefined) {
+          if (entry.rank === undefined) {
             if (canKeepRanks && barriers?.has(entry.name)) {
               // Their colours still compete in fallback order. The ranked
               // entries are only independent of these writes, not of one another.
@@ -325,9 +404,7 @@ export function createClassResolver(
             return
           }
           if (canKeepRanks && !independent?.has(entry.name)) canKeepRanks = false
-          if (!Number.isSafeInteger(rank) || rank < 0)
-            throw new Error('Invalid Hozo class plan rank')
-          ranked.push({ rank, entry })
+          ranked.push(entry)
         }
       : undefined
     for (const name of value.split(/\s+/)) {
@@ -336,8 +413,14 @@ export function createClassResolver(
       }
       const style = styles[name]
       if (style) {
-        base.push(style)
-        take?.(0, { name, keys: [], style, ownerRank: undefined })
+        if (resting) {
+          const rank = rankFor(name, 0)
+          const entry = { name, keys: [], style, ownerRank: undefined, rank }
+          resting.push(entry)
+          if (restingHolesDisjoint && !(rank === undefined ? barriers : independent)?.has(name))
+            restingHolesDisjoint = false
+          take?.(entry)
+        } else base.push(style)
         continue
       }
       const conditional = states[name]
@@ -345,20 +428,24 @@ export function createClassResolver(
         let needsState = false
         for (let index = 0; index < conditional.length; index++) {
           const group = conditional[index]!
-          const entry = { name, keys: group[0], style: group[1], ownerRank: group[2] }
-          take?.(index, entry)
+          const rank = rankFor(name, index)
+          const entry = {
+            name,
+            keys: group[0],
+            style: group[1],
+            ownerRank: group[2],
+            rank,
+          }
+          take?.(entry)
           if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
-            if (matches(entry.keys, name, ambient)) decided.push(entry.style)
+            if (matches(entry.keys, name, ambient)) decided.push(entry)
             continue
           }
           groups.push(entry)
-          if (stateRanks) {
-            const rank = ranks![name]?.[index]
-            if (
-              rank === undefined ? !stateColors?.has(name) : !Number.isSafeInteger(rank) || rank < 0
-            )
+          if (rank === undefined) {
+            hasUnrankedState = true
+            if (stateColors && !stateColors.has(name))
               throw new Error('Invalid Hozo class plan state rank')
-            stateRanks.push(rank)
           }
           needsState = true
         }
@@ -372,11 +459,11 @@ export function createClassResolver(
       if (reason) warn(name, reason)
     }
     if (ranked && (!colors || canKeepRanks)) {
-      // Stable ties keep input order. Strip rank objects before caching, so
-      // neither cache hits nor state-only changes can read/sort priorities.
-      ranked.sort((a, b) => a.rank - b.rank)
+      // Stable ties keep input order. Cache the selected entry order; hot
+      // state changes only test guards, never read or sort priorities.
+      ranked.sort((a, b) => a.rank! - b.rank!)
       const ordered: TemplateEntry[] = colors ?? []
-      for (const { entry } of ranked) {
+      for (const entry of ranked) {
         if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
           if (matches(entry.keys, entry.name, ambient)) ordered.push({ ...entry, keys: [] })
         } else ordered.push(entry)
@@ -389,85 +476,30 @@ export function createClassResolver(
         template: groups.length ? { entries: ordered, appendToBase: false } : undefined,
       }
     }
-    // Build-time Tailwind owner-state rank, sorted once per cached class string,
-    // never on every state update. Mixed/unranked domains are left alone; ties
-    // retain authored/caller order. Keep warning provenance beside each group.
-    if (stateRanks) {
-      let previous = -1
-      if (
-        stateRanks.some((rank) => {
-          if (rank === undefined) return false
-          const inverted = previous > rank
-          previous = rank
-          return inverted
-        })
-      ) {
-        const ordered = groups.flatMap((entry, index) => {
-          const rank = stateRanks[index]
-          return rank === undefined ? [] : [{ entry, rank }]
-        })
-        ordered.sort((a, b) => a.rank - b.rank)
-        let next = 0
-        for (let index = 0; index < groups.length; index++)
-          if (stateRanks[index] !== undefined) groups[index] = ordered[next++]!.entry
-      }
-    } else if (
+    // The selected tier (not the whole map) can already have exact CSS
+    // priorities. Use Native weights only when there is a real hole.
+    const sharedTier = ranks !== undefined && (!hasUnrankedState || stateColors !== undefined)
+    // Native can linearize known selector weights, but it must not order
+    // unknown weights by pretending they have zero specificity.
+    if (
+      !sharedTier &&
       groups.length > 1 &&
       groups.every((group) => group.ownerRank !== undefined) &&
       groups.some((group, index) => index > 0 && groups[index - 1]!.ownerRank! > group.ownerRank!)
     ) {
       groups.sort((a, b) => a.ownerRank! - b.ownerRank!)
     }
-    // Even behind a barrier, adjacent assessed font-size defaults under the
-    // same specificity can use the captured rule rank. Both write the same
-    // fields, and state selection still tests each guard. Do not move a
-    // write across an unknown or an explicit leading register.
-    const fontRanks = ranks
-    const fontDefaults = hozoClasses.fontDefaults
-    if (!rankedStates && fontRanks && fontDefaults && groups.length > 1) {
-      const sizeRank = ({ name, style }: TemplateEntry) => {
-        if (
-          !fontDefaults.has(style) ||
-          !Object.hasOwn(style, 'fontSize') ||
-          !Object.hasOwn(style, 'lineHeight') ||
-          Object.keys(style).length !== 2
-        )
-          return undefined
-        const row = fontRanks[name]
-        return row?.length === 1 ? row[0] : undefined
-      }
-      for (let start = 0; start < groups.length - 1; ) {
-        const first = groups[start]!
-        let previous = sizeRank(first)
-        let end = start + 1
-        let inverted = false
-        if (previous !== undefined) {
-          for (; end < groups.length; end++) {
-            const next = groups[end]!
-            // The upper bits of the emitted owner rank are Native
-            // specificity. If the emitter omitted the ranks entirely,
-            // only matching predicates prove equal specificity here.
-            const sameSpecificity =
-              first.ownerRank !== undefined && next.ownerRank !== undefined
-                ? first.ownerRank >>> 8 === next.ownerRank >>> 8
-                : first.ownerRank === next.ownerRank &&
-                  first.keys.length === next.keys.length &&
-                  first.keys.every((key, index) => key === next.keys[index])
-            if (!sameSpecificity) break
-            const rank = sizeRank(next)
-            if (rank === undefined) break
-            inverted ||= previous > rank
-            previous = rank
-          }
-        }
-        if (inverted) {
-          const ordered = groups.slice(start, end).sort((a, b) => sizeRank(a)! - sizeRank(b)!)
-          for (let index = start; index < end; index++) groups[index] = ordered[index - start]!
-        }
-        start = end
-      }
+    if (ranks) {
+      // Ambient guards have already been evaluated. They keep their
+      // resting tier, but it must not throw away known Tailwind order.
+      orderRankedRuns(decided, true, false)
+      orderRankedRuns(groups, sharedTier, stateColors !== undefined)
     }
-    base.push(...decided)
+    if (resting) {
+      orderRestingRuns(resting, barriers, independent, restingHolesDisjoint)
+      for (const { style } of resting) base.push(style)
+    }
+    for (const { style } of decided) base.push(style)
     return {
       base: compose ? compose(base) : base,
       raw: base,

@@ -35,8 +35,8 @@ pub use tailwind_plan::{
 };
 mod tailwind_assessment;
 pub use tailwind_assessment::{
-    assess_tailwind_rule, assess_tailwind_write, AssessedTailwindRule, RuleAssessmentError,
-    TailwindWriteOwnership,
+    assess_tailwind_rule, assess_tailwind_write, owner_colour_independent_scalar,
+    AssessedTailwindRule, RuleAssessmentError, TailwindWriteOwnership,
 };
 // Generated exact-candidate facts; only constructed by an explicit caller.
 #[rustfmt::skip]

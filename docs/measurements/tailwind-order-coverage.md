@@ -6,7 +6,8 @@ the same units. This page counts how much of a real corpus the plan owns
 today, names every ordering mechanism outside it, and says what each still
 serves, so a deletion can be argued from numbers instead of guessed.
 
-State at main `bc4920ad`, policy `scalar-order-v33`.
+Initial measurement at main `bc4920ad`, policy `scalar-order-v33`.
+Later receipts are recorded below.
 
 ## Coverage of this repository's own Tailwind
 
@@ -15,8 +16,8 @@ State at main `bc4920ad`, policy `scalar-order-v33`.
 stories, generated or platform build output) against one captured context:
 Tailwind's own theme plus `@hozo/ui`'s tokens. It counts every class input
 with at least two Tailwind writes (one write has nothing to order). An input
-is ranked only when no block in it reports a barrier; the plan capture now
-reports one per block (`barrier`), the same question `order_scalars` asks.
+is counted as fully ranked only when no block in it reports a barrier.
+A partially ranked run does not change that count.
 
 ```
 256 of 320 multi-write Tailwind inputs ranked (80%) across 317 files
@@ -418,6 +419,99 @@ later `active:` rule at equal specificity is the live reader there. Hozo does no
 yet capture the conditional custom register, or order that reader
 against a direct leading declaration by the captured rule priority.
 Do not count the resting fix as parity for the conditional case.
+
+The generated Native resolver now uses the same captured ranks for
+adjacent assessed state writes even when an unranked resting write keeps
+the whole string out of the compact plan. This replaces the fallback's
+font-size-only reordering heuristic. The resolver retains Native
+specificity boundaries, stable ties and unranked state writes; only
+compiler-proven disjoint holes can be crossed. The Storybook caller test
+checks the generated dynamic path against pinned Tailwind in Chromium
+and reads the selected Native layout in Yoga. Unassessed authored input
+is a separate control, not included in the parity claim. Conditional
+custom leading remains a value-projection follow-up ([#2008]).
+
+[#2008]: https://github.com/iray-tno/hozo/issues/2008
+
+### Static gaps beside a resting colour
+
+In v61 the static write plan no longer sends the whole class input to
+authored order when only one resting background colour lacks a rank and
+the other writes are assessed gaps. The static and candidate planners
+share the captured owner-footprint check. The resting rule must write
+only `background-color`, and the gap rules only `gap`, `row-gap` or
+`column-gap`. The colour takes no part in determining the gap winner.
+StyleX, additional authored inputs, and Native specificity are not
+reclassified by this proof.
+
+Pinned Tailwind in Chromium, compiled Web and generated Web, and both
+Native routes in Yoga agree on gap geometry for **128** combinations
+(four exact input strings, four hover/press states and eight layouts).
+This includes reversed shorthand and axis utilities and an authored
+`style` override. If the same `bg-brand` rule adds a `gap` write, both
+static backends still keep the authored-order fallback. That overlapping
+control is not counted as parity. The repository inventory remains
+**318/320** (819 files; none failed standalone compilation).
+
+V62 replaces the static gap-only check with the same closed CSS footprint
+used by Native candidate planning. The proof can cover one resting or
+owner-state background colour and the assessed scalar writes in that set.
+The Native candidate map separately checks the projected style keys. In
+the additional oracle rows, a colour between gap/opacity writes does not
+split their ranked runs; both class permutations and all four checked
+states agree across the four routes. This extends the same test to **192**
+conditions, with the original overlapping control still in place.
+
+The independent default-order corpus has 60/60 observations for each of
+its three Web routes and 56/60 for each Native route on this stack. All
+eight Native differences are the same physical/logical padding case:
+the emitted styles contain `paddingLeft: 4` alongside
+`paddingStart: 32, paddingEnd: 32`. Actual Yoga gives the logical keys
+priority in either direction, irrespective of insertion order. This is
+tracked as a projection defect, not claimed as parity:
+[#2018](https://github.com/iray-tno/hozo/issues/2018).
+
+V63 also removes the authored-order-only branch for already-evaluated
+Native direction groups. With `rtl:p-4 rtl:p-2 p-1 bg-brand m-2`, the
+generated Native fallback previously returned 8px in RTL despite having
+both direction ranks. The same class string and its reverse now select
+16px in RTL and 4px in LTR in the four static/generated routes against
+real Tailwind in Chromium. The compiled Native probe supplies the same
+direction fact to the emitted guard; this is not device validation.
+The ambient tier still precedes live owner state and retains positions
+of unknown writes. State updates and cache hits neither read rank data
+nor sort.
+
+One bounded Node measurement (CPU 1, alternating same-process samples,
+4,000 cache misses and 70,000 warm selections per sample) measured
+1.214 → 1.185 µs per cold lookup and 0.123 → 0.134 µs per warm selection
+at the median. It is not a device/frame-time or speedup claim.
+
+The Native resolver now also uses that same rank sorter for resting runs.
+`p-4 p-2 bg-brand m-2` and `p-4 bg-brand p-2 m-2` both select 16px in
+compiled and generated Web/Native under both class orders and directions.
+The colour in the second string is crossed only inside a run admitted by
+the compiler's existing footprint proof. A genuinely unassessed write
+in that position still keeps its authored boundary. The rest, ambient
+and event tiers keep their existing relative composition order.
+
+In a CPU-1 Node probe of the mixed resting/event path with a proven
+colour inside the run, the median went from 0.836 to 1.101 µs per cold
+lookup, and from 0.121 to 0.121 µs on warm selection (11 measured
+alternating samples; 4,000 fresh strings and 70,000 warm selections per
+sample). The old winner was 8px; the new winner was 16px. This quantifies
+the bounded cache-fill cost, not an application measurement.
+
+V64 removes the matching all-or-nothing fallback from a static resting
+input: adjacent assessed writes use the same in-place write planner as
+a fully assessed input. An unknown declaration keeps its exact position
+and provenance; only each run on either side is ranked. The final-build
+fixture checks the compiled Web and Native output and generated Native
+map. `p-4 p-2 bg-brand` keeps 16px for the assessed pair even when the
+project has no facts for `bg-brand`; placing that unknown class between
+the two keeps the 8px authored result. This is a statement about the
+pair, not a support verdict for the unknown class. Conditional and
+foreign styling-input boundaries are not relaxed by this proof.
 
 ## Progress
 
