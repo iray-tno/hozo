@@ -57,13 +57,17 @@ test('space utilities settle in Tailwind order among themselves, whichever is wr
   const childNative = compiler.prepareNativeModule(source('space-y-2', 'mt-8')).emit(final)
   assert.match(child.css, /margin-top: 32px/)
   assert.match(childNative.components[0]!.styles, /marginTop: 32/)
-  // A state variant on a child-scoped rule weighs nothing in Tailwind, so it
-  // is not read: the input keeps authored order.
-  for (const classes of ['hover:space-y-4 p-4 p-2', 'hover:space-y-4 p-2 p-4'])
+  // The child-scoped rule stays unassessed; the unrelated resting padding
+  // no longer loses its captured order. The child rule must not change.
+  for (const classes of ['hover:space-y-4 p-4 p-2', 'hover:space-y-4 p-2 p-4']) {
+    const current = compiler.prepareWebModule(source(classes)).emit(final)[0]!.css
+    const old = compiler.prepareWebModule(source(classes)).emit(authored)[0]!.css
+    assert.match(current, /padding-top: 16px/)
     assert.equal(
-      compiler.prepareWebModule(source(classes)).emit(final)[0]!.css,
-      compiler.prepareWebModule(source(classes)).emit(authored)[0]!.css,
+      current,
+      old.replace(/(padding-(?:top|right|bottom|left): )8px/g, (_, prefix) => `${prefix}16px`),
     )
+  }
   // A space utility no longer holds a padding conflict on the old path.
   const padding = compiler.prepareWebModule(source('p-4 p-2 space-y-2')).emit(final)[0]!
   assert.match(padding.css, /padding-top: 16px/)

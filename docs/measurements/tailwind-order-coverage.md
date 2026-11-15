@@ -513,6 +513,25 @@ the two keeps the 8px authored result. This is a statement about the
 pair, not a support verdict for the unknown class. Conditional and
 foreign styling-input boundaries are not relaxed by this proof.
 
+V65 applies the shared ranks to the fully assessed positive owner tier
+even when a resting declaration has no rank. Before the change,
+`p-1 active:p-2 bg-brand hover:p-4` picked 16px in static Web/Native
+under both states but 8px from Tailwind and the generated Native
+resolver; the reverse token order happened to pick 8px everywhere.
+Here the project background rule also writes padding, so the prior
+colour-only proof cannot apply. The owner selectors, not the background
+spelling, prove the separation. The oracle now compares **96** cases:
+three positions of the background, both token orders and all sixteen
+hover/active/focus/focus-visible masks, including a conjunction. All
+four ordinary routes agree with Chromium running pinned Tailwind.
+
+Conversely an unassessed positive owner write does not pin unrelated
+resting ranks. The final-batch control injects a mismatched descriptor
+between `p-4` and `p-2`: the guard is still unranked, and both Native
+routes retain the assessed 16px resting winner. Real ambiguous owners
+remain in the metric/gap fallback controls. Foreign guards and authored
+StyleX/input tiers are not promoted by this proof.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

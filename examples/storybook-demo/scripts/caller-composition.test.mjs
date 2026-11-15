@@ -12,6 +12,7 @@ import { runInNewContext } from 'node:vm'
 import {
   createCompiler,
   openCandidateCache,
+  prepareAuthoredTailwindContext,
   prepareFinalTailwindContext,
   prepareTailwindContext,
 } from '@hozo/compiler'
@@ -1715,13 +1716,25 @@ test('Web candidate container branches preserve Tailwind cascade across breakpoi
   }
 })
 
-test('Web leaves fallback conjunction specificity to the browser', {
+async function authoredOwnerContext(classes) {
+  const css = '@import "tailwindcss/theme.css" layer(theme); @tailwind utilities;'
+  const { snapshot } = await prepareTailwindOrder(
+    css,
+    tailwindPackageDir(),
+    classes.trim().split(/\s+/),
+  )
+  return prepareAuthoredTailwindContext(JSON.stringify(snapshot))
+}
+
+test('Web leaves authored conjunction specificity to the browser', {
   skip: !executablePath,
 }, async () => {
   const classes = 'hover:focus:p-2 active:p-4 columns-(--layout)'
-  const result = compiler.compile(
-    `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
-  )[0]
+  const result = compiler
+    .prepareWebModule(
+      `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
+    )
+    .emit(await authoredOwnerContext(classes))[0]
   assert.match(result.css, /:hover:focus[\s\S]*:active/)
   const html = renderToStaticMarkup(
     evaluate(`module.exports=(${result.jsx})`, { h: createElement }),
@@ -1751,18 +1764,19 @@ test('Web leaves fallback conjunction specificity to the browser', {
   }
 })
 
-test('static fallback keeps repeated owner guards in authored CSS order', {
+test('authored output keeps repeated owner guards in CSS order', {
   skip: !executablePath,
 }, async () => {
   const classes = 'hover:p-2 active:p-4 hover:p-6 columns-(--layout)'
-  const result = compiler.compile(
-    `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
-  )[0]
+  const result = compiler
+    .prepareWebModule(
+      `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
+    )
+    .emit(await authoredOwnerContext(classes))[0]
   const html = renderToStaticMarkup(
     evaluate(`module.exports=(${result.jsx})`, { h: createElement }),
   )
-  // This input has an unassessed write: the contract is authored order,
-  // not Tailwind's ranked variant order. Let CSS arbitrate independently.
+  // This is the explicit authored control, not the classified default.
   const reference =
     'button:hover {padding:8px} button:active {padding:16px} button:hover {padding:24px}'
   const page = await browser.newPage()
@@ -1800,9 +1814,11 @@ test('static fallback keeps repeated owner guards in authored CSS order', {
 })
 
 async function assertRepeatedOwnerRegisters({ classes, reference, property, values }) {
-  const result = compiler.compile(
-    `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
-  )[0]
+  const result = compiler
+    .prepareWebModule(
+      `import {Button} from '@hozo/core';const el=<Button className="${classes}">Target</Button>`,
+    )
+    .emit(await authoredOwnerContext(classes))[0]
   const html = renderToStaticMarkup(
     evaluate(`module.exports=(${result.jsx})`, { h: createElement }),
   )
@@ -1841,7 +1857,7 @@ async function assertRepeatedOwnerRegisters({ classes, reference, property, valu
   }
 }
 
-test('static fallback keeps gap and logical edge writes in authored owner order', {
+test('authored gap and logical edge writes retain repeated owner runs', {
   skip: !executablePath,
 }, async () => {
   for (const [classes, property, css, resting] of [
@@ -1863,13 +1879,14 @@ test('static fallback keeps gap and logical edge writes in authored owner order'
   }
 })
 
-test('unranked absolute text metrics keep repeated owner writes without losing explicit leading', {
+test('an unknown owner write keeps repeated metric runs without losing explicit leading', {
   skip: !executablePath,
 }, async () => {
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
     @tailwind utilities;
     @theme { --color-brand: #123456; }
-    @utility bg-brand { background-color: #abcdef; font-size: 14px; }`
+    @utility bg-brand { background-color: #abcdef; }
+    @utility text-xl { font-size: 20px; }`
   const theme = await loadTheme(css, tailwindPackageDir())
   const local = createCompiler(theme)
   const cases = [
@@ -1891,6 +1908,7 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
   cache.scanFile('metric-fallback.ts', JSON.stringify(names.join(' ')), 1)
   const candidates = cache.renderNativeModulePlan(final, theme)
   assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
+  assert.equal(candidates.ordering.ranks['hover:text-xl'], undefined)
   assert.equal(
     candidates.entries.find((entry) => entry.candidate === 'bg-brand').groups[0].writes[0].reason,
     'ambiguous-property-owner',
@@ -1913,9 +1931,8 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
     ),
     [20, 28],
   )
-  // The background spelling is not a proof of independence: its real
-  // rule also owns font-size. Exercise the authored fallback by supplying
-  // the metric declarations in authored order.
+  // The two rules for hover:text-xl make its font-size owner ambiguous.
+  // Exercise the authored fallback using the rendered metric declarations.
   const rules = {
     'hover:text-lg': ':hover { font-size: 18px; line-height: var(--tw-leading, 28px) }',
     'hover:text-xl': ':hover { font-size: 20px; line-height: var(--tw-leading, 28px) }',
@@ -1988,11 +2005,10 @@ test('unranked absolute text metrics keep repeated owner writes without losing e
   }
 })
 
-test('unranked font weight and family retain repeated owner runs in Web and Native', {
+test('authored font weight and family retain repeated owner runs in Web and Native', {
   skip: !executablePath,
 }, async () => {
-  // The opaque unit deliberately disables canonical ordering. Compare to
-  // CSS declaration order rather than the opaque candidate sheet.
+  // Compare the explicit authored path to independent declaration order.
   const cases = [
     ['hover:font-bold', ':hover', 'font-weight:700'],
     ['active:font-medium', ':active', 'font-weight:500'],
@@ -2017,8 +2033,9 @@ test('unranked font weight and family retain repeated owner runs in Web and Nati
     for (const input of [cases, cases.toReversed()]) {
       const classes = input.map(([name]) => name).join(' ')
       const source = `import { Pressable,Text } from '@hozo/core';const el=<Pressable><Text className="${classes} columns-(--layout)"/></Pressable>`
-      const web = local.compile(source)[0]
-      const native = local.compileNativeModule(source).components[0]
+      const authored = await authoredOwnerContext(`${classes} columns-(--layout)`)
+      const web = local.prepareWebModule(source).emit(authored)[0]
+      const native = local.prepareNativeModule(source).emit(authored).components[0]
       const getChild = (_type, props, child) => child ?? props
       const { className } = evaluate(`module.exports=(${web.jsx})`, { h: getChild })
       const { style: selectStyle } = evaluate(
@@ -2496,9 +2513,9 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
   skip: !executablePath,
 }, async () => {
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}
-    @tailwind utilities; @theme { --color-brand: #123456; --color-opaque: #123456; }
+    @tailwind utilities; @theme { --color-brand: #123456; }
     @utility bg-brand { background-color: #abcdef; }
-    @utility bg-opaque { background-color: #abcdef; font-size: 14px; }`
+    @utility text-xl { font-size: 20px; }`
   const theme = await loadTheme(css, tailwindPackageDir())
   const local = createCompiler(theme)
   const sx = `import * as stylex from '@stylexjs/stylex';
@@ -2526,7 +2543,6 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
     'tracking-[3px]',
     'leading-6',
     'bg-brand',
-    'bg-opaque',
   ]
   const { snapshot, classOrder } = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const context = prepareFinalTailwindContext(JSON.stringify(snapshot))
@@ -2534,6 +2550,7 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
   cache.scanFile('mixed-metrics.tsx', JSON.stringify(names.join(' ')), 1)
   const candidates = cache.renderNativeModulePlan(context, theme)
   assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
+  assert.equal(candidates.ordering.ranks['hover:text-xl'], undefined)
   const nativeCandidateCode = candidates.code.replace(/^import .*$/gm, '')
   const { hozoClasses } = evaluate(nativeCandidateCode, {
     createClassResolver,
@@ -2559,7 +2576,7 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
     for (const guarded of [names.slice(1, 4), names.slice(1, 4).toReversed()])
       for (const stylexLast of [false, true]) {
         const known = ['text-sm', ...guarded]
-        const input = `${known.join(' ')} bg-opaque`
+        const input = `${known.join(' ')} bg-brand`
         const attributes = [
           `className={cx("${input}", runtimeNames)}`,
           '{...stylex.props(metric.label)}',
@@ -2707,8 +2724,8 @@ test('static and generated scalars share Tailwind order beside a proven independ
     'bg-brand',
     'hover:bg-brand',
   ]
-  const prepare = async (writes) => {
-    const stylesheet = `${css} @utility bg-brand { ${writes} }`
+  const prepare = async (extra = '') => {
+    const stylesheet = `${css} @utility bg-brand { background-color: #abcdef; } ${extra}`
     const theme = await loadTheme(stylesheet, tailwindPackageDir())
     const { snapshot, classOrder } = await prepareTailwindOrder(
       stylesheet,
@@ -2723,10 +2740,9 @@ test('static and generated scalars share Tailwind order beside a proven independ
       upstream: (await compile(stylesheet)).build(names),
     }
   }
-  const { final, local, theme, classOrder, upstream } = await prepare('background-color: #abcdef;')
-  // Same candidate, same parsed background, but its real CSS also writes
-  // gap. An IR spelling or name-only shortcut would rank this input too.
-  const overlap = await prepare('background-color: #abcdef; gap: 37px;')
+  const { final, local, theme, classOrder, upstream } = await prepare()
+  // This makes active:gap-4's owner ambiguous, unlike a resting-only barrier.
+  const overlap = await prepare('@utility gap-4 { gap: 16px; }')
   const cache = openCandidateCache()
   cache.scanFile('gap-fallback.ts', JSON.stringify(names.join(' ')), 1)
   const webCandidates = cache.renderCss(theme, classOrder(cache.candidates()))
@@ -2771,7 +2787,7 @@ test('static and generated scalars share Tailwind order beside a proven independ
         return { nativeProps, webProps, web }
       }
       const output = lower(local, final)
-      const untouched = lower(overlap.local, overlap.final)
+      const untouched = authoredGap && lower(overlap.local, overlap.final)
       for (const layout of gapLayouts) {
         const markup = (webProps, className = webProps.className) =>
           renderToStaticMarkup(
@@ -2868,6 +2884,96 @@ test('static and generated scalars share Tailwind order beside a proven independ
   }
 })
 
+test('an unassessed resting write does not discard assessed owner precedence', {
+  skip: !executablePath,
+}, async () => {
+  const base = tailwindPackageDir()
+  const css = `@theme { --spacing: .25rem; --color-brand: #123456; } @tailwind utilities;
+    @utility bg-brand { background-color: #123456; padding: 4px; }`
+  const guards = ['active:p-2', 'hover:p-4', 'focus:p-3', 'focus-visible:p-5', 'hover:focus:p-6']
+  const lists = [0, 1, guards.length].flatMap((position) => {
+    const classes = [...guards]
+    classes.splice(position, 0, 'bg-brand')
+    classes.unshift('p-1')
+    return [classes.join(' '), classes.toReversed().join(' ')]
+  })
+  const names = ['p-1', ...guards, 'bg-brand']
+  const theme = await loadTheme(css, base)
+  const { snapshot, classOrder } = await prepareTailwindOrder(css, base, names)
+  const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const local = createCompiler(theme)
+  const cache = openCandidateCache()
+  cache.scanFile('owner-run.ts', JSON.stringify(names.join(' ')), 1)
+  const plan = cache.renderNativeModulePlan(final, theme)
+  assert.equal(plan.ordering.ranks['bg-brand'], undefined)
+  for (const name of guards) assert.ok(plan.ordering.ranks[name]?.length, name)
+  assert.doesNotMatch(plan.code, /independentColors/)
+  const resolve = evaluate(plan.code.replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  }).hozoClasses
+  const upstream = (await compile(css)).build(names)
+  const generated = cache.renderCss(theme, classOrder(cache.candidates()))
+  const page = await browser.newPage()
+  try {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    const read = async (stylesheet, className, force) => {
+      await page.setContent(
+        `<!doctype html><style>${stylesheet}</style><button class="${className}">Target</button>`,
+      )
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', {
+        nodeId: root.nodeId,
+        selector: 'button',
+      })
+      await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: force })
+      return page
+        .locator('button')
+        .evaluate((node) => parseFloat(getComputedStyle(node).paddingTop))
+    }
+    const selected = (value) =>
+      Object.assign({}, ...[value].flat(Infinity).filter(Boolean)).paddingTop
+    for (const classes of lists) {
+      const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${classes}"/>`
+      const native = local.prepareNativeModule(source).emit(final).components[0]
+      const web = local.prepareWebModule(source).emit(final)[0]
+      const webProps = evaluate(`module.exports=(${web.jsx})`, { h: (_type, props) => props })
+      const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
+        h: (_type, props) => props,
+        HozoPressable: 'owner',
+        hozoStyles: runInNewContext(`(${native.styles})`),
+      })
+      for (let mask = 0; mask < 16; mask++) {
+        const state = {
+          pressed: Boolean(mask & 1),
+          hovered: Boolean(mask & 2),
+          focused: Boolean(mask & 4),
+          focusVisible: Boolean(mask & 8),
+        }
+        const force = [
+          state.pressed && 'active',
+          state.hovered && 'hover',
+          state.focused && 'focus',
+          state.focusVisible && 'focus-visible',
+        ].filter(Boolean)
+        const expected = await read(upstream, classes, force)
+        const label = `${classes}/${mask}`
+        assert.equal(
+          await read(web.css, webProps.className, force),
+          expected,
+          `${label}/static Web`,
+        )
+        assert.equal(await read(generated, classes, force), expected, `${label}/generated Web`)
+        assert.equal(selected(nativeProps.style(state)), expected, `${label}/static Native`)
+        assert.equal(selected(resolve(classes, state)), expected, `${label}/generated Native`)
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('resting and ambient scalar ranks agree with real Tailwind behind a resting candidate barrier', {
   skip: !executablePath,
 }, async () => {
@@ -2951,14 +3057,14 @@ test('resting and ambient scalar ranks agree with real Tailwind behind a resting
   }
 })
 
-test('unranked inline edges expose the physical and logical alias in real layout', {
+test('ranked inline edges still expose the physical and logical projection difference', {
   skip: !executablePath,
 }, async () => {
   const cases = [
     ['hover:ps-6 active:pl-4', 'padding', [16, 0], [24, 0]],
-    ['active:pl-4 hover:ps-6', 'padding', [24, 0], [24, 0]],
+    ['active:pl-4 hover:ps-6', 'padding', [16, 0], [24, 0]],
     ['hover:ms-6 active:ml-4', 'margin', [16, 0], [24, 0]],
-    ['active:ml-4 hover:ms-6', 'margin', [24, 0], [24, 0]],
+    ['active:ml-4 hover:ms-6', 'margin', [16, 0], [24, 0]],
   ]
   const page = await browser.newPage()
   const cdp = await page.context().newCDPSession(page)
@@ -3042,7 +3148,7 @@ test('unranked inline edges expose the physical and logical alias in real layout
   }
 })
 
-test('static fallback composes translate axes across repeated owner guards', {
+test('authored output composes translate axes across repeated owner guards', {
   skip: !executablePath,
 }, async () => {
   await assertRepeatedOwnerRegisters({
@@ -3059,7 +3165,7 @@ test('static fallback composes translate axes across repeated owner guards', {
   })
 })
 
-test('static fallback composes filter functions across repeated owner guards', {
+test('authored output composes filter functions across repeated owner guards', {
   skip: !executablePath,
 }, async () => {
   for (const [base, resting, trailing] of [

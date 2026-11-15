@@ -257,12 +257,12 @@ test('an unassessed object keeps its position without discarding adjacent restin
   }
 })
 
-test('a ranked rule with a mismatched actual owner is a barrier in both static and generated output', async () => {
-  const classes = 'p-4 p-2 active:p-6'
+test('a mismatched actual owner remains unranked without pinning the assessed resting tier', async () => {
+  const classes = 'p-4 active:p-6 p-2'
   const row = runtime('runtime', 'one', classes)
   const compiler = createCompiler()
-  // A barrier keeps authored order; the built-in default would rank this
-  // input, since its own descriptor for `active:p-4` is not mismatched.
+  // Compare to the authored baseline for the guard and diagnostics, not
+  // the unrelated resting padding.
   const authored = prepareAuthoredTailwindContext(await order(classes.split(' ')))
   const oldWeb = compiler.prepareWebModule(source(classes)).emit(authored)[0]!
   const oldNative = compiler.prepareNativeModule(source(classes)).emit(authored).components[0]!
@@ -286,8 +286,12 @@ test('a ranked rule with a mismatched actual owner is a barrier in both static a
   const web = result.modules.find(({ id }) => id === 'w')!.output
   const native = result.modules.find(({ id }) => id === 'n')!.output
   assert.ok(Array.isArray(web) && !Array.isArray(native))
-  assert.equal(web[0]!.css, oldWeb.css)
-  assert.equal(native.components[0]!.styles, oldNative.styles)
+  assert.match(web[0]!.css, /padding-top: 16px/)
+  assert.match(oldWeb.css, /padding-top: 8px/)
+  assert.match(web[0]!.css, /:active\s*\{[^}]*padding-top: 24px/)
+  assert.match(native.components[0]!.styles, /paddingTop: 16/)
+  assert.match(oldNative.styles, /paddingTop: 8/)
+  assert.deepEqual(native.components[0]!.diagnostics, oldNative.diagnostics)
   assert.equal(result.native.ordering?.ranks['active:p-6'], undefined)
   const resolve = runInNewContext(
     result.native.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ') +
