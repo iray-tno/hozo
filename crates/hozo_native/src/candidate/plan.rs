@@ -2,7 +2,10 @@
 //! second scan/parse or a device ordering contract. Write indices name IR
 //! properties before Native expansion/deduplication/transform composition.
 use super::StateGroup;
-use hozo_ir::{Condition, StyleProperty, TailwindOrderContext, TailwindWriteEvidence};
+use hozo_ir::{
+    owner_colour_independent_scalar, Condition, StyleProperty, TailwindOrderContext,
+    TailwindWriteEvidence,
+};
 use std::collections::{BTreeMap, HashMap};
 
 pub struct CandidateModulePlan {
@@ -221,30 +224,8 @@ impl<'a> CandidatePlanBuilder<'a> {
         if barriers.is_empty() {
             return (barriers, Vec::new());
         }
-        // Deliberately start with closed scalar projections. An unfamiliar
-        // write (including a custom property or a register) does not gain
-        // independence just because React Native spells its key differently.
-        fn independent_scalar(property: &str) -> bool {
-            matches!(
-                property,
-                "font-size"
-                    | "line-height"
-                    | "letter-spacing"
-                    | "font-weight"
-                    | "font-family"
-                    | "font-feature-settings"
-                    | "font-variation-settings"
-                    | "--tw-font-weight"
-                    | "--tw-leading"
-                    | "--tw-tracking"
-                    | "padding"
-                    | "padding-top"
-                    | "padding-bottom"
-                    | "padding-left"
-                    | "padding-right"
-                    | "opacity"
-            )
-        }
+        // An unfamiliar write does not gain independence just because
+        // React Native spells its key differently. Check both projections.
         let ranked = self
             .entries
             .iter()
@@ -267,6 +248,9 @@ impl<'a> CandidatePlanBuilder<'a> {
                                         | "paddingLeft"
                                         | "paddingRight"
                                         | "opacity"
+                                        | "gap"
+                                        | "rowGap"
+                                        | "columnGap"
                                 )
                             })
                     })
@@ -274,16 +258,7 @@ impl<'a> CandidatePlanBuilder<'a> {
                         .context
                         .lookup(&entry.candidate)
                         .is_some_and(|candidate| {
-                            candidate.rules.iter().all(|rule| {
-                                // Use the shared assessment: valid @property
-                                // registrations are not selector-owned writes.
-                                hozo_ir::assess_tailwind_rule(&entry.candidate, rule).is_ok_and(
-                                    |rule| {
-                                        !rule.child_scope
-                                            && rule.properties.into_iter().all(independent_scalar)
-                                    },
-                                )
-                            })
+                            candidate.writes_only_on_owner(false, owner_colour_independent_scalar)
                         })
             })
             .map(|entry| entry.candidate.as_str())

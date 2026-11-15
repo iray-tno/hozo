@@ -2675,7 +2675,7 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
   }
 })
 
-test('static and generated gaps share Tailwind order beside a proven independent background', {
+test('static and generated scalars share Tailwind order beside a proven independent background', {
   skip: !executablePath,
 }, async () => {
   const base = tailwindPackageDir()
@@ -2686,8 +2686,24 @@ test('static and generated gaps share Tailwind order beside a proven independent
     ['hover:gap-x-6 active:gap-4', [16, 16]],
     ['active:gap-4 hover:gap-x-6', [16, 24]],
     ['active:gap-4 hover:gap-x-6', [28, 28], { gap: 28 }],
+    [
+      'active:gap-4 hover:gap-x-6 active:opacity-75 hover:opacity-25',
+      null,
+      undefined,
+      'hover:bg-brand',
+    ],
+    [
+      'hover:opacity-25 active:opacity-75 hover:gap-x-6 active:gap-4',
+      null,
+      undefined,
+      'hover:bg-brand',
+    ],
   ]
-  const names = [...new Set(cases.flatMap(([classes]) => classes.split(' '))), 'bg-brand']
+  const names = [
+    ...new Set(cases.flatMap(([classes]) => classes.split(' '))),
+    'bg-brand',
+    'hover:bg-brand',
+  ]
   const prepare = async (writes) => {
     const stylesheet = `${css} @utility bg-brand { ${writes} }`
     const theme = await loadTheme(stylesheet, tailwindPackageDir())
@@ -2713,6 +2729,8 @@ test('static and generated gaps share Tailwind order beside a proven independent
   const webCandidates = cache.renderCss(theme, classOrder(cache.candidates()))
   const candidates = cache.renderNativeModulePlan(final, theme)
   assert.equal(candidates.ordering.ranks['bg-brand'], undefined)
+  assert.equal(candidates.ordering.ranks['hover:bg-brand'], undefined)
+  assert.match(candidates.code, /rankedStates: "hover:bg-brand"/)
   const resolve = evaluate(
     `${candidates.code.replace(/^import[^\n]*\n/gm, '').replaceAll('export const ', 'const ')}
       module.exports = hozoClasses`,
@@ -2725,11 +2743,12 @@ test('static and generated gaps share Tailwind order beside a proven independent
     await cdp.send('DOM.enable')
     await cdp.send('CSS.enable')
     let controlsDisagree = 0
-    for (const [index, [classes, authoredGap, own]] of cases.entries()) {
+    for (const [index, [classes, authoredGap, own, color = 'bg-brand']] of cases.entries()) {
       // Exercise a background on either side of the writes and between
       // conflicting shorthand and axis rules.
       const tokens = classes.split(' ')
-      tokens.splice(index % (tokens.length + 1), 0, 'bg-brand')
+      const position = color === 'bg-brand' ? index % (tokens.length + 1) : 1
+      tokens.splice(position, 0, color)
       const input = tokens.join(' ')
       const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${input}" ${own ? 'style={own}' : ''}/>`
       const lower = (compiler, order) => {
@@ -2776,6 +2795,10 @@ test('static and generated gaps share Tailwind order beside a proven independent
               ),
             ),
           )
+        const fromNative = (style) => {
+          const selected = flatten(style)
+          return { gap: yogaGapGeometry(selected, layout), opacity: selected.opacity ?? 1 }
+        }
         const compare = async (sheet, html, { hovered, pressed }) => {
           await page.setContent(`<style>${sheet}</style>${html}`)
           const { root } = await cdp.send('DOM.getDocument')
@@ -2787,13 +2810,14 @@ test('static and generated gaps share Tailwind order beside a proven independent
             nodeId,
             forcedPseudoClasses: [hovered && 'hover', pressed && 'active'].filter(Boolean),
           })
-          const positions = await page.locator('button').evaluate((owner) =>
-            [...owner.children].map((child) => {
+          const { positions, opacity } = await page.locator('button').evaluate((owner) => ({
+            opacity: Number(getComputedStyle(owner).opacity),
+            positions: [...owner.children].map((child) => {
               const box = child.getBoundingClientRect()
               return [box.left, box.top]
             }),
-          )
-          return gapGeometry(positions, layout.flexDirection)
+          }))
+          return { gap: gapGeometry(positions, layout.flexDirection), opacity }
         }
         for (let bits = 0; bits < 4; bits++) {
           const state = { hovered: !!(bits & 1), pressed: !!(bits & 2), focused: false }
@@ -2810,18 +2834,18 @@ test('static and generated gaps share Tailwind order beside a proven independent
             `${label} / generated Web`,
           )
           assert.deepEqual(
-            yogaGapGeometry(flatten(output.nativeProps.style(state)), layout),
+            fromNative(output.nativeProps.style(state)),
             expected,
             `${label} / static Native`,
           )
           assert.deepEqual(
-            yogaGapGeometry(flatten([resolve(input, state), hozoAuthoredStyle(own)]), layout),
+            fromNative([resolve(input, state), hozoAuthoredStyle(own)]),
             expected,
             `${label} / generated Native`,
           )
-          if (bits === 3) {
+          if (bits === 3 && authoredGap) {
             assert.deepEqual(
-              await compare(untouched.web.css, markup(untouched.webProps), state),
+              (await compare(untouched.web.css, markup(untouched.webProps), state)).gap,
               authoredGap,
               `${label} / overlapping unknown, static Web`,
             )
@@ -2830,7 +2854,7 @@ test('static and generated gaps share Tailwind order beside a proven independent
               authoredGap,
               `${label} / overlapping unknown, static Native`,
             )
-            if (authoredGap.some((value, axis) => value !== expected[axis])) controlsDisagree++
+            if (authoredGap.some((value, axis) => value !== expected.gap[axis])) controlsDisagree++
           }
         }
       }

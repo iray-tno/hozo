@@ -452,6 +452,24 @@ static backends still keep the authored-order fallback. That overlapping
 control is not counted as parity. The repository inventory remains
 **318/320** (819 files; none failed standalone compilation).
 
+V62 replaces the static gap-only check with the same closed CSS footprint
+used by Native candidate planning. The proof can cover one resting or
+owner-state background colour and the assessed scalar writes in that set.
+The Native candidate map separately checks the projected style keys. In
+the additional oracle rows, a colour between gap/opacity writes does not
+split their ranked runs; both class permutations and all four checked
+states agree across the four routes. This extends the same test to **192**
+conditions, with the original overlapping control still in place.
+
+The independent default-order corpus has 60/60 observations for each of
+its three Web routes and 56/60 for each Native route on this stack. All
+eight Native differences are the same physical/logical padding case:
+the emitted styles contain `paddingLeft: 4` alongside
+`paddingStart: 32, paddingEnd: 32`. Actual Yoga gives the logical keys
+priority in either direction, irrespective of insertion order. This is
+tracked as a projection defect, not claimed as parity:
+[#2018](https://github.com/iray-tno/hozo/issues/2018).
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

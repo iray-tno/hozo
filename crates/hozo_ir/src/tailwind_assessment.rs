@@ -181,6 +181,34 @@ impl OrderCandidateDescriptor {
     }
 }
 
+/// Closed footprint of assessed scalar writes known not to compete with
+/// owner foreground/background colour, even through their CSS registers.
+/// Both the static plan and generated Native candidates use this boundary.
+pub fn owner_colour_independent_scalar(property: &str) -> bool {
+    matches!(
+        property,
+        "font-size"
+            | "line-height"
+            | "letter-spacing"
+            | "font-weight"
+            | "font-family"
+            | "font-feature-settings"
+            | "font-variation-settings"
+            | "--tw-font-weight"
+            | "--tw-leading"
+            | "--tw-tracking"
+            | "padding"
+            | "padding-top"
+            | "padding-bottom"
+            | "padding-left"
+            | "padding-right"
+            | "opacity"
+            | "gap"
+            | "row-gap"
+            | "column-gap"
+    )
+}
+
 pub fn assess_tailwind_rule<'a>(
     candidate: &str,
     rule: &'a OrderRuleDescriptor,

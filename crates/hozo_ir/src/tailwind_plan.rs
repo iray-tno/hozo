@@ -2,14 +2,14 @@
 //! writes, never source expressions, and is shared by both platform emitters.
 //! Explicit pass-through remains available as an unassessed-domain control.
 use crate::{
-    Condition, StyleDeclaration, StyleProperty, StyleSource, TailwindRuleBinding,
-    TailwindUnitBindings,
+    owner_colour_independent_scalar, Condition, StyleDeclaration, StyleProperty, StyleSource,
+    TailwindRuleBinding, TailwindUnitBindings,
 };
 use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v61";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v62";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
@@ -129,7 +129,7 @@ impl<'a> TailwindWritePlan<'a> {
                 })
                 .collect();
             let Some(mut ranks) =
-                ranks.or_else(|| gaps_beside_resting_background(self.bindings, region))
+                ranks.or_else(|| scalars_beside_owner_background(self.bindings, region))
             else {
                 continue;
             };
@@ -234,8 +234,8 @@ fn write_rank(
 
 /// A single unranked background-colour write has no other colour to
 /// compete with. Prove the full CSS footprints too: a project utility
-/// with the same name could write `gap` or target another element.
-fn gaps_beside_resting_background(
+/// with the same name could write another slot or target another element.
+fn scalars_beside_owner_background(
     bindings: &TailwindUnitBindings<'_>,
     region: &[StyleDeclaration],
 ) -> Option<Vec<WriteRank>> {
@@ -243,19 +243,22 @@ fn gaps_beside_resting_background(
     // for them. Both namespaces have to be closed and disjoint.
     let mut backgrounds = 0;
     for declaration in region {
+        if declaration.condition != Condition::Always
+            && declaration
+                .condition
+                .owner_interaction_specificity()
+                .is_none()
+        {
+            return None;
+        }
         match declaration.property {
-            StyleProperty::BackgroundColor(_) if declaration.condition == Condition::Always => {
+            StyleProperty::BackgroundColor(_) => {
                 backgrounds += 1;
                 if backgrounds > 1 {
                     return None;
                 }
             }
-            StyleProperty::Gap(_) | StyleProperty::RowGap(_) | StyleProperty::ColumnGap(_)
-                if declaration.condition == Condition::Always
-                    || declaration
-                        .condition
-                        .owner_interaction_specificity()
-                        .is_some() => {}
+            _ if scalar_tailwind_property(&declaration.property) => {}
             _ => return None,
         }
     }
@@ -273,14 +276,14 @@ fn gaps_beside_resting_background(
             };
             if matches!(declaration.property, StyleProperty::BackgroundColor(_)) {
                 // Placement of this independent write is not a Tailwind
-                // priority. It cannot participate in any gap comparison.
+                // priority. It cannot participate in any scalar comparison.
                 return candidate
-                    .writes_only_on_owner(true, |property| property == "background-color")
+                    .writes_only_on_owner(declaration.condition == Condition::Always, |property| {
+                        property == "background-color"
+                    })
                     .then_some((usize::MAX, index, [0; 3]));
             }
-            if !candidate.writes_only_on_owner(false, |property| {
-                matches!(property, "gap" | "row-gap" | "column-gap")
-            }) {
+            if !candidate.writes_only_on_owner(false, owner_colour_independent_scalar) {
                 return None;
             }
             write_rank(bindings, declaration, index)
