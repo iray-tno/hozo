@@ -132,13 +132,21 @@ test('fully ranked Native namespaces emit only compact order, not a second owner
     )
   }
 
-  // A drawable token that the real project CSS did not generate can force
-  // this namespace into fallback. The Native specificity data must remain
-  // there, but it must not carry the old variant tie.
+  // A resting barrier does not make the whole state tier lose its ranks.
   cache.scanFile('unassessed.tsx', JSON.stringify('text-brand'), 1)
+  const resting = await captured()
+  assert.equal(resting.entries.find((entry) => entry.candidate === 'text-brand')?.kind, 'style')
+  assert.equal(resting.ordering?.ranks['text-brand'], undefined)
+  assert.doesNotMatch(resting.code, /rankedStates: true/)
+  for (const tuples of Object.values(readStates(resting.code)))
+    assert.ok(tuples.every((tuple) => tuple.length === 2))
+
+  // A genuine unassessed state write does need the Native specificity
+  // projection. Its tuple weights must not carry the old variant tie.
+  cache.scanFile('unassessed.tsx', JSON.stringify('text-brand hover:text-brand'), 2)
   const mixed = await captured()
-  assert.equal(mixed.entries.find((entry) => entry.candidate === 'text-brand')?.kind, 'style')
-  assert.equal(mixed.ordering?.ranks['text-brand'], undefined)
+  assert.equal(mixed.entries.find((entry) => entry.candidate === 'hover:text-brand')?.kind, 'state')
+  assert.equal(mixed.ordering?.ranks['hover:text-brand'], undefined)
   const states = readStates(mixed.code)
   for (const name of names) {
     const rank = states[name]?.[0]?.[2]
