@@ -6,7 +6,8 @@ the same units. This page counts how much of a real corpus the plan owns
 today, names every ordering mechanism outside it, and says what each still
 serves, so a deletion can be argued from numbers instead of guessed.
 
-State at main `bc4920ad`, policy `scalar-order-v33`.
+Initial measurement at main `bc4920ad`, policy `scalar-order-v33`.
+Later receipts are recorded below.
 
 ## Coverage of this repository's own Tailwind
 
@@ -15,8 +16,8 @@ State at main `bc4920ad`, policy `scalar-order-v33`.
 stories, generated or platform build output) against one captured context:
 Tailwind's own theme plus `@hozo/ui`'s tokens. It counts every class input
 with at least two Tailwind writes (one write has nothing to order). An input
-is ranked only when no block in it reports a barrier; the plan capture now
-reports one per block (`barrier`), the same question `order_scalars` asks.
+is counted as fully ranked only when no block in it reports a barrier.
+A partially ranked run does not change that count.
 
 ```
 256 of 320 multi-write Tailwind inputs ranked (80%) across 317 files
@@ -500,6 +501,17 @@ lookup, and from 0.121 to 0.121 µs on warm selection (11 measured
 alternating samples; 4,000 fresh strings and 70,000 warm selections per
 sample). The old winner was 8px; the new winner was 16px. This quantifies
 the bounded cache-fill cost, not an application measurement.
+
+V64 removes the matching all-or-nothing fallback from a static resting
+input: adjacent assessed writes use the same in-place write planner as
+a fully assessed input. An unknown declaration keeps its exact position
+and provenance; only each run on either side is ranked. The final-build
+fixture checks the compiled Web and Native output and generated Native
+map. `p-4 p-2 bg-brand` keeps 16px for the assessed pair even when the
+project has no facts for `bg-brand`; placing that unknown class between
+the two keeps the 8px authored result. This is a statement about the
+pair, not a support verdict for the unknown class. Conditional and
+foreign styling-input boundaries are not relaxed by this proof.
 
 ## Progress
 

@@ -9,7 +9,7 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v63";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v64";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
@@ -131,24 +131,10 @@ impl<'a> TailwindWritePlan<'a> {
             let Some(mut ranks) =
                 ranks.or_else(|| scalars_beside_owner_background(self.bindings, region))
             else {
+                order_contiguous_resting_runs(self.bindings, region);
                 continue;
             };
-            if ranks.windows(2).any(|pair| pair[0].0 > pair[1].0) {
-                ranks.sort_by_key(|(rank, _, _)| *rank);
-                let mut destination = vec![0; ranks.len()];
-                for (new, &(_, old, _)) in ranks.iter().enumerate() {
-                    destination[old] = new;
-                }
-                // Move declarations in place: no cloned expression/condition
-                // payloads and no replacement of the original Vec allocation.
-                for index in 0..region.len() {
-                    while destination[index] != index {
-                        let next = destination[index];
-                        region.swap(index, next);
-                        destination.swap(index, next);
-                    }
-                }
-            }
+            apply_ranked_order(region, &mut ranks);
             // A breakpoint branch of an unprefixed rule (`container`'s
             // `max-width` at each width) sits at that rule's place in the
             // order, which can be before an unprefixed write of the same
@@ -177,11 +163,6 @@ impl<'a> TailwindWritePlan<'a> {
                             && later.property.same_property_as(&declaration.property)
                             && *weight >= specificity[index]
                     });
-            }
-            for declaration in region {
-                if let StyleSource::TailwindUtility { input, utility } = declaration.source {
-                    declaration.source = StyleSource::TailwindOrdered { input, utility };
-                }
             }
         }
         if dominated.contains(&true) {
@@ -219,6 +200,56 @@ impl<'a> TailwindWritePlan<'a> {
 }
 
 type WriteRank = (usize, usize, [u32; 3]);
+
+fn apply_ranked_order(region: &mut [StyleDeclaration], ranks: &mut [WriteRank]) {
+    if ranks.windows(2).any(|pair| pair[0].0 > pair[1].0) {
+        ranks.sort_by_key(|(rank, _, _)| *rank);
+        let mut destination = vec![0; ranks.len()];
+        for (new, &(_, old, _)) in ranks.iter().enumerate() {
+            destination[old] = new;
+        }
+        // Move declarations in place, without cloning expression payloads.
+        for index in 0..region.len() {
+            while destination[index] != index {
+                let next = destination[index];
+                region.swap(index, next);
+                destination.swap(index, next);
+            }
+        }
+    }
+    for declaration in region {
+        if let StyleSource::TailwindUtility { input, utility } = declaration.source {
+            declaration.source = StyleSource::TailwindOrdered { input, utility };
+        }
+    }
+}
+
+/// One resting cascade channel: a genuinely unknown write stays exactly in
+/// place. Do not give a partially ranked region permission to move across
+/// JSX/StyleX sources or interleave conditional delivery channels.
+fn order_contiguous_resting_runs(
+    bindings: &TailwindUnitBindings<'_>,
+    region: &mut [StyleDeclaration],
+) {
+    if !region.iter().all(|declaration| {
+        declaration.condition == Condition::Always && declaration.source.utility().is_some()
+    }) {
+        return;
+    }
+    let mut start = 0;
+    while start + 1 < region.len() {
+        let mut ranks: Vec<_> = region[start..]
+            .iter()
+            .enumerate()
+            .map_while(|(index, declaration)| write_rank(bindings, declaration, index))
+            .collect();
+        let end = start + ranks.len();
+        if ranks.len() > 1 {
+            apply_ranked_order(&mut region[start..end], &mut ranks);
+        }
+        start = end + 1;
+    }
+}
 
 fn write_rank(
     bindings: &TailwindUnitBindings<'_>,
@@ -388,6 +419,31 @@ mod tests {
             assert_eq!(&after[..3], &before[..3], "{unknown}");
             assert_eq!(after[3].property, before[4].property);
             assert_eq!(after[4].property, before[3].property);
+        }
+    }
+
+    #[test]
+    fn unknown_resting_write_pins_its_position_between_independently_ranked_runs() {
+        let context = TailwindOrderContext::new(crate::portable_tailwind_snapshot()).unwrap();
+        let (declarations, units) = fixture(&[
+            ("p-4", 10, Condition::Always),
+            ("p-2", 10, Condition::Always),
+            ("unknown", 10, Condition::Always),
+            ("p-4", 10, Condition::Always),
+            ("p-2", 10, Condition::Always),
+        ]);
+        let before = declarations.clone();
+        let bindings = context.bind(&units);
+        let after = TailwindWritePlan::passthrough(declarations, &bindings)
+            .order_scalars()
+            .into_declarations();
+        assert_eq!(after[2], before[2]);
+        for (index, previous) in [(0, 1), (1, 0), (3, 4), (4, 3)] {
+            assert_eq!(after[index].property, before[previous].property);
+            assert!(matches!(
+                after[index].source,
+                StyleSource::TailwindOrdered { .. }
+            ));
         }
     }
 

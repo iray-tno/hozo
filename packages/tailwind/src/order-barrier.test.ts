@@ -3,12 +3,11 @@ import test from 'node:test'
 import { createCompiler, prepareFinalTailwindContext } from '@hozo/compiler'
 import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
-// #1230. The plan capture names why a block keeps its input in authored
-// order, so a corpus can be counted (`scripts/tailwind-order-coverage.mjs`).
-// It must agree with what `order_scalars` actually does.
+// #1230. The plan capture names unassessed blocks, not whether the whole
+// input takes a different path. The corpus counts fully assessed inputs.
 const css = '@import "tailwindcss/theme.css" layer(theme); @tailwind utilities;'
 
-test('each captured block reports the barrier that keeps its input in authored order', async () => {
+test('each captured block reports what prevents assessing the full input', async () => {
   const names = ['p-4', 'p-2', 'columns-(--layout)', 'md:p-1', 'cursor-[grab]', 'hover:space-y-2']
   const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const compiler = createCompiler()
@@ -48,7 +47,7 @@ test('each captured block reports the barrier that keeps its input in authored o
   ])
 })
 
-test('an input with no barrier is exactly an input the plan reorders', async () => {
+test('a resting barrier pins its position but does not freeze an adjacent assessed run', async () => {
   const names = ['p-4', 'p-2', 'columns-(--layout)']
   const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const final = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
@@ -59,7 +58,9 @@ test('an input with no barrier is exactly an input the plan reorders', async () 
         `import {View} from '@hozo/core';export const A=()=> <View className="${classes}"/>`,
       )
       .emit(final)[0]!.css
-  // No barrier: both orders agree. A barrier: authored order decides.
+  // An adjacent run is still assessed; an intervening barrier cannot be crossed.
   assert.equal(web('p-4 p-2'), web('p-2 p-4'))
-  assert.notEqual(web('p-4 p-2 columns-(--layout)'), web('p-2 p-4 columns-(--layout)'))
+  assert.equal(web('p-4 p-2 columns-(--layout)'), web('p-2 p-4 columns-(--layout)'))
+  assert.match(web('p-4 columns-(--layout) p-2'), /padding-top: 8px/)
+  assert.match(web('p-2 columns-(--layout) p-4'), /padding-top: 16px/)
 })

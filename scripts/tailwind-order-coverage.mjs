@@ -1,11 +1,10 @@
 // How much of this repository's own Tailwind is ranked by the shared plan
-// (RFC 007, #1230), and why the rest keeps its authored order.
+// (RFC 007, #1230), and which blocks prevent fully assessing the rest.
 //
 // An input -- one `className` or slot class list -- is ranked only when every
-// write in it can be: one barrier keeps the whole input on the old path. This
-// counts inputs with at least two Tailwind writes (a single write has nothing
-// to order) and attributes each one on the old path to the first barrier the
-// planner reports. Read-only: it compiles, it does not write files.
+// write in it can be. Adjacent assessed runs inside an input with a barrier
+// don't count as a fully ranked input. This counts inputs with at least two
+// writes and attributes each incomplete input to the first barrier. Read-only.
 //
 //   node scripts/tailwind-order-coverage.mjs [--json]
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -111,7 +110,7 @@ const report = {
   candidates: names.size,
   inputs,
   ranked,
-  authoredOrder: inputs - ranked,
+  authoredOrder: inputs - ranked, // Historical field name: not fully ranked.
   rankedPercent: inputs ? Math.round((ranked / inputs) * 1000) / 10 : 0,
   barriers: [...reasons]
     .sort((a, b) => b[1] - a[1])

@@ -140,7 +140,7 @@ test('unrepresentable theme weights remain correct CSS but are diagnosed for act
   }
 })
 
-test('unknown hoisted CSS is still a whole-input barrier, not treated as a property registration', async () => {
+test('unknown hoisted CSS still pins its write, not treated as a property registration', async () => {
   const css = cssFor('700')
   const theme = await loadTheme(css, base)
   const compiler = createCompiler(theme)
@@ -166,7 +166,7 @@ test('unknown hoisted CSS is still a whole-input barrier, not treated as a prope
     }
     const context = prepareFinalTailwindContext(JSON.stringify(data))
     const result = compiler
-      .prepareWebModule(source('font-bold font-normal p-4 p-2'))
+      .prepareWebModule(source('font-normal p-4 font-bold p-2'))
       .emit(context)[0]!
     assert.match(result.css, /padding-top: 8px/)
     const cache = openCandidateCache()

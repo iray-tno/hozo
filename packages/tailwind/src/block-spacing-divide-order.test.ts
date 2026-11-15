@@ -50,11 +50,15 @@ test('block-logical spacing, dividers and reverse flags settle in Tailwind order
     if (old[0] !== old[1]) differs++
   }
   assert.ok(differs >= 6, `authored order differed in ${differs}`)
-  // A divider style still keeps authored order: it sets the register every
-  // divider width reads, and Hozo writes the literal style.
-  for (const classes of ['divide-dashed divide-y p-4 p-2', 'divide-y divide-dashed p-2 p-4'])
-    assert.equal(
-      compiler.prepareWebModule(source(classes)).emit(final)[0]!.css,
-      compiler.prepareWebModule(source(classes)).emit(authored)[0]!.css,
-    )
+  // A divider style sets the register every divider width reads. It
+  // stays in place and cannot be crossed without a rank.
+  for (const [classes, padding] of [
+    ['divide-y p-4 divide-dashed p-2', '8px'],
+    ['p-2 divide-dashed p-4 divide-y', '16px'],
+  ]) {
+    const result = compiler.prepareWebModule(source(classes)).emit(final)[0]!.css
+    assert.ok(result.includes(`padding-top: ${padding}`))
+    assert.match(result, /border-top-style: dashed/)
+    assert.match(result, /border-bottom-width: 1px/)
+  }
 })
