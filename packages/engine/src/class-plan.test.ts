@@ -262,3 +262,26 @@ test('invalid schema/ranks are explicit errors and a legacy class named schema i
   const resolve = createClassResolver({ schema: { color: 'ordinary' } })
   assert.equal(flatten(resolve('schema')).color, 'ordinary')
 })
+
+test('assessed ambient runs keep ranks and cannot cross an unranked ambient writer', () => {
+  const small = { paddingTop: 8 }
+  const large = { paddingTop: 16 }
+  const unknown = { paddingTop: 99 }
+  const restore = { color: 'base' }
+  const resolve = createClassResolver({
+    schema: 1,
+    styles: { restore },
+    ambient: { rtl: true, ltr: false },
+    states: {
+      small: [[['rtl'], small]],
+      large: [[['rtl'], large]],
+      unknown: [[['rtl'], unknown]],
+      inactive: [[['ltr'], unknown]],
+    },
+    ordering: { schema: 1, ranks: { small: [1], large: [2] } },
+  })
+  const value = 'large inactive restore small'
+  assert.deepEqual(resolve(value), [restore, small, large])
+  assert.equal(resolve(value), resolve(value), 'resolved ambient output stays cached')
+  assert.deepEqual(resolve('large unknown restore small'), [restore, large, unknown, small])
+})

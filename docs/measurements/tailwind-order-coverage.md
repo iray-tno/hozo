@@ -470,6 +470,22 @@ priority in either direction, irrespective of insertion order. This is
 tracked as a projection defect, not claimed as parity:
 [#2018](https://github.com/iray-tno/hozo/issues/2018).
 
+V63 also removes the authored-order-only branch for already-evaluated
+Native direction groups. With `rtl:p-4 rtl:p-2 p-1 bg-brand m-2`, the
+generated Native fallback previously returned 8px in RTL despite having
+both direction ranks. The same class string and its reverse now select
+16px in RTL and 4px in LTR in the four static/generated routes against
+real Tailwind in Chromium. The compiled Native probe supplies the same
+direction fact to the emitted guard; this is not device validation.
+The ambient tier still precedes live owner state and retains positions
+of unknown writes. State updates and cache hits neither read rank data
+nor sort.
+
+One bounded Node measurement (CPU 1, alternating same-process samples,
+4,000 cache misses and 70,000 warm selections per sample) measured
+1.214 → 1.185 µs per cold lookup and 0.123 → 0.134 µs per warm selection
+at the median. It is not a device/frame-time or speedup claim.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

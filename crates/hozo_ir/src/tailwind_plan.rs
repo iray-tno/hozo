@@ -9,7 +9,7 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v62";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v63";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
@@ -242,13 +242,22 @@ fn scalars_beside_owner_background(
     // Do not re-assess unrelated fallback inputs or allocate a rank vector
     // for them. Both namespaces have to be closed and disjoint.
     let mut backgrounds = 0;
+    let (mut direction, mut interaction) = (false, false);
     for declaration in region {
-        if declaration.condition != Condition::Always
-            && declaration
-                .condition
-                .owner_interaction_specificity()
-                .is_none()
-        {
+        match declaration.condition {
+            Condition::Always => {}
+            Condition::Environment(crate::Environment::Ltr | crate::Environment::Rtl)
+                if !matches!(declaration.property, StyleProperty::BackgroundColor(_)) =>
+            {
+                direction = true;
+            }
+            ref guard if guard.owner_interaction_specificity().is_some() => interaction = true,
+            _ => return None,
+        }
+        // A fixed direction and an owner event are different selection
+        // channels on Native; this proof does not order them against each
+        // other when both can write the same slot.
+        if direction && interaction {
             return None;
         }
         match declaration.property {

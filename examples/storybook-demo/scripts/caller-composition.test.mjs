@@ -2868,6 +2868,82 @@ test('static and generated scalars share Tailwind order beside a proven independ
   }
 })
 
+test('ambient scalar ranks agree with real Tailwind behind a resting candidate barrier', {
+  skip: !executablePath,
+}, async () => {
+  const lists = ['rtl:p-4 rtl:p-2 p-1 bg-brand m-2', 'm-2 bg-brand p-1 rtl:p-2 rtl:p-4']
+  const names = [...new Set(lists.flatMap((value) => value.split(' ')))]
+  const base = tailwindPackageDir()
+  const css = `@theme { --spacing: .25rem; --color-brand: #123456; } @tailwind utilities;
+    @utility bg-brand { background-color: #123456; }`
+  const theme = await loadTheme(css, base)
+  const { snapshot, classOrder } = await prepareTailwindOrder(css, base, names)
+  const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const compiler = createCompiler(theme)
+  const cache = openCandidateCache()
+  cache.scanFile('direction.ts', JSON.stringify(names.join(' ')), 1)
+  const candidatePlan = cache.renderNativeModulePlan(final, theme)
+  assert.ok(candidatePlan.ordering.ranks['rtl:p-2'])
+  assert.ok(candidatePlan.ordering.ranks['rtl:p-4'])
+  assert.equal(candidatePlan.ordering.ranks['bg-brand'], undefined)
+  // m-2's Native projected keys are not in the compact colour-independent
+  // admission. This exact string must actually take the resolver fallback.
+  assert.match(candidatePlan.code, /independentColors: \["bg-brand", "(?![^"]*m-2)/)
+  const candidateWeb = cache.renderCss(theme, classOrder(cache.candidates()))
+  const upstream = (await compile(css)).build(names)
+  const page = await browser.newPage()
+  try {
+    for (const classes of lists) {
+      const code = `import { View } from '@hozo/core'; const el=<View className="${classes}"/>`
+      const web = compiler.prepareWebModule(code).emit(final)[0]
+      const webMarkup = renderToStaticMarkup(
+        evaluate(`module.exports=(${web.jsx})`, { h: createElement }),
+      )
+      const native = compiler.prepareNativeModule(code).emit(final).components[0]
+      for (const isRTL of [false, true]) {
+        const dir = isRTL ? 'rtl' : 'ltr'
+        const read = async (sheet, markup) => {
+          await page.setContent(`<html dir="${dir}"><style>${sheet}</style>${markup}</html>`)
+          return page.locator('body > div').evaluate((owner) => getComputedStyle(owner).paddingTop)
+        }
+        const nativeStyles = evaluate(`module.exports=(${native.jsx})`, {
+          h: (_type, props) => props,
+          View: 'view',
+          hozoStyles: runInNewContext(`(${native.styles})`),
+          __hozoEnv_rtl: isRTL,
+        }).style
+        const resolve = evaluate(
+          `${candidatePlan.code.replace(/^import[^\n]*\n/gm, '').replaceAll('export const ', 'const ')}
+            module.exports = hozoClasses`,
+          { createClassResolver, I18nManager: { isRTL } },
+        )
+        const selected = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+        const markup = `<div class="${classes}"></div>`
+        const expected = await read(upstream, markup)
+        assert.equal(expected, isRTL ? '16px' : '4px')
+        assert.equal(await read(web.css, webMarkup), expected, `${classes} / ${dir} static Web`)
+        assert.equal(
+          await read(candidateWeb, markup),
+          expected,
+          `${classes} / ${dir} generated Web`,
+        )
+        assert.equal(
+          `${selected(nativeStyles).paddingTop}px`,
+          expected,
+          `${classes} / ${dir} static Native`,
+        )
+        assert.equal(
+          `${selected(resolve(classes)).paddingTop}px`,
+          expected,
+          `${classes} / ${dir} generated Native`,
+        )
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('unranked inline edges expose the physical and logical alias in real layout', {
   skip: !executablePath,
 }, async () => {

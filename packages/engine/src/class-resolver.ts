@@ -174,11 +174,7 @@ interface RankedStateEntry extends TemplateEntry {
 /** An assessed run may not move across a Native specificity boundary or
  * unknown write. The compiler can separately prove that specific holes do
  * not interact with the whole tier. */
-function orderRankedStateRuns(
-  entries: RankedStateEntry[],
-  sharedTier: boolean,
-  disjointHoles: boolean,
-) {
+function orderRankedRuns(entries: RankedStateEntry[], sharedTier: boolean, disjointHoles: boolean) {
   let start = 0
   while (start < entries.length - 1) {
     let end = start
@@ -195,7 +191,12 @@ function orderRankedStateRuns(
       inverted ||= previous > rank
       previous = rank
     }
-    if (inverted) {
+    if (inverted && end === start + 2) {
+      // Both entries had ranks, otherwise no inversion was possible.
+      const first = entries[start]!
+      entries[start] = entries[start + 1]!
+      entries[start + 1] = first
+    } else if (inverted) {
       const run = entries.slice(start, end)
       const ranked = disjointHoles ? run.filter((entry) => entry.rank !== undefined) : run
       ranked.sort((a, b) => a.rank! - b.rank!)
@@ -344,7 +345,7 @@ export function createClassResolver(
     const base: StyleObject[] = []
     const groups: RankedStateEntry[] = []
     const stateClasses: string[] = []
-    const decided: StyleObject[] = []
+    const decided: RankedStateEntry[] = []
     // Build transient ranked entries only for the generated-plan ABI. A
     // single unassessed object still makes the whole string fall back unless
     // every drawable candidate belongs to the compiler's disjoint sets.
@@ -398,7 +399,7 @@ export function createClassResolver(
           }
           take?.(rank, entry)
           if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
-            if (matches(entry.keys, name, ambient)) decided.push(entry.style)
+            if (matches(entry.keys, name, ambient)) decided.push(entry)
             continue
           }
           groups.push(entry)
@@ -449,8 +450,13 @@ export function createClassResolver(
     ) {
       groups.sort((a, b) => a.ownerRank! - b.ownerRank!)
     }
-    if (ranks) orderRankedStateRuns(groups, sharedTier, stateColors !== undefined)
-    base.push(...decided)
+    if (ranks) {
+      // Ambient guards have already been evaluated. They keep their
+      // resting tier, but it must not throw away known Tailwind order.
+      orderRankedRuns(decided, true, false)
+      orderRankedRuns(groups, sharedTier, stateColors !== undefined)
+    }
+    for (const { style } of decided) base.push(style)
     return {
       base: compose ? compose(base) : base,
       raw: base,
