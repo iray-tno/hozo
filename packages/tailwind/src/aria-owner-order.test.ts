@@ -188,28 +188,35 @@ test('canonical disabled ordering survives actual static/dynamic action and dest
   assert.equal(observations, 288)
 })
 
-test('unassessed ARIA selectors preserve the complete old input, not guessed priorities', async () => {
+test('an unassessed relation stays in place without pinning an adjacent resting pair', async () => {
   const compiler = createCompiler()
-  for (const neighbor of [
-    // Every boolean ARIA state Tailwind names is assessed now
-    // (aria-state-order.test.ts); arbitrary values are not parsed at all.
-    'not-group-hover:p-8',
-  ]) {
-    const names = ['p-4', 'p-2', neighbor]
+  // Every boolean ARIA state Tailwind names is assessed now; use a
+  // branching relation to test a genuine unranked, potentially overlapping write.
+  const neighbor = 'not-group-hover:p-8'
+  for (const [names, adjacent] of [
+    [['p-4', 'p-2', neighbor], true],
+    [['p-4', neighbor, 'p-2'], false],
+  ] as const) {
     const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
     const context = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
     // Authored order, not a pass-through context: that one now ranks with
     // the built-in Tailwind order and would agree with a ranked input too.
     const legacy = prepareAuthoredTailwindContext(JSON.stringify(prepared.snapshot))
     const source = `import {Pressable} from '@hozo/core';export const A=({state})=><Pressable accessibilityState={state} className="${names.join(' ')}"/>`
-    assert.deepEqual(
-      compiler.prepareWebModule(source).emit(context),
-      compiler.prepareWebModule(source).emit(legacy),
-    )
-    assert.deepEqual(
-      compiler.prepareNativeModule(source).emit(context),
-      compiler.prepareNativeModule(source).emit(legacy),
-    )
+    const web = compiler.prepareWebModule(source).emit(context)
+    const authoredWeb = compiler.prepareWebModule(source).emit(legacy)
+    const native = compiler.prepareNativeModule(source).emit(context)
+    const authoredNative = compiler.prepareNativeModule(source).emit(legacy)
+    if (adjacent) {
+      assert.match(authoredWeb[0]!.css, /padding-top: 8px;/)
+      assert.match(web[0]!.css, /padding-top: 16px;/)
+      assert.match(web[0]!.css, /padding-top: 32px;/)
+      assert.match(native.components[0]!.styles, /paddingTop: 16/)
+    } else {
+      assert.deepEqual(web, authoredWeb)
+      assert.deepEqual(native, authoredNative)
+    }
+    assert.deepEqual(native.components[0]!.diagnostics, authoredNative.components[0]!.diagnostics)
     const cache = openCandidateCache()
     cache.scanFile('aria.ts', JSON.stringify(names.join(' ')), 0)
     const entry = cache

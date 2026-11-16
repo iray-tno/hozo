@@ -3145,6 +3145,87 @@ test('resting and ambient scalar ranks agree with real Tailwind behind a resting
   }
 })
 
+test('adjacent assessed writes keep their shared rank inside the same breakpoint or negated condition', {
+  skip: !executablePath,
+}, async () => {
+  const conditions = [
+    ['md', (wide) => wide],
+    ['max-md', (wide) => !wide],
+    ['not-focus', (_wide, focused) => !focused],
+    ['md:not-focus', (wide, focused) => wide && !focused],
+  ]
+  const names = [
+    'p-1',
+    'bg-brand',
+    ...conditions.flatMap(([guard]) => [`${guard}:p-4`, `${guard}:p-2`]),
+  ]
+  const css = `@theme { --spacing: .25rem; --breakpoint-md: 48rem; --color-brand: #123456; }
+    @tailwind utilities; @utility bg-brand { background-color: #123456; border-width: 3px; }`
+  const base = tailwindPackageDir()
+  const theme = await loadTheme(css, base)
+  const { snapshot, classOrder } = await prepareTailwindOrder(css, base, names)
+  const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const local = createCompiler(theme)
+  const cache = openCandidateCache()
+  cache.scanFile('conditions.ts', JSON.stringify(names.join(' ')), 0)
+  const candidate = cache.renderNativeModulePlan(final, theme)
+  assert.equal(candidate.ordering?.ranks['bg-brand'], undefined)
+  const generatedWeb = cache.renderCss(theme, classOrder(cache.candidates()))
+  const upstream = (await compile(css)).build(names)
+  const page = await browser.newPage()
+  try {
+    const read = async (sheet, className, focused) => {
+      await page.setContent(
+        `<!doctype html><style>${sheet}</style><button class="${className}">Target</button>`,
+      )
+      const owner = page.locator('button')
+      if (focused) await owner.focus()
+      return owner.evaluate((node) => parseFloat(getComputedStyle(node).paddingTop))
+    }
+    for (const [guard, matches] of conditions) {
+      assert.match(candidate.code, new RegExp(`"${guard}:p-4": "[^"]+static className`))
+      for (const pair of [`${guard}:p-4 ${guard}:p-2`, `${guard}:p-2 ${guard}:p-4`]) {
+        const classes = `p-1 ${pair} bg-brand`
+        const src = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${classes}"/>`
+        const web = local.prepareWebModule(src).emit(final)[0]
+        const native = local.prepareNativeModule(src).emit(final).components[0]
+        const { className } = evaluate(`module.exports=(${web.jsx})`, {
+          h: (_type, props) => props,
+        })
+        assert.equal(native.diagnostics.length, 0, classes)
+        for (const wide of [false, true]) {
+          await page.setViewportSize({ width: wide ? 850 : 500, height: 450 })
+          const props = evaluate(`module.exports=(${native.jsx})`, {
+            h: (_type, props) => props,
+            Pressable: 'owner',
+            HozoPressable: 'owner',
+            hozoStyles: runInNewContext(`(${native.styles})`),
+            __hozoBp_md: wide,
+            __hozoWidth_768: wide,
+          })
+          for (const focused of [false, true]) {
+            const label = `${classes} / wide=${wide} / focused=${focused}`
+            const expected = matches(wide, focused) ? 16 : 4
+            const styles =
+              typeof props.style === 'function' ? props.style({ focused }) : props.style
+            const selected = Object.assign({}, ...styles.flat(Infinity).filter(Boolean))
+            assert.equal(await read(upstream, classes, focused), expected, `${label} / Tailwind`)
+            assert.equal(await read(web.css, className, focused), expected, `${label} / static Web`)
+            assert.equal(
+              await read(generatedWeb, classes, focused),
+              expected,
+              `${label} / generated Web`,
+            )
+            assert.equal(selected.paddingTop, expected, `${label} / static Native`)
+          }
+        }
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('ranked inline edges still expose the physical and logical projection difference', {
   skip: !executablePath,
 }, async () => {
