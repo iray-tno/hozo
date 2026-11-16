@@ -209,10 +209,11 @@ test('empty/static-only/runtime-only batches still prepare once and keep fallbac
 })
 
 test('an unassessed object keeps its position without discarding adjacent resting ranks', async () => {
-  for (const [classes, padding, staticRun] of [
+  for (const [classes, padding, hasAssessedRun] of [
     ['p-4 p-2 bg-brand', 16, true],
     ['p-4 bg-brand p-2', 8, false],
-    ['p-4 p-2 text-brand rtl:p-4', 16, false],
+    // An RTL write after the barrier must not pin the adjacent resting pair.
+    ['p-4 p-2 text-brand rtl:p-4', 16, true],
   ] as const) {
     const row = runtime('runtime', 'one', classes)
     const compiler = createCompiler()
@@ -236,11 +237,13 @@ test('an unassessed object keeps its position without discarding adjacent restin
     const web = result.modules.find(({ id }) => id === 'w')!.output
     const native = result.modules.find(({ id }) => id === 'n')!.output
     assert.ok(Array.isArray(web) && !Array.isArray(native))
-    if (staticRun) {
+    if (hasAssessedRun) {
       assert.notEqual(web[0]!.css, oldWeb.css)
       assert.notEqual(native.components[0]!.styles, oldNative.styles)
-      assert.match(web[0]!.css, /padding-top: 16px/)
-      assert.match(native.components[0]!.styles, /paddingTop: 16/)
+      // Inspect the resting styles: the RTL rule also writes 16px.
+      assert.match(web[0]!.css, /\.hozo-0\s*\{[^}]*padding-top: 16px;/, classes)
+      const styles = runInNewContext(`(${native.components[0]!.styles})`)
+      assert.equal(styles.hozo0.paddingTop, 16, classes)
     } else {
       assert.equal(web[0]!.css, oldWeb.css)
       assert.equal(native.components[0]!.styles, oldNative.styles)
@@ -257,12 +260,12 @@ test('an unassessed object keeps its position without discarding adjacent restin
   }
 })
 
-test('a ranked rule with a mismatched actual owner is a barrier in both static and generated output', async () => {
-  const classes = 'p-4 p-2 active:p-6'
+test('a mismatched actual owner remains unranked without pinning the assessed resting tier', async () => {
+  const classes = 'p-4 active:p-6 p-2'
   const row = runtime('runtime', 'one', classes)
   const compiler = createCompiler()
-  // A barrier keeps authored order; the built-in default would rank this
-  // input, since its own descriptor for `active:p-4` is not mismatched.
+  // Compare to the authored baseline for the guard and diagnostics, not
+  // the unrelated resting padding.
   const authored = prepareAuthoredTailwindContext(await order(classes.split(' ')))
   const oldWeb = compiler.prepareWebModule(source(classes)).emit(authored)[0]!
   const oldNative = compiler.prepareNativeModule(source(classes)).emit(authored).components[0]!
@@ -286,8 +289,12 @@ test('a ranked rule with a mismatched actual owner is a barrier in both static a
   const web = result.modules.find(({ id }) => id === 'w')!.output
   const native = result.modules.find(({ id }) => id === 'n')!.output
   assert.ok(Array.isArray(web) && !Array.isArray(native))
-  assert.equal(web[0]!.css, oldWeb.css)
-  assert.equal(native.components[0]!.styles, oldNative.styles)
+  assert.match(web[0]!.css, /padding-top: 16px/)
+  assert.match(oldWeb.css, /padding-top: 8px/)
+  assert.match(web[0]!.css, /:active\s*\{[^}]*padding-top: 24px/)
+  assert.match(native.components[0]!.styles, /paddingTop: 16/)
+  assert.match(oldNative.styles, /paddingTop: 8/)
+  assert.deepEqual(native.components[0]!.diagnostics, oldNative.diagnostics)
   assert.equal(result.native.ordering?.ranks['active:p-6'], undefined)
   const resolve = runInNewContext(
     result.native.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ') +

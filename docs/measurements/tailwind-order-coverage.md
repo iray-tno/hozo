@@ -513,6 +513,51 @@ the two keeps the 8px authored result. This is a statement about the
 pair, not a support verdict for the unknown class. Conditional and
 foreign styling-input boundaries are not relaxed by this proof.
 
+V65 applies the shared ranks to the fully assessed positive owner tier
+even when a resting declaration has no rank. Before the change,
+`p-1 active:p-2 bg-brand hover:p-4` picked 16px in static Web/Native
+under both states but 8px from Tailwind and the generated Native
+resolver; the reverse token order happened to pick 8px everywhere.
+Here the project background rule also writes padding, so the prior
+colour-only proof cannot apply. The owner selectors, not the background
+spelling, prove the separation. The oracle now compares **96** cases:
+three positions of the background, both token orders and all sixteen
+hover/active/focus/focus-visible masks, including a conjunction. All
+four ordinary routes agree with Chromium running pinned Tailwind.
+
+Conversely an unassessed positive owner write does not pin unrelated
+resting ranks. The final-batch control injects a mismatched descriptor
+between `p-4` and `p-2`: the guard is still unranked, and both Native
+routes retain the assessed 16px resting winner. Real ambiguous owners
+remain in the metric/gap fallback controls. Foreign guards and authored
+StyleX/input tiers are not promoted by this proof.
+
+V66 closes the remaining positive-owner fallback difference. An unknown
+state write stays in its authored position, but no longer disables ranks
+in neighbouring assessed runs of the same selector weight. The static
+plan uses an indexed view of Native's existing specificity projection;
+only assessed positions within each run are exchanged, by the common
+Tailwind rank. No Native comparator or runtime work was added.
+
+With both hover and active, `active:p-2 hover:p-4 focus:p-7` now selects
+8px in static Web/Native and generated Native, matching pinned Tailwind.
+The duplicate captured focus rule still has no unique rank. Moving it
+between active and hover pins the authored 16px winner for that
+unassessed run; the Tailwind oracle still reads 8px and this row is not
+counted as parity. Inserting a higher-weight conjunction never splits a
+lower-weight run, and the selected conjunction wins when active.
+
+V67 applies the same rank runs to adjacent assessed resting and fixed
+direction writes. A captured background with a second CSS write cannot
+use the earlier colour-only proof. With that unranked class,
+`rtl:p-4 rtl:p-2 p-1` previously selected 4px in static Web and 8px in
+static Native but 16px in generated Native and pinned Tailwind in RTL.
+Both directions and token orders now agree across all four Hozo routes.
+Resting and direction selectors can tie in CSS, so an unknown write
+between them still pins the run; they are not unconditionally moved to
+different authored tiers. Adding a fixed direction margin to the
+separate owner fallback no longer discards known hover/active ranks.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

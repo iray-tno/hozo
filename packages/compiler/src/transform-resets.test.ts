@@ -3,7 +3,8 @@ import { test } from 'node:test'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
-import { compile, compileNative, openCandidateCache } from './index.ts'
+import { authoredOwnerContext } from '../fixtures/authored-owner-context.ts'
+import { compile, compileNative, createCompiler, openCandidateCache } from './index.ts'
 import { generatedRuntimeImports } from './lower.ts'
 
 // Execute the emitted style expression, not just the presence of a helper
@@ -19,10 +20,17 @@ function styleExpression(jsx: string): string {
   throw new Error(`Missing style expression: ${jsx}`)
 }
 
-function compiledStyle(classes: string, component = 'View', diagnosticCodes: string[] = []) {
+function compiledStyle(
+  classes: string,
+  component = 'View',
+  diagnosticCodes: string[] = [],
+  authored = false,
+) {
   const source = `import { ${component} } from '@hozo/core'
 export function C() { return <${component} ${component === 'Pressable' ? 'accessibilityRole="button"' : ''} className="${classes}" /> }`
-  const result = compileNative(source)[0]
+  const result = authored
+    ? createCompiler().prepareNativeModule(source).emit(authoredOwnerContext(source)).components[0]
+    : compileNative(source)[0]
   assert.ok(result)
   assert.deepEqual(
     result.diagnostics.map(({ code }) => code),
@@ -360,6 +368,7 @@ test('unranked owner-state runs compose each translate axis in authored order', 
     'hover:translate-x-2 active:translate-x-4 active:translate-y-5 hover:translate-y-3 columns-(--layout)',
     'Pressable',
     ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+    true,
   )
   const style = compiled.value() as (state: object) => unknown
   assert.deepEqual(flatten(style({ hovered: true, pressed: true })).transform, [

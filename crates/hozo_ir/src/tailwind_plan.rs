@@ -9,7 +9,7 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v64";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v67";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
@@ -131,7 +131,7 @@ impl<'a> TailwindWritePlan<'a> {
             let Some(mut ranks) =
                 ranks.or_else(|| scalars_beside_owner_background(self.bindings, region))
             else {
-                order_contiguous_resting_runs(self.bindings, region);
+                order_partial_input(self.bindings, region);
                 continue;
             };
             apply_ranked_order(region, &mut ranks);
@@ -202,6 +202,14 @@ impl<'a> TailwindWritePlan<'a> {
 type WriteRank = (usize, usize, [u32; 3]);
 
 fn apply_ranked_order(region: &mut [StyleDeclaration], ranks: &mut [WriteRank]) {
+    apply_indexed_order(region, ranks, |index| index);
+}
+
+fn apply_indexed_order(
+    region: &mut [StyleDeclaration],
+    ranks: &mut [WriteRank],
+    position: impl Fn(usize) -> usize,
+) {
     if ranks.windows(2).any(|pair| pair[0].0 > pair[1].0) {
         ranks.sort_by_key(|(rank, _, _)| *rank);
         let mut destination = vec![0; ranks.len()];
@@ -209,45 +217,135 @@ fn apply_ranked_order(region: &mut [StyleDeclaration], ranks: &mut [WriteRank]) 
             destination[old] = new;
         }
         // Move declarations in place, without cloning expression payloads.
-        for index in 0..region.len() {
+        for index in 0..ranks.len() {
             while destination[index] != index {
                 let next = destination[index];
-                region.swap(index, next);
+                region.swap(position(index), position(next));
                 destination.swap(index, next);
             }
         }
     }
-    for declaration in region {
+    for index in 0..ranks.len() {
+        let declaration = &mut region[position(index)];
         if let StyleSource::TailwindUtility { input, utility } = declaration.source {
             declaration.source = StyleSource::TailwindOrdered { input, utility };
         }
     }
 }
 
-/// One resting cascade channel: a genuinely unknown write stays exactly in
-/// place. Do not give a partially ranked region permission to move across
-/// JSX/StyleX sources or interleave conditional delivery channels.
-fn order_contiguous_resting_runs(
-    bindings: &TailwindUnitBindings<'_>,
-    region: &mut [StyleDeclaration],
-) {
-    if !region.iter().all(|declaration| {
-        declaration.condition == Condition::Always && declaration.source.utility().is_some()
-    }) {
+/// Apply known ranks in the bounded resting/direction and positive owner
+/// channels without assigning a priority to any of their holes.
+fn order_partial_input(bindings: &TailwindUnitBindings<'_>, region: &mut [StyleDeclaration]) {
+    use crate::Environment::{Ltr, Rtl};
+
+    let mut direction = false;
+    let mut owner = Vec::new();
+    for (index, declaration) in region.iter().enumerate() {
+        if declaration.source.utility().is_none() {
+            return;
+        }
+        match &declaration.condition {
+            Condition::Always => {}
+            Condition::Environment(Ltr | Rtl) => direction = true,
+            guard if positive_owner_guard(guard) => owner.push(index),
+            _ => return,
+        }
+    }
+
+    if owner.is_empty() {
+        let len = region.len();
+        order_assessed_runs(bindings, region, len, |index| index);
         return;
     }
+
+    let ranks = owner
+        .iter()
+        .enumerate()
+        .map(|(index, &position)| write_rank(bindings, &region[position], index))
+        .collect::<Option<Vec<_>>>();
+    match ranks {
+        Some(mut ranks) if ranks.len() > 1 => {
+            apply_indexed_order(region, &mut ranks, |index| owner[index]);
+        }
+        Some(_) => {}
+        None => order_partial_owner_runs(bindings, region, &owner),
+    }
+    if direction {
+        // CSS direction selectors can tie with resting selectors. Preserve
+        // their relative slots across any unassessed ambient write, even
+        // if the write has a different guard. Do not join runs across live
+        // owner guards in mixed-direction input without a separate proof.
+        for run in region.chunk_by_mut(|a, b| {
+            positive_owner_guard(&a.condition) == positive_owner_guard(&b.condition)
+        }) {
+            if !positive_owner_guard(&run[0].condition) {
+                order_assessed_runs(bindings, run, run.len(), |index| index);
+            }
+        }
+        return;
+    }
+    // Other guards cannot split the resting tier; their slots stay put.
+    let resting: Vec<_> = region
+        .iter()
+        .enumerate()
+        .filter_map(|(index, declaration)| {
+            (declaration.condition == Condition::Always).then_some(index)
+        })
+        .collect();
+    order_assessed_runs(bindings, region, resting.len(), |index| resting[index]);
+}
+
+fn order_partial_owner_runs(
+    bindings: &TailwindUnitBindings<'_>,
+    region: &mut [StyleDeclaration],
+    owner: &[usize],
+) {
+    // Use a stable view of the same selector weights Native projects.
+    // Sort only within a weight and never across an unassessed write in
+    // that view. Only the positions of *ranked* writes can change.
+    let Some(mut by_weight) = owner
+        .iter()
+        .map(|&index| {
+            region[index]
+                .condition
+                .owner_interaction_specificity()
+                .map(|weight| (weight, index))
+        })
+        .collect::<Option<Vec<_>>>()
+    else {
+        return;
+    };
+    by_weight.sort_by_key(|&(weight, _)| weight);
+    for tier in by_weight.chunk_by(|a, b| a.0 == b.0) {
+        order_assessed_runs(bindings, region, tier.len(), |index| tier[index].1);
+    }
+}
+
+fn order_assessed_runs(
+    bindings: &TailwindUnitBindings<'_>,
+    region: &mut [StyleDeclaration],
+    len: usize,
+    position: impl Fn(usize) -> usize,
+) {
     let mut start = 0;
-    while start + 1 < region.len() {
-        let mut ranks: Vec<_> = region[start..]
-            .iter()
+    while start + 1 < len {
+        let mut ranks: Vec<_> = (start..len)
             .enumerate()
-            .map_while(|(index, declaration)| write_rank(bindings, declaration, index))
+            .map_while(|(index, place)| write_rank(bindings, &region[position(place)], index))
             .collect();
         let end = start + ranks.len();
         if ranks.len() > 1 {
-            apply_ranked_order(&mut region[start..end], &mut ranks);
+            apply_indexed_order(region, &mut ranks, |index| position(start + index));
         }
         start = end + 1;
+    }
+}
+
+fn positive_owner_guard(guard: &Condition) -> bool {
+    match guard {
+        Condition::Hover | Condition::Pressed | Condition::Focus | Condition::FocusVisible => true,
+        Condition::All(parts) => !parts.is_empty() && parts.iter().all(positive_owner_guard),
+        _ => false,
     }
 }
 
@@ -396,11 +494,11 @@ mod tests {
     }
 
     #[test]
-    fn one_unknown_guard_or_candidate_preserves_the_whole_input_but_not_its_neighbor() {
+    fn unknown_resting_write_or_foreign_guard_does_not_freeze_the_next_input() {
         let context = TailwindOrderContext::new(crate::portable_tailwind_snapshot()).unwrap();
         for (unknown, guard) in [
             ("p-3", Condition::Always),
-            ("p-2", Condition::Focus),
+            ("p-2", Condition::Disabled),
             ("sm:p-2", Condition::Always),
             ("p-2!", Condition::Always),
         ] {
@@ -445,6 +543,86 @@ mod tests {
                 StyleSource::TailwindOrdered { .. }
             ));
         }
+    }
+
+    #[test]
+    fn unknown_owner_write_does_not_pin_unrelated_resting_ranks() {
+        let context = TailwindOrderContext::new(crate::portable_tailwind_snapshot()).unwrap();
+        let (declarations, units) = fixture(&[
+            ("p-4", 10, Condition::Always),
+            ("p-2", 10, Condition::Pressed),
+            ("p-2", 10, Condition::Always),
+        ]);
+        let before = declarations.clone();
+        let bindings = context.bind(&units);
+        let after = TailwindWritePlan::passthrough(declarations, &bindings)
+            .order_scalars()
+            .into_declarations();
+        assert_eq!(after[1], before[1]);
+        assert_eq!(after[0].property, before[2].property);
+        assert_eq!(after[2].property, before[0].property);
+    }
+
+    #[test]
+    fn unknown_owner_write_pins_only_its_own_selector_weight() {
+        let context = TailwindOrderContext::new(crate::portable_tailwind_snapshot()).unwrap();
+        let conjunction = Condition::all(vec![Condition::Hover, Condition::Focus]);
+        for (middle, expected) in [(false, [2, 1, 0, 3]), (true, [0, 1, 2, 3])] {
+            let unknown = ("opaque-focus", 10, Condition::Focus);
+            let hover = ("hover:p-4", 10, Condition::Hover);
+            let (declarations, units) = fixture(&[
+                ("active:p-4", 10, Condition::Pressed),
+                ("hover:focus:p-4", 10, conjunction.clone()),
+                if middle {
+                    unknown.clone()
+                } else {
+                    hover.clone()
+                },
+                if middle { hover } else { unknown },
+            ]);
+            let before = declarations.clone();
+            let bindings = context.bind(&units);
+            let after = TailwindWritePlan::passthrough(declarations, &bindings)
+                .order_scalars()
+                .into_declarations();
+            for (index, prior) in expected.into_iter().enumerate() {
+                assert_eq!(after[index].property, before[prior].property);
+                assert_eq!(after[index].condition, before[prior].condition);
+            }
+            let unknown_index = if middle { 2 } else { 3 };
+            assert_eq!(after[unknown_index], before[unknown_index]);
+        }
+    }
+
+    #[test]
+    fn unranked_ambient_writes_pin_both_resting_and_direction_groups() {
+        let rtl = Condition::Environment(crate::Environment::Rtl);
+        let context = TailwindOrderContext::new(crate::builtin_tailwind_snapshot(
+            ["p-2", "p-4", "rtl:p-2", "rtl:p-4"].map(|name| {
+                (
+                    name,
+                    vec![StyleProperty::PaddingTop(crate::Length::Px(8.0))],
+                )
+            }),
+        ))
+        .unwrap();
+        let (declarations, units) = fixture(&[
+            ("rtl:p-4", 10, rtl.clone()),
+            ("p-4", 10, Condition::Always),
+            ("opaque-resting", 10, Condition::Always),
+            ("rtl:p-2", 10, rtl),
+            ("p-2", 10, Condition::Always),
+        ]);
+        let before = declarations.clone();
+        let bindings = context.bind(&units);
+        let after = TailwindWritePlan::passthrough(declarations, &bindings)
+            .order_scalars()
+            .into_declarations();
+        for (index, prior) in [1, 0, 2, 4, 3].into_iter().enumerate() {
+            assert_eq!(after[index].property, before[prior].property);
+            assert_eq!(after[index].condition, before[prior].condition);
+        }
+        assert_eq!(after[2], before[2]);
     }
 
     #[test]

@@ -4,7 +4,8 @@ import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
 import { hozoGradientStyles } from '../../engine/src/gradient-slots.ts'
 import { hozoShadowStyles } from '../../engine/src/shadow-slots.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
-import { compileNative } from './index.ts'
+import { authoredOwnerContext } from '../fixtures/authored-owner-context.ts'
+import { compileNative, createCompiler } from './index.ts'
 import { generatedRuntimeImports } from './lower.ts'
 
 function flatten(value: unknown): Record<string, unknown> {
@@ -17,9 +18,13 @@ function compiled(
   caller = '',
   component = 'Pressable',
   diagnosticCodes: string[] = [],
+  authored = false,
 ) {
-  const result = compileNative(`import { ${component} } from '@hozo/core'
-export function C() { return <${component} className="${classes}" ${caller} /> }`)[0]!
+  const source = `import { ${component} } from '@hozo/core'
+export function C() { return <${component} className="${classes}" ${caller} /> }`
+  const result = authored
+    ? createCompiler().prepareNativeModule(source).emit(authoredOwnerContext(source)).components[0]!
+    : compileNative(source)[0]!
   assert.deepEqual(
     result.diagnostics.map(({ code }) => code),
     diagnosticCodes,
@@ -98,6 +103,7 @@ test('unranked owner filter runs compose independent functions in authored order
       '',
       'Pressable',
       ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+      true,
     )
     assert.equal(probe.style().filter, resting, base)
     assert.equal(probe.style(false, true).filter, 'blur(16px) sepia(100%)', base)
@@ -129,6 +135,7 @@ test('a plain shadow can share authored owner runs without reordering filter wri
     '',
     'Pressable',
     ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+    true,
   )
   const both = probe.style(false, true, false, undefined, true)
   assert.equal(both.filter, 'blur(24px) sepia(100%)')
@@ -143,6 +150,7 @@ test('plain box shadows can revisit a guard without loading a slot composer', ()
     '',
     'Pressable',
     ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+    true,
   )
   assert.match(String(probe.style(false, true, false, undefined, true).boxShadow), /^0 10px 15px /)
   assert.match(String(probe.style().boxShadow), /^0 1px 3px /)
@@ -155,6 +163,7 @@ test('shadow modifiers keep the folded base shadow in the unranked path', () => 
     '',
     'Pressable',
     ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+    true,
   )
   const both = probe.style(false, true, false, undefined, true)
   assert.match(String(both.boxShadow), /^0 4px 6px -1px #fb2c36/)
@@ -168,6 +177,7 @@ test('shadow and ring in one guard run do not move an unrelated filter', () => {
     '',
     'Pressable',
     ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+    true,
   )
   const both = probe.style(false, true, false, undefined, true)
   assert.equal(both.filter, 'blur(24px) sepia(100%)')
@@ -182,6 +192,7 @@ test('only the shadow slots coalesce across repeated visits to their one guard',
     '',
     'Pressable',
     ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+    true,
   )
   const both = probe.style(false, true, false, undefined, true)
   assert.equal(both.filter, 'blur(24px) sepia(100%)')
@@ -209,6 +220,7 @@ test('different shadow guards keep their slots and do not reorder the filter', (
     '',
     'Pressable',
     ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+    true,
   )
   assert.ok(probe.result.runtimeImports.includes('hozoShadowStyles'))
   const both = probe.style(false, true, false, undefined, true)
@@ -228,6 +240,7 @@ test('different gradient guards compose without moving later filter writes', () 
     '',
     'Pressable',
     ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+    true,
   )
   assert.ok(probe.result.runtimeImports.includes('hozoGradientStyles'))
   const both = probe.style(false, true, false, undefined, true)
@@ -247,6 +260,7 @@ test('an isolated base image reset keeps the gradient and filter owner runs sepa
     '',
     'Pressable',
     ['WEB_ONLY_PROPERTY_ON_NATIVE'],
+    true,
   )
   const both = probe.style(false, true, false, undefined, true)
   assert.equal(both.filter, 'blur(24px) sepia(100%)')
