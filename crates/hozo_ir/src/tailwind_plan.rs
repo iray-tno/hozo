@@ -9,7 +9,7 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v67";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v68";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
@@ -233,13 +233,14 @@ fn apply_indexed_order(
     }
 }
 
-/// Apply known ranks in the bounded resting/direction and positive owner
-/// channels without assigning a priority to any of their holes.
+/// Apply known ranks without assigning a priority to any of their holes.
+/// Only closed guard channels can ignore an intervening different guard.
 fn order_partial_input(bindings: &TailwindUnitBindings<'_>, region: &mut [StyleDeclaration]) {
     use crate::Environment::{Ltr, Rtl};
 
     let mut direction = false;
     let mut owner = Vec::new();
+    let mut same_guard_only = false;
     for (index, declaration) in region.iter().enumerate() {
         if declaration.source.utility().is_none() {
             return;
@@ -248,8 +249,18 @@ fn order_partial_input(bindings: &TailwindUnitBindings<'_>, region: &mut [StyleD
             Condition::Always => {}
             Condition::Environment(Ltr | Rtl) => direction = true,
             guard if positive_owner_guard(guard) => owner.push(index),
-            _ => return,
+            _ => same_guard_only = true,
         }
+    }
+
+    if same_guard_only {
+        // An unknown relationship between guards does not invalidate assessed
+        // order among adjacent writes of the very same guard. Different
+        // guards (including a resting write) still delimit those runs.
+        for run in region.chunk_by_mut(|a, b| a.condition == b.condition) {
+            order_assessed_runs(bindings, run, run.len(), |index| index);
+        }
+        return;
     }
 
     if owner.is_empty() {
@@ -623,6 +634,41 @@ mod tests {
             assert_eq!(after[index].condition, before[prior].condition);
         }
         assert_eq!(after[2], before[2]);
+    }
+
+    #[test]
+    fn partial_breakpoint_ranks_never_cross_opaque_writes_or_other_guards() {
+        let md = Condition::Responsive(crate::Breakpoint::Md);
+        let context = TailwindOrderContext::new(crate::builtin_tailwind_snapshot(
+            ["md:p-2", "md:p-4"].map(|name| {
+                (
+                    name,
+                    vec![StyleProperty::PaddingTop(crate::Length::Px(8.0))],
+                )
+            }),
+        ))
+        .unwrap();
+        let (declarations, units) = fixture(&[
+            ("md:p-4", 10, md.clone()),
+            ("md:p-2", 10, md.clone()),
+            ("opaque-md", 10, md.clone()),
+            ("md:p-4", 10, md.clone()),
+            ("md:p-2", 10, md.clone()),
+            ("p-1", 10, Condition::Always),
+            ("md:p-4", 10, md.clone()),
+            ("md:p-2", 10, md),
+        ]);
+        let before = declarations.clone();
+        let bindings = context.bind(&units);
+        let after = TailwindWritePlan::passthrough(declarations, &bindings)
+            .order_scalars()
+            .into_declarations();
+        for (index, prior) in [1, 0, 2, 4, 3, 5, 7, 6].into_iter().enumerate() {
+            assert_eq!(after[index].property, before[prior].property);
+            assert_eq!(after[index].condition, before[prior].condition);
+        }
+        assert_eq!(after[2], before[2]);
+        assert_eq!(after[5], before[5]);
     }
 
     #[test]

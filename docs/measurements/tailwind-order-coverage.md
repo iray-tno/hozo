@@ -558,6 +558,17 @@ between them still pins the run; they are not unconditionally moved to
 different authored tiers. Adding a fixed direction margin to the
 separate owner fallback no longer discards known hover/active ranks.
 
+V68 removes the all-authored fallback inside an identical guard. With
+an unranked background nearby, `p-1 md:p-4 md:p-2 bg-brand` used to
+select 8px at wide widths in the static path instead of Tailwind's
+16px. Tests compare static Web, static Native and candidate Web with
+pinned Tailwind for `md:`, `max-md:`, `not-focus:` and
+`md:not-focus:`: both class orders, two widths and both focus states
+(32 observations per route). A different guard or an unranked write
+still delimits these runs, and candidate Native continues to refuse
+these static-only conditions explicitly. The change is in static
+planning, not state evaluation or support for a new variant.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it
