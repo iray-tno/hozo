@@ -213,8 +213,8 @@ test('an unassessed relation stays in place without pinning an adjacent resting 
       assert.match(web[0]!.css, /padding-top: 32px;/)
       assert.match(native.components[0]!.styles, /paddingTop: 16/)
     } else {
-      assert.match(web[0]!.css, /padding-top: 16px;[\s\S]*:not\(:is\([\s\S]*padding-top: 8px;/)
-      assert.match(native.components[0]!.styles, /paddingTop: 8/)
+      assert.deepEqual(web, authoredWeb)
+      assert.deepEqual(native, authoredNative)
     }
     assert.deepEqual(native.components[0]!.diagnostics, authoredNative.components[0]!.diagnostics)
     const cache = openCandidateCache()

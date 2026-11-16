@@ -569,6 +569,15 @@ still delimits these runs, and candidate Native continues to refuse
 these static-only conditions explicitly. The change is in static
 planning, not state evaluation or support for a new variant.
 
+The guard-local runs do not mark the whole input as cascade-ordered.
+That marker would split existing groups even where this comparison
+applies only inside one group. In the 818-file output comparison,
+only Combobox, Dialog and Input changed: the same declarations appear
+in a different order; Dialog's emitted Native viewport object swaps
+the independent `width` and `maxHeight` keys. No diagnostics changed.
+The receipt changed from `07ac3336…` to `7edbe313…`; the 318/320 ranked
+count is unchanged.
+
 ## Progress
 
 Re-run the script after each layer that graduates a barrier and record it

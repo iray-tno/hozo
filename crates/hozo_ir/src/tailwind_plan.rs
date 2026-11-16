@@ -201,14 +201,21 @@ impl<'a> TailwindWritePlan<'a> {
 
 type WriteRank = (usize, usize, [u32; 3]);
 
+#[derive(Clone, Copy)]
+enum RunOrder {
+    Projected,
+    GuardLocal,
+}
+
 fn apply_ranked_order(region: &mut [StyleDeclaration], ranks: &mut [WriteRank]) {
-    apply_indexed_order(region, ranks, |index| index);
+    apply_indexed_order(region, ranks, |index| index, RunOrder::Projected);
 }
 
 fn apply_indexed_order(
     region: &mut [StyleDeclaration],
     ranks: &mut [WriteRank],
     position: impl Fn(usize) -> usize,
+    order: RunOrder,
 ) {
     if ranks.windows(2).any(|pair| pair[0].0 > pair[1].0) {
         ranks.sort_by_key(|(rank, _, _)| *rank);
@@ -224,6 +231,11 @@ fn apply_indexed_order(
                 destination.swap(index, next);
             }
         }
+    }
+    if matches!(order, RunOrder::GuardLocal) {
+        // Ordering inside one guard says nothing about its place among other
+        // guards. Do not split the emitter's existing condition groups.
+        return;
     }
     for index in 0..ranks.len() {
         let declaration = &mut region[position(index)];
@@ -258,14 +270,20 @@ fn order_partial_input(bindings: &TailwindUnitBindings<'_>, region: &mut [StyleD
         // order among adjacent writes of the very same guard. Different
         // guards (including a resting write) still delimit those runs.
         for run in region.chunk_by_mut(|a, b| a.condition == b.condition) {
-            order_assessed_runs(bindings, run, run.len(), |index| index);
+            order_assessed_runs(
+                bindings,
+                run,
+                run.len(),
+                |index| index,
+                RunOrder::GuardLocal,
+            );
         }
         return;
     }
 
     if owner.is_empty() {
         let len = region.len();
-        order_assessed_runs(bindings, region, len, |index| index);
+        order_assessed_runs(bindings, region, len, |index| index, RunOrder::Projected);
         return;
     }
 
@@ -276,7 +294,12 @@ fn order_partial_input(bindings: &TailwindUnitBindings<'_>, region: &mut [StyleD
         .collect::<Option<Vec<_>>>();
     match ranks {
         Some(mut ranks) if ranks.len() > 1 => {
-            apply_indexed_order(region, &mut ranks, |index| owner[index]);
+            apply_indexed_order(
+                region,
+                &mut ranks,
+                |index| owner[index],
+                RunOrder::Projected,
+            );
         }
         Some(_) => {}
         None => order_partial_owner_runs(bindings, region, &owner),
@@ -290,7 +313,7 @@ fn order_partial_input(bindings: &TailwindUnitBindings<'_>, region: &mut [StyleD
             positive_owner_guard(&a.condition) == positive_owner_guard(&b.condition)
         }) {
             if !positive_owner_guard(&run[0].condition) {
-                order_assessed_runs(bindings, run, run.len(), |index| index);
+                order_assessed_runs(bindings, run, run.len(), |index| index, RunOrder::Projected);
             }
         }
         return;
@@ -303,7 +326,13 @@ fn order_partial_input(bindings: &TailwindUnitBindings<'_>, region: &mut [StyleD
             (declaration.condition == Condition::Always).then_some(index)
         })
         .collect();
-    order_assessed_runs(bindings, region, resting.len(), |index| resting[index]);
+    order_assessed_runs(
+        bindings,
+        region,
+        resting.len(),
+        |index| resting[index],
+        RunOrder::Projected,
+    );
 }
 
 fn order_partial_owner_runs(
@@ -328,7 +357,13 @@ fn order_partial_owner_runs(
     };
     by_weight.sort_by_key(|&(weight, _)| weight);
     for tier in by_weight.chunk_by(|a, b| a.0 == b.0) {
-        order_assessed_runs(bindings, region, tier.len(), |index| tier[index].1);
+        order_assessed_runs(
+            bindings,
+            region,
+            tier.len(),
+            |index| tier[index].1,
+            RunOrder::Projected,
+        );
     }
 }
 
@@ -337,6 +372,7 @@ fn order_assessed_runs(
     region: &mut [StyleDeclaration],
     len: usize,
     position: impl Fn(usize) -> usize,
+    order: RunOrder,
 ) {
     let mut start = 0;
     while start + 1 < len {
@@ -346,7 +382,7 @@ fn order_assessed_runs(
             .collect();
         let end = start + ranks.len();
         if ranks.len() > 1 {
-            apply_indexed_order(region, &mut ranks, |index| position(start + index));
+            apply_indexed_order(region, &mut ranks, |index| position(start + index), order);
         }
         start = end + 1;
     }
@@ -664,11 +700,8 @@ mod tests {
             .order_scalars()
             .into_declarations();
         for (index, prior) in [1, 0, 2, 4, 3, 5, 7, 6].into_iter().enumerate() {
-            assert_eq!(after[index].property, before[prior].property);
-            assert_eq!(after[index].condition, before[prior].condition);
+            assert_eq!(after[index], before[prior]);
         }
-        assert_eq!(after[2], before[2]);
-        assert_eq!(after[5], before[5]);
     }
 
     #[test]
