@@ -30,7 +30,7 @@ in ways a newcomer would not see:
 | Stack | Starter (version) | Config | Stylesheet | What `init` has to know |
 | --- | --- | --- | --- | --- |
 | Vite | `create-vite` 9.3.4, `react-ts` | `export default defineConfig({ plugins: [react()] })` | `src/index.css`, plain CSS | `src/index.css` is on Hozo's default stylesheet list, so a starter with no `css` option compiles against a stylesheet with no `@import "tailwindcss"` (`square`: `css-no-tailwind`) |
-| Next.js | `create-next-app` 16.4.6 | `const nextConfig = {…}; export default nextConfig` | `app/globals.css`, with Tailwind (`app-tw`) or without | With Tailwind, `@tailwindcss/postcss` already emits preflight; Hozo's would be a second copy |
+| Next.js | `create-next-app` 16.4.6 | `const nextConfig = {…}; export default nextConfig` | `app/globals.css`, with Tailwind (`app-tw`) or without | Without Tailwind, `app/globals.css` is Vite's case again: on the default list, no `@import "tailwindcss"`. With Tailwind, `@tailwindcss/postcss` already emits preflight; Hozo's would be a second copy |
 | Metro, React Native CLI | `@react-native-community/template` 0.88.1 | `module.exports = mergeConfig(getDefaultConfig(__dirname), config)` | none | — |
 | Metro, Expo | `expo-template-default` 58.0.34 | **none**: Expo uses its default Metro config until a project writes one | none | `init` creates `metro.config.js` from `expo/metro-config` |
 | Astro | `withastro/astro` `examples/minimal` | `export default defineConfig({})` | none | No React integration: Astro needs `@astrojs/react` and the tsconfig `jsx` setting before any `.tsx` builds |
@@ -170,6 +170,16 @@ for.
 | 5 | The packed consumer runs `hozo init --write` over the Vite and Astro starters, from tarballs, and builds | Builds as the guide-built app does; the guides name `init` first and the manual steps after |
 
 Step 1 stands alone: the guide fixes are worth having without `init`.
+
+### 7.1 Step 1
+
+The Vite, Next.js, Metro and TanStack Start guides say what §2 found. The
+starters' files are in `scripts/fixtures/starters/`, one directory per
+starter (Next.js twice: with and without Tailwind), with where each came
+from in `sources.json`; Biome skips the directory so their own quotes and
+semicolons stay. TanStack's `@import 'tailwindcss' source('../')` was loaded
+through `@hozo/tailwind`'s `loadTheme`, static and not: both read the
+stylesheet's `@theme`, so `init` can point `css` at it unchanged.
 
 ## 8. Resolved questions
 

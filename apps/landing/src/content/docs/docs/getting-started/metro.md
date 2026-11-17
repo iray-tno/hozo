@@ -20,6 +20,22 @@ const { withHozo } = require('@hozo/metro/config')
 module.exports = withHozo(getDefaultConfig(__dirname), { css: 'src/theme.css' })
 ```
 
+**Expo's starter has no `metro.config.js`.** Expo uses its own default
+until a project writes one, so create it, starting from Expo's default
+rather than React Native's:
+
+```js
+// metro.config.js
+const { getDefaultConfig } = require('expo/metro-config')
+const { withHozo } = require('@hozo/metro/config')
+
+module.exports = withHozo(getDefaultConfig(__dirname), { css: 'src/theme.css' })
+```
+
+The React Native CLI's starter exports
+`mergeConfig(getDefaultConfig(__dirname), config)`; wrap that expression in
+`withHozo(…)` the same way.
+
 **On React Native 0.87, pin androidx.collection on Android.** This is not
 Hozo's bug, but any app on 0.87 can hit it. React Native 0.87 keeps Android's
 view registry in androidx.collection's `MutableIntObjectMap`, and the 1.4.0–1.4.2

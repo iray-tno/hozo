@@ -1,0 +1,15 @@
+{
+  "vite": { "from": "npm create-vite@9.3.4", "path": "template-react-ts" },
+  "next-app": { "from": "npm create-next-app@16.4.6", "path": "dist/templates/app/ts" },
+  "next-app-tw": { "from": "npm create-next-app@16.4.6", "path": "dist/templates/app-tw/ts" },
+  "react-native": { "from": "npm @react-native-community/template@0.88.1", "path": "template" },
+  "expo": { "from": "npm expo-template-default@58.0.34", "path": "." },
+  "astro": {
+    "from": "github withastro/astro@5b7c3275cf2f4aa0d1685495f943cb19039a2e83",
+    "path": "examples/minimal"
+  },
+  "tanstack-start": {
+    "from": "github TanStack/router@ed86c440c5cab6ee294d4bade2debcd48a384d73",
+    "path": "examples/react/start-basic"
+  }
+}
