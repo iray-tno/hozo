@@ -203,8 +203,7 @@ function runInstall(project, command) {
   // Package managers are `.cmd` shims on Windows, which only a shell runs.
   // There the line goes to the shell whole: every word is a package
   // manager, a verb, a flag or `@hozo/<name>@<version>`, none needing quotes.
-  if (process.platform === 'win32')
-    execSync(command.join(' '), { cwd: project, stdio: 'inherit' })
+  if (process.platform === 'win32') execSync(command.join(' '), { cwd: project, stdio: 'inherit' })
   else execFileSync(command[0], command.slice(1), { cwd: project, stdio: 'inherit' })
 }
 
