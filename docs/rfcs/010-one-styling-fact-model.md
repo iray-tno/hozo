@@ -2,6 +2,11 @@
 
 - **Status**: Draft v3 (repository review). A target to plan backwards from;
   changes no behaviour, default, ABI or eligibility by itself.
+- **Decided separately**: the points where phases B–E meet, and the
+  evidence one owner migration needs, are fixed by
+  [decision 012](../decisions/012-where-the-styling-workstreams-meet.md).
+  Where this draft and that record disagree about a junction or a gate, the
+  record is the decision. The rest of this document stays a target.
 - **Authors**: iray-tno
 - **Tracking issue**: [#1458](https://github.com/iray-tno/hozo/issues/1458).
   Continues [#1230](https://github.com/iray-tno/hozo/issues/1230); gathers the
