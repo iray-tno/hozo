@@ -135,6 +135,38 @@ behavioural change unreviewable.
 - **Area work** — an area prefix is fine where it helps: `Three: evaluate and prove a Native GPU host`.
 - The body says how to reproduce or what was measured, and what would count as done.
 
+### Work that spans many pull requests
+
+An issue that will take more than a handful of pull requests (a tracker, an
+RFC rollout, a conformance push) says three things in its body before the
+work starts. Agree them with the person who started you.
+
+- **Who is harmed if it stops here.** A real input in this repository or in
+  a measured corpus, or a user's report. "It differs from the reference" is
+  not harm until something real depends on the difference.
+- **When it stops.** The condition under which what remains is filed as
+  individual bugs and the issue closes. A measurement showing no effect on
+  real code is such a condition, whatever the reference still does
+  differently.
+- **A budget**, in merged pull requests. When it is spent, stop and ask
+  whether to continue, with the numbers below. Extending it is that person's
+  decision, not yours.
+
+Every checkpoint comment on such an issue opens with the unit cost: how many
+pull requests merged since the last checkpoint, and how far the issue's own
+measure moved. A falling rate is the signal to apply the stop condition, not
+to add evidence.
+
+Evidence has a ceiling as well as a floor. A check that an earlier pull
+request in the same line of work already ran over the same code paths is not
+repeated per slice; say which earlier result covers it. When a decision
+record states what is enough for a kind of work, that is the bar, and going
+past it needs a reason in the pull request.
+
+*Why this is here:* #1230 moved from 30 to 31 on its 36-point scale across
+about 150 merged pull requests, after a measurement had already shown that
+the remaining work changed none of this repository's components.
+
 ## Agent ownership
 
 Several agents work in this repository at once, all through one GitHub
