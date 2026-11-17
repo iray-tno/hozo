@@ -237,3 +237,68 @@ const { withHozo } = require('@hozo/metro/config')
 module.exports = withHozo(getDefaultConfig(__dirname), ${optionsSource("'", options)})
 `
 }
+
+/** The insertion that puts `value` last in the array `array`, as it is laid out. */
+function lastInArray(text, array, value) {
+  const last = array.children.at(-1)
+  if (!last) return { start: array.spanStart + 1, end: array.spanEnd - 1, replacement: value }
+  const after = text.slice(last.spanEnd, array.spanEnd - 1)
+  const comma = /^\s*,/.exec(after)
+  if (after.includes('\n')) {
+    const indent = indentAt(text, last.spanStart)
+    // A trailing comma stays one: the new element goes after it, with its own.
+    if (comma) {
+      const at = last.spanEnd + comma[0].length
+      return { start: at, end: at, replacement: `\n${indent}${value},` }
+    }
+    return { start: last.spanEnd, end: last.spanEnd, replacement: `,\n${indent}${value}` }
+  }
+  return { start: last.spanEnd, end: last.spanEnd, replacement: `, ${value}` }
+}
+
+/** The framework a Storybook config names, from `framework: 'x'` or `{ name: 'x' }`. */
+function frameworkOf(object) {
+  const framework = property(object, 'framework')
+  if (framework?.kind === 'string') return framework.name
+  if (framework?.kind === 'object') return property(framework, 'name')?.name
+  return undefined
+}
+
+/**
+ * The edit that adds `@hozo/storybook` to `.storybook/main.*`, last in
+ * `addons`, with Hozo's options: `{ updated }`, or `{ same: true }` when
+ * it is already there. Only a Vite-based framework runs the addon.
+ */
+export function storybookConfigEdit(text, file, options) {
+  const shape = configShape(text, file)
+  const quote = shape.diagnostics.length ? "'" : quoteOf(text, shape)
+  const addon = `{ name: ${quote}@hozo/storybook${quote}, options: ${optionsSource(quote, options)} }`
+  const manual = (why) =>
+    new InitError(
+      `${file}: ${why}, so init does not edit it; add ${addon} to addons (https://iray-tno.github.io/hozo/docs/getting-started/storybook/)`,
+      'config-not-editable',
+    )
+  if (shape.diagnostics.length) throw manual('it does not parse')
+  const nodes = tree(shape)
+  const object = exportedObject(nodes, shape)
+  if (!object) throw manual('its export is not an object or a name bound to one')
+  const framework = frameworkOf(object)
+  if (framework && !/vite/.test(framework))
+    throw new InitError(
+      `${file}: Storybook's framework is ${framework}, which does not build with Vite, so @hozo/storybook would not run; switch to a Vite framework (@storybook/react-vite, @storybook/nextjs-vite) first`,
+      'storybook-not-vite',
+    )
+  const addons = property(object, 'addons')
+  const listed = (node) =>
+    (node.kind === 'string' && node.name === '@hozo/storybook') ||
+    (node.kind === 'object' && property(node, 'name')?.name === '@hozo/storybook')
+  if (addons?.kind === 'array' && addons.children.some(listed)) return { same: true }
+  if (addons && addons.kind !== 'array') throw manual('its addons option is not an array')
+  return {
+    updated: apply(text, [
+      addons
+        ? lastInArray(text, addons, addon)
+        : firstInObject(text, object, 'addons', `[${addon}]`),
+    ]),
+  }
+}

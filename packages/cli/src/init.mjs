@@ -10,7 +10,13 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { packageManager, posix } from './add.mjs'
-import { expoMetroConfig, InitError, viteConfigEdit, wrapConfigEdit } from './init-config.mjs'
+import {
+  expoMetroConfig,
+  InitError,
+  storybookConfigEdit,
+  viteConfigEdit,
+  wrapConfigEdit,
+} from './init-config.mjs'
 import { DEFAULT_CSS_FILES } from './square-config.mjs'
 import { unifiedDiff } from './text-diff.mjs'
 
@@ -23,8 +29,9 @@ CLI's version, picks or creates the stylesheet Hozo reads, adds Hozo to the
 bundler config, then runs \`hozo square --setup\`. A config init does not
 recognise is not edited: init prints the lines to add and exits 2.
 
-Edits Vite, TanStack Start, Astro, Next.js and Metro configs, and creates
-metro.config.js for an Expo project that has none.
+Edits Vite, TanStack Start, Astro, Next.js, Metro and Storybook configs, and
+creates metro.config.js for an Expo project that has none. Storybook beside a
+Vite config is left alone: it builds with that config, and its hozo().
 
 Options:
   --write               Install and edit (without it, a dry run)
@@ -224,12 +231,20 @@ export async function runInit(argv, io, project = process.cwd(), dependencies = 
           : `No bundler config found; init knows ${Object.values(NAMES).join(', ')} (vite.config.*, astro.config.*, next.config.*, metro.config.*, .storybook/main.*, or expo in package.json)`,
         'stack-not-found',
       )
-    const unsupported = stacks.filter((item) => item.unsupported)
-    if (unsupported.length)
-      throw new InitError(
-        `${unsupported.map((item) => NAMES[item.stack]).join(', ')}: init does not edit this stack's config yet; follow https://iray-tno.github.io/hozo/docs/getting-started/`,
-        'stack-not-supported',
+    // Storybook's Vite builder loads the project's vite.config, hozo()
+    // included; @hozo/storybook as well would run Hozo twice, and the second
+    // pass drops CSS (RFC 013 §7.4).
+    const notes = []
+    const viteBeside = stacks.find(
+      (item) => item.stack === 'vite' || item.stack === 'tanstack-start',
+    )
+    const storybook = stacks.find((item) => item.stack === 'storybook')
+    if (storybook && viteBeside) {
+      storybook.skip = true
+      notes.push(
+        `${storybook.config} is left alone: Storybook builds with ${viteBeside.config}, so it gets hozo() from there, and @hozo/storybook as well would run Hozo twice`,
       )
+    }
     if (stacks.some((item) => item.stack === 'astro') && !deps['@astrojs/react'])
       throw new InitError(
         'Astro renders Hozo components through its React integration, which this project does not have; run `npx astro add react` first, then hozo init',
@@ -239,7 +254,9 @@ export async function runInit(argv, io, project = process.cwd(), dependencies = 
     // Versions: every @hozo/* package is released at one version, so the
     // one to install is this CLI's. A project on another is not upgraded.
     const want = version()
-    const adapters = [...new Set(stacks.map((item) => ADAPTERS[item.stack]))]
+    const adapters = [
+      ...new Set(stacks.filter((item) => !item.skip).map((item) => ADAPTERS[item.stack])),
+    ]
     const runtime = ['@hozo/core', ...(options.ui ? ['@hozo/ui'] : [])]
     const dev = [...adapters, '@hozo/compiler']
     for (const name of [...runtime, ...dev]) {
@@ -254,10 +271,12 @@ export async function runInit(argv, io, project = process.cwd(), dependencies = 
     const commands = installCommands(project, missing(dev), missing(runtime))
 
     // The stylesheet, then the configs that name it.
-    const configs = stacks.map((item) => ({
-      ...item,
-      text: item.create ? '' : readFileSync(path.join(project, item.config), 'utf8'),
-    }))
+    const configs = stacks
+      .filter((item) => !item.skip)
+      .map((item) => ({
+        ...item,
+        text: item.create ? '' : readFileSync(path.join(project, item.config), 'utf8'),
+      }))
     const sheet = stylesheet(
       project,
       options,
@@ -297,12 +316,14 @@ export async function runInit(argv, io, project = process.cwd(), dependencies = 
       const edit =
         item.stack === 'next' || item.stack === 'metro'
           ? wrapConfigEdit(item.text, item.config, item.stack, adapterOptions)
-          : viteConfigEdit(
-              item.text,
-              item.config,
-              item.stack === 'astro' ? 'astro' : 'vite',
-              adapterOptions,
-            )
+          : item.stack === 'storybook'
+            ? storybookConfigEdit(item.text, item.config, adapterOptions)
+            : viteConfigEdit(
+                item.text,
+                item.config,
+                item.stack === 'astro' ? 'astro' : 'vite',
+                adapterOptions,
+              )
       if (!edit.same)
         files.push({
           file: item.config,
@@ -357,6 +378,7 @@ export async function runInit(argv, io, project = process.cwd(), dependencies = 
       stylesheet: sheet.file,
       install: commands.map((command) => command.join(' ')),
       files,
+      notes,
     }
     if (options.format === 'json')
       io.stdout.write(
@@ -373,6 +395,7 @@ export async function runInit(argv, io, project = process.cwd(), dependencies = 
               action: item.action,
               diff: unifiedDiff(item.file, item.file, item.original, item.updated),
             })),
+            notes,
             ...(setup ? { setup } : {}),
           },
           null,
@@ -450,6 +473,7 @@ function text(report, options, ran, setup, deps) {
         lines.push(`        ${finding.severity}: ${finding.message}`)
     }
   }
+  for (const note of report.notes) lines.push('', note)
   if (deps['react-native'])
     lines.push(
       '',

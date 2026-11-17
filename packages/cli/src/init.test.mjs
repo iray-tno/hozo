@@ -184,10 +184,6 @@ test('an uncommitted config, a version mismatch and an unknown stack change noth
   })
   assert.equal((await init(older, [])).error.code, 'version-mismatch')
 
-  const storybook = starter(t, 'vite', {
-    '.storybook/main.ts': "export default { addons: [], framework: '@storybook/react-vite' }\n",
-  })
-  assert.equal((await init(storybook, [])).error.code, 'stack-not-supported')
   const none = starter(t, 'vite')
   rmSync(path.join(none, 'vite.config.ts'))
   assert.equal((await init(none, [])).error.code, 'stack-not-found')
@@ -313,4 +309,73 @@ test('a Next.js config exporting a function is printed, not edited', async (t) =
   assert.equal(result.error.code, 'config-not-editable')
   // No import to read a quote from: a single quote.
   assert.match(result.error.message, /export withHozo\(<your config>, \{ css: 'theme\.css' \}\)/)
+})
+
+// As `storybook init` writes it for React and Vite.
+const STORYBOOK_MAIN = `import type { StorybookConfig } from '@storybook/react-vite';
+
+const config: StorybookConfig = {
+  "stories": [
+    "../src/**/*.mdx",
+    "../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"
+  ],
+  "addons": [
+    "@chromatic-com/storybook",
+    "@storybook/addon-a11y",
+  ],
+  "framework": "@storybook/react-vite"
+};
+export default config;
+`
+const STORYBOOK = {
+  devDependencies: { storybook: '10.6.3', '@storybook/react-vite': '10.6.3' },
+  dependencies: { react: '19.3.1', 'react-dom': '19.3.1' },
+}
+
+test('Storybook on its own: @hozo/storybook goes last in addons, with Hozo’s options', async (t) => {
+  const root = starter(t, 'vite', {
+    'package.json': JSON.stringify(STORYBOOK),
+    '.storybook/main.ts': STORYBOOK_MAIN,
+  })
+  rmSync(path.join(root, 'vite.config.ts'))
+  commit(root)
+  const npm = packageManager(root)
+  assert.equal((await init(root, ['--write'], npm)).exit, 0)
+  assert.equal(
+    npm.commands.at(-1),
+    `npm install --save-dev @hozo/storybook@${version} @hozo/compiler@${version}`,
+  )
+  // After the trailing comma, keeping one.
+  assert.equal(
+    read(root, '.storybook/main.ts'),
+    STORYBOOK_MAIN.replace(
+      '    "@storybook/addon-a11y",\n',
+      "    \"@storybook/addon-a11y\",\n    { name: '@hozo/storybook', options: { css: 'src/theme.css' } },\n",
+    ),
+  )
+  assert.match((await init(root, ['--write'], npm)).output, /Nothing to edit/)
+})
+
+test('Storybook beside a Vite config is left alone: it builds with that config', async (t) => {
+  const root = starter(t, 'vite', { '.storybook/main.ts': STORYBOOK_MAIN })
+  commit(root)
+  const npm = packageManager(root)
+  const report = JSON.parse((await init(root, ['--write', '--format', 'json'], npm)).output)
+  assert.deepEqual(
+    report.files.map((file) => file.file),
+    ['src/theme.css', 'vite.config.ts'],
+  )
+  assert.equal(read(root, '.storybook/main.ts'), STORYBOOK_MAIN)
+  assert.ok(!npm.commands.join(' ').includes('@hozo/storybook'))
+  assert.match(report.notes[0], /Storybook builds with vite\.config\.ts/)
+})
+
+test('a Storybook framework that does not build with Vite is refused', async (t) => {
+  const root = starter(t, 'vite', {
+    'package.json': JSON.stringify(STORYBOOK),
+    '.storybook/main.ts': STORYBOOK_MAIN.replaceAll('react-vite', 'nextjs'),
+  })
+  rmSync(path.join(root, 'vite.config.ts'))
+  const result = await init(root, [])
+  assert.equal(result.error.code, 'storybook-not-vite')
 })

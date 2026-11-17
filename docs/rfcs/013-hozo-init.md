@@ -1,6 +1,6 @@
 # RFC 013: `hozo init` — Hozo added to an existing project
 
-- **Status**: Draft (§7: steps 1–3 implemented)
+- **Status**: Draft (§7: steps 1–4 implemented)
 - **Authors**: iray-tno
 - **Tracking issue**: Not assigned
 - **Target packages**: `@hozo/cli`; `@hozo/compiler` (one analysis pass)
@@ -57,8 +57,9 @@ hozo init --no-install         # edit only; print the install command
 1. **Detect.** The stack is read from the config files `square` already
    knows (`vite.config.*`, `astro.config.*`, `next.config.*`,
    `metro.config.*`, `.storybook/main.*`) and from `package.json`: `expo`
-   with no `metro.config.*` is Metro. A project with two (Vite and
-   Storybook, say) gets both edited. None found exits `2` with the list of
+   with no `metro.config.*` is Metro. A project with two (Next.js and
+   Storybook, say) gets both edited, except Storybook beside a Vite config,
+   which builds with that config (§7.4). None found exits `2` with the list of
    stacks `init` knows; a workspace root with no bundler config of its own is
    told to run `init` in the package that builds.
 2. **Install.** The adapter (`@hozo/vite`, `@hozo/next`, `@hozo/metro` or
@@ -104,7 +105,7 @@ hand, and the one that breaks the build when it is wrong. So:
 | Astro | `export default defineConfig({ … })` | `vite: { plugins: [hozo(…)] }`, or `hozo(…)` first in an existing `vite.plugins` |
 | Next.js | `export default <identifier>` or `export default { … }`; `module.exports =` the same | `withHozo(<expression>, { … })` around the exported expression |
 | Metro | `module.exports = <expression>` | `withHozo(<expression>, { … })`; with Expo and no config, a new `metro.config.js` |
-| Storybook | an `addons: [ … ]` array in the exported object | `'@hozo/storybook'` as its last element |
+| Storybook | an `addons: [ … ]` array in the exported object, with a Vite framework | `{ name: '@hozo/storybook', options: { css } }` as its last element |
 
 The import goes after the file's last import, in the file's own quote style
 and semicolon use, which the pass reads from the file's existing imports.
@@ -166,7 +167,7 @@ for.
 | 1 | Guides: Vite's stylesheet, Tailwind already present, Expo's config (§2). Starter fixtures: each starter's config and stylesheets, at the versions in §2, under `scripts/fixtures/starters/` | The packed consumer builds the Vite and Astro guides as before; each fixture is the upstream file, byte for byte |
 | 2 | The compiler pass (§4) for the Vite, Astro and TanStack Start shapes; `hozo init` with detection, install, stylesheet and `square` | Each fixture edits to the guide's config; unrecognised shapes in a test corpus exit `2` with no file changed; a second run is empty |
 | 3 | Next.js and Metro, including Expo's created config | Same exits, on their fixtures |
-| 4 | Storybook; `--ui` | Same exits; `square --setup` on each initialised fixture has no error |
+| 4 | Storybook; `--ui` | Same exits; Storybook beside a Vite config is left alone (§7.4) |
 | 5 | The packed consumer runs `hozo init --write` over the Vite and Astro starters, from tarballs, and builds | Builds as the guide-built app does; the guides name `init` first and the manual steps after |
 
 Step 1 stands alone: the guide fixes are worth having without `init`.
@@ -237,6 +238,30 @@ the Next.js and the React Native starter.
 
 Diffs now print a changed line's removal before its addition, as `diff -u`
 does; the longest-common-subsequence tie went the other way before.
+
+### 7.4 Step 4
+
+Storybook's `main.*` gets `{ name: '@hozo/storybook', options: { css } }`
+last in `addons`, after a trailing comma when the array has one, or a new
+`addons` array when it has none. Storybook merges an addon's `options` into
+the options its presets are called with (`combinedOptions` in Storybook
+10.6.3), so `css` reaches `viteFinal`. A framework that does not build with
+Vite (`@storybook/nextjs`) is refused with `storybook-not-vite`: the addon is
+a `viteFinal` hook and would not run.
+
+**Storybook beside a Vite config is not edited.** Storybook's Vite builder
+loads the project's `vite.config.*` (`loadConfigFromFile` in
+`@storybook/builder-vite`, unless `viteConfigPath` says otherwise), so a
+config with `hozo()` already gives Storybook Hozo. Adding the addon as well
+runs Hozo twice, and that is not harmless: `examples/login-demo` built with
+`plugins: [hozo(), hozo(), react()]` emitted 6,140 bytes of CSS against
+6,765 with one `hozo()`, missing ten rules (the `hozo-scroll-view` base
+rules, the five `data-hozo-pointer-events` rules, and one component rule).
+`init` skips the Storybook config there, installs no `@hozo/storybook`, and
+says why. A project that followed both guides today has that duplication; it
+is a bug of its own, outside `init`.
+
+`--ui` was implemented in step 2.
 
 ## 8. Resolved questions
 
