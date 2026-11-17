@@ -253,13 +253,17 @@ a `viteFinal` hook and would not run.
 loads the project's `vite.config.*` (`loadConfigFromFile` in
 `@storybook/builder-vite`, unless `viteConfigPath` says otherwise), so a
 config with `hozo()` already gives Storybook Hozo. Adding the addon as well
-runs Hozo twice, and that is not harmless: `examples/login-demo` built with
-`plugins: [hozo(), hozo(), react()]` emitted 6,140 bytes of CSS against
-6,765 with one `hozo()`, missing ten rules (the `hozo-scroll-view` base
-rules, the five `data-hozo-pointer-events` rules, and one component rule).
+runs Hozo twice: with a `vite.config.mjs` holding `hozo()` in
+`examples/storybook-demo`, a probe plugin counted two `hozo` plugins in
+Storybook's resolved config. That is not always harmless:
+`examples/login-demo` built with `plugins: [hozo(), hozo(), react()]`
+emitted 6,140 bytes of CSS against 6,765 with one `hozo()`, missing ten
+rules (the `hozo-scroll-view` base rules, the five
+`data-hozo-pointer-events` rules, and one component rule), though
+storybook-demo's own Storybook output was byte-identical either way.
 `init` skips the Storybook config there, installs no `@hozo/storybook`, and
-says why. A project that followed both guides today has that duplication; it
-is a bug of its own, outside `init`.
+says why. The duplication itself is #2038, fixed in `@hozo/storybook` by
+#2039, which steps aside when the config already has `hozo()`.
 
 `--ui` was implemented in step 2.
 
