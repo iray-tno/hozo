@@ -99,6 +99,18 @@ test('simple projections acquire actual ownership and common static/fallback win
   }
 })
 
+/** Output with the order-as-written warning set aside, and how many it held. */
+function apartFromOrderWarning<T>(output: T): { output: T; warnings: number } {
+  let warnings = 0
+  const output_ = JSON.parse(JSON.stringify(output), (key, value) => {
+    if (key !== 'diagnostics' || !Array.isArray(value)) return value
+    const kept = value.filter((d: { code?: string }) => d.code !== 'TAILWIND_ORDER_AS_WRITTEN')
+    warnings += value.length - kept.length
+    return kept
+  })
+  return { output: output_, warnings }
+}
+
 test('unassessed text, layout and paint writes still prevent ranks from crossing them', async () => {
   const theme = await loadTheme(css, base)
   const compiler = createCompiler(theme)
@@ -116,14 +128,22 @@ test('unassessed text, layout and paint writes still prevent ranks from crossing
     const prepared = await prepareTailwindOrder(css, base, names)
     const final = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
     const legacy = prepareAuthoredTailwindContext(JSON.stringify(prepared.snapshot))
-    assert.deepEqual(
-      compiler.prepareWebModule(source(classes)).emit(final),
-      compiler.prepareWebModule(source(classes)).emit(legacy),
-    )
-    assert.deepEqual(
-      compiler.prepareNativeModule(source(classes)).emit(final),
-      compiler.prepareNativeModule(source(classes)).emit(legacy),
-    )
+    // The barrier keeps written order, so output equals the authored route's;
+    // the ranked route also says that order decided between p-4 and p-2.
+    for (const [ranked, authored] of [
+      [
+        compiler.prepareWebModule(source(classes)).emit(final),
+        compiler.prepareWebModule(source(classes)).emit(legacy),
+      ],
+      [
+        compiler.prepareNativeModule(source(classes)).emit(final),
+        compiler.prepareNativeModule(source(classes)).emit(legacy),
+      ],
+    ] as const) {
+      const apart = apartFromOrderWarning(ranked)
+      assert.deepEqual(apart.output, apartFromOrderWarning(authored).output)
+      assert.equal(apart.warnings, 1, neighbor)
+    }
     const cache = openCandidateCache()
     cache.scanFile('runtime.ts', JSON.stringify(classes), 0)
     const entry = cache

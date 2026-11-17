@@ -188,6 +188,18 @@ test('canonical disabled ordering survives actual static/dynamic action and dest
   assert.equal(observations, 288)
 })
 
+/** Output with the order-as-written warning set aside, and how many it held. */
+function apartFromOrderWarning<T>(output: T): { output: T; warnings: number } {
+  let warnings = 0
+  const output_ = JSON.parse(JSON.stringify(output), (key, value) => {
+    if (key !== 'diagnostics' || !Array.isArray(value)) return value
+    const kept = value.filter((d: { code?: string }) => d.code !== 'TAILWIND_ORDER_AS_WRITTEN')
+    warnings += value.length - kept.length
+    return kept
+  })
+  return { output: output_, warnings }
+}
+
 test('an unassessed relation stays in place without pinning an adjacent resting pair', async () => {
   const compiler = createCompiler()
   // Every boolean ARIA state Tailwind names is assessed now; use a
@@ -213,10 +225,19 @@ test('an unassessed relation stays in place without pinning an adjacent resting 
       assert.match(web[0]!.css, /padding-top: 32px;/)
       assert.match(native.components[0]!.styles, /paddingTop: 16/)
     } else {
-      assert.deepEqual(web, authoredWeb)
-      assert.deepEqual(native, authoredNative)
+      // Written order between p-4 and p-2 is kept, and now said.
+      assert.deepEqual(apartFromOrderWarning(web).output, apartFromOrderWarning(authoredWeb).output)
+      assert.deepEqual(
+        apartFromOrderWarning(native).output,
+        apartFromOrderWarning(authoredNative).output,
+      )
     }
-    assert.deepEqual(native.components[0]!.diagnostics, authoredNative.components[0]!.diagnostics)
+    // Adjacent, p-4/p-2 rank and are sorted: nothing was left to authorship.
+    assert.equal(apartFromOrderWarning(native).warnings, adjacent ? 0 : 1)
+    assert.deepEqual(
+      native.components[0]!.diagnostics.filter((d) => d.code !== 'TAILWIND_ORDER_AS_WRITTEN'),
+      authoredNative.components[0]!.diagnostics,
+    )
     const cache = openCandidateCache()
     cache.scanFile('aria.ts', JSON.stringify(names.join(' ')), 0)
     const entry = cache
