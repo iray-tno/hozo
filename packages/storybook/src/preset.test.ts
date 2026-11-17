@@ -32,6 +32,15 @@ test('adds Hozo before Storybook framework plugins without replacing config', ()
   assert.equal(flatten(result.plugins).at(-1), frameworkPlugin)
 })
 
+test('leaves a config that already has Hozo alone, as one loaded from vite.config does', () => {
+  // Storybook's Vite builder merges the project's vite.config, hozo()
+  // included, before this hook runs; nested, as a plugin preset returns it.
+  const config = { plugins: [[{ name: 'hozo' }, { name: 'hozo:transformed' }], { name: 'other' }] }
+  const result = viteFinal(config, { css: 'src/theme.css' })
+  assert.equal(result, config)
+  assert.equal(flatten(result.plugins).filter((plugin) => plugin.name === 'hozo').length, 1)
+})
+
 test('forwards every option, not the ones it happens to name', async () => {
   // Regression: this destructured `{ css, content, debug }`, so an option
   // added to `@hozo/vite` later was accepted, type-checked, and dropped.
