@@ -1,4 +1,4 @@
-# 12. Where the styling workstreams meet: six fixed points, and what counts as enough evidence
+# 12. Where the styling workstreams meet: the fixed points, and what counts as enough evidence
 
 **Status:** decided
 **Date:** 2026-11-17
@@ -26,7 +26,7 @@ Two things followed from building on a draft.
   rates of RFC 010 §6 are still `null` in `scripts/style-slots/status.mjs`.
 
 The spikes did their job: they show the shape works. This record fixes the
-six points so the remaining work is migration, splits it into issues that can
+points so the remaining work is migration, splits it into issues that can
 proceed separately, and puts a ceiling on evidence per owner.
 
 RFC 010 stays the description of the end state and of what exists today.
@@ -151,14 +151,56 @@ once per phase, or when a specific regression is suspected, and say which.
 The repository's existing device and accessibility jobs keep running as they
 do for any change.
 
-**Still required where it already exists:** RFC 007's per-domain graduation
-method for ordering changes, including the compiled-output comparison its
-pull requests already run. That check is cheap and names exactly which
-components a change reorders.
-
 **Progress is two numbers:** slots still `pending-audit`
-(`scripts/style-slots/status.mjs`), and RFC 007's graduation score. The four
+(`scripts/style-slots/status.mjs`), and RFC 007's graduation score until
+point 7 closes it. The four
 global rates of RFC 010 §6 stay defined, and are not a gate for any slice.
+
+### 7. Ordering is finished by deletion, not by parity on every combination
+
+#1230 reached 30 of 36 on 2026-11-08 and 31 on 2026-11-16, with about 150
+merged pull requests in between. The five points left are stage 6 of domains
+1 to 5: "the domain's old ordering path is deleted".
+
+By the project's own account that deletion has happened. The parser
+interaction sort, the Web condition-weight sort, the duplicate owner variant
+table and the process-wide switch are removed, and every mechanism still
+listed in `docs/measurements/tailwind-order-coverage.md` is marked "keep".
+The stage 5 inventory reports no unranked default class or variant in any
+domain. What the pull requests since then have been doing is narrowing a
+fallback: when one class list holds a write the plan cannot rank (an
+arbitrary value, or a class the project's own CSS defines), how many of its
+neighbours still get Tailwind's order. That is a product of combinations, so
+it has no last case.
+
+So:
+
+- **Stage 6 of a domain is earned when no independent Tailwind precedence
+  policy remains for it** and the existing oracle suite and compiled-output
+  comparison pass on that state, once. The four-part gate proposed in
+  `tailwind-order-coverage.md` is not required per combination.
+- **The fallback is a boundary, not an old authority.** An input with an
+  unrankable write keeps the order it was written in for the writes that
+  cannot be shown independent of it. This is documented behaviour. Narrowing
+  it further is not part of #1230.
+- **A combination where Hozo and Tailwind choose different winners is a
+  bug**, filed by itself with its reproduction, as #2018 and #2027 are. It
+  is fixed when someone meets it, not searched for.
+- **The build says when the boundary decided something.** If an input falls
+  back and holds two writes to one property under one condition, the
+  compiler warns, naming the classes. This is the one new piece of work, and
+  it is what makes the boundary safe to leave: today that case is silent.
+- **#1230 closes** when the five points are ticked on that basis and the
+  warning has landed. The ordering policy version then changes only with a
+  fix to a filed bug, because each change discards every consumer's cache
+  (it went from v56 to v68 between 2026-11-08 and 2026-11-16).
+
+What this gives up: with a conflicting pair and an unrankable write in one
+class list, the later-written class wins where Tailwind's stylesheet order
+might pick the other, and in one measured RTL case (#2027) the static
+output and the runtime-assembled Native result differ. Hozo's own corpus has
+318 of 320 multi-write inputs ranked, and switching the old path off changed
+none of 281 components, so no shipped component depends on the difference.
 
 ## How the work is split
 
@@ -167,7 +209,7 @@ issue with its own owner, and none waits for the others except as stated:
 
 | Issue | Depends on |
 | --- | --- |
-| Ordering to completion and removal of the old authorities (#1230) | point 3 only |
+| Ordering: tick stage 6 on the basis of point 7, add the fallback warning, close #1230 | points 3 and 7 |
 | Manifest v2: generate it for `@hozo/patterns`, `@hozo/form` and `@hozo/ui`, and fail CI when it disagrees with the compiled-in tables | point 1 |
 | `@hozo/form`'s ten components as contracts | points 1, 2, 6 |
 | The 33 component-managed slots, in batches by component | points 1, 2, 6 |
@@ -195,7 +237,15 @@ issue with its own owner, and none waits for the others except as stated:
 - `node scripts/style-slots/status.mjs` on `b3ea23ff`: 27 components, 100
   slots, 56 pending, 33 component-managed and all 33 pending, global
   measures `null`.
-- #1230's checkpoint of 2026-11-16: RFC 007 at 31 of 36, domain 6 complete.
+- #1230's checkpoints: the scale and 30 of 36 on 2026-11-08, 31 of 36 with
+  domain 6 complete on 2026-11-16. Merged pull requests whose body mentions
+  `1230`: 148 between 2026-11-08 and 2026-11-18 (a text search).
+- `docs/measurements/tailwind-order-coverage.md`: which ordering mechanisms
+  remain and that each is kept; 318 of 320 multi-write inputs ranked.
+  `tailwind-order-old-path.md`: 0 of 281 Web and 281 Native components
+  change with the old compiler ordering off.
+- `crates/hozo_ir/src/tailwind_plan.rs`: `TAILWIND_SCALAR_ORDER_POLICY` is
+  `scalar-order-v68`; it was v56 at the 2026-11-08 checkpoint.
 
 ## Rejected / revisit
 
@@ -215,8 +265,14 @@ issue with its own owner, and none waits for the others except as stated:
   jobs that already run, and by the issues labelled `needs-device`.
 - **Design a new contract schema before migrating.** Three owners with
   different shapes fit the existing one.
+- **Keep narrowing the ordering fallback until no combination differs from
+  Tailwind.** The inputs it affects pair a self-conflicting class list with
+  a class Hozo cannot rank. None exists in Hozo's own corpus, and the cost was
+  about 150 pull requests for one point. A warning costs one.
 
 Revisit when an owner cannot be expressed in the contract without an
 expression, when a migrated owner regresses in a way the four items could
-not have caught (raise the bar for that class of owner, and say why), or
-when point 4's open question is answered.
+not have caught (raise the bar for that class of owner, and say why), when
+point 4's open question is answered, or when filed ordering bugs cluster in
+one domain (that domain's boundary is then too wide, and narrowing it is
+worth a slice).
