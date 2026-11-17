@@ -30,7 +30,7 @@ While `docs/proposal.md` describes the foundational vision and `docs/decisions/`
 | [010](010-one-styling-fact-model.md) | One styling fact model | Compiler, engine, component contracts and build integrations | **Draft**; junctions and evidence gate decided in [decision 012](../decisions/012-where-the-styling-workstreams-meet.md) | [#1458](https://github.com/iray-tno/hozo/issues/1458) |
 | [011](011-hozo-cli.md) | One `hozo` command | New `@hozo/cli`; migration audit, compiler and navigation | **Implemented (steps 1–4)** | Not assigned |
 | [012](012-hozo-add.md) | `hozo add`: an `@hozo/ui` component as project source | `@hozo/cli`, `@hozo/ui` | **Implemented** | Not assigned |
-| [013](013-hozo-init.md) | `hozo init`: Hozo added to an existing project | `@hozo/cli`, `@hozo/compiler` | **Draft** | Not assigned |
+| [013](013-hozo-init.md) | `hozo init`: Hozo added to an existing project | `@hozo/cli`, `@hozo/compiler` | **Implemented** | Not assigned |
 
 ---
 

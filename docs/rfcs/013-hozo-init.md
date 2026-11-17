@@ -1,6 +1,6 @@
 # RFC 013: `hozo init` — Hozo added to an existing project
 
-- **Status**: Draft (§7: steps 1–4 implemented)
+- **Status**: Implemented (§7: steps 1–5)
 - **Authors**: iray-tno
 - **Tracking issue**: Not assigned
 - **Target packages**: `@hozo/cli`; `@hozo/compiler` (one analysis pass)
@@ -267,6 +267,30 @@ says why. The duplication itself is #2038, fixed in `@hozo/storybook` by
 
 `--ui` was implemented in step 2.
 
+### 7.5 Step 5
+
+`scripts/check-packed-consumer.mjs` packs `@hozo/cli` with the rest, then
+over the Vite starter fixture (its own `vite.config.ts` and `src/index.css`)
+with the guide's `index.html`, `main.tsx` and `App.tsx`, installs only the
+starter's packages and `@hozo/cli`, commits, and runs
+`pnpm exec hozo init --write`. `init`'s own `pnpm add` goes through the
+workspace overrides, so `@hozo/*` resolve to the tarballs. It then adds the
+guide's `--color-brand` to the stylesheet `init` created, as a project would
+next, and builds; the build is held to the same checks as the guides' (the
+Heading lowered to `<h1>`, the brand colour in the CSS, no client chunk
+importing `@hozo/core`).
+
+Run locally on Windows: the two `pnpm add` commands installed
+`@hozo/core`, `@hozo/vite` and `@hozo/compiler` 0.4.0 from the tarballs, the
+config and stylesheet edits were the ones §7.2 lists, `square --setup`
+passed `versions`, `peers`, `adapter` and `css`, and the build passed every
+check. The run also showed Node's DEP0190 warning for the Windows install
+(arguments passed with `shell: true`); the install line now goes to the
+shell whole there, and a rerun in the same app printed no warning.
+
+The getting-started index names `hozo init` first, for releases after
+`0.4.0`, and the per-stack pages stay as the manual steps.
+
 ## 8. Resolved questions
 
 - **Install, or print the command?** Install with `--write`, print in a dry
@@ -285,3 +309,5 @@ says why. The duplication itself is #2038, fixed in `@hozo/storybook` by
 
 - Draft (2026-11-17): first version, from the starters' configs measured in
   §2.
+- Implemented (2026-11-17): steps 1–5 (§7.1–§7.5); Storybook beside a Vite
+  config is left alone (§7.4), which found #2038.

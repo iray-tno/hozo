@@ -6,7 +6,19 @@ sidebar:
   label: "Choose your stack"
 ---
 
-Hozo plugs into the build you already have. Pick yours:
+Hozo plugs into the build you already have. In a project that builds,
+`hozo init` makes the edits these pages describe (in releases after
+`0.4.0`):
+
+```sh
+npx @hozo/cli init           # what it would install, create and edit
+npx @hozo/cli init --write   # do it, then check the setup with hozo square
+```
+
+It installs the packages, picks or creates the stylesheet, and adds Hozo to
+the config. A config it does not recognise is left alone, and it prints the
+lines to add instead. To do it by hand, or to see what it did, pick your
+stack:
 
 | Stack | Package | Page |
 | --- | --- | --- |

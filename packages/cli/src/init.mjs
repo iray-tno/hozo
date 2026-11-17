@@ -6,7 +6,7 @@
 // write contract every `hozo` command that edits files follows (RFC 011
 // §3.4): a dry run unless `--write`.
 
-import { execFileSync } from 'node:child_process'
+import { execFileSync, execSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { packageManager, posix } from './add.mjs'
@@ -201,11 +201,11 @@ function installCommands(project, dev, runtime) {
 
 function runInstall(project, command) {
   // Package managers are `.cmd` shims on Windows, which only a shell runs.
-  execFileSync(command[0], command.slice(1), {
-    cwd: project,
-    stdio: 'inherit',
-    shell: process.platform === 'win32',
-  })
+  // There the line goes to the shell whole: every word is a package
+  // manager, a verb, a flag or `@hozo/<name>@<version>`, none needing quotes.
+  if (process.platform === 'win32')
+    execSync(command.join(' '), { cwd: project, stdio: 'inherit' })
+  else execFileSync(command[0], command.slice(1), { cwd: project, stdio: 'inherit' })
 }
 
 /**
