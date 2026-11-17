@@ -749,6 +749,8 @@ pub struct NativeCompileOptions {
     pub text_reference: Option<bool>,
     pub text_inheritance: Option<bool>,
     pub text_static: Option<bool>,
+    /// Decision 013's route. Internal until the adapters select it.
+    pub text_unified: Option<bool>,
     pub tailwind_plan: Option<bool>,
 }
 
@@ -810,6 +812,16 @@ impl NativeCompileOptions {
         {
             return Err(napi::Error::from_reason(
                 "Internal ownerStyle cannot be combined with text experiments",
+            ));
+        }
+        if self.text_unified.unwrap_or(false)
+            && (self.source_evidence.unwrap_or(false)
+                || self.owner_style.unwrap_or(false)
+                || self.text_reference.unwrap_or(false)
+                || self.text_inheritance.unwrap_or(false))
+        {
+            return Err(napi::Error::from_reason(
+                "textUnified is its own route; select no other text or owner experiment with it",
             ));
         }
         Ok(())
@@ -964,6 +976,7 @@ impl Compiler {
                 text_inheritance: options.text_inheritance.unwrap_or(false),
                 text_static: options.text_static.unwrap_or(false)
                     && options.text_inheritance.unwrap_or(false),
+                text_unified: options.text_unified.unwrap_or(false),
                 tailwind: TailwindPlanOptions {
                     context: self.tailwind_order.as_deref(),
                     capture: options.tailwind_plan.unwrap_or(false),
@@ -1733,6 +1746,7 @@ struct NativeModuleOptions<'a> {
     text_reference: bool,
     text_inheritance: bool,
     text_static: bool,
+    text_unified: bool,
     tailwind: TailwindPlanOptions<'a>,
 }
 
@@ -1910,6 +1924,8 @@ fn lower_native_components(
                 hozo_native::lower_text_inheritance(&root.node, &root.forwarded, source, theme)
             } else if options.text_reference {
                 hozo_native::lower_text_reference(&root.node, &root.forwarded, source, theme)
+            } else if options.text_unified {
+                hozo_native::lower_text_unified(&root.node, &root.forwarded, source, theme)
             } else if options.source_evidence {
                 hozo_native::lower_forwarded_with_evidence(
                     &root.node,

@@ -245,6 +245,13 @@ pub(crate) struct NativeRenderContext<'a> {
     pub text_reference: bool,
     /// Internal per-call runtime integration. Never a project/default mode.
     pub text_inheritance: bool,
+    /// Decision 013: forwarding stays compiled; only what the build cannot
+    /// see reads the inheritance protocol at run time. Exclusive with
+    /// `text_inheritance`, which makes every element a reader.
+    pub text_unified: bool,
+    /// How many text hosts enclose the element being rendered. React Native
+    /// inherits inside a Text, so only an element at depth 0 is outermost.
+    pub text_depth: usize,
     /// Only the explicit RFC010 preparation request observes this carrier.
     pub owner_style: Option<&'a mut Option<OwnerStyle>>,
     pub owner_inputs: OwnerStyleInputs<'a>,
@@ -387,6 +394,30 @@ pub fn lower_text_inheritance(
     output
 }
 
+/// Decision 013's route: the ordinary renderer, with outermost Text reading
+/// the inheritance protocol for what it does not set, and a text-styled View
+/// publishing only around children the compiler cannot see. Assessed per
+/// element: anything it cannot carry is lowered exactly as ordinary output.
+#[doc(hidden)]
+pub fn lower_text_unified(
+    root: &Node,
+    forwarded: &[StyleDeclaration],
+    source: &str,
+    theme: &Theme,
+) -> LowerOutput {
+    lower_forwarded_capturing(
+        root,
+        forwarded,
+        source,
+        theme,
+        RenderOptions {
+            text_unified: true,
+            ..Default::default()
+        },
+        None,
+    )
+}
+
 /// Opt-in static selection keeps the measured runtime route independently
 /// callable. Identity comes from the same parser AST; styles from this IR.
 #[doc(hidden)]
@@ -440,6 +471,7 @@ fn lower_forwarded_impl(
 struct RenderOptions {
     text_reference: bool,
     text_inheritance: bool,
+    text_unified: bool,
     source_evidence: bool,
 }
 
@@ -454,6 +486,7 @@ fn lower_forwarded_capturing(
     let RenderOptions {
         text_reference,
         text_inheritance,
+        text_unified,
         source_evidence,
     } = options;
     let (owner_style, owner_inputs) = owner
@@ -480,6 +513,8 @@ fn lower_forwarded_capturing(
         runtime: &mut runtime,
         text_reference,
         text_inheritance,
+        text_unified,
+        text_depth: 0,
         owner_style,
         owner_inputs,
         source_evidence,

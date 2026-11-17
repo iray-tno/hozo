@@ -57,7 +57,12 @@ export function HozoInheritedText(props: TextHostProps) {
  * protocol does not carry -- wins as written. This is the default route, and
  * a value the protocol cannot read must not throw in an application.
  */
-export function HozoInheritedLeafText({ style, children, ...props }: TextHostProps) {
+export function HozoInheritedLeafText({
+  style,
+  children,
+  hozoOpaque,
+  ...props
+}: TextHostProps & { hozoOpaque?: boolean }) {
   const metrics = useContext(HozoInheritedMetricsContext)
   const paint = useContext(HozoInheritedPaintContext)
   // An inherited colour transition animates only where nothing local masks it.
@@ -75,10 +80,23 @@ export function HozoInheritedLeafText({ style, children, ...props }: TextHostPro
       {...props}
       style={[metrics as TextProps['style'], inherited as TextProps['style'], style]}
     >
-      {children}
+      {hozoOpaque ? (
+        // A Text rendered by a child the compiler could not see inherits from
+        // this host natively. It must not also apply the frame from outside,
+        // which would put the outer value back over this host's own.
+        <HozoInheritedMetricsContext.Provider value={EMPTY}>
+          <HozoInheritedPaintContext.Provider value={EMPTY}>
+            {children}
+          </HozoInheritedPaintContext.Provider>
+        </HozoInheritedMetricsContext.Provider>
+      ) : (
+        children
+      )}
     </Component>
   )
 }
+
+const EMPTY = Object.freeze({})
 
 /**
  * @internal Generated ABI (decision 013). Publishes a text-styled container's
