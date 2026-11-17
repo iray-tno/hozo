@@ -71,7 +71,26 @@ Without it the assessed Hozo routes also select 8px in either order.
 and all four paths select 8px in both orders. This does not prove equivalent
 winners on genuinely unassessed input.
 
-## Proposed Stage 6 gate (#1230)
+## Stage 6 gate (#1230)
+
+**Settled by [decision 012](../decisions/012-where-the-styling-workstreams-meet.md),
+point 7.** Stage 6 of a domain is earned when no independent Tailwind
+precedence policy remains for it, and the existing oracle suite and output
+comparison pass on that state once. Every mechanism in the table above is
+either deleted or kept as CSS specificity, state selection or projection.
+None of them is a Tailwind priority of its own. So domains 1–5 earn the point
+together with domain 6, and #1230 closes at 36/36.
+
+What remains is a boundary, not an old authority. In an input with a write
+Hozo cannot rank, the writes it cannot show independent keep the order they
+were written in. This is the case for static Web, static Native and the
+runtime resolver alike. When that leaves two writes to one property under
+one condition, the build warns with `TAILWIND_ORDER_AS_WRITTEN`. A
+combination where Hozo and Tailwind still choose different winners is filed
+as its own bug (#2018, #2027), not searched for.
+
+The proposal below is kept as written, for its reasoning and its measured
+cases. Its four parts are not required per combination.
 
 Apply this per existing workstream. A point is earned by deleting the
 superseded authority, not by renaming it or by shrinking the denominator.

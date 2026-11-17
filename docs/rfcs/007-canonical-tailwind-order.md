@@ -1,7 +1,12 @@
 # RFC 007: One Tailwind ordering plan before platform lowering
 
-- **Status**: Captured Vite/Metro/Next project sessions and Metro dynamic maps
-  default to shared assessed scalar winners. Broader domains remain open.
+- **Status**: Implemented. Captured Vite/Metro/Next project sessions, the
+  built-in context and Metro dynamic maps all use the shared ranks; no other
+  Tailwind precedence policy remains. #1230 closed at 36/36 under
+  [decision 012](../decisions/012-where-the-styling-workstreams-meet.md),
+  point 7. Around a write Hozo cannot rank, written order is a documented
+  boundary, reported by `TAILWIND_ORDER_AS_WRITTEN`. Differences from
+  Tailwind that remain are individual issues.
 - **Authors**: codex-1
 - **Tracking issue**: [#1230](https://github.com/iray-tno/hozo/issues/1230)
 - **Target packages**: compiler/parser/IR/Web/Native, `@hozo/tailwind`,
