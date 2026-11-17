@@ -2589,14 +2589,13 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
           const el=<Pressable><Text ${attributes.join(' ')} style={own}>Label</Text></Pressable>`
         const native = local.prepareNativeModule(source).emit(context).components[0]
         const web = local.prepareWebModule(source).emit(context)[0]
-        assert.deepEqual(
-          native.diagnostics.map(({ code }) => code),
-          ['DYNAMIC_CLASS_NAME_NOT_RESOLVED'],
-        )
-        assert.deepEqual(
-          web.diagnostics.map(({ code }) => code),
-          ['DYNAMIC_CLASS_NAME_NOT_RESOLVED'],
-        )
+        // `hover:text-lg` and `hover:text-xl` beside the unranked `bg-brand`
+        // keep written order, which the build now reports (decision 012).
+        for (const { diagnostics } of [native, web])
+          assert.deepEqual(diagnostics.map(({ code }) => code).sort(), [
+            'DYNAMIC_CLASS_NAME_NOT_RESOLVED',
+            'TAILWIND_ORDER_AS_WRITTEN',
+          ])
         assert.match(native.jsx, /hozoClasses\(runtimeNames\)/)
         const render = (project) =>
           evaluate(
