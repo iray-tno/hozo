@@ -118,8 +118,8 @@ function exportedObject(nodes, shape) {
   return node?.kind === 'object' ? node : undefined
 }
 
-/** The options object `hozo(…)` is called with, as source. */
-export function pluginOptions(quote, { css, preflight }) {
+/** The options object Hozo's adapter is called with, as source. */
+export function optionsSource(quote, { css, preflight }) {
   const entries = [`css: ${quote}${css}${quote}`]
   if (preflight === false) entries.push('preflight: false')
   return `{ ${entries.join(', ')} }`
@@ -134,7 +134,7 @@ export function viteConfigEdit(text, file, stack, options) {
   const shape = configShape(text, file)
   const manual = (why) => {
     const quote = shape.diagnostics.length ? "'" : quoteOf(text, shape)
-    const call = `hozo(${pluginOptions(quote, options)})`
+    const call = `hozo(${optionsSource(quote, options)})`
     const where =
       stack === 'astro'
         ? `add ${call} first in vite.plugins`
@@ -153,7 +153,7 @@ export function viteConfigEdit(text, file, stack, options) {
   const object = exportedObject(nodes, shape)
   if (!object) throw manual('its export is not defineConfig({ … }) or an object')
   const quote = quoteOf(text, shape)
-  const call = `hozo(${pluginOptions(quote, options)})`
+  const call = `hozo(${optionsSource(quote, options)})`
   const edits = [
     importInsertion(
       shape,
@@ -174,4 +174,66 @@ export function viteConfigEdit(text, file, stack, options) {
     else edits.push(firstInArray(text, plugins, call))
   }
   return { updated: apply(text, edits) }
+}
+
+/** The adapter each wrapped stack takes, and the guide that shows it by hand. */
+const WRAPPERS = {
+  next: { module: '@hozo/next', guide: 'next' },
+  metro: { module: '@hozo/metro/config', guide: 'metro' },
+}
+
+/**
+ * The edit that wraps what a Next.js or Metro config exports in
+ * `withHozo(…, options)`: `{ updated }`, or `{ same: true }` when it already
+ * calls `withHozo`. The exported expression is left as written inside the
+ * call, so `mergeConfig(getDefaultConfig(__dirname), config)` and a
+ * `nextConfig` binding are both kept.
+ */
+export function wrapConfigEdit(text, file, stack, options) {
+  const { module, guide } = WRAPPERS[stack]
+  const shape = configShape(text, file)
+  const quote = shape.diagnostics.length ? "'" : quoteOf(text, shape)
+  const manual = (why) =>
+    new InitError(
+      `${file}: ${why}, so init does not edit it; import { withHozo } from '${module}' and export withHozo(<your config>, ${optionsSource(quote, options)}) (https://iray-tno.github.io/hozo/docs/getting-started/${guide}/)`,
+      'config-not-editable',
+    )
+  if (shape.diagnostics.length) throw manual('it does not parse')
+  const nodes = tree(shape)
+  const imported = shape.imports.find((item) => item.source === module)
+  if (
+    imported &&
+    nodes.some((node) => node.kind === 'call' && imported.locals.includes('withHozo'))
+  )
+    return { same: true }
+  if (imported) throw manual(`it imports ${module} without calling withHozo`)
+  if (shape.exportNode === undefined) throw manual('it has no export default or module.exports')
+  const exported = nodes[shape.exportNode]
+  if (!['object', 'call', 'identifier'].includes(exported.kind))
+    throw manual('its export is not a config object, a call or a name')
+  const cjs = shape.exportKind === 'cjs'
+  const semi = semicolons(text, shape) ? ';' : ''
+  const statement = cjs
+    ? `const { withHozo } = require(${quote}${module}${quote})${semi}`
+    : `import { withHozo } from ${quote}${module}${quote}${semi}`
+  return {
+    updated: apply(text, [
+      importInsertion(shape, statement),
+      { start: exported.spanStart, end: exported.spanStart, replacement: 'withHozo(' },
+      {
+        start: exported.spanEnd,
+        end: exported.spanEnd,
+        replacement: `, ${optionsSource(quote, options)})`,
+      },
+    ]),
+  }
+}
+
+/** A new `metro.config.js` for an Expo project, which ships none (RFC 013 §2). */
+export function expoMetroConfig(options) {
+  return `const { getDefaultConfig } = require('expo/metro-config')
+const { withHozo } = require('@hozo/metro/config')
+
+module.exports = withHozo(getDefaultConfig(__dirname), ${optionsSource("'", options)})
+`
 }

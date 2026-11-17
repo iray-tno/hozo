@@ -38,12 +38,14 @@ export function lineDiff(a, b) {
       ops.push([' ', x[start + i]])
       i += 1
       j += 1
-    } else if (j < m && (i === n || table[i * width + j + 1] >= table[(i + 1) * width + j])) {
-      ops.push(['+', y[start + j]])
-      j += 1
-    } else {
+    } else if (i < n && (j === m || table[(i + 1) * width + j] >= table[i * width + j + 1])) {
+      // A removal before an addition on a tie, as `diff -u` prints a
+      // changed line: the old one, then the new one.
       ops.push(['-', x[start + i]])
       i += 1
+    } else {
+      ops.push(['+', y[start + j]])
+      j += 1
     }
   }
   for (const line of x.slice(endX)) ops.push([' ', line])

@@ -184,12 +184,10 @@ test('an uncommitted config, a version mismatch and an unknown stack change noth
   })
   assert.equal((await init(older, [])).error.code, 'version-mismatch')
 
-  // create-next-app writes package.json from code; the fixture has none.
-  const next = starter(t, 'next-app', {
-    'package.json': JSON.stringify({ dependencies: { next: '16.4.6' } }),
+  const storybook = starter(t, 'vite', {
+    '.storybook/main.ts': "export default { addons: [], framework: '@storybook/react-vite' }\n",
   })
-  assert.equal((await init(next, [])).error.code, 'stack-not-supported')
-  assert.equal((await init(starter(t, 'expo'), [])).error.code, 'stack-not-supported')
+  assert.equal((await init(storybook, [])).error.code, 'stack-not-supported')
   const none = starter(t, 'vite')
   rmSync(path.join(none, 'vite.config.ts'))
   assert.equal((await init(none, [])).error.code, 'stack-not-found')
@@ -225,4 +223,94 @@ test('a setup error square reports after the edits exits 1', async (t) => {
   })
   assert.equal(result.exit, 1)
   assert.match(result.output, /FAIL {2}versions\n {8}error: @hozo\/vite is not installed/)
+})
+
+// create-next-app writes package.json from code; its fixture has none.
+const NEXT = { dependencies: { next: '16.4.6', react: '19.3.1', 'react-dom': '19.3.1' } }
+
+test('Next.js: the exported config is wrapped, in the file’s own quotes and semicolons', async (t) => {
+  const root = starter(t, 'next-app', { 'package.json': JSON.stringify(NEXT) })
+  commit(root)
+  const npm = packageManager(root)
+  assert.equal((await init(root, ['--write'], npm)).exit, 0)
+  assert.deepEqual(npm.commands, [
+    `npm install @hozo/core@${version}`,
+    `npm install --save-dev @hozo/next@${version} @hozo/compiler@${version}`,
+  ])
+  // Not app/globals.css: on the default list, and without Tailwind.
+  assert.equal(read(root, 'theme.css'), '@import "tailwindcss";\n\n@theme {\n}\n')
+  assert.equal(
+    read(root, 'next.config.ts'),
+    read(path.join(STARTERS, 'next-app'), 'next.config.ts')
+      .replace(
+        'import type { NextConfig } from "next";\n',
+        'import type { NextConfig } from "next";\nimport { withHozo } from "@hozo/next";\n',
+      )
+      .replace(
+        'export default nextConfig;',
+        'export default withHozo(nextConfig, { css: "theme.css" });',
+      ),
+  )
+  assert.match((await init(root, ['--write'], npm)).output, /Nothing to edit/)
+})
+
+test('Next.js with Tailwind: its globals.css is used, and preflight is off', async (t) => {
+  const manifest = { ...NEXT, devDependencies: { '@tailwindcss/postcss': '^4', tailwindcss: '^4' } }
+  const root = starter(t, 'next-app-tw', { 'package.json': JSON.stringify(manifest) })
+  commit(root)
+  const report = JSON.parse(
+    (await init(root, ['--write', '--no-install', '--format', 'json'])).output,
+  )
+  assert.equal(report.stylesheet, 'app/globals.css')
+  assert.deepEqual(
+    report.files.map((file) => file.file),
+    ['next.config.ts'],
+  )
+  assert.match(
+    read(root, 'next.config.ts'),
+    /export default withHozo\(nextConfig, \{ css: "app\/globals\.css", preflight: false \}\);/,
+  )
+})
+
+test('React Native: the exported expression is wrapped and the require added after the others', async (t) => {
+  const root = starter(t, 'react-native')
+  commit(root)
+  assert.equal((await init(root, ['--write', '--no-install'])).exit, 0)
+  const config = read(root, 'metro.config.js')
+  assert.match(
+    config,
+    /^const \{ getDefaultConfig, mergeConfig \} = require\('@react-native\/metro-config'\);\nconst \{ withHozo \} = require\('@hozo\/metro\/config'\);\n/,
+  )
+  assert.match(
+    config,
+    /module\.exports = withHozo\(mergeConfig\(getDefaultConfig\(__dirname\), config\), \{ css: 'theme\.css' \}\);\n$/,
+  )
+})
+
+test('Expo: a metro.config.js is created from Expo’s default, and a second run keeps it', async (t) => {
+  const root = starter(t, 'expo')
+  commit(root)
+  const report = JSON.parse(
+    (await init(root, ['--write', '--no-install', '--format', 'json'])).output,
+  )
+  assert.deepEqual(report.stacks, [{ stack: 'metro', config: 'metro.config.js' }])
+  assert.equal(
+    read(root, 'metro.config.js'),
+    "const { getDefaultConfig } = require('expo/metro-config')\nconst { withHozo } = require('@hozo/metro/config')\n\nmodule.exports = withHozo(getDefaultConfig(__dirname), { css: 'src/theme.css' })\n",
+  )
+  assert.ok(read(root, 'src/theme.css').startsWith('@import "tailwindcss";'))
+  const again = JSON.parse((await init(root, ['--format', 'json'])).output)
+  assert.deepEqual(again.files, [])
+})
+
+test('a Next.js config exporting a function is printed, not edited', async (t) => {
+  const computed = 'export default (phase) => ({ reactStrictMode: phase !== "x" })\n'
+  const root = starter(t, 'next-app', {
+    'package.json': JSON.stringify(NEXT),
+    'next.config.ts': computed,
+  })
+  const result = await init(root, [])
+  assert.equal(result.error.code, 'config-not-editable')
+  // No import to read a quote from: a single quote.
+  assert.match(result.error.message, /export withHozo\(<your config>, \{ css: 'theme\.css' \}\)/)
 })

@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { packageManager, posix } from './add.mjs'
-import { InitError, viteConfigEdit } from './init-config.mjs'
+import { expoMetroConfig, InitError, viteConfigEdit, wrapConfigEdit } from './init-config.mjs'
 import { DEFAULT_CSS_FILES } from './square-config.mjs'
 import { unifiedDiff } from './text-diff.mjs'
 
@@ -23,7 +23,8 @@ CLI's version, picks or creates the stylesheet Hozo reads, adds Hozo to the
 bundler config, then runs \`hozo square --setup\`. A config init does not
 recognise is not edited: init prints the lines to add and exits 2.
 
-Edits Vite, TanStack Start and Astro configs.
+Edits Vite, TanStack Start, Astro, Next.js and Metro configs, and creates
+metro.config.js for an Expo project that has none.
 
 Options:
   --write               Install and edit (without it, a dry run)
@@ -121,11 +122,22 @@ function detect(project, dependencies) {
     ['.storybook/main', 'storybook'],
   ]) {
     const config = findConfig(project, base)
-    if (config) found.push({ stack, config, unsupported: true })
+    if (config) found.push({ stack, config, unsupported: stack === 'storybook' })
   }
+  // Expo builds with its default Metro config until a project writes one.
   if (!found.some((item) => item.stack === 'metro') && dependencies.expo)
-    found.push({ stack: 'metro', unsupported: true })
+    found.push({ stack: 'metro', config: 'metro.config.js', create: true })
   return found
+}
+
+/** The adapter each stack takes. */
+const ADAPTERS = {
+  vite: '@hozo/vite',
+  'tanstack-start': '@hozo/vite',
+  astro: '@hozo/vite',
+  next: '@hozo/next',
+  metro: '@hozo/metro',
+  storybook: '@hozo/storybook',
 }
 
 const NAMES = {
@@ -227,9 +239,9 @@ export async function runInit(argv, io, project = process.cwd(), dependencies = 
     // Versions: every @hozo/* package is released at one version, so the
     // one to install is this CLI's. A project on another is not upgraded.
     const want = version()
-    const adapter = '@hozo/vite'
+    const adapters = [...new Set(stacks.map((item) => ADAPTERS[item.stack]))]
     const runtime = ['@hozo/core', ...(options.ui ? ['@hozo/ui'] : [])]
-    const dev = [adapter, '@hozo/compiler']
+    const dev = [...adapters, '@hozo/compiler']
     for (const name of [...runtime, ...dev]) {
       const installed = readJson(path.join(project, 'node_modules', name, 'package.json'))?.version
       if (installed && installed !== want)
@@ -244,7 +256,7 @@ export async function runInit(argv, io, project = process.cwd(), dependencies = 
     // The stylesheet, then the configs that name it.
     const configs = stacks.map((item) => ({
       ...item,
-      text: readFileSync(path.join(project, item.config), 'utf8'),
+      text: item.create ? '' : readFileSync(path.join(project, item.config), 'utf8'),
     }))
     const sheet = stylesheet(
       project,
@@ -268,15 +280,29 @@ export async function runInit(argv, io, project = process.cwd(), dependencies = 
       if (updated !== original) files.push({ file: sheet.file, action: 'edit', original, updated })
     }
     for (const item of configs) {
-      const edit = viteConfigEdit(
-        item.text,
-        item.config,
-        item.stack === 'astro' ? 'astro' : 'vite',
-        {
-          css: sheet.file,
-          preflight: tailwindBuild ? false : undefined,
-        },
-      )
+      // Preflight is a Web reset: Metro has no cascade for it to undo.
+      const adapterOptions = {
+        css: sheet.file,
+        preflight: tailwindBuild && item.stack !== 'metro' ? false : undefined,
+      }
+      if (item.create) {
+        files.push({
+          file: item.config,
+          action: 'create',
+          original: '',
+          updated: expoMetroConfig(adapterOptions),
+        })
+        continue
+      }
+      const edit =
+        item.stack === 'next' || item.stack === 'metro'
+          ? wrapConfigEdit(item.text, item.config, item.stack, adapterOptions)
+          : viteConfigEdit(
+              item.text,
+              item.config,
+              item.stack === 'astro' ? 'astro' : 'vite',
+              adapterOptions,
+            )
       if (!edit.same)
         files.push({
           file: item.config,

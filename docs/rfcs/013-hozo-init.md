@@ -1,6 +1,6 @@
 # RFC 013: `hozo init` — Hozo added to an existing project
 
-- **Status**: Draft (§7: steps 1 and 2 implemented)
+- **Status**: Draft (§7: steps 1–3 implemented)
 - **Authors**: iray-tno
 - **Tracking issue**: Not assigned
 - **Target packages**: `@hozo/cli`; `@hozo/compiler` (one analysis pass)
@@ -210,6 +210,33 @@ linked from this checkout, `hozo init --write` followed by the real
 `square --setup` passed `versions`, `peers`, `adapter` and `css`. With
 `--no-install` and packages still to install, `square` is not run: it
 would only say the project has no `@hozo/*` dependency.
+
+### 7.3 Step 3
+
+Next.js and Metro configs are edited by wrapping the exported expression,
+`export default` or `module.exports`, in `withHozo(…, { css })`, with the
+import or `require` added after the file's last one in its own style. The
+expression itself is not touched, so React Native's
+`mergeConfig(getDefaultConfig(__dirname), config)` and Next's `nextConfig`
+binding stay as written. Expo with no `metro.config.*` gets one from
+`expo/metro-config`, as the Metro guide now shows. Metro is never passed
+`preflight`: it is a Web reset.
+
+| Starter | Stylesheet | Config edit |
+| --- | --- | --- |
+| Next.js | `theme.css` created (not `app/globals.css`, which has no Tailwind) | `export default withHozo(nextConfig, { css: "theme.css" });` |
+| Next.js with Tailwind | `app/globals.css`, unchanged | `withHozo(nextConfig, { css: "app/globals.css", preflight: false })` |
+| React Native | `theme.css` created | `withHozo(mergeConfig(getDefaultConfig(__dirname), config), { css: 'theme.css' })` |
+| Expo | `src/theme.css` created | `metro.config.js` created |
+
+A config exporting a function (`export default (phase) => ({ … })`) exits
+`2` with the `withHozo` call to write. With `@hozo/core`, the adapter and
+`@hozo/compiler` linked from this checkout, `init --write` and the real
+`square --setup` passed `versions`, `peers`, `adapter` and `css` on both
+the Next.js and the React Native starter.
+
+Diffs now print a changed line's removal before its addition, as `diff -u`
+does; the longest-common-subsequence tie went the other way before.
 
 ## 8. Resolved questions
 
