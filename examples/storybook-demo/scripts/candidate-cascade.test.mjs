@@ -2266,8 +2266,11 @@ test('owned static plus dynamic styles still match the Native style array, witho
     "import { View } from '@hozo/core'; const Example = () => <View className={`p-3 ${dynamic}`} />"
   const web = compiler.compile(source)[0]
   const native = compiler.compileNative(source)[0]
+  // A map that writes an inline edge both logically and physically reads
+  // the layout direction from React Native (#2018).
   const { hozoClasses } = evaluate(cache.renderNativeModule().replace(/^import .*$/gm, ''), {
     createClassResolver,
+    I18nManager: { isRTL: false },
   })
   const nativeElement = evaluate(
     `const hozoStyles = ${native.styles}\nmodule.exports = (${native.jsx})`,
@@ -4877,8 +4880,11 @@ async function patternHarness(cacheName, look) {
   const { readFileSync } = await import('node:fs')
   const cache = openCandidateCache(path.join(directory, cacheName))
   cache.scanFile('app.ts', `export const c = '${look}'`, 1)
+  // A map that writes an inline edge both logically and physically reads
+  // the layout direction from React Native (#2018).
   const { hozoClasses } = evaluate(cache.renderNativeModule().replace(/^import .*$/gm, ''), {
     createClassResolver,
+    I18nManager: { isRTL: false },
   })
   const flat = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
   const loaded = new Map()
