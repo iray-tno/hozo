@@ -21,6 +21,8 @@ export const flattenRuntimeStyle = (style: unknown): Record<string, unknown> =>
 
 type Runtime = {
   HozoInheritedText: ComponentType
+  HozoInheritedLeafText: ComponentType
+  HozoInheritedScope: ComponentType
   HozoInheritedRelativeText: ComponentType
   HozoInheritedView: ComponentType
   HozoInheritedPressable?: ComponentType
@@ -41,7 +43,7 @@ export function loadTextInheritanceRuntime(
 ) {
   const runtime = buildSync({
     stdin: {
-      contents: `export {HozoInheritedText} from '@hozo/core/generated/inherited-text';
+      contents: `export {HozoInheritedText,HozoInheritedLeafText,HozoInheritedScope} from '@hozo/core/generated/inherited-text';
 export {HozoInheritedRelativeText} from '@hozo/core/generated/inherited-relative-text';
 export {HozoInheritedView} from '@hozo/core/generated/inherited-view';
 export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engine/generated/text-inheritance-protocol';
