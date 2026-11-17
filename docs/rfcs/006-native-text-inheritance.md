@@ -10,6 +10,13 @@ structure and per-domain deletion plan around this protocol. It does not
 change this RFC's proof, performance or default-rollout gates; follow-up is
 tracked in [#1458](https://github.com/iray-tno/hozo/issues/1458).
 
+[Decision 013](../decisions/013-text-inheritance-compiled-where-visible.md)
+fixes how the default is reached: the same inheritance rule, compiled where
+the build can see the ancestor and read at run time only where it cannot,
+assessed per element. Where it and the rollout sections below disagree, the
+decision applies. Work is tracked in
+[#2049](https://github.com/iray-tno/hozo/issues/2049).
+
 ## 1. Decision proposed, not a performance claim
 
 Make the Native inheritance contract independent of the compiler's ability
