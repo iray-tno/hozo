@@ -34,13 +34,13 @@ export function executeOrderModule(code: string, context: Record<string, unknown
   return module.exports
 }
 
-export function orderCandidateFactory(code: string) {
+export function orderCandidateFactory(code: string, isRTL = false) {
   const js = transformSync(code, { format: 'cjs' }).code
   return () => {
     const module = { exports: {} }
     runInNewContext(js, {
       module,
-      require: () => ({ createClassResolver, hozoTextMetricStyles, I18nManager: { isRTL: false } }),
+      require: () => ({ createClassResolver, hozoTextMetricStyles, I18nManager: { isRTL } }),
     })
     return (module.exports as { hozoClasses: ReturnType<typeof createClassResolver> }).hozoClasses
   }
@@ -56,24 +56,34 @@ export async function prepareOrderSubjects() {
   cache.scanFile('OrderCorpus.tsx', JSON.stringify(orderCandidates.join(' ')), 1)
   const nativeModule = cache.renderNativeModule()
   const resolve = orderCandidateFactory(nativeModule)()
+  const resolveRtl = orderCandidateFactory(nativeModule, true)()
   const subjects = orderCases.flatMap((entry) =>
     [entry.classes, entry.classes.split(' ').reverse().join(' ')].map((classes) => {
       const { host, source } = orderSource(entry, classes)
       const web = compiler.compile(source)[0]
       const native = compiler.compileNative(source)[0]
-      const props = executeOrderModule(
-        `const hozoStyles=${native.styles};module.exports=(${native.jsx})`,
-        {
-          Text: 'text',
-          View: 'view',
-          Pressable: 'owner',
-          HozoPressable: 'owner',
-          h: (_type, props) => props,
-        },
-      ) as { style: unknown }
       const state = 'state' in entry ? entry.state : undefined
       const facts = { hovered: !!state, pressed: state === 'active' }
-      const style = typeof props.style === 'function' ? props.style(facts) : props.style
+      // An element that writes an inline edge both logically and
+      // physically is emitted per direction (#2018), so each direction
+      // selects its own style.
+      const select = (rtl: boolean) => {
+        const props = executeOrderModule(
+          `const hozoStyles=${native.styles};module.exports=(${native.jsx})`,
+          {
+            Text: 'text',
+            View: 'view',
+            Pressable: 'owner',
+            HozoPressable: 'owner',
+            h: (_type, props) => props,
+            __hozoEnv_ltr: !rtl,
+            __hozoEnv_rtl: rtl,
+          },
+        ) as { style: unknown }
+        return flattenOrderStyle(
+          typeof props.style === 'function' ? props.style(facts) : props.style,
+        )
+      }
       return {
         id: entry.id,
         host,
@@ -81,8 +91,12 @@ export async function prepareOrderSubjects() {
         state,
         expected: entry.expected,
         web,
-        native: { selected: flattenOrderStyle(style), diagnostics: native.diagnostics },
+        native: { selected: select(false), diagnostics: native.diagnostics },
         fallback: flattenOrderStyle(resolve(classes, facts)),
+        rtl: {
+          selected: select(true),
+          fallback: flattenOrderStyle(resolveRtl(classes, facts)),
+        },
       }
     }),
   )

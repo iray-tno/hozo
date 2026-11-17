@@ -91,55 +91,69 @@ test('the dynamic Native map ranks the same logical writes', async () => {
   }
 })
 
-test('physical inline overrides project cleanly across directions without beating stronger logical variants', async () => {
-  const names = ['px-8', 'ps-8', 'pe-8', 'pl-1', 'hover:px-8', 'hover:ps-8', 'hover:pl-1']
+/**
+ * The left and right padding React Native lays out for a flattened style.
+ * Yoga prefers start/end to left/right whatever the order; with
+ * `swapLeftAndRightInRTL` (the default) an RTL layout first overwrites
+ * start with left and end with right. See `YogaLayoutableShadowNode.cpp`.
+ */
+function nativePadding(style: Record<string, number>, rtl: boolean, swap: boolean) {
+  let { paddingStart: start, paddingEnd: end, paddingLeft: left, paddingRight: right } = style
+  if (swap && rtl) {
+    if (left !== undefined) [start, left] = [left, undefined]
+    if (right !== undefined) [end, right] = [right, undefined]
+  }
+  const [leading, trailing] = rtl ? [end, start] : [start, end]
+  return [leading ?? left ?? 0, trailing ?? right ?? 0]
+}
+
+test('a list mixing physical and logical padding lays out as Tailwind does, with or without the RTL swap', async () => {
+  // #2018. [classes, hovered, [left, right] in LTR, [left, right] in RTL],
+  // the numbers Tailwind gives in Chromium.
+  const cases: [string, boolean, number[], number[]][] = [
+    ['px-8 pl-1', false, [4, 32], [4, 32]],
+    ['pl-1 px-8', false, [4, 32], [4, 32]],
+    ['ps-8 pl-1', false, [4, 0], [4, 32]],
+    ['pe-8 pl-1', false, [4, 32], [4, 0]],
+    ['hover:ps-8 pl-1', false, [4, 0], [4, 0]],
+    ['hover:ps-8 pl-1', true, [32, 0], [4, 32]],
+    ['ps-8 hover:pl-1', true, [4, 0], [4, 32]],
+  ]
+  const names = [...new Set(cases.flatMap(([classes]) => classes.split(' ')))]
   const final = await context(names)
   const cache = openCandidateCache()
   cache.scanFile('logical-physical.ts', JSON.stringify(names.join(' ')), 0)
   const plan = cache.renderNativeModulePlan(final)
   assert.ok(plan.ordering)
-  const makeResolver = (isRTL: boolean) =>
+  assert.match(plan.code, /ambient: \{ rtl: I18nManager\.isRTL/)
+  const resolver = (isRTL: boolean) =>
     runInNewContext(
       `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};hozoClasses`,
       { createClassResolver, I18nManager: { isRTL } },
     )
-  const style = (isRTL: boolean, classes: string, hovered = false) =>
-    Object.assign({}, ...[makeResolver(isRTL)(classes, { hovered })].flat(Infinity))
-
-  // px-8 pl-1 / pl-1 px-8: physical pl-1 beats px-8 on Left in both LTR and RTL.
-  for (const isRTL of [false, true]) {
-    for (const classes of ['px-8 pl-1', 'pl-1 px-8']) {
-      const s = style(isRTL, classes)
-      assert.equal(s.paddingLeft, 4, `${isRTL}:${classes}`)
-      assert.equal(s.paddingRight, 32, `${isRTL}:${classes}`)
-      assert.equal(s.paddingStart, undefined, `${isRTL}:${classes}`)
-      assert.equal(s.paddingEnd, undefined, `${isRTL}:${classes}`)
+  for (const rtl of [false, true]) {
+    const resolve = resolver(rtl)
+    for (const [classes, hovered, ltrExpected, rtlExpected] of cases) {
+      const style = Object.assign({}, ...[resolve(classes, { hovered })].flat(Infinity))
+      for (const swap of [false, true]) {
+        assert.deepEqual(
+          nativePadding(style, rtl, swap),
+          rtl ? rtlExpected : ltrExpected,
+          `${classes}${hovered ? ' (hovered)' : ''} ${rtl ? 'rtl' : 'ltr'} swap=${swap}`,
+        )
+      }
     }
   }
-  // ps-8 pl-1: collides only on LTR Left; in RTL ps-8 stays on Right.
-  for (const classes of ['ps-8 pl-1', 'pl-1 ps-8']) {
-    const ltr = style(false, classes)
-    assert.equal(ltr.paddingLeft, 4, `ltr:${classes}`)
-    assert.equal(ltr.paddingRight, undefined, `ltr:${classes}`)
-    const rtl = style(true, classes)
-    assert.equal(rtl.paddingLeft, 4, `rtl:${classes}`)
-    assert.equal(rtl.paddingRight, 32, `rtl:${classes}`)
-  }
-  // hover:ps-8 is stronger than resting pl-1: physical must NOT beat hover logical.
-  for (const classes of ['hover:ps-8 pl-1', 'pl-1 hover:ps-8']) {
-    const rest = style(false, classes, false)
-    assert.equal(rest.paddingLeft, 4, `rest:${classes}`)
-    const hover = style(false, classes, true)
-    assert.equal(hover.paddingStart, 32, `hover:${classes}`)
-  }
+})
 
-  // Unranked legacy resolver (no ordering plan) remains untouched passthrough.
-  const legacyCode = cache.renderNativeModule()
-  const rawLegacy = runInNewContext(
-    `${legacyCode.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};hozoClasses`,
-    { createClassResolver, I18nManager: { isRTL: false } },
-  )
-  assert.ok(rawLegacy)
+test('a padding family written only one way, or an unranked map, is not projected', () => {
+  const ranked = createClassResolver({
+    schema: 1,
+    styles: { 'pl-1': { paddingLeft: 4 }, 'ms-2': { marginStart: 8 } },
+    ambient: { rtl: true, ltr: false },
+    ordering: { schema: 1, ranks: { 'pl-1': [1], 'ms-2': [2] } },
+  })
+  assert.deepEqual(ranked('pl-1 ms-2'), [{ paddingLeft: 4 }, { marginStart: 8 }])
   const unranked = createClassResolver(
     { 'px-8': { paddingStart: 32, paddingEnd: 32 }, 'pl-1': { paddingLeft: 4 } },
     {},

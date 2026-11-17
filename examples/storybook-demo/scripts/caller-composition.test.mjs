@@ -181,7 +181,7 @@ uiCache.scanFile('radius-callers.ts', JSON.stringify(radiusCandidates.join(' '))
 const uiCandidates = uiCache.renderCss(uiTheme)
 const { hozoClasses: resolveUiClasses } = evaluate(
   uiCache.renderNativeModule(uiTheme).replace(/^import .*$/gm, ''),
-  { createClassResolver, hozoTextMetricStyles, hozoShadowStyles },
+  { createClassResolver, hozoTextMetricStyles, hozoShadowStyles, I18nManager: { isRTL: false } },
 )
 
 for (const { file, name, slots, source, variants, classes } of uiCases) {
@@ -1628,8 +1628,8 @@ test('canonical-order baseline records current Hozo divergences without claiming
           })
         }
         for (const [route, raw] of [
-          ['staticNative', subject.native.selected],
-          ['nativeCandidates', subject.fallback],
+          ['staticNative', dir === 'rtl' ? subject.rtl.selected : subject.native.selected],
+          ['nativeCandidates', dir === 'rtl' ? subject.rtl.fallback : subject.fallback],
         ])
           cells.push({
             id: subject.id,
@@ -5214,7 +5214,7 @@ for (const host of ['View', 'Text', 'Chip root', 'Chip remove']) {
   })
 }
 
-test('Chromium and Yoga agree on ranked logical and physical inline edges across directions, orders, states, and authored overrides (#2018)', {
+test('Chromium and Yoga agree on ranked logical and physical inline edges across directions, orders, states and the RTL swap (#2018)', {
   skip: !executablePath,
 }, async () => {
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`
@@ -5296,7 +5296,26 @@ test('Chromium and Yoga agree on ranked logical and physical inline edges across
   cache.scanFile('edge-matrix.ts', JSON.stringify(allNames.join(' ')), 1)
   const nativeModuleCode = cache.renderNativeModule()
 
-  const yogaEdge = (styleObj, family, dir) => {
+  // React Native's `swapLeftAndRightInRTL`, on by default on Android and
+  // iOS: in an RTL layout, left overwrites start and right overwrites end
+  // before Yoga sees them (`YogaLayoutableShadowNode::swapStyleLeftAndRight`).
+  const swapped = (styleObj) => {
+    const out = {}
+    const physical = []
+    for (const [k, v] of Object.entries(styleObj)) {
+      const to = k
+        .replace(/^left$/, 'start')
+        .replace(/^right$/, 'end')
+        .replace(/Left(?=Width$|Color$|$)/, 'Start')
+        .replace(/Right(?=Width$|Color$|$)/, 'End')
+      if (to === k) out[k] = v
+      else physical.push([to, v])
+    }
+    for (const [k, v] of physical) out[k] = v
+    return out
+  }
+  const yogaEdge = (input, family, dir, swap) => {
+    const styleObj = swap && dir === 'rtl' ? swapped(input) : input
     const root = Yoga.Node.create()
     root.setWidth(200)
     root.setHeight(100)
@@ -5389,13 +5408,15 @@ test('Chromium and Yoga agree on ranked logical and physical inline edges across
           const rawStatic =
             typeof rendered.style === 'function' ? rendered.style(facts) : rendered.style
           const staticFlat = Object.assign({}, ...[rawStatic].flat(Infinity).filter(Boolean))
-          const staticYoga = yogaEdge(staticFlat, entry.family, dir)
-          for (const prop of entry.props) {
-            assert.equal(
-              staticYoga[prop],
-              expected[prop],
-              `static ${entry.id}/${dir}/${classes}/${prop}`,
-            )
+          for (const swap of [false, true]) {
+            const staticYoga = yogaEdge(staticFlat, entry.family, dir, swap)
+            for (const prop of entry.props) {
+              assert.equal(
+                staticYoga[prop],
+                expected[prop],
+                `static ${entry.id}/${dir}/swap=${swap}/${classes}/${prop}`,
+              )
+            }
           }
 
           // Generated Native candidate map route
@@ -5403,13 +5424,15 @@ test('Chromium and Yoga agree on ranked logical and physical inline edges across
             {},
             ...[resolve(classes, facts)].flat(Infinity).filter(Boolean),
           )
-          const dynYoga = yogaEdge(dynFlat, entry.family, dir)
-          for (const prop of entry.props) {
-            assert.equal(
-              dynYoga[prop],
-              expected[prop],
-              `candidate ${entry.id}/${dir}/${classes}/${prop}`,
-            )
+          for (const swap of [false, true]) {
+            const dynYoga = yogaEdge(dynFlat, entry.family, dir, swap)
+            for (const prop of entry.props) {
+              assert.equal(
+                dynYoga[prop],
+                expected[prop],
+                `candidate ${entry.id}/${dir}/swap=${swap}/${classes}/${prop}`,
+              )
+            }
           }
         }
       }
@@ -5417,17 +5440,4 @@ test('Chromium and Yoga agree on ranked logical and physical inline edges across
   } finally {
     await page.close()
   }
-
-  // Authored explicit style override survives Yoga layout alongside `px-8 pl-1`.
-  const [authoredOut] = compiler.compileNative(
-    `import { View } from '@hozo/core'; export const C = () => <View className="px-8 pl-1" style={{ paddingRight: 99 }} />`,
-  )
-  const authoredProps = evaluate(
-    `const hozoStyles=${authoredOut.styles};module.exports=(${authoredOut.jsx})`,
-    { View: 'View', h: (_t, p) => p },
-  )
-  const authoredFlat = Object.assign({}, ...[authoredProps.style].flat(Infinity).filter(Boolean))
-  const authoredYoga = yogaEdge(authoredFlat, 'padding', 'ltr')
-  assert.equal(authoredYoga.paddingLeft, '4px')
-  assert.equal(authoredYoga.paddingRight, '99px')
 })

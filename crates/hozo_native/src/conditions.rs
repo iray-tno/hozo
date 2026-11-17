@@ -276,15 +276,16 @@ pub(super) fn build_style_entries(
     let node = target.node;
     let interaction_context = target.interaction_context;
 
-    // Before anything reads them: project ordered inline logical edges whose
-    // CSS priority is overridden by a later ordered physical edge (#2018), then
-    // make dark copies for any paired tokens so dark mode inherits the projection.
-    let (prepared, edge_conflicts) = crate::edge_projection::prepare_declarations(declarations);
-    let with_dark = with_dark_copies(&prepared, theme);
-    let declarations: &[StyleDeclaration] = match &with_dark {
-        Some(expanded) => expanded,
-        None => &prepared,
-    };
+    // Before anything reads them: a paired token becomes a second
+    // declaration, so everything below treats it as an ordinary condition.
+    let with_dark = with_dark_copies(declarations, theme);
+    // Then an element that writes an inline edge both logically and
+    // physically gets only logical edges, which mean the same thing to Yoga
+    // with and without React Native's RTL left/right swap (#2018). After the
+    // dark copies, so a dark physical colour is projected with its light one.
+    let (prepared, edge_conflicts) =
+        crate::edge_projection::prepare_declarations(with_dark.as_deref().unwrap_or(declarations));
+    let declarations: &[StyleDeclaration] = &prepared;
     // A conditional style must land after every unconditional one,
     // whatever order they were written in. On Web the cascade settles this
     // by specificity -- `.hozo-0:disabled` (0,2,0) beats `.hozo-0`
@@ -379,8 +380,11 @@ pub(super) fn build_style_entries(
             .map(|(condition, props)| (condition, props, false))
             .collect()
     } else {
-        (0..groups.len())
-            .flat_map(|index| crate::edge_projection::expand_group(&groups, index, &edge_conflicts))
+        groups
+            .iter()
+            .flat_map(|(condition, props)| {
+                crate::edge_projection::expand_group(condition, props, &edge_conflicts)
+            })
             .collect()
     };
     let groups = expanded_groups;
