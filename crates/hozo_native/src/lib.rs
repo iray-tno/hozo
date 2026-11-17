@@ -55,6 +55,7 @@
 mod candidate;
 mod class_route;
 mod conditions;
+mod edge_projection;
 mod filters;
 mod gradients;
 mod grid;

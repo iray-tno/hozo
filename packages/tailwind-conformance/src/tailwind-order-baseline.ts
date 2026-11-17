@@ -38,7 +38,10 @@ export function orderCandidateFactory(code: string) {
   const js = transformSync(code, { format: 'cjs' }).code
   return () => {
     const module = { exports: {} }
-    runInNewContext(js, { module, require: () => ({ createClassResolver, hozoTextMetricStyles }) })
+    runInNewContext(js, {
+      module,
+      require: () => ({ createClassResolver, hozoTextMetricStyles, I18nManager: { isRTL: false } }),
+    })
     return (module.exports as { hozoClasses: ReturnType<typeof createClassResolver> }).hozoClasses
   }
 }

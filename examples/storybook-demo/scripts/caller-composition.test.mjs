@@ -3225,77 +3225,89 @@ test('adjacent assessed writes keep their shared rank inside the same breakpoint
   }
 })
 
-test('ranked inline edges still expose the physical and logical projection difference', {
+test('ranked inline edges match Web physical and logical precedence across directions', {
   skip: !executablePath,
 }, async () => {
   const cases = [
-    ['hover:ps-6 active:pl-4', 'padding', [16, 0], [24, 0]],
-    ['active:pl-4 hover:ps-6', 'padding', [16, 0], [24, 0]],
-    ['hover:ms-6 active:ml-4', 'margin', [16, 0], [24, 0]],
-    ['active:ml-4 hover:ms-6', 'margin', [16, 0], [24, 0]],
+    ['hover:ps-6 active:pl-4', 'padding', [16, 0], [16, 24]],
+    ['active:pl-4 hover:ps-6', 'padding', [16, 0], [16, 24]],
+    ['hover:ms-6 active:ml-4', 'margin', [16, 0], [16, 24]],
+    ['active:ml-4 hover:ms-6', 'margin', [16, 0], [16, 24]],
   ]
   const page = await browser.newPage()
   const cdp = await page.context().newCDPSession(page)
   try {
     await cdp.send('DOM.enable')
     await cdp.send('CSS.enable')
-    for (const [classes, property, webLtr, nativeLtr] of cases) {
+    for (const [classes, property, expectedLtr, expectedRtl] of cases) {
       const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${classes} columns-(--layout)"/>`
       const native = compiler.compileNativeModule(source).components[0]
       assert.deepEqual(
         native.diagnostics.map(({ code }) => code),
         ['WEB_ONLY_PROPERTY_ON_NATIVE'],
       )
-      const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
-        h: (_type, props) => props,
-        HozoPressable: 'host',
-        hozoStyles: runInNewContext(`(${native.styles})`),
-      })
-      const selected = Object.assign(
-        {},
-        ...nativeProps.style({ hovered: true, pressed: true, focused: false }).flat(Infinity),
-      )
       const web = compiler.compile(source)[0]
       const webProps = evaluate(`module.exports=(${web.jsx})`, { h: (_type, props) => props })
-      const yoga = Yoga.Node.create()
-      try {
-        yoga.setWidth(140)
-        yoga.setHeight(100)
-        const [write, read] =
-          property === 'padding'
-            ? ['setPadding', 'getComputedPadding']
-            : ['setMargin', 'getComputedMargin']
-        yoga[write](Yoga.EDGE_START, selected[`${property}Start`])
-        yoga[write](Yoga.EDGE_LEFT, selected[`${property}Left`])
-        for (const [dir, webExpected, nativeExpected] of [
-          ['ltr', webLtr, nativeLtr],
-          ['rtl', [16, 24], [16, 24]],
-        ]) {
-          await page.setContent(
-            `<style>div { ${property}: 0; }${web.css}</style><div dir="${dir}" class="${webProps.className}"></div>`,
-          )
-          const { root } = await cdp.send('DOM.getDocument')
-          const { nodeId } = await cdp.send('DOM.querySelector', {
-            nodeId: root.nodeId,
-            selector: 'div',
-          })
-          await cdp.send('CSS.forcePseudoState', {
-            nodeId,
-            forcedPseudoClasses: ['hover', 'active'],
-          })
-          assert.deepEqual(
-            await page
-              .locator('div')
-              .evaluate(
-                (el, name) =>
-                  ['left', 'right'].map((edge) =>
-                    parseFloat(getComputedStyle(el).getPropertyValue(`${name}-${edge}`)),
-                  ),
-                property,
-              ),
-            webExpected,
-            `${dir}/${classes}`,
-          )
+      for (const [dir, expected] of [
+        ['ltr', expectedLtr],
+        ['rtl', expectedRtl],
+      ]) {
+        const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
+          h: (_type, props) => props,
+          HozoPressable: 'host',
+          hozoStyles: runInNewContext(`(${native.styles})`),
+          __hozoEnv_ltr: dir === 'ltr',
+          __hozoEnv_rtl: dir === 'rtl',
+        })
+        const selected = Object.assign(
+          {},
+          ...nativeProps
+            .style({ hovered: true, pressed: true, focused: false })
+            .flat(Infinity)
+            .filter(Boolean),
+        )
+        await page.setContent(
+          `<style>div { ${property}: 0; }${web.css}</style><div dir="${dir}" class="${webProps.className}"></div>`,
+        )
+        const { root } = await cdp.send('DOM.getDocument')
+        const { nodeId } = await cdp.send('DOM.querySelector', {
+          nodeId: root.nodeId,
+          selector: 'div',
+        })
+        await cdp.send('CSS.forcePseudoState', {
+          nodeId,
+          forcedPseudoClasses: ['hover', 'active'],
+        })
+        assert.deepEqual(
+          await page
+            .locator('div')
+            .evaluate(
+              (el, name) =>
+                ['left', 'right'].map((edge) =>
+                  parseFloat(getComputedStyle(el).getPropertyValue(`${name}-${edge}`)),
+                ),
+              property,
+            ),
+          expected,
+          `${dir}/${classes} Web`,
+        )
+        const yoga = Yoga.Node.create()
+        try {
+          yoga.setWidth(140)
+          yoga.setHeight(100)
+          const [write, read] =
+            property === 'padding'
+              ? ['setPadding', 'getComputedPadding']
+              : ['setMargin', 'getComputedMargin']
+          for (const [suffix, edge] of [
+            ['Start', Yoga.EDGE_START],
+            ['End', Yoga.EDGE_END],
+            ['Left', Yoga.EDGE_LEFT],
+            ['Right', Yoga.EDGE_RIGHT],
+          ]) {
+            const value = selected[`${property}${suffix}`]
+            if (typeof value === 'number') yoga[write](edge, value)
+          }
           yoga.calculateLayout(
             undefined,
             undefined,
@@ -3303,12 +3315,12 @@ test('ranked inline edges still expose the physical and logical projection diffe
           )
           assert.deepEqual(
             [yoga[read](Yoga.EDGE_LEFT), yoga[read](Yoga.EDGE_RIGHT)],
-            nativeExpected,
-            `${dir}/${classes}`,
+            expected,
+            `${dir}/${classes} Native`,
           )
+        } finally {
+          yoga.free()
         }
-      } finally {
-        yoga.free()
       }
     }
   } finally {
@@ -5201,3 +5213,221 @@ for (const host of ['View', 'Text', 'Chip root', 'Chip remove']) {
     }
   })
 }
+
+test('Chromium and Yoga agree on ranked logical and physical inline edges across directions, orders, states, and authored overrides (#2018)', {
+  skip: !executablePath,
+}, async () => {
+  const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`
+  const cases = [
+    {
+      id: 'px-pl',
+      classes: 'px-8 pl-1',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'ps-pl',
+      classes: 'ps-8 pl-1',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'pe-pl',
+      classes: 'pe-8 pl-1',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'p-ps-pl',
+      classes: 'p-8 ps-4 pl-1',
+      props: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'],
+      family: 'padding',
+    },
+    {
+      id: 'p-px',
+      classes: 'p-8 px-2',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'ps-pe-mirrored',
+      classes: 'ps-4 pe-1',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'hover-pl-over-px',
+      classes: 'px-8 hover:pl-1',
+      hovered: true,
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'hover-ps-over-pl',
+      classes: 'hover:ps-8 pl-1',
+      hovered: true,
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'mx-ml',
+      classes: 'mx-8 ml-1',
+      props: ['marginLeft', 'marginRight'],
+      family: 'margin',
+    },
+    {
+      id: 'ms-ml',
+      classes: 'ms-8 ml-1',
+      props: ['marginLeft', 'marginRight'],
+      family: 'margin',
+    },
+    {
+      id: 'border-x-l',
+      classes: 'border-x-4 border-l-2',
+      props: ['borderLeftWidth', 'borderRightWidth'],
+      family: 'border',
+    },
+  ]
+  const allNames = [...new Set(cases.flatMap((c) => c.classes.split(' ')))]
+  const compiled = await compile(css, { base: process.cwd() })
+  const referenceCss = compiled.build(allNames)
+  const compiler = createCompiler()
+  const cache = openCandidateCache()
+  cache.scanFile('edge-matrix.ts', JSON.stringify(allNames.join(' ')), 1)
+  const nativeModuleCode = cache.renderNativeModule()
+
+  const yogaEdge = (styleObj, family, dir) => {
+    const root = Yoga.Node.create()
+    root.setWidth(200)
+    root.setHeight(100)
+    const node = Yoga.Node.create()
+    const apply = (k, v) => {
+      if (typeof v !== 'number') return
+      const map = {
+        paddingLeft: [Yoga.EDGE_LEFT, 'setPadding'],
+        paddingRight: [Yoga.EDGE_RIGHT, 'setPadding'],
+        paddingTop: [Yoga.EDGE_TOP, 'setPadding'],
+        paddingBottom: [Yoga.EDGE_BOTTOM, 'setPadding'],
+        paddingStart: [Yoga.EDGE_START, 'setPadding'],
+        paddingEnd: [Yoga.EDGE_END, 'setPadding'],
+        marginLeft: [Yoga.EDGE_LEFT, 'setMargin'],
+        marginRight: [Yoga.EDGE_RIGHT, 'setMargin'],
+        marginStart: [Yoga.EDGE_START, 'setMargin'],
+        marginEnd: [Yoga.EDGE_END, 'setMargin'],
+        borderLeftWidth: [Yoga.EDGE_LEFT, 'setBorder'],
+        borderRightWidth: [Yoga.EDGE_RIGHT, 'setBorder'],
+        borderStartWidth: [Yoga.EDGE_START, 'setBorder'],
+        borderEndWidth: [Yoga.EDGE_END, 'setBorder'],
+      }[k]
+      if (map) node[map[1]](map[0], v)
+    }
+    for (const [k, v] of Object.entries(styleObj)) apply(k, v)
+    root.insertChild(node, 0)
+    root.calculateLayout(200, 100, dir === 'rtl' ? Yoga.DIRECTION_RTL : Yoga.DIRECTION_LTR)
+    const out =
+      family === 'padding'
+        ? {
+            paddingLeft: `${node.getComputedPadding(Yoga.EDGE_LEFT)}px`,
+            paddingRight: `${node.getComputedPadding(Yoga.EDGE_RIGHT)}px`,
+            paddingTop: `${node.getComputedPadding(Yoga.EDGE_TOP)}px`,
+            paddingBottom: `${node.getComputedPadding(Yoga.EDGE_BOTTOM)}px`,
+          }
+        : family === 'margin'
+          ? {
+              marginLeft: `${node.getComputedMargin(Yoga.EDGE_LEFT)}px`,
+              marginRight: `${node.getComputedMargin(Yoga.EDGE_RIGHT)}px`,
+            }
+          : {
+              borderLeftWidth: `${node.getComputedBorder(Yoga.EDGE_LEFT)}px`,
+              borderRightWidth: `${node.getComputedBorder(Yoga.EDGE_RIGHT)}px`,
+            }
+    root.freeRecursive()
+    return out
+  }
+
+  const page = await browser.newPage()
+  try {
+    for (const entry of cases) {
+      const tokens = entry.classes.split(' ')
+      const permutations = [tokens.join(' '), tokens.toReversed().join(' ')]
+      for (const dir of ['ltr', 'rtl']) {
+        const resolve = evaluate(nativeModuleCode.replace(/^import .*$/gm, ''), {
+          createClassResolver,
+          I18nManager: { isRTL: dir === 'rtl' },
+        }).hozoClasses
+        for (const classes of permutations) {
+          await page.setContent(
+            `<html dir="${dir}"><style>${referenceCss}</style><div class="${classes}" style="width:100px;height:40px">x</div></html>`,
+          )
+          if (entry.hovered) await page.locator('div').hover()
+          const expected = await page.locator('div').evaluate((el, props) => {
+            const s = getComputedStyle(el)
+            return Object.fromEntries(props.map((p) => [p, s[p]]))
+          }, entry.props)
+
+          // Ordinary static Native route
+          const host = entry.hovered ? 'Pressable' : 'View'
+          const [native] = compiler.compileNative(
+            `import { ${host} } from '@hozo/core'; export const C = () => <${host} className="${classes}" />`,
+          )
+          const rendered = evaluate(
+            `const hozoStyles=${native.styles};${native.prelude.join('\n')};module.exports=(${native.jsx})`,
+            {
+              View: 'View',
+              Pressable: 'Pressable',
+              HozoPressable: 'HozoPressable',
+              h: (_type, props) => props,
+              useHozoEnvironment: (q) => q === dir,
+            },
+          )
+          const facts = {
+            hovered: Boolean(entry.hovered),
+            pressed: false,
+            focused: false,
+            focusVisible: false,
+          }
+          const rawStatic =
+            typeof rendered.style === 'function' ? rendered.style(facts) : rendered.style
+          const staticFlat = Object.assign({}, ...[rawStatic].flat(Infinity).filter(Boolean))
+          const staticYoga = yogaEdge(staticFlat, entry.family, dir)
+          for (const prop of entry.props) {
+            assert.equal(
+              staticYoga[prop],
+              expected[prop],
+              `static ${entry.id}/${dir}/${classes}/${prop}`,
+            )
+          }
+
+          // Generated Native candidate map route
+          const dynFlat = Object.assign(
+            {},
+            ...[resolve(classes, facts)].flat(Infinity).filter(Boolean),
+          )
+          const dynYoga = yogaEdge(dynFlat, entry.family, dir)
+          for (const prop of entry.props) {
+            assert.equal(
+              dynYoga[prop],
+              expected[prop],
+              `candidate ${entry.id}/${dir}/${classes}/${prop}`,
+            )
+          }
+        }
+      }
+    }
+  } finally {
+    await page.close()
+  }
+
+  // Authored explicit style override survives Yoga layout alongside `px-8 pl-1`.
+  const [authoredOut] = compiler.compileNative(
+    `import { View } from '@hozo/core'; export const C = () => <View className="px-8 pl-1" style={{ paddingRight: 99 }} />`,
+  )
+  const authoredProps = evaluate(
+    `const hozoStyles=${authoredOut.styles};module.exports=(${authoredOut.jsx})`,
+    { View: 'View', h: (_t, p) => p },
+  )
+  const authoredFlat = Object.assign({}, ...[authoredProps.style].flat(Infinity).filter(Boolean))
+  const authoredYoga = yogaEdge(authoredFlat, 'padding', 'ltr')
+  assert.equal(authoredYoga.paddingLeft, '4px')
+  assert.equal(authoredYoga.paddingRight, '99px')
+})

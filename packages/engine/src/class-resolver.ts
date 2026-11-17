@@ -165,10 +165,81 @@ interface TemplateEntry {
   style: StyleObject
   name: string
   ownerRank: number | undefined
+  run?: number
 }
 
 interface RankedEntry extends TemplateEntry {
   rank: number | undefined
+}
+
+const has = Object.hasOwn
+
+const EDGES: readonly [string, string, string, string][] = (
+  [
+    ['padding', ''],
+    ['margin', ''],
+    ['', ''],
+    ['border', 'Width'],
+    ['border', 'Color'],
+  ] as const
+).map(([a, b]) =>
+  a
+    ? [`${a}Start${b}`, `${a}End${b}`, `${a}Left${b}`, `${a}Right${b}`]
+    : ['start', 'end', 'left', 'right'],
+)
+
+function hasEdgeMix(
+  styles: Record<string, StyleObject>,
+  states: Record<string, readonly StateGroup[]>,
+): boolean {
+  let lm = 0
+  let pm = 0
+  const scan = (o: StyleObject) => {
+    for (let i = 0; i < 5; i++) {
+      const [s, e, l, r] = EDGES[i]!
+      if (has(o, s) || has(o, e)) lm |= 1 << i
+      if (has(o, l) || has(o, r)) pm |= 1 << i
+    }
+  }
+  for (const s of Object.values(styles)) scan(s)
+  for (const gs of Object.values(states)) for (const g of gs) scan(g[1])
+  return (lm & pm) !== 0
+}
+
+function projectEdges(
+  styles: StyleObject[],
+  runs: readonly (number | undefined)[],
+  rtl: boolean,
+): StyleObject[] {
+  let out: StyleObject[] | undefined
+  for (const [s, e, l, r] of EDGES) {
+    const last: number[] = []
+    for (let i = 0; i < styles.length; i++) {
+      const run = runs[i]
+      const o = (out ?? styles)[i]!
+      if (run !== undefined && (has(o, l) || has(o, r))) last[run] = i
+    }
+    if (!last.length) continue
+    for (let i = 0; i < styles.length; i++) {
+      const run = runs[i]
+      if (run === undefined || i >= (last[run] ?? -1)) continue
+      const o = (out ?? styles)[i]!
+      const hs = has(o, s)
+      const he = has(o, e)
+      if (!hs && !he) continue
+      const c: StyleObject = { ...o }
+      if (hs) {
+        c[rtl ? r : l] = c[s]
+        delete c[s]
+      }
+      if (he) {
+        c[rtl ? l : r] = c[e]
+        delete c[e]
+      }
+      ;(out ??= styles.slice())[i] = c
+    }
+  }
+  return out ?? styles
 }
 
 /** An assessed run may not move across a Native specificity boundary or
@@ -178,9 +249,10 @@ function orderRankedRuns(
   entries: RankedEntry[],
   sharedTier: boolean,
   disjointHoles: boolean,
+  nextRunId: number,
   start = 0,
   limit = entries.length,
-) {
+): number {
   while (start < limit - 1) {
     let end = start
     let previous = -1
@@ -195,6 +267,14 @@ function orderRankedRuns(
       }
       inverted ||= previous > rank
       previous = rank
+    }
+    if (end > start) {
+      const runId = nextRunId++
+      for (let index = start; index < end; index++) {
+        if (entries[index]!.rank !== undefined && entries[index]!.run === undefined) {
+          entries[index]!.run = runId
+        }
+      }
     }
     if (inverted && end === start + 2) {
       // Both entries had ranks, otherwise no inversion was possible.
@@ -213,6 +293,7 @@ function orderRankedRuns(
     // its own position and can be skipped.
     start = end + (end < limit && entries[end]!.rank === undefined ? 1 : 0)
   }
+  return nextRunId
 }
 
 function orderRestingRuns(
@@ -220,10 +301,10 @@ function orderRestingRuns(
   barriers: ReadonlySet<string> | undefined,
   independent: ReadonlySet<string> | undefined,
   disjoint: boolean,
-) {
+  nextRunId: number,
+): number {
   if (disjoint || !independent || !barriers) {
-    orderRankedRuns(entries, true, disjoint)
-    return
+    return orderRankedRuns(entries, true, disjoint, nextRunId)
   }
   // The full input did not qualify, but the same compiler proof can
   // admit an island bounded by an unrelated or overlapping write.
@@ -235,11 +316,11 @@ function orderRestingRuns(
       hasColour ||= entry.rank === undefined
       continue
     }
-    if (hasColour) orderRankedRuns(entries, true, true, start, end)
+    if (hasColour) nextRunId = orderRankedRuns(entries, true, true, nextRunId, start, end)
     start = end + 1
     hasColour = false
   }
-  orderRankedRuns(entries, true, false)
+  return orderRankedRuns(entries, true, false, nextRunId)
 }
 
 interface Resolved {
@@ -247,6 +328,8 @@ interface Resolved {
   base: StyleObject[]
   /** The same, before `compose`, for composing again with state styles. */
   raw: StyleObject[]
+  /** Parallel assessed run identity for `raw`, only present when inline edges may conflict. */
+  rawRuns?: (number | undefined)[]
   /** Only materialized for a mixed compiler boundary, using the same selection. */
   deferredBases?: (StyleObject[] | undefined)[]
   /** State classes in this string, named if it is resolved without a state. */
@@ -323,6 +406,10 @@ export function createClassResolver(
   const barriers = independentColors && new Set(independentColors[0].split(' '))
   const independent = independentColors && new Set(independentColors[1].split(' '))
   const isAmbient = (key: string) => Object.hasOwn(ambient, key)
+  const mayConflictEdges = ranks !== undefined && hasEdgeMix(styles, states)
+  const isRtl = Boolean(ambient.rtl)
+  const project = (list: StyleObject[], runs?: readonly (number | undefined)[]) =>
+    runs ? projectEdges(list, runs, isRtl) : list
   // Class strings repeat constantly across renders and list items, and the
   // result is immutable, so each distinct string is resolved once.
   const cache = new Map<string, Resolved>()
@@ -464,14 +551,19 @@ export function createClassResolver(
       ranked.sort((a, b) => a.rank! - b.rank!)
       const ordered: TemplateEntry[] = colors ?? []
       for (const entry of ranked) {
+        const tagged = mayConflictEdges ? { ...entry, run: 1 } : entry
         if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
-          if (matches(entry.keys, entry.name, ambient)) ordered.push({ ...entry, keys: [] })
-        } else ordered.push(entry)
+          if (matches(entry.keys, entry.name, ambient)) ordered.push({ ...tagged, keys: [] })
+        } else ordered.push(tagged)
       }
-      const raw = ordered.filter((entry) => !entry.keys.length).map((entry) => entry.style)
+      const rawEntries = ordered.filter((entry) => !entry.keys.length)
+      const raw = rawEntries.map((entry) => entry.style)
+      const rawRuns = mayConflictEdges ? rawEntries.map((entry) => entry.run) : undefined
+      const base = compose ? compose(raw) : raw
       return {
-        base: compose ? compose(raw) : raw,
+        base: project(base, rawRuns),
         raw,
+        rawRuns,
         stateClasses,
         template: groups.length ? { entries: ordered, appendToBase: false } : undefined,
       }
@@ -492,17 +584,27 @@ export function createClassResolver(
     if (ranks) {
       // Ambient guards have already been evaluated. They keep their
       // resting tier, but it must not throw away known Tailwind order.
-      orderRankedRuns(decided, true, false)
-      orderRankedRuns(groups, sharedTier, stateColors !== undefined)
+      let nextRunId = 1
+      nextRunId = orderRankedRuns(decided, true, false, nextRunId)
+      nextRunId = orderRankedRuns(groups, sharedTier, stateColors !== undefined, nextRunId)
+      if (resting) orderRestingRuns(resting, barriers, independent, restingHolesDisjoint, nextRunId)
     }
+    const rawRuns: (number | undefined)[] | undefined = mayConflictEdges ? [] : undefined
     if (resting) {
-      orderRestingRuns(resting, barriers, independent, restingHolesDisjoint)
-      for (const { style } of resting) base.push(style)
+      for (const entry of resting) {
+        base.push(entry.style)
+        rawRuns?.push(entry.run)
+      }
     }
-    for (const { style } of decided) base.push(style)
+    for (const entry of decided) {
+      base.push(entry.style)
+      rawRuns?.push(entry.run)
+    }
+    const resolvedBase = compose ? compose(base) : base
     return {
-      base: compose ? compose(base) : base,
+      base: project(resolvedBase, rawRuns),
       raw: base,
+      rawRuns,
       stateClasses,
       template: groups.length ? { entries: groups, appendToBase: true } : undefined,
     }
@@ -510,7 +612,9 @@ export function createClassResolver(
 
   function restingWithoutEffects(resolved: Resolved, deferred: number): StyleObject[] {
     const bases = (resolved.deferredBases ??= [])
-    return (bases[deferred] ??= compose ? compose(resolved.raw, deferred) : resolved.raw)
+    if (bases[deferred]) return bases[deferred]!
+    const composed = compose ? compose(resolved.raw, deferred) : resolved.raw
+    return (bases[deferred] = project(composed, resolved.rawRuns))
   }
 
   const hozoClasses: ClassResolver = (value, state, deferred) => {
@@ -546,14 +650,21 @@ export function createClassResolver(
     // template has only state entries, so delay copying its resting prefix
     // until an actual state matches. Both routes select by the same loop.
     const all: StyleObject[] = []
+    const allRuns: (number | undefined)[] | undefined = mayConflictEdges ? [] : undefined
     let active = false
     for (const entry of template.entries) {
-      if (!entry.keys.length) all.push(entry.style)
-      else if (matches(entry.keys, entry.name, facts)) {
+      if (!entry.keys.length) {
+        all.push(entry.style)
+        allRuns?.push(entry.run)
+      } else if (matches(entry.keys, entry.name, facts)) {
         if (!active && template.appendToBase) {
-          for (const style of resolved.raw) all.push(style)
+          for (let i = 0; i < resolved.raw.length; i++) {
+            all.push(resolved.raw[i]!)
+            allRuns?.push(resolved.rawRuns?.[i])
+          }
         }
         all.push(entry.style)
+        allRuns?.push(entry.run)
         active = true
       }
     }
@@ -561,7 +672,8 @@ export function createClassResolver(
     // A state style can carry a transform, which `compose` folds into one;
     // so it runs over the whole list, and the result is per render rather
     // than cached -- it changes with the state.
-    return compose ? compose(all, deferred) : all
+    const result = compose ? compose(all, deferred) : all
+    return project(result, allRuns)
   }
   return hozoClasses
 }
