@@ -1,6 +1,6 @@
 # RFC 013: `hozo init` — Hozo added to an existing project
 
-- **Status**: Draft
+- **Status**: Draft (§7: steps 1 and 2 implemented)
 - **Authors**: iray-tno
 - **Tracking issue**: Not assigned
 - **Target packages**: `@hozo/cli`; `@hozo/compiler` (one analysis pass)
@@ -180,6 +180,36 @@ from in `sources.json`; Biome skips the directory so their own quotes and
 semicolons stay. TanStack's `@import 'tailwindcss' source('../')` was loaded
 through `@hozo/tailwind`'s `loadTheme`, static and not: both read the
 stylesheet's `@theme`, so `init` can point `css` at it unchanged.
+
+### 7.2 Step 2
+
+`configShape` in `@hozo/compiler/analysis` (`crates/hozo_parser/src/config_shape.rs`)
+reports a config's imports and requires, its `export default` or
+`module.exports`, top-level bindings, and the objects, arrays, calls and
+strings under them to six levels, each with UTF-16 offsets and, inside an
+object, where the whole property starts. It looks through parentheses, `as`,
+`satisfies` and `!`, and recognises nothing: `packages/cli/src/init-config.mjs`
+decides which shapes are known.
+
+`hozo init` edits Vite, TanStack Start and Astro. On the starters:
+
+| Starter | Stylesheet | Config edit |
+| --- | --- | --- |
+| Vite | `src/theme.css` created (not `src/index.css`) | import after the last import; `hozo({ css: 'src/theme.css' })` first in `plugins`, inline as the array is |
+| TanStack Start | `src/styles/app.css`, unchanged | `hozo({ css: 'src/styles/app.css', preflight: false })` on its own line before `tailwindcss()` |
+| Astro (with `@astrojs/react`) | `src/theme.css` created | `vite: { plugins: [hozo(…)] }` into `defineConfig({})`, with the file's semicolons |
+
+A second run on each reports nothing to install or edit. A config exporting
+`defineConfig(({ mode }) => …)` exits `2` with the call to add and leaves
+the file and `package.json` as they were; so do an uncommitted config, an
+`@hozo/*` package at another version, Astro without React, and Next.js or
+Expo (steps 3 and 4).
+
+On the Vite starter with `@hozo/core`, `@hozo/vite` and `@hozo/compiler`
+linked from this checkout, `hozo init --write` followed by the real
+`square --setup` passed `versions`, `peers`, `adapter` and `css`. With
+`--no-install` and packages still to install, `square` is not run: it
+would only say the project has no `@hozo/*` dependency.
 
 ## 8. Resolved questions
 

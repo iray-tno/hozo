@@ -150,6 +150,10 @@
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_plan.rs"
       ]
     },
+    "@hozo/cli#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/fixtures/starters/**"]
+    },
     "@hozo/migration-audit#test": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/typography/src/**"]
