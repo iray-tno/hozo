@@ -65,7 +65,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           </Paragraph>
         </View>
 
-        <List className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto list-none p-0 m-0">
+        <List className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto list-none p-0 my-0">
           <Integration href={`${guides}/vite/`} name="Vite" pkg="@hozo/vite">
             Runs before the React plugin and lowers JSX to semantic DOM and compiled CSS.
           </Integration>

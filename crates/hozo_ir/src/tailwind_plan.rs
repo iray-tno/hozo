@@ -172,6 +172,67 @@ impl<'a> TailwindWritePlan<'a> {
         self
     }
 
+    /// Pairs of writes, in one input, to one property under one guard, whose
+    /// final order Tailwind's ranks did not decide. Call after ordering.
+    ///
+    /// A fully ranked input never has one: its writes are sorted. They appear
+    /// where an unrankable write made the plan keep authored order around it
+    /// (decision 012, point 7). Reported so that boundary is never silent.
+    pub fn authored_conflicts(&self) -> Vec<AuthoredConflict<'_>> {
+        let mut found: Vec<AuthoredConflict<'_>> = Vec::new();
+        for region in self
+            .declarations
+            .chunk_by(|a, b| a.source.input() == b.source.input())
+        {
+            if region.len() < 2 {
+                continue;
+            }
+            let name = |declaration: &StyleDeclaration| {
+                self.bindings
+                    .units()
+                    .candidate(declaration.source.utility()?)
+            };
+            for (index, later) in region.iter().enumerate().skip(1) {
+                for earlier in &region[..index] {
+                    if earlier.source.utility() == later.source.utility()
+                        || earlier.condition != later.condition
+                        || !writes_same_slot(&earlier.property, &later.property)
+                        // Registers and compound text compose; two writes to
+                        // one of those are not a pair with a single winner.
+                        || !(scalar_tailwind_property(&earlier.property)
+                            || scalar_tailwind_property(&later.property))
+                    {
+                        continue;
+                    }
+                    let (Some(first), Some(second)) = (name(earlier), name(later)) else {
+                        continue;
+                    };
+                    let tailwind_applies_last = match (
+                        write_rank(self.bindings, earlier, 0),
+                        write_rank(self.bindings, later, 0),
+                    ) {
+                        // Written order is Tailwind's order: nothing decided.
+                        (Some(a), Some(b)) if a.0 <= b.0 => continue,
+                        (Some(_), Some(_)) => Some(first),
+                        _ => None,
+                    };
+                    // A shorthand expands to several writes; one report.
+                    if !found
+                        .iter()
+                        .any(|seen| seen.earlier == first && seen.later == second)
+                    {
+                        found.push(AuthoredConflict {
+                            earlier: first,
+                            later: second,
+                            tailwind_applies_last,
+                        });
+                    }
+                }
+            }
+        }
+        found
+    }
+
     /// Adjacent writes only. A repeated input/utility/guard after another
     /// block must not be merged backwards across that intervening write.
     pub fn blocks(&self) -> impl Iterator<Item = TailwindWriteBlock<'_>> {
@@ -197,6 +258,47 @@ impl<'a> TailwindWritePlan<'a> {
     pub fn into_declarations(self) -> Vec<StyleDeclaration> {
         self.declarations
     }
+}
+
+/// Two classes of one input that write the same property under the same
+/// guard, left in the order they were written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AuthoredConflict<'a> {
+    pub earlier: &'a str,
+    /// The class that applies, because it was written later.
+    pub later: &'a str,
+    /// The class Tailwind's stylesheet would apply instead, when both rank.
+    /// `None` when one of the two cannot be ranked, so its place in
+    /// Tailwind's order is not known here.
+    pub tailwind_applies_last: Option<&'a str>,
+}
+
+/// One property, or a logical and a physical edge of the same box side:
+/// `px-4` writes the inline edges and `p-2` the physical ones, and on Web
+/// the later of the two decides the left and right padding.
+fn writes_same_slot(a: &StyleProperty, b: &StyleProperty) -> bool {
+    use StyleProperty::*;
+    let inline_edge = |property: &StyleProperty| match property {
+        PaddingLeft(_) | PaddingRight(_) | PaddingInlineStart(_) | PaddingInlineEnd(_) => Some(0),
+        MarginLeft(_) | MarginRight(_) | MarginInlineStart(_) | MarginInlineEnd(_) => Some(1),
+        _ => None,
+    };
+    a.same_property_as(b)
+        || (inline_edge(a).is_some()
+            && inline_edge(a) == inline_edge(b)
+            && matches!(
+                a,
+                PaddingInlineStart(_)
+                    | PaddingInlineEnd(_)
+                    | MarginInlineStart(_)
+                    | MarginInlineEnd(_)
+            ) != matches!(
+                b,
+                PaddingInlineStart(_)
+                    | PaddingInlineEnd(_)
+                    | MarginInlineStart(_)
+                    | MarginInlineEnd(_)
+            ))
 }
 
 type WriteRank = (usize, usize, [u32; 3]);

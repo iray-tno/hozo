@@ -189,6 +189,9 @@ const PROVOCATIONS: Record<string, Provocation> = {
   // Tailwind's important marker, which neither lowering can carry: a
   // stylesheet order and an inline style both lose the precedence it asks for.
   TAILWIND_IMPORTANT_NOT_LOWERED: { source: '<View className="p-2!">x</View>' },
+  // An arbitrary value Hozo cannot rank keeps `p-4` and `p-2` in written
+  // order, where Tailwind's stylesheet would let `p-4` win.
+  TAILWIND_ORDER_AS_WRITTEN: { source: '<View className="p-4 columns-(--layout) p-2">x</View>' },
   // `onPress` becomes `onClick` on Web, so an element carrying both drops
   // one. An Svg shape, because the core primitives map `onPress` themselves.
   PROP_COLLIDES_WITH_PLATFORM_NAME: {

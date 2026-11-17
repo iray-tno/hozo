@@ -3,8 +3,9 @@
 use crate::ParseOutput;
 pub use hozo_ir::TailwindWriteEvidence as TailwindPlanWrite;
 use hozo_ir::{
-    Child, Condition, Node, SourceSpan, StyleDeclaration, StyleSource, TailwindOrderContext,
-    TailwindRuleBinding, TailwindUnitBindings, TailwindUnits, TailwindWritePlan,
+    Child, Condition, Diagnostic, DiagnosticCode, Node, Severity, SourceSpan, StyleDeclaration,
+    StyleSource, TailwindOrderContext, TailwindRuleBinding, TailwindUnitBindings, TailwindUnits,
+    TailwindWritePlan,
 };
 
 pub struct TailwindRootPlan {
@@ -36,6 +37,11 @@ pub struct TailwindPlanBlock {
     /// path, reported so a corpus can be counted rather than guessed.
     pub barrier: Option<&'static str>,
 }
+
+/// Why the order of two conflicting classes was not Tailwind's, and what to do.
+const ORDER_AS_WRITTEN: &str = "Hozo orders a class list as Tailwind does, except around a class \
+    it cannot rank (an arbitrary value, or a class the project's own CSS defines). Remove the \
+    class that should not apply.";
 
 /// One shared module binding, not one rebind per root/element/slot. The report
 /// is build-time evidence; descriptors never enter emitted application code.
@@ -159,6 +165,13 @@ pub fn order_module_tailwind_builtin(output: &mut ParseOutput) {
     }
 }
 
+/// What one root's walk collects: the report, and what ordering has to say.
+#[derive(Default)]
+struct PlanOutput {
+    sites: Vec<TailwindPlanSite>,
+    diagnostics: Vec<Diagnostic>,
+}
+
 #[derive(Clone, Copy)]
 enum PlanMode {
     PassThrough { capture: bool },
@@ -183,9 +196,10 @@ fn plan_module(
     let empty = TailwindUnits::default();
     let bindings = context.bind(shared.as_deref().unwrap_or(&empty));
     let mut reports = Vec::new();
+    let mut diagnostics = Vec::new();
     for root in &mut output.roots {
-        let mut sites = Vec::new();
-        plan_node(&mut root.node, &bindings, mode, &mut sites);
+        let mut out = PlanOutput::default();
+        plan_node(&mut root.node, &bindings, mode, &mut out);
         if !root.forwarded.is_empty() {
             plan_site(
                 &mut root.forwarded,
@@ -193,15 +207,23 @@ fn plan_module(
                 "forwarded",
                 &bindings,
                 mode,
-                &mut sites,
+                &mut out,
             );
         }
+        diagnostics.append(&mut out.diagnostics);
         if mode.capture() {
             reports.push(TailwindRootPlan {
                 fingerprint: context.snapshot().fingerprint.clone(),
                 ordered: false,
-                sites,
+                sites: out.sites,
             });
+        }
+    }
+    // A module is ordered once per compile. Should a caller order it again,
+    // the same finding is not said twice.
+    for diagnostic in diagnostics {
+        if !output.diagnostics.contains(&diagnostic) {
+            output.diagnostics.push(diagnostic);
         }
     }
     reports
@@ -213,11 +235,35 @@ fn plan_site(
     class_prop: &'static str,
     bindings: &TailwindUnitBindings<'_>,
     mode: PlanMode,
-    sites: &mut Vec<TailwindPlanSite>,
+    out: &mut PlanOutput,
 ) {
     let plan = TailwindWritePlan::passthrough(std::mem::take(declarations), bindings);
     if matches!(mode, PlanMode::Scalars) {
-        *declarations = plan.order_scalars().into_declarations();
+        let plan = plan.order_scalars();
+        for conflict in plan.authored_conflicts() {
+            let (earlier, later) = (conflict.earlier, conflict.later);
+            let pair = format!(
+                "`{earlier}` and `{later}` in {class_prop} set the same property under the \
+                 same condition. `{later}` applies because it is written last"
+            );
+            let message = match conflict.tailwind_applies_last {
+                Some(tailwind) => format!(
+                    "{pair}; Tailwind's stylesheet order would apply `{tailwind}`. \
+                     {ORDER_AS_WRITTEN}"
+                ),
+                None => format!(
+                    "{pair}; one of the two has no place in Tailwind's order that Hozo can \
+                     read. {ORDER_AS_WRITTEN}"
+                ),
+            };
+            out.diagnostics.push(Diagnostic {
+                code: DiagnosticCode::TailwindOrderAsWritten,
+                severity: Severity::Warning,
+                message,
+                span,
+            });
+        }
+        *declarations = plan.into_declarations();
         return;
     }
     if !mode.capture() {
@@ -309,7 +355,7 @@ fn plan_site(
     // This is the plan's actual output consumed by both lowerers, not a
     // side analysis over a second parse or reconstructed author expression.
     *declarations = plan.into_declarations();
-    sites.push(TailwindPlanSite {
+    out.sites.push(TailwindPlanSite {
         span,
         class_prop,
         write_count: declarations.len(),
@@ -321,16 +367,9 @@ fn plan_node(
     node: &mut Node,
     bindings: &TailwindUnitBindings<'_>,
     mode: PlanMode,
-    sites: &mut Vec<TailwindPlanSite>,
+    out: &mut PlanOutput,
 ) {
-    plan_site(
-        &mut node.style,
-        node.span,
-        "className",
-        bindings,
-        mode,
-        sites,
-    );
+    plan_site(&mut node.style, node.span, "className", bindings, mode, out);
     for slot in &mut node.props.class_slots {
         plan_site(
             &mut slot.style,
@@ -338,20 +377,20 @@ fn plan_node(
             slot.slot.class_prop,
             bindings,
             mode,
-            sites,
+            out,
         );
     }
     for prop in &mut node.props.passthrough {
         for nested in &mut prop.nested {
-            plan_node(&mut nested.node, bindings, mode, sites);
+            plan_node(&mut nested.node, bindings, mode, out);
         }
     }
     for child in &mut node.children {
         match child {
-            Child::Node(node) => plan_node(node, bindings, mode, sites),
+            Child::Node(node) => plan_node(node, bindings, mode, out),
             Child::Verbatim { nested, .. } => {
                 for entry in nested {
-                    plan_node(&mut entry.node, bindings, mode, sites);
+                    plan_node(&mut entry.node, bindings, mode, out);
                 }
             }
             Child::Text(_) => {}
@@ -557,6 +596,68 @@ const other=<View className="p-2"/>;
                 after, pointers,
                 "the plan must not clone/reallocate style vectors"
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod order_as_written {
+    use hozo_ir::DiagnosticCode;
+
+    fn warnings(classes: &str) -> Vec<String> {
+        let source =
+            format!("import {{View}} from '@hozo/core'; const el=<View className=\"{classes}\"/>;");
+        let mut parsed = crate::parse_tsx(&source);
+        super::order_module_tailwind_builtin(&mut parsed);
+        // Ordering twice must not say it twice.
+        super::order_module_tailwind_builtin(&mut parsed);
+        parsed
+            .diagnostics
+            .into_iter()
+            .filter(|diagnostic| diagnostic.code == DiagnosticCode::TailwindOrderAsWritten)
+            .map(|diagnostic| diagnostic.message)
+            .collect()
+    }
+
+    #[test]
+    fn a_conflict_left_in_written_order_names_both_classes_and_tailwinds_choice() {
+        // `columns-(--layout)` cannot be ranked, so `p-4` and `p-2` keep the
+        // order they were written in; Tailwind's sheet has `p-2` first.
+        let found = warnings("p-4 columns-(--layout) p-2");
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].starts_with("`p-4` and `p-2` in className"));
+        assert!(found[0].contains("Tailwind's stylesheet order would apply `p-4`"));
+    }
+
+    #[test]
+    fn written_order_that_is_already_tailwinds_says_nothing() {
+        assert!(warnings("p-2 columns-(--layout) p-4").is_empty());
+        // No barrier: the plan sorts the input, so nothing was left to authorship.
+        assert!(warnings("p-4 p-2").is_empty());
+        assert!(warnings("px-4 p-2").is_empty());
+        // Different sides, different conditions and composing registers are
+        // not one slot with one winner.
+        assert!(warnings("px-4 columns-(--layout) py-2").is_empty());
+        assert!(warnings("p-4 columns-(--layout) hover:p-2").is_empty());
+        assert!(warnings("rotate-45 scale-50 columns-(--layout)").is_empty());
+    }
+
+    #[test]
+    fn a_logical_edge_and_a_physical_edge_of_one_side_are_one_slot() {
+        let found = warnings("px-4 columns-(--layout) p-2");
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].contains("would apply `px-4`"));
+    }
+
+    #[test]
+    fn a_class_with_no_readable_place_in_tailwinds_order_is_reported_either_way_round() {
+        for classes in [
+            "tracking-[1em] tracking-wide",
+            "tracking-wide tracking-[1em]",
+        ] {
+            let found = warnings(classes);
+            assert_eq!(found.len(), 1, "{classes}: {found:?}");
+            assert!(found[0].contains("no place in Tailwind's order"));
         }
     }
 }

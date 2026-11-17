@@ -63,7 +63,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
           </Paragraph>
         </View>
 
-        <List className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto list-none p-0 m-0">
+        <List className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto list-none p-0 my-0">
           <Domain href={`${cleanBase}/three/`} name="Three.js" pkg="@hozo/three">
             Scenes on WebGL and WebGPU, with a bounded Native GPU path.
           </Domain>

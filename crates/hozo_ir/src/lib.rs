@@ -31,7 +31,8 @@ pub use tailwind_order::{
 };
 mod tailwind_plan;
 pub use tailwind_plan::{
-    scalar_tailwind_property, TailwindWriteBlock, TailwindWritePlan, TAILWIND_SCALAR_ORDER_POLICY,
+    scalar_tailwind_property, AuthoredConflict, TailwindWriteBlock, TailwindWritePlan,
+    TAILWIND_SCALAR_ORDER_POLICY,
 };
 mod tailwind_assessment;
 pub use tailwind_assessment::{
@@ -155,6 +156,16 @@ pub enum DiagnosticCode {
     TailwindVariantNotSupported,
     /// Recognized important utility whose cascade semantics are not enabled.
     TailwindImportantNotLowered,
+    /// Two classes in one list write the same property under the same
+    /// condition, and the one written last applies, not the one Tailwind's
+    /// stylesheet order would choose.
+    ///
+    /// Hozo orders a class list as Tailwind does, except around a class it
+    /// cannot rank (an arbitrary value, a class the project's own CSS
+    /// defines), where the writes it cannot prove independent keep the order
+    /// they were written in. That boundary is deliberate (decision 012); this
+    /// is what stops it being silent.
+    TailwindOrderAsWritten,
     /// A `Dialog` that can't be dismissed (proposal §10.3).
     ///
     /// Escape on Web and the hardware back button on Android both arrive
@@ -6771,6 +6782,7 @@ impl DiagnosticCode {
             DiagnosticCode::FocusableDisabledUnsupported => "FOCUSABLE_DISABLED_UNSUPPORTED",
             DiagnosticCode::TailwindVariantNotSupported => "TAILWIND_VARIANT_NOT_SUPPORTED",
             DiagnosticCode::TailwindImportantNotLowered => "TAILWIND_IMPORTANT_NOT_LOWERED",
+            DiagnosticCode::TailwindOrderAsWritten => "TAILWIND_ORDER_AS_WRITTEN",
             DiagnosticCode::A11yMissingAccessibleName => "A11Y_MISSING_ACCESSIBLE_NAME",
             DiagnosticCode::A11yDialogWithoutDismiss => "A11Y_DIALOG_WITHOUT_DISMISS",
             DiagnosticCode::InvalidSemanticNesting => "INVALID_SEMANTIC_NESTING",

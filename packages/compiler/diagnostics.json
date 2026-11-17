@@ -492,6 +492,25 @@
         }
       ]
     },
+    "TAILWIND_ORDER_AS_WRITTEN": {
+      "summary": "Two classes in one list write the same property under the same condition, and the one written last applies, not the one Tailwind's stylesheet order would choose.\n\nHozo orders a class list as Tailwind does, except around a class it cannot rank (an arbitrary value, a class the project's own CSS defines), where the writes it cannot prove independent keep the order they were written in. That boundary is deliberate (decision 012); this is what stops it being silent.",
+      "example": {
+        "jsx": "<View className=\"p-4 columns-(--layout) p-2\">x</View>",
+        "backend": "both"
+      },
+      "emitted": [
+        {
+          "backend": "web",
+          "severity": "warning",
+          "message": "`p-4` and `p-2` in className set the same property under the same condition. `p-2` applies because it is written last; Tailwind's stylesheet order would apply `p-4`. Hozo orders a class list as Tailwind does, except around a class it cannot rank (an arbitrary value, or a class the project's own CSS defines). Remove the class that should not apply."
+        },
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`p-4` and `p-2` in className set the same property under the same condition. `p-2` applies because it is written last; Tailwind's stylesheet order would apply `p-4`. Hozo orders a class list as Tailwind does, except around a class it cannot rank (an arbitrary value, or a class the project's own CSS defines). Remove the class that should not apply."
+        }
+      ]
+    },
     "TAILWIND_VARIANT_CANNOT_MATCH": {
       "summary": "A Tailwind variant Hozo compiles, on an element its selector cannot reach.\n\nDistinct from `TailwindVariantNotSupported`, which is about Hozo and says \"not built yet\". This one is about the element: the variant is built, the CSS is generated, and the rule will simply never apply here. `required:` on a `<div>` is the case -- a perfectly good selector pointed at something that can never be required.",
       "example": {
