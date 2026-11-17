@@ -39,6 +39,7 @@
       "!packages/three/scene-conformance.json",
       "!**/hozo.manifest.json",
       "!scripts/style-slots/owner-shadow.json",
+      "!scripts/fixtures/starters",
       "!examples/native-demo/ios"
     ]
   },

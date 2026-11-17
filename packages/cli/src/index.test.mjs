@@ -68,7 +68,6 @@ test('exit codes: 1 is findings, 2 is a command that could not run', async (t) =
     [['dry-fit', path.join(root, 'missing')], 'checkout-not-directory'],
     [['squre'], 'unknown-command'],
     [['--verbose'], 'unknown-option'],
-    [['init'], 'reserved-command'],
     [['mcp'], 'reserved-command'],
   ]) {
     const streams = io()

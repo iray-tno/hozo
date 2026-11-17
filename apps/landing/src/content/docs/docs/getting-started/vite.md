@@ -32,7 +32,10 @@ export default defineConfig({
 ```
 
 `css` names the stylesheet that holds your design tokens. Hozo reads it; it
-does not have to be imported anywhere:
+does not have to be imported anywhere. Keep the option even though Hozo has
+a default list: the starter's `src/index.css` is on that list, and it is
+plain CSS with no `@import "tailwindcss"`, so without `css` Hozo would read
+it and compile against Tailwind's defaults. The stylesheet itself:
 
 ```css title="src/theme.css"
 @import "tailwindcss";

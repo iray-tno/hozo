@@ -224,7 +224,7 @@ function copyState(recorded, installed) {
   return states.length > 0 ? states.join(', ') : 'current'
 }
 
-function packageManager(project) {
+export function packageManager(project) {
   let dir = project
   for (;;) {
     if (existsSync(path.join(dir, 'pnpm-lock.yaml'))) return 'pnpm'

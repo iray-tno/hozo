@@ -229,6 +229,33 @@ export interface ReactNativeImports {
   declarations: ReactNativeImportDeclaration[]
 }
 
+/** A bundler config's imports, export and nodes, as offsets (RFC 013 §4). */
+export interface ConfigShape {
+  diagnostics: CompileDiagnostic[]
+  imports: {
+    source: string
+    kind: 'import' | 'require'
+    spanStart: number
+    spanEnd: number
+    locals: string[]
+  }[]
+  exportKind?: 'esm' | 'cjs'
+  exportStart?: number
+  exportEnd?: number
+  exportNode?: number
+  bindings: { name: string; node: number }[]
+  nodes: {
+    kind: 'object' | 'array' | 'call' | 'identifier' | 'string' | 'spread' | 'other'
+    spanStart: number
+    spanEnd: number
+    /** The enclosing node, or -1. */
+    parent: number
+    key?: string
+    /** In an object: where the whole property starts, key included. */
+    propertyStart?: number
+    name?: string
+  }[]
+}
 /** Static ESM requests and direct runtime bindings, not complete graph evidence. */
 export interface StaticModuleImports {
   requests: string[]
@@ -429,6 +456,7 @@ interface NativeBinding {
   tailwindClassesRankable(candidates: string[]): boolean[]
   tailwindClassesNativeRefusal(candidates: string[]): (string | null)[]
   reactNativeImports(source: string, sourceFile?: string): ReactNativeImports
+  configShape(source: string, sourceFile?: string): ConfigShape
   analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage
   compile(source: string): CompiledComponent[]
   compileNative(source: string): CompiledNativeComponent[]
@@ -1067,6 +1095,11 @@ export function summarizeStylexModule(source: string, sourceFile?: string): Styl
 /** Binding-aware authored ESM inventory; no transform or member compatibility claim. */
 export function analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage {
   return loadNative().analyzeReactNativeUsage(source, sourceFile)
+}
+
+/** A bundler config's shape, for `hozo init`'s span edits; recognises nothing itself. */
+export function configShape(source: string, sourceFile?: string): ConfigShape {
+  return loadNative().configShape(source, sourceFile)
 }
 
 /** Structural declarations used by the actual Web import rewrite; no scope pass. */

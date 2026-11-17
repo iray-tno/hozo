@@ -1,6 +1,6 @@
 # RFC 013: `hozo init` — Hozo added to an existing project
 
-- **Status**: Draft
+- **Status**: Implemented (§7: steps 1–5)
 - **Authors**: iray-tno
 - **Tracking issue**: Not assigned
 - **Target packages**: `@hozo/cli`; `@hozo/compiler` (one analysis pass)
@@ -30,7 +30,7 @@ in ways a newcomer would not see:
 | Stack | Starter (version) | Config | Stylesheet | What `init` has to know |
 | --- | --- | --- | --- | --- |
 | Vite | `create-vite` 9.3.4, `react-ts` | `export default defineConfig({ plugins: [react()] })` | `src/index.css`, plain CSS | `src/index.css` is on Hozo's default stylesheet list, so a starter with no `css` option compiles against a stylesheet with no `@import "tailwindcss"` (`square`: `css-no-tailwind`) |
-| Next.js | `create-next-app` 16.4.6 | `const nextConfig = {…}; export default nextConfig` | `app/globals.css`, with Tailwind (`app-tw`) or without | With Tailwind, `@tailwindcss/postcss` already emits preflight; Hozo's would be a second copy |
+| Next.js | `create-next-app` 16.4.6 | `const nextConfig = {…}; export default nextConfig` | `app/globals.css`, with Tailwind (`app-tw`) or without | Without Tailwind, `app/globals.css` is Vite's case again: on the default list, no `@import "tailwindcss"`. With Tailwind, `@tailwindcss/postcss` already emits preflight; Hozo's would be a second copy |
 | Metro, React Native CLI | `@react-native-community/template` 0.88.1 | `module.exports = mergeConfig(getDefaultConfig(__dirname), config)` | none | — |
 | Metro, Expo | `expo-template-default` 58.0.34 | **none**: Expo uses its default Metro config until a project writes one | none | `init` creates `metro.config.js` from `expo/metro-config` |
 | Astro | `withastro/astro` `examples/minimal` | `export default defineConfig({})` | none | No React integration: Astro needs `@astrojs/react` and the tsconfig `jsx` setting before any `.tsx` builds |
@@ -57,8 +57,9 @@ hozo init --no-install         # edit only; print the install command
 1. **Detect.** The stack is read from the config files `square` already
    knows (`vite.config.*`, `astro.config.*`, `next.config.*`,
    `metro.config.*`, `.storybook/main.*`) and from `package.json`: `expo`
-   with no `metro.config.*` is Metro. A project with two (Vite and
-   Storybook, say) gets both edited. None found exits `2` with the list of
+   with no `metro.config.*` is Metro. A project with two (Next.js and
+   Storybook, say) gets both edited, except Storybook beside a Vite config,
+   which builds with that config (§7.4). None found exits `2` with the list of
    stacks `init` knows; a workspace root with no bundler config of its own is
    told to run `init` in the package that builds.
 2. **Install.** The adapter (`@hozo/vite`, `@hozo/next`, `@hozo/metro` or
@@ -104,7 +105,7 @@ hand, and the one that breaks the build when it is wrong. So:
 | Astro | `export default defineConfig({ … })` | `vite: { plugins: [hozo(…)] }`, or `hozo(…)` first in an existing `vite.plugins` |
 | Next.js | `export default <identifier>` or `export default { … }`; `module.exports =` the same | `withHozo(<expression>, { … })` around the exported expression |
 | Metro | `module.exports = <expression>` | `withHozo(<expression>, { … })`; with Expo and no config, a new `metro.config.js` |
-| Storybook | an `addons: [ … ]` array in the exported object | `'@hozo/storybook'` as its last element |
+| Storybook | an `addons: [ … ]` array in the exported object, with a Vite framework | `{ name: '@hozo/storybook', options: { css } }` as its last element |
 
 The import goes after the file's last import, in the file's own quote style
 and semicolon use, which the pass reads from the file's existing imports.
@@ -166,10 +167,129 @@ for.
 | 1 | Guides: Vite's stylesheet, Tailwind already present, Expo's config (§2). Starter fixtures: each starter's config and stylesheets, at the versions in §2, under `scripts/fixtures/starters/` | The packed consumer builds the Vite and Astro guides as before; each fixture is the upstream file, byte for byte |
 | 2 | The compiler pass (§4) for the Vite, Astro and TanStack Start shapes; `hozo init` with detection, install, stylesheet and `square` | Each fixture edits to the guide's config; unrecognised shapes in a test corpus exit `2` with no file changed; a second run is empty |
 | 3 | Next.js and Metro, including Expo's created config | Same exits, on their fixtures |
-| 4 | Storybook; `--ui` | Same exits; `square --setup` on each initialised fixture has no error |
+| 4 | Storybook; `--ui` | Same exits; Storybook beside a Vite config is left alone (§7.4) |
 | 5 | The packed consumer runs `hozo init --write` over the Vite and Astro starters, from tarballs, and builds | Builds as the guide-built app does; the guides name `init` first and the manual steps after |
 
 Step 1 stands alone: the guide fixes are worth having without `init`.
+
+### 7.1 Step 1
+
+The Vite, Next.js, Metro and TanStack Start guides say what §2 found. The
+starters' files are in `scripts/fixtures/starters/`, one directory per
+starter (Next.js twice: with and without Tailwind), with where each came
+from in `sources.json`; Biome skips the directory so their own quotes and
+semicolons stay. TanStack's `@import 'tailwindcss' source('../')` was loaded
+through `@hozo/tailwind`'s `loadTheme`, static and not: both read the
+stylesheet's `@theme`, so `init` can point `css` at it unchanged.
+
+### 7.2 Step 2
+
+`configShape` in `@hozo/compiler/analysis` (`crates/hozo_parser/src/config_shape.rs`)
+reports a config's imports and requires, its `export default` or
+`module.exports`, top-level bindings, and the objects, arrays, calls and
+strings under them to six levels, each with UTF-16 offsets and, inside an
+object, where the whole property starts. It looks through parentheses, `as`,
+`satisfies` and `!`, and recognises nothing: `packages/cli/src/init-config.mjs`
+decides which shapes are known.
+
+`hozo init` edits Vite, TanStack Start and Astro. On the starters:
+
+| Starter | Stylesheet | Config edit |
+| --- | --- | --- |
+| Vite | `src/theme.css` created (not `src/index.css`) | import after the last import; `hozo({ css: 'src/theme.css' })` first in `plugins`, inline as the array is |
+| TanStack Start | `src/styles/app.css`, unchanged | `hozo({ css: 'src/styles/app.css', preflight: false })` on its own line before `tailwindcss()` |
+| Astro (with `@astrojs/react`) | `src/theme.css` created | `vite: { plugins: [hozo(…)] }` into `defineConfig({})`, with the file's semicolons |
+
+A second run on each reports nothing to install or edit. A config exporting
+`defineConfig(({ mode }) => …)` exits `2` with the call to add and leaves
+the file and `package.json` as they were; so do an uncommitted config, an
+`@hozo/*` package at another version, Astro without React, and Next.js or
+Expo (steps 3 and 4).
+
+On the Vite starter with `@hozo/core`, `@hozo/vite` and `@hozo/compiler`
+linked from this checkout, `hozo init --write` followed by the real
+`square --setup` passed `versions`, `peers`, `adapter` and `css`. With
+`--no-install` and packages still to install, `square` is not run: it
+would only say the project has no `@hozo/*` dependency.
+
+### 7.3 Step 3
+
+Next.js and Metro configs are edited by wrapping the exported expression,
+`export default` or `module.exports`, in `withHozo(…, { css })`, with the
+import or `require` added after the file's last one in its own style. The
+expression itself is not touched, so React Native's
+`mergeConfig(getDefaultConfig(__dirname), config)` and Next's `nextConfig`
+binding stay as written. Expo with no `metro.config.*` gets one from
+`expo/metro-config`, as the Metro guide now shows. Metro is never passed
+`preflight`: it is a Web reset.
+
+| Starter | Stylesheet | Config edit |
+| --- | --- | --- |
+| Next.js | `theme.css` created (not `app/globals.css`, which has no Tailwind) | `export default withHozo(nextConfig, { css: "theme.css" });` |
+| Next.js with Tailwind | `app/globals.css`, unchanged | `withHozo(nextConfig, { css: "app/globals.css", preflight: false })` |
+| React Native | `theme.css` created | `withHozo(mergeConfig(getDefaultConfig(__dirname), config), { css: 'theme.css' })` |
+| Expo | `src/theme.css` created | `metro.config.js` created |
+
+A config exporting a function (`export default (phase) => ({ … })`) exits
+`2` with the `withHozo` call to write. With `@hozo/core`, the adapter and
+`@hozo/compiler` linked from this checkout, `init --write` and the real
+`square --setup` passed `versions`, `peers`, `adapter` and `css` on both
+the Next.js and the React Native starter.
+
+Diffs now print a changed line's removal before its addition, as `diff -u`
+does; the longest-common-subsequence tie went the other way before.
+
+### 7.4 Step 4
+
+Storybook's `main.*` gets `{ name: '@hozo/storybook', options: { css } }`
+last in `addons`, after a trailing comma when the array has one, or a new
+`addons` array when it has none. Storybook merges an addon's `options` into
+the options its presets are called with (`combinedOptions` in Storybook
+10.6.3), so `css` reaches `viteFinal`. A framework that does not build with
+Vite (`@storybook/nextjs`) is refused with `storybook-not-vite`: the addon is
+a `viteFinal` hook and would not run.
+
+**Storybook beside a Vite config is not edited.** Storybook's Vite builder
+loads the project's `vite.config.*` (`loadConfigFromFile` in
+`@storybook/builder-vite`, unless `viteConfigPath` says otherwise), so a
+config with `hozo()` already gives Storybook Hozo. Adding the addon as well
+runs Hozo twice: with a `vite.config.mjs` holding `hozo()` in
+`examples/storybook-demo`, a probe plugin counted two `hozo` plugins in
+Storybook's resolved config. That is not always harmless:
+`examples/login-demo` built with `plugins: [hozo(), hozo(), react()]`
+emitted 6,140 bytes of CSS against 6,765 with one `hozo()`, missing ten
+rules (the `hozo-scroll-view` base rules, the five
+`data-hozo-pointer-events` rules, and one component rule), though
+storybook-demo's own Storybook output was byte-identical either way.
+`init` skips the Storybook config there, installs no `@hozo/storybook`, and
+says why. The duplication itself is #2038, fixed in `@hozo/storybook` by
+#2039, which steps aside when the config already has `hozo()`.
+
+`--ui` was implemented in step 2.
+
+### 7.5 Step 5
+
+`scripts/check-packed-consumer.mjs` packs `@hozo/cli` with the rest, then
+over the Vite starter fixture (its own `vite.config.ts` and `src/index.css`)
+with the guide's `index.html`, `main.tsx` and `App.tsx`, installs only the
+starter's packages and `@hozo/cli`, commits, and runs
+`pnpm exec hozo init --write`. `init`'s own `pnpm add` goes through the
+workspace overrides, so `@hozo/*` resolve to the tarballs. It then adds the
+guide's `--color-brand` to the stylesheet `init` created, as a project would
+next, and builds; the build is held to the same checks as the guides' (the
+Heading lowered to `<h1>`, the brand colour in the CSS, no client chunk
+importing `@hozo/core`).
+
+Run locally on Windows: the two `pnpm add` commands installed
+`@hozo/core`, `@hozo/vite` and `@hozo/compiler` 0.4.0 from the tarballs, the
+config and stylesheet edits were the ones §7.2 lists, `square --setup`
+passed `versions`, `peers`, `adapter` and `css`, and the build passed every
+check. The run also showed Node's DEP0190 warning for the Windows install
+(arguments passed with `shell: true`); the install line now goes to the
+shell whole there, and a rerun in the same app printed no warning.
+
+The getting-started index names `hozo init` first, for releases after
+`0.4.0`, and the per-stack pages stay as the manual steps.
 
 ## 8. Resolved questions
 
@@ -189,3 +309,5 @@ Step 1 stands alone: the guide fixes are worth having without `init`.
 
 - Draft (2026-11-17): first version, from the starters' configs measured in
   §2.
+- Implemented (2026-11-17): steps 1–5 (§7.1–§7.5); Storybook beside a Vite
+  config is left alone (§7.4), which found #2038.

@@ -194,7 +194,7 @@ async function main() {
     wasi,
     scope: wasi
       ? 'Local release tarballs with the WASI compiler binding as the only one installable (pnpm supportedArchitectures cpu: wasm32); the Vite getting-started guide built as written, and the binding that compiled it identified. Not a WebContainer itself, and not the other apps or guides.'
-      : 'Local release tarballs; compiler execution, SSR, Vite browser interaction, Android/iOS Metro, Android autolink/codegen, the Vite and Astro getting-started guides built as written. Not registry authentication, Gradle compilation or device rendering.',
+      : 'Local release tarballs; compiler execution, SSR, Vite browser interaction, Android/iOS Metro, Android autolink/codegen, the Vite and Astro getting-started guides built as written, and `hozo init --write` over the Vite starter, built. Not registry authentication, Gradle compilation or device rendering.',
   }
   const env = consumerEnvironment(process.env)
   const save = () =>
@@ -273,7 +273,8 @@ async function main() {
       names.map((name) => [name, json(path.join(root, 'packages', name, 'package.json'))]),
     )
     const selected = consumerClosure(
-      [...WEB_CONSUMER_PACKAGES, 'metro', 'native', 'behaviors'],
+      // `cli` for `hozo init` over the Vite starter (RFC 013 step 5).
+      [...WEB_CONSUMER_PACKAGES, 'metro', 'native', 'behaviors', ...(wasi ? [] : ['cli'])],
       manifests,
     )
     const tarballs = {}
@@ -444,6 +445,57 @@ async function main() {
       })
       save()
       assert.deepEqual(problems, [], `the ${name} guide's build is wrong`)
+    }
+    // `hozo init` over the Vite starter as it ships (RFC 013 step 5): the
+    // starter's own config and stylesheet, the guide's App, and the packed
+    // CLI doing what the guide says to do by hand. Its install goes through
+    // the workspace overrides, so `@hozo/*` resolve to these tarballs.
+    if (!wasi) {
+      const app = path.join(work, 'init-vite')
+      cpSync(path.join(root, 'scripts/fixtures/starters/vite'), app, { recursive: true })
+      cpSync(path.join(fixtureRoot, 'guides/vite'), app, { recursive: true })
+      const guideApp = readGuide('vite').files.find((file) => file.path === 'src/App.tsx')
+      writeFileSync(path.join(app, 'src/App.tsx'), guideApp.content)
+      const starter = GUIDE_STARTERS.vite
+      writeFileSync(
+        path.join(app, 'package.json'),
+        `${JSON.stringify({ name: 'packed-hozo-init-vite', private: true, type: 'module', dependencies: Object.fromEntries(starter.packages.map((dep) => [dep, guideVersion(dep)])), devDependencies: { '@hozo/cli': tarballs['@hozo/cli'] } }, null, 2)}\n`,
+      )
+      writeFileSync(path.join(app, 'pnpm-workspace.yaml'), workspaceYaml(tarballs))
+      writeFileSync(path.join(app, '.gitignore'), 'node_modules\ndist\n')
+      pnpm('install-init-vite', ['install', '--ignore-scripts'], app)
+      const git = (...args) =>
+        command(
+          'git-init-vite',
+          'git',
+          ['-c', 'user.email=packed@example.invalid', '-c', 'user.name=packed', ...args],
+          app,
+        )
+      git('init', '-q')
+      git('add', '-A')
+      git('commit', '-q', '-m', 'starter')
+      // Exits 1 if square finds a setup error after the edits.
+      pnpm('hozo-init-vite', ['exec', 'hozo', 'init', '--write'], app)
+      const config = readFileSync(path.join(app, 'vite.config.ts'), 'utf8')
+      const theme = path.join(app, 'src/theme.css')
+      assert.match(config, /plugins: \[hozo\(\{ css: 'src\/theme\.css' \}\), react\(\)\]/)
+      // The token the guide's App uses, as a project would add it next; the
+      // build then proves `css` points at the stylesheet init created.
+      writeFileSync(
+        theme,
+        readFileSync(theme, 'utf8').replace(
+          '@theme {\n}',
+          '@theme {\n  --color-brand: oklch(62% 0.19 258);\n}',
+        ),
+      )
+      pnpm('build-init-vite', ['exec', 'vite', 'build'], app)
+      const built = filesUnder(path.join(app, 'dist'))
+        .filter((file) => /\.(?:js|css|html)$/.test(file))
+        .map((file) => ({ file, content: readFileSync(file, 'utf8') }))
+      const problems = guideOutputProblems(built)
+      evidence.checks.push({ name: 'output-init-vite', passed: problems.length === 0, problems })
+      save()
+      assert.deepEqual(problems, [], "hozo init's Vite build is wrong")
     }
     evidence.passed = true
   } catch (error) {
