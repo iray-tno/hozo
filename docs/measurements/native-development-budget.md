@@ -1,5 +1,44 @@
 # Native development bundle allowance
 
+## 545,000: Native text inheritance by default (#2049)
+
+Measured on Windows on 2026-11-18. The maintainer approved raising the
+development allowance from 530,000 to **545,000** when
+[decision 013](../decisions/013-text-inheritance-compiled-where-visible.md)
+became the Native default. Same metric and commands as below. The comparison
+is the same tree with `nativeTextInheritance: 'compiled'` in
+`examples/native-demo/metro.config.js`.
+
+| Development output | Hozo metric |
+| --- | ---: |
+| iOS, `'compiled'` | 519,146 |
+| iOS, default (`'unified'`) | 530,317 |
+| Android, default | 530,325 |
+
+The +11,171 is all new modules; no existing module changed size:
+
+| Module | Metric |
+| --- | ---: |
+| `primitives/inherited-leaves.native` (reader and scope) | 4,176 |
+| `engine/text-inheritance` (the two contexts) | 2,687 |
+| `primitives/inherited-text-scope` (scope provider) | 1,323 |
+| `engine/generated/text-inheritance-protocol` | 1,117 |
+| `core` and `primitives` forwards for `inherited-leaves` | 1,426 |
+| `engine/generated/text-size-context` | 442 |
+
+The reader and scope were first emitted from RFC 006's `inherited-text`
+module, which also loads its whole-component reader and style validation:
++14,014. A module of their own took that to +11,171. This leaves 14,683 on iOS.
+
+The production increment stays under its own ceilings (8,000 raw, 3,000 gzip):
+
+| Production, Android | `'compiled'` | default |
+| --- | ---: | ---: |
+| Full acceptance app, raw / gzip | 1,096,888 / 271,050 | 1,102,584 / 271,982 |
+| Hozo increment for the matched screen, raw / gzip | 1,873 / 497 | 6,271 / 1,426 |
+
+## 530,000: feature growth (#1737)
+
 Measured on Windows on 2026-11-10 with one logical CPU at Normal priority.
 The maintainer approved accepting feature growth for
 [#1737](https://github.com/iray-tno/hozo/issues/1737). The development

@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
+import { textLeaves } from './text-leaves.mjs'
 
 const require = createRequire(import.meta.url)
 const file = fileURLToPath(new URL('../../showcase/src/audio-settings-probe.tsx', import.meta.url))
@@ -70,6 +71,7 @@ test('compiled Native settings controls change real Audio props without play/see
         Pressable: 'NativePressable',
         StyleSheet: { create: (styles) => styles },
       }
+    if (name === '@hozo/core/generated/inherited-leaves') return textLeaves('NativeText')
     throw new Error(`Unexpected settings probe dependency: ${name}`)
   }, module)
   const render = () => {

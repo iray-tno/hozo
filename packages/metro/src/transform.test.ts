@@ -644,13 +644,57 @@ test('injects a StyleSheet.create declaration and rewrites the JSX span', () => 
   assert.ok(output)
   assert.match(output!, /const hozoStyles = StyleSheet\.create\(\{/)
   assert.match(output!, /<View style=\{hozoStyles\.hozo_r0_0\}>/)
-  assert.match(output!, /<Text style=\{hozoStyles\.hozo_r0_1\}>Welcome<\/Text>/)
+  // An outermost Text that does not set every inherited field reads the rest
+  // from whatever renders this component (decision 013).
+  assert.match(
+    output!,
+    /<HozoInheritedLeafText style=\{hozoStyles\.hozo_r0_1\}>Welcome<\/HozoInheritedLeafText>/,
+  )
   // The Pressable's label is wrapped: React Native crashes on a raw
   // string inside anything but a Text.
   assert.match(
     output!,
-    /<Pressable style=\{hozoStyles\.hozo_r0_2\}[^>]*><Text>Continue<\/Text><\/Pressable>/,
+    /<Pressable style=\{hozoStyles\.hozo_r0_2\}[^>]*><HozoInheritedLeafText>Continue<\/HozoInheritedLeafText><\/Pressable>/,
   )
+})
+
+test("nativeTextInheritance 'compiled' keeps the copying alone, as earlier releases did", () => {
+  const output = transformHozoSource(
+    LOGIN_SOURCE,
+    'Login.tsx',
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    'compiled',
+  )
+  assert.match(output!, /<Text style=\{hozoStyles\.hozo_r0_1\}>Welcome<\/Text>/)
+  assert.doesNotMatch(output!, /HozoInherited/)
+})
+
+test('decision 013 output keeps exact source evidence for what it copies', () => {
+  const source = `import { View, Text } from '@hozo/core'
+export function Card({ children }) {
+  return <View className="text-[#ff0000]"><Text>{children}</Text>{children}</View>
+}
+`
+  const edits: { input: string; edits: readonly { spanStart: number; spanEnd: number }[] }[] = []
+  const output = transformHozoSource(
+    source,
+    'Card.tsx',
+    undefined,
+    undefined,
+    undefined,
+    (input, e) => edits.push({ input, edits: e }),
+  )
+  // One scope around the container's children, because one of them is opaque.
+  assert.match(
+    output!,
+    /<View><HozoInheritedScope style=\{hozoStyles\.hozo_r0_0_scope\}><HozoInheritedLeafText style=\{hozoStyles\.hozo_r0_1\} hozoOpaque>\{children\}<\/HozoInheritedLeafText>\{children\}<\/HozoInheritedScope><\/View>/,
+  )
+  // Observed and unobserved output are the same output.
+  assert.equal(output, transformHozoSource(source, 'Card.tsx'))
+  assert.ok(edits.length > 0)
 })
 
 test('lowers static StyleX through the same Native StyleSheet path', () => {
@@ -735,7 +779,7 @@ export function Rows() {
   assert.match(output!, /import \{[^}]*Text[^}]*\} from 'react-native'/)
   assert.match(
     output!,
-    /renderItem=\{\(\{ item \}\) => <Text style=\{hozoStyles\.hozo_r0_1\}>\{item\}<\/Text>\}/,
+    /renderItem=\{\(\{ item \}\) => <HozoInheritedLeafText style=\{hozoStyles\.hozo_r0_1\} hozoOpaque>\{item\}<\/HozoInheritedLeafText>\}/,
   )
   assert.ok(!output!.includes("from '@hozo/core'"))
 })
@@ -914,11 +958,11 @@ export function Results({ rows, loading, reload, loadMore }) {
   assert.match(output!, /onEndReached=\{loadMore\} onEndReachedThreshold=\{0\.5\}/)
   assert.match(
     output!,
-    /ListEmptyComponent=\{<Text style=\{hozoStyles\.hozo_r0_1\}>Empty<\/Text>\}/,
+    /ListEmptyComponent=\{<HozoInheritedLeafText style=\{hozoStyles\.hozo_r0_1\}>Empty<\/HozoInheritedLeafText>\}/,
   )
   assert.match(
     output!,
-    /renderItem=\{\(\{ item \}\) => <Text style=\{hozoStyles\.hozo_r0_2\}>\{item\}<\/Text>\}/,
+    /renderItem=\{\(\{ item \}\) => <HozoInheritedLeafText style=\{hozoStyles\.hozo_r0_2\} hozoOpaque>\{item\}<\/HozoInheritedLeafText>\}/,
   )
 })
 
@@ -1076,7 +1120,8 @@ test('and nothing else comes back with it', () => {
   ].join('\n')
   const out = transformHozoSource(source, 'F.tsx') as string
 
-  assert.doesNotMatch(out, /@hozo\/core/)
+  // The barrel; a generated runtime leaf such as the Text reader is not one.
+  assert.doesNotMatch(out, /from '@hozo\/core'/)
   assert.equal((out.match(/^import .* from 'react-native'$/gm) ?? []).length, 1)
 })
 

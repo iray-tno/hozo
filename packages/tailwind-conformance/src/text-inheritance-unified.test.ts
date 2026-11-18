@@ -67,11 +67,10 @@ function load(mode: Mode, files: Record<string, string>) {
           return mode === 'unified'
             ? shipped.native
             : { ...shipped.native, Text: reference.ReferenceText, View: reference.ReferenceView }
-        if (specifier === '@hozo/core/generated/inherited-text')
+        if (specifier === '@hozo/core/generated/inherited-leaves')
           return {
             HozoInheritedLeafText: shipped.HozoInheritedLeafText,
             HozoInheritedScope: shipped.HozoInheritedScope,
-            HozoInheritedText: shipped.HozoInheritedText,
           }
         throw new Error(`Unexpected generated dependency ${specifier} in ${name}`)
       },

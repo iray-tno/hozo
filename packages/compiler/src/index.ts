@@ -849,12 +849,11 @@ function validateNativeOptions(options: NativeCompileOptions | undefined) {
     throw new Error('Select one internal text experiment per compile call')
   if (options?.textStatic && !options.textInheritance)
     throw new Error('Internal textStatic requires textInheritance')
+  // Source evidence may accompany it: the route only wraps rendered
+  // fragments, so the copied source spans stay exact.
   if (
     options?.textUnified &&
-    (options.sourceEvidence ||
-      options.ownerStyle ||
-      options.textReference ||
-      options.textInheritance)
+    (options.ownerStyle || options.textReference || options.textInheritance)
   )
     throw new Error(
       'textUnified is its own route; select no other text or owner experiment with it',

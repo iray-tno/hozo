@@ -139,6 +139,8 @@ export interface HozoMetroState {
   /** Config-only identity; resolver updates for another platform cannot retire it. */
   epoch?: string
   stylexRevisions?: Record<string, string>
+  /** Present only for the opt-out; decision 013's route is the default. */
+  nativeTextInheritance?: 'compiled'
 }
 
 export const METRO_STATE_FILE = 'metro.json'
@@ -325,6 +327,11 @@ async function configureHozo<T extends MetroConfigShape>(
   ownerTarget?: MetroOwnerCallerTarget,
 ): Promise<T> {
   const config = await configOrPromise
+  const textInheritance = options.nativeTextInheritance ?? 'unified'
+  if (textInheritance !== 'unified' && textInheritance !== 'compiled')
+    throw new Error(
+      `[hozo] nativeTextInheritance must be 'unified' or 'compiled', not ${JSON.stringify(textInheritance)}`,
+    )
   const projectRoot = path.resolve(options.root ?? config.projectRoot ?? process.cwd())
   if (ownerPreflight) assertMetroOwnerShadowScope(projectRoot, ownerPreflight)
   const transformerPath = currentTransformerPath()
@@ -377,6 +384,7 @@ async function configureHozo<T extends MetroConfigShape>(
     tailwind,
     fontFaceCssPath,
     fontAvailability: options.fontAvailability,
+    ...(textInheritance === 'compiled' ? { nativeTextInheritance: textInheritance } : {}),
   }
   if (ownerPreflight)
     state.ownerShadow = prepareMetroOwnerShadow(

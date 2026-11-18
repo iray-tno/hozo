@@ -404,6 +404,7 @@ pub fn lower_text_unified(
     forwarded: &[StyleDeclaration],
     source: &str,
     theme: &Theme,
+    source_evidence: bool,
 ) -> LowerOutput {
     lower_forwarded_capturing(
         root,
@@ -412,6 +413,7 @@ pub fn lower_text_unified(
         theme,
         RenderOptions {
             text_unified: true,
+            source_evidence,
             ..Default::default()
         },
         None,

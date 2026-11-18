@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { createCompiler } from '../../../packages/compiler/src/index.ts'
 import * as gapStyles from '../../../packages/engine/src/generated/gap-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
+import { textLeaves } from './text-leaves.mjs'
 import { videoStatus } from './video-evidence.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -30,6 +31,7 @@ function compiledVideoProbe(hooks = {}) {
         StyleSheet: { create: (styles) => styles },
       }
     if (name === '@hozo/media') return { Video: 'Video' }
+    if (name === '@hozo/core/generated/inherited-leaves') return textLeaves('NativeText')
     throw new Error(`Unexpected Video probe dependency: ${name}`)
   }, module)
   return module.exports
@@ -203,6 +205,7 @@ test('compiled Video removal and remount buttons render their dynamic label insi
           StyleSheet: { create: (styles) => styles },
         }
       if (name === '@hozo/media') return { Video: 'Video' }
+      if (name === '@hozo/core/generated/inherited-leaves') return textLeaves('NativeText')
       throw new Error(`Unexpected Video probe dependency: ${name}`)
     }, module)
     const tree = module.exports.VideoPlaybackProbe({ src: 'fixture.mp4' })
@@ -436,6 +439,7 @@ test('the actual Kumimono story uses the live lifecycle for both Canvas and Anim
             return active
           },
         }
+      if (name === '@hozo/core/generated/inherited-leaves') return textLeaves('Text')
       throw new Error(`Unexpected Kumimono dependency: ${name}`)
     }
     new Function('require', 'module', 'console', code)(load, module, {
@@ -731,6 +735,7 @@ test('the actual shared name field disables dictionary corrections without bypas
     if (name === './audio-probe.tsx') return {}
     if (name === './audio-settings-probe.tsx') return {}
     if (name === './video-probe.tsx') return {}
+    if (name === '@hozo/core/generated/inherited-leaves') return textLeaves('Text')
     throw new Error(`Unexpected form dependency: ${name}`)
   }
   new Function('require', 'module', code)(load, module)
@@ -830,6 +835,7 @@ test('filter pixel stories use the real shared graph and keep measurable bounds 
     if (name === 'react-native')
       return { View: 'NativeView', Text: 'NativeText', Pressable: 'NativePressable' }
     if (name === '@hozo/example-showcase/svg-filter-scene') return { SvgFilterScene: 'SharedGraph' }
+    if (name === '@hozo/core/generated/inherited-leaves') return textLeaves('NativeText')
     throw new Error(`Unexpected SVG fixture dependency: ${name}`)
   }, module)
   const component = module.exports.default.component

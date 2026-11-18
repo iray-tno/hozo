@@ -363,7 +363,13 @@ mod tests {
     fn unified(body: &str) -> crate::LowerOutput {
         let source = format!("import {{Text,View}} from '@hozo/core'; const el={body}");
         let parsed = hozo_parser::parse_tsx(&source);
-        crate::lower_text_unified(&parsed.roots[0].node, &[], &source, &Theme::default())
+        crate::lower_text_unified(
+            &parsed.roots[0].node,
+            &[],
+            &source,
+            &Theme::default(),
+            false,
+        )
     }
 
     #[test]

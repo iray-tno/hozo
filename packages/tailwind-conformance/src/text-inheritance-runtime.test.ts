@@ -1915,11 +1915,18 @@ test('the shipped View normalizes only raw scalars and rejects unassessed animat
     )
 })
 
-test('default output needs no inherited ABI and existing import collision checks protect opt-in output', () => {
+test('the compiled opt-out needs no inherited ABI and existing import collision checks protect opt-in output', () => {
   const compiler = createCompiler()
   const source = `import {View,Text} from '@hozo/core';export const Label=()=> <View><Text className="text-red-500">Label</Text></View>`
-  const before = transformHozoSource(source, 'default.tsx', undefined, compiler)
+  const compiled = (file: string) =>
+    transformHozoSource(source, file, undefined, compiler, undefined, undefined, 'compiled')
+  const before = compiled('default.tsx')
   assert.doesNotMatch(before!, /Inherited|text-inheritance-protocol/)
+  // Decision 013's default reads only at the outermost Text; it never takes
+  // this route's whole-component readers and publishers.
+  const unified = transformHozoSource(source, 'default.tsx', undefined, compiler)!
+  assert.match(unified, /HozoInheritedLeafText/)
+  assert.doesNotMatch(unified, /HozoInherited(Text|View)\b/)
   const opted = {
     ...compiler,
     compileNativeModule(input: string) {
@@ -1927,7 +1934,7 @@ test('default output needs no inherited ABI and existing import collision checks
     },
   }
   assert.match(transformHozoSource(source, 'opted.tsx', undefined, opted)!, /HozoInheritedText/)
-  assert.equal(transformHozoSource(source, 'default.tsx', undefined, compiler), before)
+  assert.equal(compiled('default.tsx'), before)
   assert.throws(
     () =>
       transformHozoSource(

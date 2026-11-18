@@ -32,7 +32,11 @@ import {
   generatedRuntimeImports,
   type SourceEdit,
 } from '@hozo/compiler/lower'
-import type { StylexModuleCache, TailwindModuleAttempt } from '@hozo/compiler/project'
+import type {
+  NativeTextInheritance,
+  StylexModuleCache,
+  TailwindModuleAttempt,
+} from '@hozo/compiler/project'
 import { importSpecifier, semanticModuleEligible } from '@hozo/compiler/project'
 import { namespaceHozoIdentifiers, namespaceNativeJsx } from './native-source-evidence.ts'
 import { candidateModulePath } from './project.ts'
@@ -102,7 +106,9 @@ export function transformHozoSource(
   compiler: Compiler = defaultCompiler(),
   stylexModules?: StylexModuleCache,
   observe?: NativeRewriteObserver,
+  textInheritance: NativeTextInheritance = 'unified',
 ): string | null {
+  const options = nativeCompileOptions(observe, textInheritance)
   return transformWithModule(
     code,
     filename,
@@ -110,14 +116,7 @@ export function transformHozoSource(
     compiler,
     stylexModules,
     (source, bindings, finish) =>
-      finish(
-        compiler.compileNativeModule(
-          source,
-          bindings,
-          undefined,
-          observe ? { sourceEvidence: true } : undefined,
-        ),
-      ),
+      finish(compiler.compileNativeModule(source, bindings, undefined, options)),
     observe,
   )
 }
@@ -134,7 +133,9 @@ export function transformHozoSourceOrPrepare(
   context?: PreparedTailwindContext,
   stylexModules?: StylexModuleCache,
   observe?: NativeRewriteObserver,
+  textInheritance: NativeTextInheritance = 'unified',
 ): TailwindModuleAttempt<string | null> {
+  const options = nativeCompileOptions(observe, textInheritance)
   const result = transformWithModule(
     code,
     filename,
@@ -143,19 +144,8 @@ export function transformHozoSourceOrPrepare(
     stylexModules,
     (source, bindings, finish): TailwindModuleAttempt<string | null> => {
       const parsed = context
-        ? compiler.compileNativeOrPrepare(
-            source,
-            context,
-            bindings,
-            undefined,
-            observe ? { sourceEvidence: true } : undefined,
-          )
-        : compiler.prepareNativeModule(
-            source,
-            bindings,
-            undefined,
-            observe ? { sourceEvidence: true } : undefined,
-          )
+        ? compiler.compileNativeOrPrepare(source, context, bindings, undefined, options)
+        : compiler.prepareNativeModule(source, bindings, undefined, options)
       if ('components' in parsed) return { kind: 'complete', output: finish(parsed) }
       return { kind: 'prepared', module: ownNativeTransform(parsed, finish) }
     },
@@ -164,6 +154,18 @@ export function transformHozoSourceOrPrepare(
   return typeof result === 'object' && result !== null
     ? result
     : { kind: 'complete', output: result }
+}
+
+/** Decision 013 is the default; 'compiled' is the project's opt-out. */
+function nativeCompileOptions(
+  observe: NativeRewriteObserver | undefined,
+  textInheritance: NativeTextInheritance,
+) {
+  const options = {
+    ...(observe ? { sourceEvidence: true } : {}),
+    ...(textInheritance === 'unified' ? { textUnified: true } : {}),
+  }
+  return Object.keys(options).length > 0 ? options : undefined
 }
 
 function ownNativeTransform(

@@ -192,6 +192,8 @@ async function loadProbe(viewRenders = []) {
         name: 'actual-hozo-transform',
         setup(build) {
           const leaves = {
+            '@hozo/core/generated/inherited-leaves':
+              '../../../packages/primitives/src/generated/inherited-leaves.ts',
             '@hozo/core/generated/inherited-text':
               '../../../packages/primitives/src/generated/inherited-text.ts',
             '@hozo/core/generated/inherited-view':

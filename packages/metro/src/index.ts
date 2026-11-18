@@ -278,7 +278,10 @@ export function getCacheKey(options: CacheKeyOptions = {}): string {
       ]),
     )
     .digest('hex')
-  const key = [upstreamKey, manifests, helpers, state ? workerKey(state) : '']
+  // Named even at its default, so a cache written before decision 013's
+  // route became the default is not reused for output that now differs.
+  const textInheritance = `text:${state?.nativeTextInheritance ?? 'unified'}`
+  const key = [upstreamKey, manifests, helpers, state ? workerKey(state) : '', textInheritance]
   if (options.projectRoot && state?.ownerShadow)
     key.push(
       ownerShadowSession(options.projectRoot, state.ownerShadow, state.ownerShadow.platform).worker
@@ -334,6 +337,7 @@ export async function transform(params: TransformParams): Promise<unknown> {
     ])
     compilerState.projectForwarding = projectForwarding !== undefined
   }
+  const textInheritance = state?.nativeTextInheritance ?? 'unified'
   const selectedOwner =
     state?.ownerShadow?.mode === 'owner-caller-transform' &&
     semanticModuleEligible(absoluteFile, 'native') &&
@@ -358,6 +362,7 @@ export async function transform(params: TransformParams): Promise<unknown> {
             params.filename,
             projectRoot!,
             compilerState.stylexModules,
+            textInheritance,
           )
         : transformHozoSource(
             params.src,
@@ -365,6 +370,8 @@ export async function transform(params: TransformParams): Promise<unknown> {
             projectRoot,
             compilerState.compiler,
             compilerState.stylexModules,
+            undefined,
+            textInheritance,
           )
   if (
     rewritten !== null &&

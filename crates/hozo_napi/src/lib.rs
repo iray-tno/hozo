@@ -814,9 +814,10 @@ impl NativeCompileOptions {
                 "Internal ownerStyle cannot be combined with text experiments",
             ));
         }
+        // Source evidence may accompany it: the route only wraps rendered
+        // fragments, so the copied source spans stay exact.
         if self.text_unified.unwrap_or(false)
-            && (self.source_evidence.unwrap_or(false)
-                || self.owner_style.unwrap_or(false)
+            && (self.owner_style.unwrap_or(false)
                 || self.text_reference.unwrap_or(false)
                 || self.text_inheritance.unwrap_or(false))
         {
@@ -1925,7 +1926,13 @@ fn lower_native_components(
             } else if options.text_reference {
                 hozo_native::lower_text_reference(&root.node, &root.forwarded, source, theme)
             } else if options.text_unified {
-                hozo_native::lower_text_unified(&root.node, &root.forwarded, source, theme)
+                hozo_native::lower_text_unified(
+                    &root.node,
+                    &root.forwarded,
+                    source,
+                    theme,
+                    options.source_evidence,
+                )
             } else if options.source_evidence {
                 hozo_native::lower_forwarded_with_evidence(
                     &root.node,

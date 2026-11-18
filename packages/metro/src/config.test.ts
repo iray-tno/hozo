@@ -8,7 +8,7 @@ import { createCompiler } from '@hozo/compiler'
 import { CACHE_DIR, StylexModuleCache, type StylexResolvedBindings } from '@hozo/compiler/project'
 
 import { metroStatePath, withHozo } from './config.ts'
-import { withWebFontFaces } from './index.ts'
+import { getCacheKey, withWebFontFaces } from './index.ts'
 import { transformHozoSource } from './transform.ts'
 
 test('withHozo preserves Metro settings and records the existing transformer', async () => {
@@ -190,6 +190,33 @@ test('withHozo accepts a promised config and an explicit project root', async ()
     assert.match(
       readFileSync(path.join(root, 'node_modules', '.hozo', 'candidates.native.js'), 'utf8'),
       /export const hozoPreflight = false/,
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('the Native text inheritance opt-out reaches the transformer and its cache key', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-metro-text-'))
+  try {
+    const options = { root, content: { include: [] } }
+    await withHozo({ transformer: {} }, options)
+    const unified = getCacheKey({ projectRoot: root })
+    assert.equal(
+      JSON.parse(readFileSync(metroStatePath(root), 'utf8')).nativeTextInheritance,
+      undefined,
+    )
+
+    await withHozo({ transformer: {} }, { ...options, nativeTextInheritance: 'compiled' })
+    assert.equal(
+      JSON.parse(readFileSync(metroStatePath(root), 'utf8')).nativeTextInheritance,
+      'compiled',
+    )
+    assert.notEqual(getCacheKey({ projectRoot: root }), unified)
+
+    await assert.rejects(
+      withHozo({ transformer: {} }, { ...options, nativeTextInheritance: 'runtime' as never }),
+      /nativeTextInheritance must be 'unified' or 'compiled', not "runtime"/,
     )
   } finally {
     rmSync(root, { recursive: true, force: true })
