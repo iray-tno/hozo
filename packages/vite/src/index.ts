@@ -30,7 +30,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { type CandidateCache, scanTailwindOrderCandidates } from '@hozo/compiler'
-import { reportDiagnostics } from '@hozo/compiler/diagnostics'
+import { formatDiagnostic, reportDiagnostics } from '@hozo/compiler/diagnostics'
 import {
   foldedPrimitiveCalls,
   lowerModule,
@@ -40,6 +40,7 @@ import {
 } from '@hozo/compiler/lower'
 import {
   CACHE_DIR,
+  classesMissingFromRuntimeMap,
   discoverOwnerPackageCallers,
   discoverSources,
   findClassHelpers,
@@ -362,6 +363,17 @@ function configureHozo(
         const current = await currentEpoch((message) => this.warn(message))
         checkRequest()
         const compiler = current.compiler
+        if (file && !scannable && !isDerivedModule)
+          // Outside the walk, so its classes never reach the candidate
+          // stylesheet: one resolved at run time has no rule (#2048).
+          for (const diagnostic of classesMissingFromRuntimeMap(
+            code,
+            file,
+            new Set(cache.candidates()),
+            compiler,
+            options.sources,
+          ))
+            this.warn(formatDiagnostic(diagnostic))
         const absoluteFile = path.resolve(file)
         const reexportSpecifiers = stylexModules.reexportSpecifiers(absoluteFile)
         if (stylexGraphChanged) {

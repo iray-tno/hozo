@@ -30,6 +30,10 @@ function describe(code, entry) {
     lines.push(`No source is known to raise it: ${entry.unreachable}.`)
     return `${lines.join('\n')}\n`
   }
+  if (entry.raisedBy) {
+    lines.push(`Raised by ${entry.raisedBy} while it builds, not by the compiler alone.`)
+    return `${lines.join('\n')}\n`
+  }
   if (!entry.example) return `${lines.join('\n')}\n`
   lines.push(
     `Example (${BACKENDS[entry.example.backend]}${entry.example.jsx ? ', inside a component' : ''}):`,

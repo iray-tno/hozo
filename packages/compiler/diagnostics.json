@@ -243,6 +243,34 @@
         }
       ]
     },
+    "CLASS_NAME_ASSEMBLED": {
+      "summary": "A class name assembled from pieces at run time: `` `bg-${color}-500` `` or `'p-' + size`. The whole name exists only at run time, so it has a rule only when that exact name is written literally somewhere else in the project. Mapping each value to a whole class makes it compile.",
+      "example": {
+        "jsx": "<View className={`bg-${tone}-500`}>x</View>",
+        "backend": "native"
+      },
+      "emitted": [
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "``bg-${tone}-500`` can't be resolved at build time, so it's resolved on device from the project-wide candidate map. Conditional utilities (`hover:`, `md:`, `pressed:`) can't be carried that way and will warn at runtime -- write those as a static className so they compile to a real style variant. It assembles class names from pieces, so a name has a rule only when that exact name is written literally somewhere in the project; map each value to a whole class instead."
+        }
+      ]
+    },
+    "CLASS_NAME_PASSED_THROUGH": {
+      "summary": "A class prop a component received and hands on unchanged: `className={className}`. Its classes are the caller's, and they compile where the caller writes them as a static string.",
+      "example": {
+        "jsx": "<View className={className}>x</View>",
+        "backend": "native"
+      },
+      "emitted": [
+        {
+          "backend": "native",
+          "severity": "warning",
+          "message": "`className` can't be resolved at build time, so it's resolved on device from the project-wide candidate map. Conditional utilities (`hover:`, `md:`, `pressed:`) can't be carried that way and will warn at runtime -- write those as a static className so they compile to a real style variant. It is the component's own class prop passed on, so its classes compile where the caller writes them as a static string."
+        }
+      ]
+    },
     "CLASS_NOT_DRAWN_ON_NATIVE": {
       "summary": "A class React Native cannot draw, in a class prop the Native backend does not lower: one handed to a pattern -- `handleClassName` on a `BottomSheet` -- which reaches the runtime resolver and is dropped there (#1166). A primitive the compiler lowers says the same thing through `WebOnlyPropertyOnNative` and its neighbours.\n\nA warning, not an error: the pattern still works, and the Web half of the same file is right to use the class. Only what is missing is reported -- a cursor or a transition, which nobody on a touch screen would miss, is not.",
       "example": {
@@ -257,8 +285,12 @@
         }
       ]
     },
+    "CLASS_NOT_IN_RUNTIME_MAP": {
+      "summary": "A class a file hands to the run-time resolver that the on-device class map does not hold, so it does not apply. The map is built from the project scan at startup; a file outside the scan's `content`, or one edited since, can carry a class that is not in it. Reported by the bundler integration, which holds that map, not by the compiler.",
+      "raisedBy": "@hozo/metro and @hozo/vite"
+    },
     "DYNAMIC_CLASS_NAME_NOT_RESOLVED": {
-      "summary": "Part of a `className` couldn't be decomposed statically (proposal §7's third tier). The expression is preserved so its classes still reach the DOM, but Hozo generates no CSS for whatever they turn out to be -- only for classes it could read at build time.",
+      "summary": "Part of a `className` couldn't be decomposed statically (proposal §7's third tier), and it is a value the build cannot enumerate. The expression is preserved so its classes still reach the DOM, but Hozo generates no CSS for whatever they turn out to be -- only for classes it could read at build time. A class prop passed on unchanged and a class name assembled from pieces have codes of their own.",
       "example": {
         "jsx": "<View className={cls}>x</View>",
         "backend": "native"

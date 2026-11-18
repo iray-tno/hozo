@@ -2,8 +2,10 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { type Compiler, type PreparedModule, TAILWIND_SCALAR_ORDER_POLICY } from '@hozo/compiler'
+import { formatDiagnostic } from '@hozo/compiler/diagnostics'
 import { SourceProvenance } from '@hozo/compiler/lower'
 import {
+  classesMissingFromRuntimeMap,
   type NativeTextInheritance,
   type OwnerContractRequest,
   type OwnerManifestLease,
@@ -47,9 +49,16 @@ export async function readTailwindTransfer(reference: MetroTailwindReference) {
       new Set(nativeRuntime.candidates).size !== nativeRuntime.candidates.length)
   )
     throw new Error('[hozo] Invalid Metro Native runtime inventory; restart Metro')
+  if (
+    Object.hasOwn(data, 'runtimeCandidates') &&
+    (!Array.isArray(data.runtimeCandidates) ||
+      data.runtimeCandidates.some((name: unknown) => typeof name !== 'string'))
+  )
+    throw new Error('[hozo] Invalid Metro runtime candidate list; restart Metro')
   return {
     snapshot: await restoreTailwindStylesheet(data.stylesheet),
     candidates: data.candidates as string[],
+    ...(data.runtimeCandidates && { runtimeCandidates: data.runtimeCandidates as string[] }),
     ...(nativeRuntime && {
       nativeRuntime: {
         sha256: nativeRuntime.sha256 as string,
@@ -68,11 +77,14 @@ export class MetroTailwindWorker {
   #names: Set<string>
   #universe: TailwindCandidateUniverse
   readonly #nativeRuntime?: { sha256: string; candidates: ReadonlySet<string> }
+  /** What the on-device class map holds, from the same startup scan. */
+  readonly #runtimeCandidates?: ReadonlySet<string>
 
   constructor(compiler: Compiler, transfer: Awaited<ReturnType<typeof readTailwindTransfer>>) {
     this.compiler = compiler
     this.#names = new Set(transfer.candidates)
     this.#universe = new TailwindCandidateUniverse(this.#names)
+    if (transfer.runtimeCandidates) this.#runtimeCandidates = new Set(transfer.runtimeCandidates)
     if (transfer.nativeRuntime)
       this.#nativeRuntime = {
         sha256: transfer.nativeRuntime.sha256,
@@ -183,6 +195,7 @@ export class MetroTailwindWorker {
     stylexModules?: StylexModuleCache,
     textInheritance: NativeTextInheritance = 'unified',
   ) {
+    this.reportMissingRuntimeClasses(source, filename)
     return this.session.runModule(
       path.resolve(root, filename),
       this.#universe,
@@ -212,6 +225,22 @@ export class MetroTailwindWorker {
         return result
       },
     )
+  }
+
+  /** A carried class the run-time map does not hold does not apply (#2048).
+   * Not for a dependency's files, whose classes the app's author cannot
+   * change, matching the compiler's own diagnostics. */
+  reportMissingRuntimeClasses(source: string, filename: string, warn = console.warn) {
+    if (!this.#runtimeCandidates || /[\\/]node_modules[\\/]/.test(filename)) return
+    if (!/\.[cm]?[jt]sx?$/.test(filename)) return
+    for (const diagnostic of classesMissingFromRuntimeMap(
+      source,
+      filename,
+      this.#runtimeCandidates,
+      this.compiler,
+      this.compiler.sources,
+    ))
+      warn(formatDiagnostic(diagnostic))
   }
 
   invalidate() {

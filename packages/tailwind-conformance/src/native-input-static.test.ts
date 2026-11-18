@@ -31,7 +31,8 @@ test('actual UI Input owns static state styles on both backends; only the caller
   assert.equal(web.length, 2)
   for (const result of [...native, ...web]) {
     assert.deepEqual(
-      result.diagnostics.filter((item) => item.code !== 'DYNAMIC_CLASS_NAME_NOT_RESOLVED'),
+      // The caller's `className` is passed through (#2048); nothing else may warn.
+      result.diagnostics.filter((item) => item.code !== 'CLASS_NAME_PASSED_THROUGH'),
       [],
     )
     assert.doesNotMatch(

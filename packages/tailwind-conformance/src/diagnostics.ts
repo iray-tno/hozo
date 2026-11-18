@@ -121,6 +121,12 @@ const PROVOCATIONS: Record<string, Provocation> = {
     backend: 'native',
   },
   DYNAMIC_CLASS_NAME_NOT_RESOLVED: { source: '<View className={cls}>x</View>', backend: 'native' },
+  CLASS_NAME_PASSED_THROUGH: { source: '<View className={className}>x</View>', backend: 'native' },
+  CLASS_NAME_ASSEMBLED: {
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is the authored template.
+    source: '<View className={`bg-${tone}-500`}>x</View>',
+    backend: 'native',
+  },
   // `multiline` decides which element a TextInput becomes on Web, so an
   // expression there is a question the compiler cannot answer.
   DYNAMIC_PROP_NOT_RESOLVED: {
@@ -216,7 +222,19 @@ const UNREACHABLE: Record<string, string> = {
     'degrades to a named gap instead of a silently uncompiled element',
 }
 
-export type DiagnosticVerdict = 'FIRES' | 'SILENT' | 'NO_CASE' | 'UNREACHABLE'
+/**
+ * Codes a bundler integration raises rather than the compiler, with where
+ * their own tests provoke them. A compile alone cannot: they compare a file
+ * with something only the integration holds.
+ */
+const RAISED_BY_INTEGRATION: Record<string, { by: string; test: string }> = {
+  CLASS_NOT_IN_RUNTIME_MAP: {
+    by: '@hozo/metro and @hozo/vite',
+    test: 'packages/metro/src/tailwind-worker.test.ts and packages/vite, which compare a file with the map',
+  },
+}
+
+export type DiagnosticVerdict = 'FIRES' | 'SILENT' | 'NO_CASE' | 'UNREACHABLE' | 'INTEGRATION'
 
 export interface DiagnosticResult {
   code: string
@@ -239,7 +257,9 @@ const IMPORTS =
  * which is what lets a pull request's test run ask it.
  */
 export function diagnosticCodesWithoutCase(): string[] {
-  return declaredDiagnosticCodes().filter((code) => !PROVOCATIONS[code] && !UNREACHABLE[code])
+  return declaredDiagnosticCodes().filter(
+    (code) => !PROVOCATIONS[code] && !UNREACHABLE[code] && !RAISED_BY_INTEGRATION[code],
+  )
 }
 
 interface Raised {
@@ -297,6 +317,14 @@ function raise(provocation: Provocation): Raised[] {
 export function compareDiagnostic(code: string): DiagnosticResult {
   const reason = UNREACHABLE[code]
   if (reason) return { code, verdict: 'UNREACHABLE', raised: [], reason }
+  const integration = RAISED_BY_INTEGRATION[code]
+  if (integration)
+    return {
+      code,
+      verdict: 'INTEGRATION',
+      raised: [],
+      reason: `raised by ${integration.by}; provoked in ${integration.test}`,
+    }
   const provocation = PROVOCATIONS[code]
   if (!provocation) return { code, verdict: 'NO_CASE', raised: [] }
   const raised = new Set(raise(provocation).map((diagnostic) => diagnostic.code))
@@ -318,10 +346,13 @@ export type DiagnosticExample =
       emitted: Omit<Raised, 'code'>[]
     }
   | { unreachable: string }
+  | { raisedBy: string }
 
 export function diagnosticExample(code: string): DiagnosticExample | undefined {
   const reason = UNREACHABLE[code]
   if (reason) return { unreachable: reason }
+  const integration = RAISED_BY_INTEGRATION[code]
+  if (integration) return { raisedBy: integration.by }
   const provocation = PROVOCATIONS[code]
   if (!provocation) return undefined
   const seen = new Set<string>()

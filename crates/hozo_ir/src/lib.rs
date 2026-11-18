@@ -303,10 +303,27 @@ pub enum DiagnosticCode {
     /// contextual solver.
     WebOnlyPropertyOnNative,
     /// Part of a `className` couldn't be decomposed statically (proposal
-    /// §7's third tier). The expression is preserved so its classes still
-    /// reach the DOM, but Hozo generates no CSS for whatever they turn out
-    /// to be -- only for classes it could read at build time.
+    /// §7's third tier), and it is a value the build cannot enumerate. The
+    /// expression is preserved so its classes still reach the DOM, but Hozo
+    /// generates no CSS for whatever they turn out to be -- only for classes
+    /// it could read at build time. A class prop passed on unchanged and a
+    /// class name assembled from pieces have codes of their own.
     DynamicClassNameNotResolved,
+    /// A class prop a component received and hands on unchanged:
+    /// `className={className}`. Its classes are the caller's, and they compile
+    /// where the caller writes them as a static string.
+    ClassNamePassedThrough,
+    /// A class name assembled from pieces at run time: `` `bg-${color}-500` ``
+    /// or `'p-' + size`. The whole name exists only at run time, so it has a
+    /// rule only when that exact name is written literally somewhere else in
+    /// the project. Mapping each value to a whole class makes it compile.
+    ClassNameAssembled,
+    /// A class a file hands to the run-time resolver that the on-device class
+    /// map does not hold, so it does not apply. The map is built from the
+    /// project scan at startup; a file outside the scan's `content`, or one
+    /// edited since, can carry a class that is not in it. Reported by the
+    /// bundler integration, which holds that map, not by the compiler.
+    ClassNotInRuntimeMap,
     /// A prop whose value decides something the compiler has to write down
     /// once, and whose value isn't known until runtime.
     ///
@@ -6789,6 +6806,9 @@ impl DiagnosticCode {
             DiagnosticCode::UnsafePropSpreadAfterStyle => "UNSAFE_PROP_SPREAD_AFTER_STYLE",
             DiagnosticCode::WebOnlyPropertyOnNative => "WEB_ONLY_PROPERTY_ON_NATIVE",
             DiagnosticCode::DynamicClassNameNotResolved => "DYNAMIC_CLASS_NAME_NOT_RESOLVED",
+            DiagnosticCode::ClassNamePassedThrough => "CLASS_NAME_PASSED_THROUGH",
+            DiagnosticCode::ClassNameAssembled => "CLASS_NAME_ASSEMBLED",
+            DiagnosticCode::ClassNotInRuntimeMap => "CLASS_NOT_IN_RUNTIME_MAP",
             DiagnosticCode::DynamicPropNotResolved => "DYNAMIC_PROP_NOT_RESOLVED",
             DiagnosticCode::TailwindVariantCannotMatch => "TAILWIND_VARIANT_CANNOT_MATCH",
             DiagnosticCode::VisitedStyleIgnored => "VISITED_STYLE_IGNORED",

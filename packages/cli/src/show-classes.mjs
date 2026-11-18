@@ -8,7 +8,13 @@
 // a class. That compile is for the evidence only. Its output is not what
 // `show` prints, which stays the REPL's unordered compile.
 
-const RUNTIME = 'DYNAMIC_CLASS_NAME_NOT_RESOLVED'
+// One fact, three causes (#2048): a value the build cannot enumerate, a class
+// prop passed on unchanged, and a class name assembled from pieces.
+const RUNTIME = new Set([
+  'DYNAMIC_CLASS_NAME_NOT_RESOLVED',
+  'CLASS_NAME_PASSED_THROUGH',
+  'CLASS_NAME_ASSEMBLED',
+])
 const NOT_WIRED = 'NOT_WIRED_ON_NATIVE'
 
 /** `line:column`, 1-based, of a UTF-16 offset. */
@@ -157,7 +163,7 @@ export async function classLists({ source, root, css, diagnostics, nativeDiagnos
   // What the compiler could not read has no blocks: its own diagnostic says
   // where, and each backend says it once.
   const runtime = new Set(
-    diagnostics.filter(({ code }) => code === RUNTIME).map(({ spanStart }) => spanStart),
+    diagnostics.filter(({ code }) => RUNTIME.has(code)).map(({ spanStart }) => spanStart),
   )
   for (const offset of runtime) {
     // A root list is reported at its element, a secondary one at its own

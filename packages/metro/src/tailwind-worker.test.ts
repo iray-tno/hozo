@@ -469,3 +469,36 @@ test('config changes after emission still reject old delivery and do not discard
   await rejected
   assert.match((await transform(params)) as string, /paddingTop: 22/)
 })
+
+test('a class carried to run time and absent from the device map is reported; a scanned one is not (#2048)', async (t) => {
+  const { root, config } = fixture(t)
+  // A runtime class list the startup scan sees.
+  writeFileSync(path.join(root, 'src', 'tones.ts'), `export const tone=()=> 'p-4 m-3'`)
+  await withHozo(config)
+  const transfer = await readTailwindTransfer(readMetroState(root)!.tailwind!)
+  assert.ok(transfer.runtimeCandidates?.includes('p-4'), 'the transfer carries the device map')
+  assert.ok(
+    !transfer.runtimeCandidates?.includes('p-2'),
+    'a static class compiles and is not in the device map, unlike the ordering seed',
+  )
+  assert.ok(transfer.candidates.includes('p-2'))
+  const worker = new MetroTailwindWorker(createCompiler(transfer.snapshot.theme), transfer)
+  t.after(() => worker.invalidate())
+  const warnings: string[] = []
+  const warn = (message: string) => warnings.push(message)
+  // Scanned at startup: nothing to say.
+  worker.reportMissingRuntimeClasses(
+    `export const tone=()=> 'p-4 m-3'`,
+    path.join(root, 'src', 'tones.ts'),
+    warn,
+  )
+  assert.deepEqual(warnings, [])
+  // A file outside the scan, handing a component a size (#1297).
+  const demo = `import {Skeleton} from './skeleton'\nexport const D=()=> <Skeleton barClassName="h-4 m-3" />`
+  worker.reportMissingRuntimeClasses(demo, path.join(root, '..', 'docs', 'demo.tsx'), warn)
+  assert.equal(warnings.length, 1)
+  assert.match(warnings[0]!, /^\[hozo\] CLASS_NOT_IN_RUNTIME_MAP: `h-4` \(demo\.tsx:2\)/)
+  // A dependency's file is not the app author's to change.
+  worker.reportMissingRuntimeClasses(demo, path.join(root, 'node_modules', 'lib', 'demo.tsx'), warn)
+  assert.equal(warnings.length, 1)
+})

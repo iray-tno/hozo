@@ -851,3 +851,31 @@ export const Card = () => <View className={twMerge('ps-8', 'px-2')} />`
   const output = await server.transformRequest('/Card.tsx')
   assert.match(output?.code ?? '', /\btwMerge\(/)
 })
+
+test('a file outside the content walk that carries a class the stylesheet lacks is reported (#2048)', async () => {
+  const root = project({
+    'App.tsx': `import { Demo } from './docs/demo'\nexport const App = () => <Demo />\n`,
+    'docs/demo.tsx': `import { View } from '@hozo/core'
+const widths = { wide: 'w-96', narrow: 'w-32' }
+export const Demo = ({ size }) => <View className={widths[size]} />
+`,
+  })
+  const { warnings, logger } = collectWarnings()
+  const server = await serve(
+    root,
+    { content: { include: ['App.tsx'] }, unloweredReactNativeJsx: 'allow' },
+    {},
+    [],
+    [],
+    logger,
+  )
+  await server.transformRequest('/App.tsx')
+  assert.ok(!warnings.some((w) => w.includes('CLASS_NOT_IN_RUNTIME_MAP')), 'App.tsx is walked')
+  await server.transformRequest('/docs/demo.tsx')
+  const missing = warnings.filter((w) => w.includes('CLASS_NOT_IN_RUNTIME_MAP'))
+  assert.ok(missing.length > 0, warnings.join('\n'))
+  assert.ok(
+    missing.every((w) => /demo\.tsx:2/.test(w)),
+    missing.join('\n'),
+  )
+})
