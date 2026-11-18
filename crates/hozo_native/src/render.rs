@@ -1455,10 +1455,7 @@ pub(super) fn render_node(
     }
     // An intervening control owns its own interaction. Neither an enhanced
     // nor a plain link may borrow an outer button's hover/focus context.
-    let owns_pressable_interaction = matches!(
-        rendered_component,
-        "HozoPressable" | "HozoInheritedPressable"
-    );
+    let owns_pressable_interaction = rendered_component == "HozoPressable";
     let child_interaction_context = owns_pressable_interaction
         || link_interaction
         || (interaction_context
@@ -1468,7 +1465,7 @@ pub(super) fn render_node(
             ));
     let needs_pressed_fn = (matches!(
         rendered_component,
-        "Pressable" | "HozoPressable" | "HozoInheritedPressable" | "HozoText" | "HozoLink"
+        "Pressable" | "HozoPressable" | "HozoText" | "HozoLink"
     ) || pattern_style_prop.is_some())
         && (!pressed_parts.is_empty() || runtime_states);
     if needs_pressed_fn {

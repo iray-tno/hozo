@@ -68,29 +68,9 @@
       "types": "./dist/generated/grid.d.ts",
       "default": "./dist/generated/grid.js"
     },
-    "./generated/inherited-label": {
-      "types": "./dist/generated/inherited-label.d.ts",
-      "default": "./dist/generated/inherited-label.js"
-    },
     "./generated/inherited-leaves": {
       "types": "./dist/generated/inherited-leaves.d.ts",
       "default": "./dist/generated/inherited-leaves.js"
-    },
-    "./generated/inherited-pressable": {
-      "types": "./dist/generated/inherited-pressable.d.ts",
-      "default": "./dist/generated/inherited-pressable.js"
-    },
-    "./generated/inherited-relative-text": {
-      "types": "./dist/generated/inherited-relative-text.d.ts",
-      "default": "./dist/generated/inherited-relative-text.js"
-    },
-    "./generated/inherited-text": {
-      "types": "./dist/generated/inherited-text.d.ts",
-      "default": "./dist/generated/inherited-text.js"
-    },
-    "./generated/inherited-view": {
-      "types": "./dist/generated/inherited-view.d.ts",
-      "default": "./dist/generated/inherited-view.js"
     },
     "./generated/link": {
       "react-native": {
