@@ -753,12 +753,14 @@ test('NativeSelect applies closed-control classes to the box and its owned value
 
 // React Native has no `::after`, so a chevron drawn with one showed on the Web
 // only (#1205). Both are now real nodes the patterns own and hide.
+// Its right border is written as the LTR end edge, so the RTL swap cannot
+// turn the chevron the other way (#2050).
 const chevronOf = (node) =>
   node
     .findAllByType('NativeView')
     .find(
       (view) =>
-        view.props.accessibilityElementsHidden && flat(view.props.style).borderRightWidth === 2,
+        view.props.accessibilityElementsHidden && flat(view.props.style).borderEndWidth === 2,
     )
 const turn = (view) => flat(view.props.style).transform?.find((step) => 'rotate' in step)?.rotate
 

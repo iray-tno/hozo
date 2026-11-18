@@ -13,6 +13,13 @@
 //! rewritten as logical ones for the current direction (`Left` is `Start` in
 //! LTR and `End` in RTL). Everything in the family is then logical, and the
 //! order the plan already settled decides, as it does on the Web.
+//!
+//! The swap also moves a physical utility on its own: `pl-4` lands on the
+//! right in RTL, where Tailwind keeps it on the left (#2050). Hozo follows
+//! Tailwind, so a family is rewritten too when one utility writes its two
+//! physical sides differently, or only one of them. A utility that writes
+//! both sides alike (`p-4`) looks the same under the swap and stays
+//! physical, unless something else already rewrites its family.
 
 use hozo_ir::{Condition, Edge, Environment, StyleDeclaration, StyleProperty};
 
@@ -148,21 +155,23 @@ fn condition_direction(condition: &Condition) -> Option<Environment> {
 /// `expand_group` can give them an LTR and an RTL form once the declarations
 /// are grouped.
 ///
-/// The family is mixed if any declaration on the element writes it logically,
-/// in any input or state: Yoga resolves the element's final style, not one
-/// class string. An element that writes a family only physically, or only
-/// logically, is returned unchanged.
+/// A family is rewritten if any declaration on the element writes it
+/// logically, or one utility writes its physical sides unevenly, in any input
+/// or state: Yoga resolves the element's final style, not one class string.
+/// An element that writes a family only logically, or only with even physical
+/// sides, is returned unchanged.
 pub(crate) fn prepare_declarations(
     declarations: &[StyleDeclaration],
 ) -> (Vec<StyleDeclaration>, PreparedEdgeConflicts) {
     let mut conflicts = PreparedEdgeConflicts::default();
-    let logical: Vec<InlineFamily> = declarations
+    let mut logical: Vec<InlineFamily> = declarations
         .iter()
         .filter_map(|decl| match classify_property(&decl.property) {
             Some((family, EdgeKind::Logical)) => Some(family),
             _ => None,
         })
         .collect();
+    logical.extend(uneven_physical(declarations));
     if logical.is_empty() {
         return (declarations.to_vec(), conflicts);
     }
@@ -191,6 +200,70 @@ pub(crate) fn prepare_declarations(
         })
         .collect();
     (out, conflicts)
+}
+
+/// Families in which one utility, under one condition, writes the left and
+/// right sides differently or writes only one of them. The swap would move
+/// such a write to the other side in RTL.
+fn uneven_physical(declarations: &[StyleDeclaration]) -> Vec<InlineFamily> {
+    use StyleProperty as P;
+    // (source, condition, family) -> (left, right) values, last write wins.
+    let mut sides: Vec<(_, &Condition, InlineFamily, Option<P>, Option<P>)> = Vec::new();
+    for decl in declarations {
+        let Some((family, EdgeKind::Physical)) = classify_property(&decl.property) else {
+            continue;
+        };
+        let is_left = matches!(
+            decl.property,
+            P::PaddingLeft(_)
+                | P::MarginLeft(_)
+                | P::InsetLeft(_)
+                | P::BorderLeftWidth(_)
+                | P::BorderLeftColor(_)
+        );
+        // Compare values, not keys: the right side's value written as if
+        // it were the left one.
+        let value = to_logical(&decl.property, false);
+        let index = match sides.iter().position(|(source, condition, seen, ..)| {
+            *source == decl.source && **condition == decl.condition && *seen == family
+        }) {
+            Some(index) => index,
+            None => {
+                sides.push((decl.source, &decl.condition, family, None, None));
+                sides.len() - 1
+            }
+        };
+        let slot = if is_left {
+            &mut sides[index].3
+        } else {
+            &mut sides[index].4
+        };
+        *slot = Some(value);
+    }
+    let mut uneven = Vec::new();
+    for (_, _, family, left, right) in sides {
+        let even = match (left, right) {
+            (Some(left), Some(right)) => same_value(&left, &right),
+            _ => false,
+        };
+        if !even && !uneven.contains(&family) {
+            uneven.push(family);
+        }
+    }
+    uneven
+}
+
+/// Whether two logical writes (one per side) carry the same value.
+fn same_value(start: &StyleProperty, end: &StyleProperty) -> bool {
+    use StyleProperty as P;
+    match (start, end) {
+        (P::PaddingInlineStart(a), P::PaddingInlineEnd(b)) => a == b,
+        (P::MarginInlineStart(a), P::MarginInlineEnd(b)) => a == b,
+        (P::InsetInlineStart(a), P::InsetInlineEnd(b)) => a == b,
+        (P::BorderLogicalWidth(_, a), P::BorderLogicalWidth(_, b)) => a == b,
+        (P::BorderInlineStartColor(a), P::BorderInlineEndColor(b)) => a == b,
+        _ => false,
+    }
 }
 
 pub(crate) fn conjoin_direction(condition: &Condition, dir: Environment) -> Condition {
@@ -305,25 +378,30 @@ mod tests {
     }
 
     #[test]
-    fn a_family_written_only_one_way_is_left_alone() {
-        let physical = compile_ordered(&view("pl-1 pr-2 ps-3"));
-        // Padding is mixed here, so it is projected ...
-        assert!(
-            !physical.styles.contains("paddingLeft"),
-            "{}",
-            physical.styles
-        );
-        for classes in ["pl-1 pr-2", "px-8", "pl-1 ms-2"] {
-            // ... but not when every padding write is the same kind; margin
-            // being logical does not make padding mixed.
+    fn an_uneven_physical_utility_alone_keeps_its_side_in_both_directions() {
+        // #2050: the swap would move `pl-1` to the right in RTL; Tailwind
+        // keeps it on the left. Margin being logical does not matter.
+        for classes in ["pl-1", "pl-1 pr-2", "pl-1 ms-2", "p-4 pl-1"] {
             let out = compile_ordered(&view(classes));
-            assert!(!out.jsx.contains("__hozoEnv_"), "{classes}: {}", out.jsx);
             assert!(
-                !out.styles.contains("paddingStart: 4"),
+                !out.styles.contains("paddingLeft"),
                 "{classes}: {}",
                 out.styles
             );
+            assert!(out.jsx.contains("__hozoEnv_ltr"), "{classes}: {}", out.jsx);
+            assert!(out.jsx.contains("__hozoEnv_rtl"), "{classes}: {}", out.jsx);
         }
+    }
+
+    #[test]
+    fn even_physical_sides_or_logical_only_writes_are_left_alone() {
+        // The swap moves both sides of `p-4` alike, so nothing changes.
+        for classes in ["p-4", "px-8", "m-2 p-1", "border-2"] {
+            let out = compile_ordered(&view(classes));
+            assert!(!out.jsx.contains("__hozoEnv_"), "{classes}: {}", out.jsx);
+        }
+        let out = compile_ordered(&view("p-4"));
+        assert!(out.styles.contains("paddingLeft: 16"), "{}", out.styles);
     }
 
     #[test]

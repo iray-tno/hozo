@@ -57,6 +57,21 @@ On React Native, there is no selector engine. Hozo bridges variants through two 
 1. **Interaction states (`hover:`, `active:`, `focus:`, `focus-visible:`, `disabled:`):** lowered into state callbacks on interactive primitives (`Pressable`, `Button`, `Link`, `TextInput`) and into registered style-slot callbacks on `@hozo/patterns` and `@hozo/form` widgets.
 2. **Environment conditions (`sm:`, `md:`, `lg:`, `xl:`, `2xl:`, `dark:`, `motion-safe:`, `motion-reduce:`, `portrait:`, `landscape:`):** lowered to subscribe to `@hozo/engine`'s shared runtime environment hooks (`useHozoEnv`) only when a component actually uses one of those variants. A component with no responsive or dark classes subscribes to nothing.
 
+## Right-to-left layouts
+
+Physical and logical edges mean what they mean in Tailwind, in both directions and on both platforms:
+
+- **Logical classes mirror:** `ps-*`, `pe-*`, `ms-*`, `me-*`, `start-*` and `end-*` sit at the start or end of the line, so they change sides in RTL. Use them for spacing that should mirror.
+- **Physical classes keep their side:** `pl-*`, `pr-*`, `ml-*`, `mr-*`, `left-*`, `right-*` and `border-l-*` stay on the left or right in RTL. Use them for spacing that should not mirror.
+- **When both are written on one element:** `px-8 pl-1`, `ps-8 pl-1` and the like are settled by Tailwind's order, as on the Web.
+
+React Native's default left/right swap (`I18nManager.swapLeftAndRightInRTL`, on by default on Android and iOS) would move a plain `paddingLeft` to the right in RTL. Wherever that changes the result, Hozo writes the edge as `paddingStart` or `paddingEnd` for the current direction instead, so the swap setting does not matter:
+
+- **Where it applies:** a physical class that writes one side, or two different sides, and every physical class on an element that also writes the same edge logically.
+- **Where it does not:** a class that writes both sides alike (`p-4`, `m-2`) stays physical, because the swap moves both sides together and nothing changes.
+
+A `style` prop that writes a physical edge beside a class that writes it logically (`className="px-8" style={{ paddingRight: 99 }}`) does not follow this yet: React Native prefers the logical key. Write the style logically (`paddingEnd`) for now.
+
 ## Layout features React Native does not have natively
 
 Several CSS layout features have no direct React Native `StyleSheet` property. Rather than dropping them silently, the Native backend lowers supported static subsets to small generated runtime wrappers in `@hozo/primitives/generated/*`:

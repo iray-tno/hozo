@@ -265,9 +265,13 @@ test('compiled radio semantics follow selection and disabled changes without bor
   try {
     render()
     check(1, false)
-    assert.equal(flat(radios(root)[0]).marginLeft, 8)
+    assert.equal(
+      flat(radios(root)[0]).marginStart,
+      8,
+      'ml-2 keeps the left side as the LTR start edge (#2050)',
+    )
     event(radios(root)[0], 'onHoverIn')
-    assert.equal(flat(radios(root)[0]).marginLeft, undefined)
+    assert.equal(flat(radios(root)[0]).marginStart, undefined)
     assert.equal(flat(radios(root)[0]).opacity, undefined, 'unchecked hover is not checked hover')
     event(radios(root)[1], 'onHoverIn')
     assert.equal(flat(radios(root)[1]).opacity, 0.75)

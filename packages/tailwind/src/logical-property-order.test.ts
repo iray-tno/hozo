@@ -146,20 +146,76 @@ test('a list mixing physical and logical padding lays out as Tailwind does, with
   }
 })
 
-test('a padding family written only one way, or an unranked map, is not projected', () => {
+test('even physical sides, a logical-only family, or an unranked mix are not projected', () => {
+  const p4 = { paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16 }
   const ranked = createClassResolver({
     schema: 1,
-    styles: { 'pl-1': { paddingLeft: 4 }, 'ms-2': { marginStart: 8 } },
+    styles: { 'p-4': p4, 'ms-2': { marginStart: 8 } },
     ambient: { rtl: true, ltr: false },
-    ordering: { schema: 1, ranks: { 'pl-1': [1], 'ms-2': [2] } },
+    ordering: { schema: 1, ranks: { 'p-4': [1], 'ms-2': [2] } },
   })
-  assert.deepEqual(ranked('pl-1 ms-2'), [{ paddingLeft: 4 }, { marginStart: 8 }])
+  // The swap moves both sides of `p-4` alike, so it stays physical.
+  assert.deepEqual(ranked('p-4 ms-2'), [p4, { marginStart: 8 }])
   const unranked = createClassResolver(
-    { 'px-8': { paddingStart: 32, paddingEnd: 32 }, 'pl-1': { paddingLeft: 4 } },
+    { 'px-8': { paddingStart: 32, paddingEnd: 32 }, 'p-1': { paddingLeft: 4, paddingRight: 4 } },
     {},
   )
-  assert.deepEqual(unranked('px-8 pl-1'), [
+  assert.deepEqual(unranked('px-8 p-1'), [
     { paddingStart: 32, paddingEnd: 32 },
-    { paddingLeft: 4 },
+    { paddingLeft: 4, paddingRight: 4 },
   ])
+})
+
+test('a physical utility on its own keeps its side in both directions, ranked or not (#2050)', () => {
+  // Tailwind keeps `pl-1` on the left in RTL; React Native's default swap
+  // would move a plain `paddingLeft` to the right.
+  for (const rtl of [false, true]) {
+    const ambient = { rtl, ltr: !rtl }
+    const resolvers = [
+      createClassResolver({
+        schema: 1,
+        styles: { 'pl-1': { paddingLeft: 4 } },
+        ambient,
+        ordering: { schema: 1, ranks: { 'pl-1': [1] } },
+      }),
+      createClassResolver({ 'pl-1': { paddingLeft: 4 } }, {}, undefined, {}, ambient),
+    ]
+    for (const resolve of resolvers) {
+      const style = Object.assign({}, ...[resolve('pl-1')].flat(Infinity))
+      for (const swap of [false, true])
+        assert.deepEqual(nativePadding(style, rtl, swap), [4, 0], `rtl=${rtl} swap=${swap}`)
+    }
+  }
+})
+
+test('the generated map keeps a lone physical edge on its side in both directions (#2050)', async () => {
+  // [classes, [left, right]], the same in LTR and RTL in Tailwind.
+  const cases: [string, number[]][] = [
+    ['pl-1', [4, 0]],
+    ['pr-2', [0, 8]],
+    ['p-4 pl-1', [4, 16]],
+    ['pl-1 p-4', [4, 16]],
+    ['p-4', [16, 16]],
+  ]
+  const names = [...new Set(cases.flatMap(([classes]) => classes.split(' ')))]
+  const final = await context(names)
+  const cache = openCandidateCache()
+  cache.scanFile('physical.ts', JSON.stringify(names.join(' ')), 0)
+  const plan = cache.renderNativeModulePlan(final)
+  assert.match(plan.code, /import \{ I18nManager \} from 'react-native'/)
+  for (const rtl of [false, true]) {
+    const resolve = runInNewContext(
+      `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};hozoClasses`,
+      { createClassResolver, I18nManager: { isRTL: rtl } },
+    )
+    for (const [classes, expected] of cases) {
+      const style = Object.assign({}, ...[resolve(classes)].flat(Infinity))
+      for (const swap of [false, true])
+        assert.deepEqual(
+          nativePadding(style, rtl, swap),
+          expected,
+          `${classes} ${rtl ? 'rtl' : 'ltr'} swap=${swap}`,
+        )
+    }
+  }
 })
