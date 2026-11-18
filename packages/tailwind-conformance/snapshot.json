@@ -81,8 +81,8 @@
     "falsePositives": 0
   },
   "diagnostics": {
-    "declared": 35,
-    "fires": 34,
+    "declared": 38,
+    "fires": 37,
     "silent": 0,
     "noCase": 0,
     "unreachable": 1
