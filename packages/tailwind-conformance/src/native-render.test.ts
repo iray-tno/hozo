@@ -371,7 +371,10 @@ test('FlatList stays virtualized and its renderItem body is compiled', () => {
     | undefined
   assert.equal(typeof renderItem, 'function')
   const item = renderItem!({ item: 'One' })
-  assert.equal(item.type, 'Text')
+  // Decision 013: an outermost Text reads what a container outside the file
+  // hands down; `{item}` is opaque to the compiler, so it resets below.
+  assert.equal((item.type as unknown as { name: string }).name, 'HozoInheritedLeafText')
+  assert.equal(item.props.hozoOpaque, true)
   assert.deepEqual(item.props.style, {
     paddingTop: 8,
     paddingRight: 8,

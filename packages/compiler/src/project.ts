@@ -279,7 +279,27 @@ export interface HozoProjectOptions {
    * The merger stays at runtime while that evidence is missing.
    */
   classHelpers?: readonly ClassHelperOption[]
+  /**
+   * How a Native `Text` inherits text styles from a container (decision 013).
+   *
+   * React Native's `Text` inherits only from an enclosing `Text`, never from
+   * a `View`, so the compiler copies a container's text classes onto the
+   * `Text` it can see. `'unified'`, the default, also covers what it cannot
+   * see -- a component from another file, `children`, an expression -- by
+   * reading the same seven fields at run time: an outermost `Text` that does
+   * not set all of them reads the rest, and a container wraps only its
+   * unseen children in a scope that renders no host.
+   *
+   * `'compiled'` keeps the copying alone, as earlier releases did: text
+   * classes on a container stop at anything the compiler cannot see. Only
+   * Metro reads this; the Web inherits through CSS.
+   *
+   * @default 'unified'
+   */
+  nativeTextInheritance?: NativeTextInheritance
 }
+
+export type NativeTextInheritance = 'unified' | 'compiled'
 
 export interface ClassHelperOption {
   module: string

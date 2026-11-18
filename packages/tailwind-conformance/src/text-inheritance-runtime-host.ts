@@ -21,6 +21,8 @@ export const flattenRuntimeStyle = (style: unknown): Record<string, unknown> =>
 
 type Runtime = {
   HozoInheritedText: ComponentType
+  HozoInheritedLeafText: ComponentType
+  HozoInheritedScope: ComponentType
   HozoInheritedRelativeText: ComponentType
   HozoInheritedView: ComponentType
   HozoInheritedPressable?: ComponentType
@@ -42,6 +44,7 @@ export function loadTextInheritanceRuntime(
   const runtime = buildSync({
     stdin: {
       contents: `export {HozoInheritedText} from '@hozo/core/generated/inherited-text';
+export {HozoInheritedLeafText,HozoInheritedScope} from '@hozo/core/generated/inherited-leaves';
 export {HozoInheritedRelativeText} from '@hozo/core/generated/inherited-relative-text';
 export {HozoInheritedView} from '@hozo/core/generated/inherited-view';
 export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engine/generated/text-inheritance-protocol';
@@ -89,6 +92,9 @@ ${chips ? "export {HozoInheritedLabel} from '@hozo/core/generated/inherited-labe
       ),
       '@hozo/core/generated/inherited-relative-text': fileURLToPath(
         new URL('../../primitives/src/generated/inherited-relative-text.ts', import.meta.url),
+      ),
+      '@hozo/core/generated/inherited-leaves': fileURLToPath(
+        new URL('../../primitives/src/generated/inherited-leaves.ts', import.meta.url),
       ),
       '@hozo/core/generated/inherited-text': fileURLToPath(
         new URL('../../primitives/src/generated/inherited-text.ts', import.meta.url),

@@ -132,6 +132,39 @@ components are named `View` is not doing anything wrong. A file mixing the
 two is left alone *with* a warning, because there its author has every
 reason to expect lowering.
 
+## Text classes on a container
+
+On the Web a container's `text-*`, `font-*`, `leading-*` and `tracking-*`
+classes reach every piece of text inside it, whichever component renders
+it. React Native's `Text` inherits only from an enclosing `Text`, never from
+a `View`, so Hozo carries them across:
+
+```tsx
+<View className="text-red-500 text-lg">
+  <Label />           {/* from another file */}
+  {children}
+</View>
+```
+
+- **Where the compiler can see the `Text`,** it copies the container's
+  classes onto it, and nothing runs on the device.
+- **Where it cannot,** the value is read at run time. An outermost `Text`
+  that does not set all of colour, size, weight, line height, letter
+  spacing, alignment and transform reads the rest from the nearest
+  container. A container whose children include one the compiler cannot see
+  wraps them in a scope that renders no host.
+
+This costs about 0.25 µs per outermost `Text` per render, and about 11 KB of
+runtime in the bundle. See
+[decision 013](https://github.com/iray-tno/hozo/blob/main/docs/decisions/013-text-inheritance-compiled-where-visible.md)
+for the rule and its measurements.
+
+To keep only the copying, as releases before this one did:
+
+```js
+withHozo(config, { nativeTextInheritance: 'compiled' })
+```
+
 ## @expo/ui and other component libraries
 
 `@expo/ui` exports `Text`, `Button`, `List`, `ListItem`, `ScrollView` and

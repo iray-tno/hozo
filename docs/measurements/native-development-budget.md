@@ -1,5 +1,46 @@
 # Native development bundle allowance
 
+## 545,000: Native text inheritance by default (#2049)
+
+Measured on Windows on 2026-11-18. The maintainer approved raising the
+development allowance from 530,000 to **545,000** when
+[decision 013](../decisions/013-text-inheritance-compiled-where-visible.md)
+became the Native default. Same metric and commands as below. The comparison
+is the same tree with `nativeTextInheritance: 'compiled'` in
+`examples/native-demo/metro.config.js`.
+
+| Development output | Hozo metric |
+| --- | ---: |
+| iOS, `'compiled'` | 526,338 |
+| iOS, default (`'unified'`) | 537,711 |
+| Android, default | 537,719 |
+
+The +11,373 is all new modules; no existing module changed size:
+
+| Module | Metric |
+| --- | ---: |
+| `primitives/inherited-leaves.native` (reader and scope) | 4,378 |
+| `engine/text-inheritance` (the two contexts) | 2,687 |
+| `primitives/inherited-text-scope` (scope provider) | 1,323 |
+| `engine/generated/text-inheritance-protocol` | 1,117 |
+| `core` and `primitives` forwards for `inherited-leaves` | 1,426 |
+| `engine/generated/text-size-context` | 442 |
+
+The reader and scope were first emitted from RFC 006's `inherited-text`
+module, which also loads its whole-component reader and style validation:
++14,014. A module of their own took that to +11,171 (+11,373 once the reader is marked as a pressable label). This leaves 7,289 on iOS.
+
+All packages were rebuilt before both measurements. An earlier attempt read 519,146 for `'compiled'` because @hozo/engine's `dist` was stale. It was missing 6,980 of `class-resolver` that `main` already has.
+
+The production increment stays under its own ceilings (8,000 raw, 3,000 gzip):
+
+| Production, Android | `'compiled'` | default |
+| --- | ---: | ---: |
+| Full acceptance app, raw / gzip | 1,098,852 / 271,826 | 1,104,570 / 272,773 |
+| Hozo increment for the matched screen, raw / gzip | 1,873 / 497 | 6,293 / 1,438 |
+
+## 530,000: feature growth (#1737)
+
 Measured on Windows on 2026-11-10 with one logical CPU at Normal priority.
 The maintainer approved accepting feature growth for
 [#1737](https://github.com/iray-tno/hozo/issues/1737). The development

@@ -4,6 +4,7 @@ import path from 'node:path'
 import { type Compiler, type PreparedModule, TAILWIND_SCALAR_ORDER_POLICY } from '@hozo/compiler'
 import { SourceProvenance } from '@hozo/compiler/lower'
 import {
+  type NativeTextInheritance,
   type OwnerContractRequest,
   type OwnerManifestLease,
   prepareInstanceOwnerCallers,
@@ -99,7 +100,7 @@ export class MetroTailwindWorker {
       throw new Error('METRO_OWNER_CALLER_REQUEST_MISMATCH')
     lease.check()
     const runtime = this.#nativeRuntime
-    if (!runtime) return this.transform(source, filename, root, stylexModules)
+    if (!runtime) return this.transform(source, filename, root, stylexModules, 'compiled')
     const checkRuntime = () => {
       if (
         createHash('sha256')
@@ -111,6 +112,8 @@ export class MetroTailwindWorker {
     checkRuntime()
     const output = await this.session.runModule(file, this.#universe, (compiler, context) => {
       const provenance = new SourceProvenance(source)
+      // The owner-caller experiment composes over ordinary output as it was
+      // assessed, so it keeps the compiled route rather than decision 013's.
       const ordinary = transformHozoSourceOrPrepare(
         source,
         filename,
@@ -119,6 +122,7 @@ export class MetroTailwindWorker {
         context,
         stylexModules,
         (input, edits) => provenance.apply(input, edits),
+        'compiled',
       )
       let owner: ReturnType<typeof prepareInstanceOwnerCallers>
       try {
@@ -172,7 +176,13 @@ export class MetroTailwindWorker {
     return output
   }
 
-  transform(source: string, filename: string, root: string, stylexModules?: StylexModuleCache) {
+  transform(
+    source: string,
+    filename: string,
+    root: string,
+    stylexModules?: StylexModuleCache,
+    textInheritance: NativeTextInheritance = 'unified',
+  ) {
     return this.session.runModule(
       path.resolve(root, filename),
       this.#universe,
@@ -184,6 +194,8 @@ export class MetroTailwindWorker {
           compiler,
           context,
           stylexModules,
+          undefined,
+          textInheritance,
         )
         if (result.kind === 'prepared') {
           let changed = false

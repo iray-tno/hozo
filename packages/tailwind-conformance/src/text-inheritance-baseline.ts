@@ -88,22 +88,33 @@ export function compileTextGraph(
     const imports = new Set<string>()
     // Capture the compiler result used by Metro, not a separately guessed
     // parse. The second pass below only strips TS/JSX and measures its bytes.
-    const transformed = transformHozoSource(modules[name], `${name}.tsx`, undefined, {
-      ...compiler,
-      compileNativeModule(...args) {
-        const result = compiler.compileNativeModule(
-          args[0],
-          args[1],
-          args[2],
-          mode === 'reference-intent' ? { textReference: true } : args[3],
-        )
-        for (const component of result.components) {
-          diagnostics.push(...component.diagnostics)
-          for (const entry of component.runtimeImports) imports.add(entry)
-        }
-        return result
+    // RFC 006's baseline is ordinary output as it was before decision 013's
+    // route became Metro's default, so it pins the compiled route. Decision
+    // 013's own comparison is `text-inheritance-unified.test.ts`.
+    const transformed = transformHozoSource(
+      modules[name],
+      `${name}.tsx`,
+      undefined,
+      {
+        ...compiler,
+        compileNativeModule(...args) {
+          const result = compiler.compileNativeModule(
+            args[0],
+            args[1],
+            args[2],
+            mode === 'reference-intent' ? { textReference: true } : args[3],
+          )
+          for (const component of result.components) {
+            diagnostics.push(...component.diagnostics)
+            for (const entry of component.runtimeImports) imports.add(entry)
+          }
+          return result
+        },
       },
-    })
+      undefined,
+      undefined,
+      'compiled',
+    )
     const lowered = transformed ?? modules[name]
     const experimental = experiment?.(lowered)
     const code = experimental?.code ?? lowered

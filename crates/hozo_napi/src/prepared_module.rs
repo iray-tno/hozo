@@ -373,6 +373,7 @@ impl PreparedNativeModule {
                 text_reference: self.options.text_reference.unwrap_or(false),
                 text_inheritance: self.options.text_inheritance.unwrap_or(false),
                 text_static: self.options.text_static.unwrap_or(false),
+                text_unified: self.options.text_unified.unwrap_or(false),
                 tailwind: TailwindPlanOptions {
                     context: Some(&context.context),
                     capture: self.options.tailwind_plan.unwrap_or(false),

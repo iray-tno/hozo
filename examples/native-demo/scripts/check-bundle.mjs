@@ -171,6 +171,15 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // with no re-exporting barrel returning. This leaves 14,876 on Android.
 // See docs/measurements/native-development-budget.md for the module census
 // and the separate production measurement. The existing metric is retained.
+//
+// Raised to 545 KB with maintainer approval for #2049, when Native text
+// inheritance became the default (decision 013). The share went from 526,338
+// with `nativeTextInheritance: 'compiled'` to 537,711, all of it new runtime
+// modules every app now loads: the reader and scope (`inherited-leaves`,
+// 4.4 KB, with its forwards 5.8 KB), the inheritance contexts
+// (`text-inheritance`, 2.7 KB; its protocol leaf 1.1 KB) and the scope provider
+// (`inherited-text-scope`, 1.3 KB). Splitting them from RFC 006's whole-route
+// reader had already taken the increase down from 14,014.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -184,8 +193,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 530_000,
-  `Hozo's modules stay below 530 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 545_000,
+  `Hozo's modules stay below 545 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // The cause behind the six raises above, watched directly rather than

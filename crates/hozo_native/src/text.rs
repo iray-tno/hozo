@@ -219,6 +219,15 @@ pub(super) fn wrap_in_text(
     } else {
         format!(" style={{[{}]}}", style_array_parts.join(", "))
     };
+    // Decision 013: the inserted Text is outermost like any authored one, and
+    // a string is never opaque, so it reads only what it is not handed here.
+    if cx.text_unified
+        && cx.text_depth == 0
+        && !crate::text_region::covers_protocol(text_declarations, cx.theme)
+    {
+        cx.runtime.need_component("HozoInheritedLeafText");
+        return format!("<HozoInheritedLeafText{style_prop}>{content}</HozoInheritedLeafText>");
+    }
     format!("<Text{style_prop}>{content}</Text>")
 }
 

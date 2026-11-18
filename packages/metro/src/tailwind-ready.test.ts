@@ -24,11 +24,11 @@ export const Row=()=> <View className="p-2"><Avatar fallbackClassName="font-bold
   let calls = 0
   // This replaces the compiler only in this test. It neither enables an
   // adapter path nor implies the synchronous Metro transformer can await.
-  compiler.compileNativeModule = (input, bindings) => {
+  compiler.compileNativeModule = (input, bindings, file, options) => {
     calls++
     assert.doesNotMatch(input, /fill-red-500/)
     assert.match(input, /<Canvas\.Rect[^>]*fill=/)
-    const result = compiler.compileNativeOrPrepare(input, context, bindings)
+    const result = compiler.compileNativeOrPrepare(input, context, bindings, file, options)
     assert.ok('components' in result, 'the known complete context must emit synchronously')
     return result
   }

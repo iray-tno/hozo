@@ -94,6 +94,9 @@ pub(super) fn render_node(
     } = ancestor;
     let source = cx.source;
     let theme = cx.theme;
+    // Decision 013: only a Text no other text host encloses can inherit from
+    // outside this file. Read before this element's own children raise it.
+    let outermost_text = cx.text_depth == 0;
 
     let resolved_node = resolve_first_that_works(node);
     let node = resolved_node.as_ref().unwrap_or(node);
@@ -933,7 +936,42 @@ pub(super) fn render_node(
     let forwards_label = !text_declarations.is_empty()
         && matches!(component, "Pressable" | "HozoLink")
         && (cx.text_reference || !matches!(text_reach(node), TextReach::Certain));
-    if !text_declarations.is_empty() && !forwards_label && !cx.text_inheritance {
+    // Decision 013: a container that hands text styles down and has a child
+    // the compiler cannot see publishes them around its children instead,
+    // as far as the run-time protocol can carry them. What it cannot carry
+    // keeps the warning below.
+    //
+    // Only inside a plain `View`. A runtime component -- a table section, a
+    // pressable styling its label -- reads its direct children, and a scope
+    // between them would hide every one of them from it. So would a
+    // `ScrollView`'s `stickyHeaderIndices`, which count them.
+    let unified_scope: Vec<StyleDeclaration> = if cx.text_unified
+        && matches!(component, "View" | "Animated.View")
+        && !forwards_label
+        && !is_text_primitive(node.primitive)
+        && !renders_text(component)
+        && node
+            .children
+            .iter()
+            .any(|child| matches!(child, hozo_ir::Child::Verbatim { .. }))
+    {
+        descend
+            .iter()
+            .filter(|d| crate::text_region::protocol_scalar(d, theme))
+            .cloned()
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let scope_carries_all = !unified_scope.is_empty()
+        && text_declarations
+            .iter()
+            .all(|d| crate::text_region::protocol_scalar(d, theme));
+    if !text_declarations.is_empty()
+        && !forwards_label
+        && !cx.text_inheritance
+        && !scope_carries_all
+    {
         match text_reach(node) {
             TextReach::Certain => {}
             TextReach::Opaque => cx.diagnostics.push(unwired_variant(
@@ -2812,6 +2850,11 @@ pub(super) fn render_node(
         })
         .collect();
 
+    // Everything below a text host inherits from it natively (decision 013).
+    let encloses_text = is_text_primitive(node.primitive) || renders_text(rendered_component);
+    if encloses_text {
+        cx.text_depth += 1;
+    }
     for (index, child) in node.children.iter().enumerate() {
         match child {
             hozo_ir::Child::Node(child_node) => {
@@ -2880,6 +2923,10 @@ pub(super) fn render_node(
         }
     }
 
+    if encloses_text {
+        cx.text_depth -= 1;
+    }
+
     let inner = if let Some(grid) = grid {
         if !child_declarations.is_empty() {
             cx.diagnostics.push(unwired_variant(
@@ -2903,9 +2950,63 @@ pub(super) fn render_node(
         spaced_children(inner, &child_declarations, &base_name, node, position, cx)
     };
 
+    let inner = if unified_scope.is_empty() {
+        inner
+    } else {
+        // Outside any grid or spacing wrapper, which must keep the authored
+        // children as their direct children. The scope renders no host.
+        let target = crate::conditions::StyleTarget {
+            owner_facts: &[],
+            node,
+            position,
+            interaction_context,
+            pattern_slot: None,
+            composition: Default::default(),
+        };
+        let mut parts = Vec::new();
+        let mut pressed = Vec::new();
+        build_style_entries(
+            &unified_scope,
+            &format!("{base_name}_scope"),
+            &target,
+            &mut parts,
+            &mut pressed,
+            None,
+            cx,
+        );
+        let style = if parts.len() == 1 {
+            parts.remove(0)
+        } else {
+            format!("[{}]", parts.join(", "))
+        };
+        cx.runtime.need_component("HozoInheritedScope");
+        let close = "</HozoInheritedScope>";
+        let text = format!(
+            "<HozoInheritedScope style={{{style}}}>{}{close}",
+            inner.text
+        );
+        inner.wrap(text, close.len())
+    };
+
     // React Native's TextInput takes no children either.
     let tag = if measures_host {
         "HozoContainer"
+    } else if cx.text_unified && rendered_component == "Text" && outermost_text {
+        // Decision 013. Everything that reaches this Text from the file is
+        // already in its own style; it reads only what an ancestor outside
+        // the file could still supply. Its own style is applied last.
+        let handed_down = inherited.iter().chain(node.style.iter());
+        let opaque = crate::text_region::has_opaque(node);
+        if !opaque && crate::text_region::covers_protocol(handed_down, theme) {
+            "Text"
+        } else {
+            if opaque {
+                // A Text rendered in there inherits natively from this host.
+                props_text.push_str(" hozoOpaque");
+            }
+            cx.runtime.need_component("HozoInheritedLeafText");
+            "HozoInheritedLeafText"
+        }
     } else if cx.text_inheritance && rendered_component == "Text" {
         cx.runtime.need_component("HozoInheritedText");
         "HozoInheritedText"
