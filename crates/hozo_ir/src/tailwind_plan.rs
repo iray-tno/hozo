@@ -9,7 +9,7 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v69";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v70";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
@@ -128,8 +128,9 @@ impl<'a> TailwindWritePlan<'a> {
                     write_rank(self.bindings, decl, index)
                 })
                 .collect();
-            let Some(mut ranks) =
-                ranks.or_else(|| scalars_beside_owner_background(self.bindings, region))
+            let Some(mut ranks) = ranks
+                .or_else(|| scalars_beside_owner_background(self.bindings, region))
+                .or_else(|| scalars_beside_disjoint_writes(self.bindings, region))
             else {
                 order_partial_input(self.bindings, region);
                 continue;
@@ -576,6 +577,137 @@ fn scalars_beside_owner_background(
             write_rank(bindings, declaration, index)
         })
         .collect()
+}
+
+/// The property family a CSS write belongs to, for proving that two
+/// utilities cannot write the same thing. Shorthands, longhands and logical
+/// aliases share a family (`padding`, `padding-inline`, `padding-left`), and
+/// the text metrics share one with their registers. Closed: any other
+/// property proves nothing.
+fn disjoint_family(property: &str) -> Option<&'static str> {
+    Some(match property {
+        _ if property == "padding" || property.starts_with("padding-") => "padding",
+        _ if property == "margin" || property.starts_with("margin-") => "margin",
+        "inset" | "top" | "right" | "bottom" | "left" => "inset",
+        _ if property.starts_with("inset-") => "inset",
+        "gap" | "row-gap" | "column-gap" => "gap",
+        "opacity" => "opacity",
+        "color" => "color",
+        "background-color" => "background-color",
+        _ if property.starts_with("border") && property.ends_with("radius") => "border-radius",
+        _ if property == "border" || property.starts_with("border-") => "border",
+        "font-size"
+        | "line-height"
+        | "letter-spacing"
+        | "font-weight"
+        | "font-family"
+        | "font-feature-settings"
+        | "font-variation-settings"
+        | "--tw-font-weight"
+        | "--tw-leading"
+        | "--tw-tracking" => "text-metric",
+        _ => return None,
+    })
+}
+
+/// Unranked writes whose utilities cannot write anything a ranked write in
+/// the region writes (#2027). Their place then decides nothing, so they do
+/// not split the ranked writes into runs: `bg-brand` between `rtl:p-4` and
+/// `rtl:p-2` must not keep the two in written order. Proven on each
+/// utility's entire captured CSS footprint, not on the subset a backend
+/// lowered, so a project utility that also writes padding stays a barrier.
+fn scalars_beside_disjoint_writes(
+    bindings: &TailwindUnitBindings<'_>,
+    region: &[StyleDeclaration],
+) -> Option<Vec<WriteRank>> {
+    use std::cell::RefCell;
+
+    let (mut direction, mut interaction) = (false, false);
+    for declaration in region {
+        match declaration.condition {
+            Condition::Always => {}
+            Condition::Environment(crate::Environment::Ltr | crate::Environment::Rtl) => {
+                direction = true;
+            }
+            ref guard if guard.owner_interaction_specificity().is_some() => interaction = true,
+            _ => return None,
+        }
+        // As in `scalars_beside_owner_background`: a fixed direction and an
+        // owner event are different selection channels on Native.
+        if direction && interaction {
+            return None;
+        }
+    }
+    let described =
+        |declaration: &StyleDeclaration| match bindings.get(declaration.source.utility()?)? {
+            TailwindRuleBinding::Described(candidate) => Some(candidate),
+            _ => None,
+        };
+    let ranks: Vec<_> = region
+        .iter()
+        .enumerate()
+        .map(|(index, declaration)| write_rank(bindings, declaration, index))
+        .collect();
+    // Each unranked utility's families, and the families every other
+    // unranked utility claims, so two holes cannot write the same thing.
+    let mut holes: Vec<(crate::TailwindUtilityId, Vec<&'static str>)> = Vec::new();
+    for (declaration, rank) in region.iter().zip(&ranks) {
+        if rank.is_some() {
+            continue;
+        }
+        let utility = declaration.source.utility()?;
+        if holes.iter().any(|(seen, _)| *seen == utility) {
+            continue;
+        }
+        let families = RefCell::new(Vec::new());
+        let closed = described(declaration)?.writes_only_on_owner(
+            declaration.condition == Condition::Always,
+            |property| {
+                disjoint_family(property).is_some_and(|family| {
+                    families.borrow_mut().push(family);
+                    true
+                })
+            },
+        );
+        if !closed {
+            return None;
+        }
+        let families = families.into_inner();
+        if holes
+            .iter()
+            .any(|(_, other)| other.iter().any(|family| families.contains(family)))
+        {
+            return None;
+        }
+        holes.push((utility, families));
+    }
+    if holes.is_empty() {
+        return None;
+    }
+    let taken = |family: &str| holes.iter().any(|(_, families)| families.contains(&family));
+    for (declaration, rank) in region.iter().zip(&ranks) {
+        if rank.is_none() {
+            continue;
+        }
+        if !scalar_tailwind_property(&declaration.property)
+            || !described(declaration)?.writes_only_on_owner(false, |property| {
+                disjoint_family(property).is_some_and(|family| !taken(family))
+            })
+            || region.iter().zip(&ranks).any(|(hole, rank)| {
+                rank.is_none() && writes_same_slot(&hole.property, &declaration.property)
+            })
+        {
+            return None;
+        }
+    }
+    Some(
+        ranks
+            .into_iter()
+            .enumerate()
+            // An unranked write takes no Tailwind priority; it sorts last.
+            .map(|(index, rank)| rank.unwrap_or((usize::MAX, index, [0; 3])))
+            .collect(),
+    )
 }
 
 #[cfg(test)]

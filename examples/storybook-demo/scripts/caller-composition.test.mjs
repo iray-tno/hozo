@@ -3144,6 +3144,92 @@ test('resting and ambient scalar ranks agree with real Tailwind behind a resting
   }
 })
 
+// #2027. An unranked utility between two direction writes, whose whole
+// footprint is disjoint from padding and margin, no longer keeps them in
+// written order. One that writes padding, by shorthand, logical alias or
+// physical edge, stays a barrier: Hozo cannot rank it against them.
+test('an unranked utility that writes neither padding nor margin does not split direction ranks', {
+  skip: !executablePath,
+}, async () => {
+  const lists = [
+    ['rtl:p-4 bg-overlap rtl:p-2 p-1 m-2', true],
+    ['ltr:p-4 bg-overlap ltr:p-2 p-1 m-2', true],
+    ['rtl:p-4 bg-pad rtl:p-2 p-1 m-2', false],
+    ['rtl:p-4 bg-inline rtl:p-2 p-1 m-2', false],
+    ['rtl:p-4 bg-left rtl:p-2 p-1 m-2', false],
+  ].flatMap(([classes, disjoint]) => [
+    { classes, disjoint },
+    { classes: classes.split(' ').toReversed().join(' '), disjoint },
+  ])
+  const names = [...new Set(lists.flatMap(({ classes }) => classes.split(' ')))]
+  const base = tailwindPackageDir()
+  const css = `@theme { --spacing: .25rem; --color-overlap: #112233; --color-pad: #112233; --color-inline: #112233; --color-left: #112233; } @tailwind utilities;
+    @utility bg-overlap { background-color: #112233; border-width: 3px; }
+    @utility bg-pad { background-color: #112233; padding: 3px; }
+    @utility bg-inline { background-color: #112233; padding-inline: 3px; }
+    @utility bg-left { background-color: #112233; padding-left: 3px; }`
+  const theme = await loadTheme(css, base)
+  const { snapshot } = await prepareTailwindOrder(css, base, names)
+  const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const compiler = createCompiler(theme)
+  const cache = openCandidateCache()
+  cache.scanFile('disjoint.ts', JSON.stringify(names.join(' ')), 1)
+  const candidatePlan = cache.renderNativeModulePlan(final, theme)
+  const upstream = (await compile(css)).build(names)
+  const page = await browser.newPage()
+  try {
+    for (const { classes, disjoint } of lists) {
+      const code = `import { View } from '@hozo/core'; const el=<View className="${classes}"/>`
+      const web = compiler.prepareWebModule(code).emit(final)[0]
+      const webMarkup = renderToStaticMarkup(
+        evaluate(`module.exports=(${web.jsx})`, { h: createElement }),
+      )
+      const native = compiler.prepareNativeModule(code).emit(final).components[0]
+      for (const isRTL of [false, true]) {
+        const dir = isRTL ? 'rtl' : 'ltr'
+        const read = async (sheet, markup) => {
+          await page.setContent(`<html dir="${dir}"><style>${sheet}</style>${markup}</html>`)
+          return page.locator('body > *').evaluate((owner) => getComputedStyle(owner).paddingTop)
+        }
+        const props = evaluate(`module.exports=(${native.jsx})`, {
+          h: (_type, props) => props,
+          View: 'view',
+          hozoStyles: runInNewContext(`(${native.styles})`),
+          __hozoEnv_rtl: isRTL,
+          __hozoEnv_ltr: !isRTL,
+        })
+        const resolve = evaluate(
+          `${candidatePlan.code.replace(/^import[^\n]*\n/gm, '').replaceAll('export const ', 'const ')}
+            module.exports = hozoClasses`,
+          { createClassResolver, I18nManager: { isRTL } },
+        )
+        const selected = (value) =>
+          `${Object.assign({}, ...[value].flat(Infinity).filter(Boolean)).paddingTop}px`
+        const writes = classes.split(' ').filter((name) => name.startsWith(`${dir}:`))
+        const tailwind = await read(upstream, `<div class="${classes}"></div>`)
+        assert.equal(tailwind, writes.length ? '16px' : '4px', `${classes} / ${dir} Tailwind`)
+        const routes = [
+          ['static Web', await read(web.css, webMarkup)],
+          ['static Native', selected(props.style)],
+        ]
+        if (disjoint) {
+          routes.push(['generated Native', selected(resolve(classes))])
+          for (const [route, actual] of routes)
+            assert.equal(actual, tailwind, `${classes} / ${dir} ${route}`)
+        } else {
+          // The boundary control: the last direction write in written
+          // order applies, on both static routes alike.
+          const authored = { 'p-2': '8px', 'p-4': '16px' }[writes.at(-1)?.split(':')[1]] ?? '4px'
+          for (const [route, actual] of routes)
+            assert.equal(actual, authored, `${classes} / ${dir} ${route}`)
+        }
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('adjacent assessed writes keep their shared rank inside the same breakpoint or negated condition', {
   skip: !executablePath,
 }, async () => {
