@@ -35,9 +35,6 @@ export async function runAndroidScenarios(value, run = execute) {
   if (scenario === 'code-block-performance' || scenario === 'code-block-windowed') {
     return run(scenario, 'artifacts/native-showcase-code-block')
   }
-  if (scenario === 'text-inheritance') {
-    return run(scenario, 'artifacts/native-showcase-text')
-  }
   if (scenario === 'audio-output') {
     return run(scenario, 'artifacts/native-showcase-audio')
   }

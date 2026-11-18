@@ -1,5 +1,7 @@
 # Native text inheritance: first Android rendering comparison
 
+> **Historical.** The device probe, its evidence scripts and the `text-inheritance` device scenario were removed in #2057, with RFC 006's route, once [decision 013](../decisions/013-text-inheritance-compiled-where-visible.md) became the Native default. The commands below ran at the commits they name.
+
 Reviewed dedicated run: [39285182354](https://github.com/iray-tno/hozo/actions/runs/39285182354),
 source `d245e0a75ec607c5ae0bf76770afb28c09fc3733` (#1103, #1102).
 The separate ordinary full-smoke PR run does not establish these results.

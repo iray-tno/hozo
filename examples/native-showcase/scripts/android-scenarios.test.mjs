@@ -24,7 +24,6 @@ test('normal Android evidence runs SVG, full, then the docs previews; explicit i
     ['svg-filters', [['svg-filters', 'artifacts/native-showcase-svg']]],
     ['audio-output', [['audio-output', 'artifacts/native-showcase-audio']]],
     ['audio-settings', [['audio-settings', 'artifacts/native-showcase-audio-settings']]],
-    ['text-inheritance', [['text-inheritance', 'artifacts/native-showcase-text']]],
     ['ui-docs', [['ui-docs', 'artifacts/native-showcase-ui-docs']]],
     [
       'code-block-performance',
@@ -47,7 +46,6 @@ test('a failed driver aborts without retrying or running the next scenario; unkn
     'svg-filters',
     'audio-output',
     'audio-settings',
-    'text-inheritance',
     'ui-docs',
     'code-block-performance',
     'code-block-windowed',

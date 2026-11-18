@@ -15,7 +15,7 @@ const skip =
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
     const file = path.join(dir, name)
-    if (skip.test(path.relative(root, file)) || name === 'text-inheritance-generated.tsx') continue
+    if (skip.test(path.relative(root, file))) continue
     if (statSync(file).isDirectory()) walk(file, out)
     else if (file.endsWith('.tsx')) out.push(file)
   }

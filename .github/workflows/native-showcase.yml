@@ -73,7 +73,7 @@ on:
       android-scenario:
         description: 'Full showcase or isolated SVG, audio, text, docs previews, or CodeBlock timing'
         type: choice
-        options: [full, svg-filters, audio-output, audio-settings, text-inheritance, ui-docs, code-block-performance, code-block-windowed]
+        options: [full, svg-filters, audio-output, audio-settings, ui-docs, code-block-performance, code-block-windowed]
         default: full
       ios-ax-backend:
         description: 'Accessibility reader for an explicit diagnostic comparison'
@@ -83,7 +83,7 @@ on:
       ios-scenario:
         description: 'Full interactions/SVG, isolated SVG/text pixels, Canvas diagnosis, or the docs previews'
         type: choice
-        options: [full, svg-filters, canvas, gl-control, text-inheritance, ui-docs]
+        options: [full, svg-filters, canvas, gl-control, ui-docs]
         default: full
       ios-canvas-mode:
         description: 'Controlled frame-loop comparison; demand is the canonical story'
@@ -234,13 +234,6 @@ jobs:
         with:
           name: hozo-native-showcase-android-svg-evidence
           path: artifacts/native-showcase-svg
-          if-no-files-found: ignore
-          retention-days: 30
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: hozo-native-showcase-android-text-evidence
-          path: artifacts/native-showcase-text
           if-no-files-found: ignore
           retention-days: 30
       - uses: actions/upload-artifact@v4
