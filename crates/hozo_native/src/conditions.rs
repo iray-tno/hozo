@@ -279,10 +279,13 @@ pub(super) fn build_style_entries(
     // Before anything reads them: a paired token becomes a second
     // declaration, so everything below treats it as an ordinary condition.
     let with_dark = with_dark_copies(declarations, theme);
-    let declarations: &[StyleDeclaration] = match &with_dark {
-        Some(expanded) => expanded,
-        None => declarations,
-    };
+    // Then an element that writes an inline edge both logically and
+    // physically gets only logical edges, which mean the same thing to Yoga
+    // with and without React Native's RTL left/right swap (#2018). After the
+    // dark copies, so a dark physical colour is projected with its light one.
+    let (prepared, edge_conflicts) =
+        crate::edge_projection::prepare_declarations(with_dark.as_deref().unwrap_or(declarations));
+    let declarations: &[StyleDeclaration] = &prepared;
     // A conditional style must land after every unconditional one,
     // whatever order they were written in. On Web the cascade settles this
     // by specificity -- `.hozo-0:disabled` (0,2,0) beats `.hozo-0`
@@ -371,28 +374,44 @@ pub(super) fn build_style_entries(
         defaults.extend(writes);
         groups = defaults;
     }
+    let expanded_groups: Vec<(Condition, Vec<StyleProperty>, bool)> = if edge_conflicts.is_empty() {
+        groups
+            .into_iter()
+            .map(|(condition, props)| (condition, props, false))
+            .collect()
+    } else {
+        groups
+            .iter()
+            .flat_map(|(condition, props)| {
+                crate::edge_projection::expand_group(condition, props, &edge_conflicts)
+            })
+            .collect()
+    };
+    let groups = expanded_groups;
     // A ranked input can revisit a condition after another one -- Tailwind's
     // order put `text-[20px]`, then the other branch's classes, then
     // `text-red-500` -- and each visit is its own group. Named by condition
     // alone, the second StyleSheet entry replaced the first and the 20px was
     // lost, so repeated conditions are named apart as repeated inputs are.
-    let repeats = groups
-        .iter()
-        .enumerate()
-        .any(|(index, (condition, _))| groups[..index].iter().any(|(seen, _)| seen == condition));
+    let repeats = groups.iter().enumerate().any(|(index, (condition, _, _))| {
+        groups[..index].iter().any(|(seen, _, _)| seen == condition)
+    });
     let mut used_names = (projects_metrics
         || repeats
+        || !edge_conflicts.is_empty()
         || declarations
             .windows(2)
             .any(|pair| pair[0].source.input() != pair[1].source.input()))
     .then(std::collections::HashSet::new);
 
-    for (condition, props) in groups {
+    for (condition, props, resting_direction) in groups {
         let state_start = state_parts.len();
         let interactive_start = pressed_parts.len();
         // Read before the match below moves parts of `condition` out.
         let is_dark_only = condition.mentions_dark();
-        let conditional = if is_element_state(&condition) {
+        let conditional = if resting_direction {
+            &mut base_parts
+        } else if is_element_state(&condition) {
             &mut state_parts
         } else {
             &mut conditional_parts

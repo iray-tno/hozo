@@ -181,7 +181,7 @@ uiCache.scanFile('radius-callers.ts', JSON.stringify(radiusCandidates.join(' '))
 const uiCandidates = uiCache.renderCss(uiTheme)
 const { hozoClasses: resolveUiClasses } = evaluate(
   uiCache.renderNativeModule(uiTheme).replace(/^import .*$/gm, ''),
-  { createClassResolver, hozoTextMetricStyles, hozoShadowStyles },
+  { createClassResolver, hozoTextMetricStyles, hozoShadowStyles, I18nManager: { isRTL: false } },
 )
 
 for (const { file, name, slots, source, variants, classes } of uiCases) {
@@ -1628,8 +1628,8 @@ test('canonical-order baseline records current Hozo divergences without claiming
           })
         }
         for (const [route, raw] of [
-          ['staticNative', subject.native.selected],
-          ['nativeCandidates', subject.fallback],
+          ['staticNative', dir === 'rtl' ? subject.rtl.selected : subject.native.selected],
+          ['nativeCandidates', dir === 'rtl' ? subject.rtl.fallback : subject.fallback],
         ])
           cells.push({
             id: subject.id,
@@ -3144,6 +3144,92 @@ test('resting and ambient scalar ranks agree with real Tailwind behind a resting
   }
 })
 
+// #2027. An unranked utility between two direction writes, whose whole
+// footprint is disjoint from padding and margin, no longer keeps them in
+// written order. One that writes padding, by shorthand, logical alias or
+// physical edge, stays a barrier: Hozo cannot rank it against them.
+test('an unranked utility that writes neither padding nor margin does not split direction ranks', {
+  skip: !executablePath,
+}, async () => {
+  const lists = [
+    ['rtl:p-4 bg-overlap rtl:p-2 p-1 m-2', true],
+    ['ltr:p-4 bg-overlap ltr:p-2 p-1 m-2', true],
+    ['rtl:p-4 bg-pad rtl:p-2 p-1 m-2', false],
+    ['rtl:p-4 bg-inline rtl:p-2 p-1 m-2', false],
+    ['rtl:p-4 bg-left rtl:p-2 p-1 m-2', false],
+  ].flatMap(([classes, disjoint]) => [
+    { classes, disjoint },
+    { classes: classes.split(' ').toReversed().join(' '), disjoint },
+  ])
+  const names = [...new Set(lists.flatMap(({ classes }) => classes.split(' ')))]
+  const base = tailwindPackageDir()
+  const css = `@theme { --spacing: .25rem; --color-overlap: #112233; --color-pad: #112233; --color-inline: #112233; --color-left: #112233; } @tailwind utilities;
+    @utility bg-overlap { background-color: #112233; border-width: 3px; }
+    @utility bg-pad { background-color: #112233; padding: 3px; }
+    @utility bg-inline { background-color: #112233; padding-inline: 3px; }
+    @utility bg-left { background-color: #112233; padding-left: 3px; }`
+  const theme = await loadTheme(css, base)
+  const { snapshot } = await prepareTailwindOrder(css, base, names)
+  const final = prepareFinalTailwindContext(JSON.stringify(snapshot))
+  const compiler = createCompiler(theme)
+  const cache = openCandidateCache()
+  cache.scanFile('disjoint.ts', JSON.stringify(names.join(' ')), 1)
+  const candidatePlan = cache.renderNativeModulePlan(final, theme)
+  const upstream = (await compile(css)).build(names)
+  const page = await browser.newPage()
+  try {
+    for (const { classes, disjoint } of lists) {
+      const code = `import { View } from '@hozo/core'; const el=<View className="${classes}"/>`
+      const web = compiler.prepareWebModule(code).emit(final)[0]
+      const webMarkup = renderToStaticMarkup(
+        evaluate(`module.exports=(${web.jsx})`, { h: createElement }),
+      )
+      const native = compiler.prepareNativeModule(code).emit(final).components[0]
+      for (const isRTL of [false, true]) {
+        const dir = isRTL ? 'rtl' : 'ltr'
+        const read = async (sheet, markup) => {
+          await page.setContent(`<html dir="${dir}"><style>${sheet}</style>${markup}</html>`)
+          return page.locator('body > *').evaluate((owner) => getComputedStyle(owner).paddingTop)
+        }
+        const props = evaluate(`module.exports=(${native.jsx})`, {
+          h: (_type, props) => props,
+          View: 'view',
+          hozoStyles: runInNewContext(`(${native.styles})`),
+          __hozoEnv_rtl: isRTL,
+          __hozoEnv_ltr: !isRTL,
+        })
+        const resolve = evaluate(
+          `${candidatePlan.code.replace(/^import[^\n]*\n/gm, '').replaceAll('export const ', 'const ')}
+            module.exports = hozoClasses`,
+          { createClassResolver, I18nManager: { isRTL } },
+        )
+        const selected = (value) =>
+          `${Object.assign({}, ...[value].flat(Infinity).filter(Boolean)).paddingTop}px`
+        const writes = classes.split(' ').filter((name) => name.startsWith(`${dir}:`))
+        const tailwind = await read(upstream, `<div class="${classes}"></div>`)
+        assert.equal(tailwind, writes.length ? '16px' : '4px', `${classes} / ${dir} Tailwind`)
+        const routes = [
+          ['static Web', await read(web.css, webMarkup)],
+          ['static Native', selected(props.style)],
+        ]
+        if (disjoint) {
+          routes.push(['generated Native', selected(resolve(classes))])
+          for (const [route, actual] of routes)
+            assert.equal(actual, tailwind, `${classes} / ${dir} ${route}`)
+        } else {
+          // The boundary control: the last direction write in written
+          // order applies, on both static routes alike.
+          const authored = { 'p-2': '8px', 'p-4': '16px' }[writes.at(-1)?.split(':')[1]] ?? '4px'
+          for (const [route, actual] of routes)
+            assert.equal(actual, authored, `${classes} / ${dir} ${route}`)
+        }
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('adjacent assessed writes keep their shared rank inside the same breakpoint or negated condition', {
   skip: !executablePath,
 }, async () => {
@@ -3225,77 +3311,89 @@ test('adjacent assessed writes keep their shared rank inside the same breakpoint
   }
 })
 
-test('ranked inline edges still expose the physical and logical projection difference', {
+test('ranked inline edges match Web physical and logical precedence across directions', {
   skip: !executablePath,
 }, async () => {
   const cases = [
-    ['hover:ps-6 active:pl-4', 'padding', [16, 0], [24, 0]],
-    ['active:pl-4 hover:ps-6', 'padding', [16, 0], [24, 0]],
-    ['hover:ms-6 active:ml-4', 'margin', [16, 0], [24, 0]],
-    ['active:ml-4 hover:ms-6', 'margin', [16, 0], [24, 0]],
+    ['hover:ps-6 active:pl-4', 'padding', [16, 0], [16, 24]],
+    ['active:pl-4 hover:ps-6', 'padding', [16, 0], [16, 24]],
+    ['hover:ms-6 active:ml-4', 'margin', [16, 0], [16, 24]],
+    ['active:ml-4 hover:ms-6', 'margin', [16, 0], [16, 24]],
   ]
   const page = await browser.newPage()
   const cdp = await page.context().newCDPSession(page)
   try {
     await cdp.send('DOM.enable')
     await cdp.send('CSS.enable')
-    for (const [classes, property, webLtr, nativeLtr] of cases) {
+    for (const [classes, property, expectedLtr, expectedRtl] of cases) {
       const source = `import { Pressable } from '@hozo/core'; const el=<Pressable className="${classes} columns-(--layout)"/>`
       const native = compiler.compileNativeModule(source).components[0]
       assert.deepEqual(
         native.diagnostics.map(({ code }) => code),
         ['WEB_ONLY_PROPERTY_ON_NATIVE'],
       )
-      const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
-        h: (_type, props) => props,
-        HozoPressable: 'host',
-        hozoStyles: runInNewContext(`(${native.styles})`),
-      })
-      const selected = Object.assign(
-        {},
-        ...nativeProps.style({ hovered: true, pressed: true, focused: false }).flat(Infinity),
-      )
       const web = compiler.compile(source)[0]
       const webProps = evaluate(`module.exports=(${web.jsx})`, { h: (_type, props) => props })
-      const yoga = Yoga.Node.create()
-      try {
-        yoga.setWidth(140)
-        yoga.setHeight(100)
-        const [write, read] =
-          property === 'padding'
-            ? ['setPadding', 'getComputedPadding']
-            : ['setMargin', 'getComputedMargin']
-        yoga[write](Yoga.EDGE_START, selected[`${property}Start`])
-        yoga[write](Yoga.EDGE_LEFT, selected[`${property}Left`])
-        for (const [dir, webExpected, nativeExpected] of [
-          ['ltr', webLtr, nativeLtr],
-          ['rtl', [16, 24], [16, 24]],
-        ]) {
-          await page.setContent(
-            `<style>div { ${property}: 0; }${web.css}</style><div dir="${dir}" class="${webProps.className}"></div>`,
-          )
-          const { root } = await cdp.send('DOM.getDocument')
-          const { nodeId } = await cdp.send('DOM.querySelector', {
-            nodeId: root.nodeId,
-            selector: 'div',
-          })
-          await cdp.send('CSS.forcePseudoState', {
-            nodeId,
-            forcedPseudoClasses: ['hover', 'active'],
-          })
-          assert.deepEqual(
-            await page
-              .locator('div')
-              .evaluate(
-                (el, name) =>
-                  ['left', 'right'].map((edge) =>
-                    parseFloat(getComputedStyle(el).getPropertyValue(`${name}-${edge}`)),
-                  ),
-                property,
-              ),
-            webExpected,
-            `${dir}/${classes}`,
-          )
+      for (const [dir, expected] of [
+        ['ltr', expectedLtr],
+        ['rtl', expectedRtl],
+      ]) {
+        const nativeProps = evaluate(`module.exports=(${native.jsx})`, {
+          h: (_type, props) => props,
+          HozoPressable: 'host',
+          hozoStyles: runInNewContext(`(${native.styles})`),
+          __hozoEnv_ltr: dir === 'ltr',
+          __hozoEnv_rtl: dir === 'rtl',
+        })
+        const selected = Object.assign(
+          {},
+          ...nativeProps
+            .style({ hovered: true, pressed: true, focused: false })
+            .flat(Infinity)
+            .filter(Boolean),
+        )
+        await page.setContent(
+          `<style>div { ${property}: 0; }${web.css}</style><div dir="${dir}" class="${webProps.className}"></div>`,
+        )
+        const { root } = await cdp.send('DOM.getDocument')
+        const { nodeId } = await cdp.send('DOM.querySelector', {
+          nodeId: root.nodeId,
+          selector: 'div',
+        })
+        await cdp.send('CSS.forcePseudoState', {
+          nodeId,
+          forcedPseudoClasses: ['hover', 'active'],
+        })
+        assert.deepEqual(
+          await page
+            .locator('div')
+            .evaluate(
+              (el, name) =>
+                ['left', 'right'].map((edge) =>
+                  parseFloat(getComputedStyle(el).getPropertyValue(`${name}-${edge}`)),
+                ),
+              property,
+            ),
+          expected,
+          `${dir}/${classes} Web`,
+        )
+        const yoga = Yoga.Node.create()
+        try {
+          yoga.setWidth(140)
+          yoga.setHeight(100)
+          const [write, read] =
+            property === 'padding'
+              ? ['setPadding', 'getComputedPadding']
+              : ['setMargin', 'getComputedMargin']
+          for (const [suffix, edge] of [
+            ['Start', Yoga.EDGE_START],
+            ['End', Yoga.EDGE_END],
+            ['Left', Yoga.EDGE_LEFT],
+            ['Right', Yoga.EDGE_RIGHT],
+          ]) {
+            const value = selected[`${property}${suffix}`]
+            if (typeof value === 'number') yoga[write](edge, value)
+          }
           yoga.calculateLayout(
             undefined,
             undefined,
@@ -3303,12 +3401,12 @@ test('ranked inline edges still expose the physical and logical projection diffe
           )
           assert.deepEqual(
             [yoga[read](Yoga.EDGE_LEFT), yoga[read](Yoga.EDGE_RIGHT)],
-            nativeExpected,
-            `${dir}/${classes}`,
+            expected,
+            `${dir}/${classes} Native`,
           )
+        } finally {
+          yoga.free()
         }
-      } finally {
-        yoga.free()
       }
     }
   } finally {
@@ -5201,3 +5299,231 @@ for (const host of ['View', 'Text', 'Chip root', 'Chip remove']) {
     }
   })
 }
+
+test('Chromium and Yoga agree on ranked logical and physical inline edges across directions, orders, states and the RTL swap (#2018)', {
+  skip: !executablePath,
+}, async () => {
+  const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`
+  const cases = [
+    {
+      id: 'px-pl',
+      classes: 'px-8 pl-1',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'ps-pl',
+      classes: 'ps-8 pl-1',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'pe-pl',
+      classes: 'pe-8 pl-1',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'p-ps-pl',
+      classes: 'p-8 ps-4 pl-1',
+      props: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'],
+      family: 'padding',
+    },
+    {
+      id: 'p-px',
+      classes: 'p-8 px-2',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'ps-pe-mirrored',
+      classes: 'ps-4 pe-1',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'hover-pl-over-px',
+      classes: 'px-8 hover:pl-1',
+      hovered: true,
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'hover-ps-over-pl',
+      classes: 'hover:ps-8 pl-1',
+      hovered: true,
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'mx-ml',
+      classes: 'mx-8 ml-1',
+      props: ['marginLeft', 'marginRight'],
+      family: 'margin',
+    },
+    {
+      id: 'ms-ml',
+      classes: 'ms-8 ml-1',
+      props: ['marginLeft', 'marginRight'],
+      family: 'margin',
+    },
+    {
+      id: 'border-x-l',
+      classes: 'border-x-4 border-l-2',
+      props: ['borderLeftWidth', 'borderRightWidth'],
+      family: 'border',
+    },
+  ]
+  const allNames = [...new Set(cases.flatMap((c) => c.classes.split(' ')))]
+  const compiled = await compile(css, { base: process.cwd() })
+  const referenceCss = compiled.build(allNames)
+  const compiler = createCompiler()
+  const cache = openCandidateCache()
+  cache.scanFile('edge-matrix.ts', JSON.stringify(allNames.join(' ')), 1)
+  const nativeModuleCode = cache.renderNativeModule()
+
+  // React Native's `swapLeftAndRightInRTL`, on by default on Android and
+  // iOS: in an RTL layout, left overwrites start and right overwrites end
+  // before Yoga sees them (`YogaLayoutableShadowNode::swapStyleLeftAndRight`).
+  const swapped = (styleObj) => {
+    const out = {}
+    const physical = []
+    for (const [k, v] of Object.entries(styleObj)) {
+      const to = k
+        .replace(/^left$/, 'start')
+        .replace(/^right$/, 'end')
+        .replace(/Left(?=Width$|Color$|$)/, 'Start')
+        .replace(/Right(?=Width$|Color$|$)/, 'End')
+      if (to === k) out[k] = v
+      else physical.push([to, v])
+    }
+    for (const [k, v] of physical) out[k] = v
+    return out
+  }
+  const yogaEdge = (input, family, dir, swap) => {
+    const styleObj = swap && dir === 'rtl' ? swapped(input) : input
+    const root = Yoga.Node.create()
+    root.setWidth(200)
+    root.setHeight(100)
+    const node = Yoga.Node.create()
+    const apply = (k, v) => {
+      if (typeof v !== 'number') return
+      const map = {
+        paddingLeft: [Yoga.EDGE_LEFT, 'setPadding'],
+        paddingRight: [Yoga.EDGE_RIGHT, 'setPadding'],
+        paddingTop: [Yoga.EDGE_TOP, 'setPadding'],
+        paddingBottom: [Yoga.EDGE_BOTTOM, 'setPadding'],
+        paddingStart: [Yoga.EDGE_START, 'setPadding'],
+        paddingEnd: [Yoga.EDGE_END, 'setPadding'],
+        marginLeft: [Yoga.EDGE_LEFT, 'setMargin'],
+        marginRight: [Yoga.EDGE_RIGHT, 'setMargin'],
+        marginStart: [Yoga.EDGE_START, 'setMargin'],
+        marginEnd: [Yoga.EDGE_END, 'setMargin'],
+        borderLeftWidth: [Yoga.EDGE_LEFT, 'setBorder'],
+        borderRightWidth: [Yoga.EDGE_RIGHT, 'setBorder'],
+        borderStartWidth: [Yoga.EDGE_START, 'setBorder'],
+        borderEndWidth: [Yoga.EDGE_END, 'setBorder'],
+      }[k]
+      if (map) node[map[1]](map[0], v)
+    }
+    for (const [k, v] of Object.entries(styleObj)) apply(k, v)
+    root.insertChild(node, 0)
+    root.calculateLayout(200, 100, dir === 'rtl' ? Yoga.DIRECTION_RTL : Yoga.DIRECTION_LTR)
+    const out =
+      family === 'padding'
+        ? {
+            paddingLeft: `${node.getComputedPadding(Yoga.EDGE_LEFT)}px`,
+            paddingRight: `${node.getComputedPadding(Yoga.EDGE_RIGHT)}px`,
+            paddingTop: `${node.getComputedPadding(Yoga.EDGE_TOP)}px`,
+            paddingBottom: `${node.getComputedPadding(Yoga.EDGE_BOTTOM)}px`,
+          }
+        : family === 'margin'
+          ? {
+              marginLeft: `${node.getComputedMargin(Yoga.EDGE_LEFT)}px`,
+              marginRight: `${node.getComputedMargin(Yoga.EDGE_RIGHT)}px`,
+            }
+          : {
+              borderLeftWidth: `${node.getComputedBorder(Yoga.EDGE_LEFT)}px`,
+              borderRightWidth: `${node.getComputedBorder(Yoga.EDGE_RIGHT)}px`,
+            }
+    root.freeRecursive()
+    return out
+  }
+
+  const page = await browser.newPage()
+  try {
+    for (const entry of cases) {
+      const tokens = entry.classes.split(' ')
+      const permutations = [tokens.join(' '), tokens.toReversed().join(' ')]
+      for (const dir of ['ltr', 'rtl']) {
+        const resolve = evaluate(nativeModuleCode.replace(/^import .*$/gm, ''), {
+          createClassResolver,
+          I18nManager: { isRTL: dir === 'rtl' },
+        }).hozoClasses
+        for (const classes of permutations) {
+          await page.setContent(
+            `<html dir="${dir}"><style>${referenceCss}</style><div class="${classes}" style="width:100px;height:40px">x</div></html>`,
+          )
+          if (entry.hovered) await page.locator('div').hover()
+          const expected = await page.locator('div').evaluate((el, props) => {
+            const s = getComputedStyle(el)
+            return Object.fromEntries(props.map((p) => [p, s[p]]))
+          }, entry.props)
+
+          // Ordinary static Native route
+          const host = entry.hovered ? 'Pressable' : 'View'
+          const [native] = compiler.compileNative(
+            `import { ${host} } from '@hozo/core'; export const C = () => <${host} className="${classes}" />`,
+          )
+          const rendered = evaluate(
+            `const hozoStyles=${native.styles};${native.prelude.join('\n')};module.exports=(${native.jsx})`,
+            {
+              View: 'View',
+              Pressable: 'Pressable',
+              HozoPressable: 'HozoPressable',
+              h: (_type, props) => props,
+              useHozoEnvironment: (q) => q === dir,
+            },
+          )
+          const facts = {
+            hovered: Boolean(entry.hovered),
+            pressed: false,
+            focused: false,
+            focusVisible: false,
+          }
+          const rawStatic =
+            typeof rendered.style === 'function' ? rendered.style(facts) : rendered.style
+          const staticFlat = Object.assign({}, ...[rawStatic].flat(Infinity).filter(Boolean))
+          for (const swap of [false, true]) {
+            const staticYoga = yogaEdge(staticFlat, entry.family, dir, swap)
+            for (const prop of entry.props) {
+              assert.equal(
+                staticYoga[prop],
+                expected[prop],
+                `static ${entry.id}/${dir}/swap=${swap}/${classes}/${prop}`,
+              )
+            }
+          }
+
+          // Generated Native candidate map route
+          const dynFlat = Object.assign(
+            {},
+            ...[resolve(classes, facts)].flat(Infinity).filter(Boolean),
+          )
+          for (const swap of [false, true]) {
+            const dynYoga = yogaEdge(dynFlat, entry.family, dir, swap)
+            for (const prop of entry.props) {
+              assert.equal(
+                dynYoga[prop],
+                expected[prop],
+                `candidate ${entry.id}/${dir}/swap=${swap}/${classes}/${prop}`,
+              )
+            }
+          }
+        }
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
