@@ -1,6 +1,10 @@
 # RFC 006: Native text inheritance with a measured static fast path
 
-- **Status**: Draft; no compiler or runtime behavior changes in this RFC.
+- **Status**: Superseded for the default by
+  [decision 013](../decisions/013-text-inheritance-compiled-where-visible.md),
+  which Metro selects for Native builds. This RFC's protocol is what that
+  route reads. Its whole-component route (`textInheritance`) stays callable
+  only for the comparison suites, and is not a production route.
 - **Authors**: codex-1
 - **Target packages**: `@hozo/engine`, `@hozo/primitives`, `@hozo/typography`,
   `@hozo/patterns`, `@hozo/compiler`; Native compiler crates.

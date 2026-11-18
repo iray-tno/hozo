@@ -23,7 +23,7 @@ While `docs/proposal.md` describes the foundational vision and `docs/decisions/`
 | [002](002-universal-dialog.md) | Universal Dialog Component | Layer 3 (`@hozo/patterns`) | **Implemented** | #156, #167, #203 |
 | [003](003-universal-navigation-and-links.md) | Universal Navigation, Links, Pressables & Router Adapters | Layer 1 & 2 (`@hozo/core`, `@hozo/navigation`, `@hozo/canvas`) | **Implemented** | #185 |
 | [004](004-three-renderer-families.md) | Three.js Renderer Families | `@hozo/three` | **Accepted** | #574 |
-| [006](006-native-text-inheritance.md) | Native text inheritance with a measured static fast path | Compiler, primitives, engine, typography and patterns | **Draft** | Not assigned |
+| [006](006-native-text-inheritance.md) | Native text inheritance with a measured static fast path | Compiler, primitives, engine, typography and patterns | **Superseded** for the default by [decision 013](../decisions/013-text-inheritance-compiled-where-visible.md) | [#2049](https://github.com/iray-tno/hozo/issues/2049) |
 | [007](007-canonical-tailwind-order.md) | One Tailwind ordering plan before platform lowering | Compiler, Tailwind, engine and build integrations | **Implemented** | #1230 |
 | [008](008-window-splitter.md) | Window splitter | Behaviors, patterns, core and UI | **Implemented (initial slice)** | #1191 |
 | [009](009-code-blocks.md) | Code blocks | Typography, patterns, core and UI | **Implemented (initial slice)** | #1189 |
