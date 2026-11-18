@@ -1,5 +1,7 @@
 # Native text inheritance baseline
 
+> **Historical.** RFC 006's baseline, reference, static-proof and runtime suites, and the scripts and CI steps that ran them, were removed in #2057, once [decision 013](decisions/013-text-inheritance-compiled-where-visible.md) became the Native default. The reference model (`text-inheritance-reference-core.ts`) remains, and `text-inheritance-unified.test.ts` compares the default against it. The commands below ran at the commits they name.
+
 Tracking: [#1073](https://github.com/iray-tno/hozo/issues/1073).
 This is the first measurement slice of [RFC 006](rfcs/006-native-text-inheritance.md),
 not a new inheritance implementation or an accepted ADR.

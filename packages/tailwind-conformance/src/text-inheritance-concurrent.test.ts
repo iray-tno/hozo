@@ -72,10 +72,18 @@ function fixture(strict: boolean, runtime: boolean) {
   const shipped = runtime
     ? loadTextInheritanceRuntime(legacy, { Text: 'ConcurrentText', View: 'ConcurrentView' })
     : null
+  // The shipped side is decision 013's: a View wrapped in the host-less scope
+  // the compiler emits around children it cannot see, and the leaf reader.
+  const ShippedView = ({ style, children }: { style?: object; children?: unknown }) =>
+    React.createElement(
+      shipped!.HozoInheritedScope,
+      { style },
+      React.createElement('ConcurrentView', null, children),
+    )
   const api = shipped
     ? {
-        ReferenceText: shipped.HozoInheritedText,
-        ReferenceView: shipped.HozoInheritedView,
+        ReferenceText: shipped.HozoInheritedLeafText,
+        ReferenceView: ShippedView,
         useReferenceMetrics: () => React.useContext(shipped.HozoInheritedMetricsContext),
         useReferencePaint: () => React.useContext(shipped.HozoInheritedPaintContext),
       }

@@ -6,6 +6,9 @@
 // Mock Native hosts, so this times React's work (component executions,
 // context reads, reconciliation), not layout or drawing. The question it
 // answers is whether the readers add enough JS per commit to matter.
+//
+// RFC 006's whole-component route was the fourth column until it was deleted
+// (#2057); its numbers are in docs/measurements/text-inheritance-unified-cost.md.
 import { createRequire } from 'node:module'
 import { performance } from 'node:perf_hooks'
 import { loadTextInheritanceRuntime } from './text-inheritance-runtime-host.ts'
@@ -17,30 +20,24 @@ const h = React.createElement
 if (process.env.NODE_ENV !== 'production') throw new Error('Run with NODE_ENV=production')
 
 const rt = loadTextInheritanceRuntime(React.createContext(14))
-const { HozoInheritedLeafText, HozoInheritedScope, HozoInheritedText, HozoInheritedView } = rt
+const { HozoInheritedLeafText, HozoInheritedScope } = rt
 const ROWS = Number(process.env.ROWS ?? 1000)
 const LABELS = 50
 const RUNS = 41
 const TITLE = Object.freeze({ fontSize: 16, fontWeight: '600' })
 const SUB = Object.freeze({ color: '#666666' })
 
-type Variant = 'plain' | 'leaf' | 'scoped leaf' | 'runtime route'
+type Variant = 'plain' | 'leaf' | 'scoped leaf'
 
 // One list row as each route would emit it: a box, an outermost Text with
 // its own size, and a nested Text the platform inherits into.
 let rowRenders = 0
 function Row({ variant, i }: { variant: Variant; i: number }) {
   rowRenders++
-  const Box = variant === 'runtime route' ? HozoInheritedView : 'NativeView'
-  const Outer =
-    variant === 'plain'
-      ? 'NativeText'
-      : variant === 'runtime route'
-        ? HozoInheritedText
-        : HozoInheritedLeafText
-  const Inner = variant === 'runtime route' ? HozoInheritedText : 'NativeText'
+  const Outer = variant === 'plain' ? 'NativeText' : HozoInheritedLeafText
+  const Inner = 'NativeText'
   return h(
-    Box,
+    'NativeView',
     { style: { padding: 8 } },
     h(Outer, { style: TITLE }, `Row ${i} `, h(Inner, { style: SUB }, 'detail')),
   )
@@ -53,25 +50,20 @@ function List({ variant, tick }: { variant: Variant; tick: number }) {
 }
 
 // A pressable's label colour changing under opaque label components: the
-// case only a runtime route can serve. `prop` is the hand-written equivalent,
+// case only a run-time read can serve. `prop` is the hand-written equivalent,
 // passing the colour to every label directly.
-type Owner = 'prop' | 'scope + leaf' | 'runtime route'
+type Owner = 'prop' | 'scope + leaf'
 const PropLabel = React.memo(({ color }: { color: string }) =>
   h('NativeText', { style: { color } }, 'label'),
 )
 const LeafLabel = React.memo(() => h(HozoInheritedLeafText, null, 'label'))
-const RouteLabel = React.memo(() => h(HozoInheritedText, null, 'label'))
 function Pressed({ owner, pressed }: { owner: Owner; pressed: boolean }) {
   const color = pressed ? '#ffffff' : '#111111'
   const labels = Array.from({ length: LABELS }, (_, i) =>
-    owner === 'prop'
-      ? h(PropLabel, { key: i, color })
-      : h(owner === 'scope + leaf' ? LeafLabel : RouteLabel, { key: i }),
+    owner === 'prop' ? h(PropLabel, { key: i, color }) : h(LeafLabel, { key: i }),
   )
   if (owner === 'prop') return h('NativeView', null, labels)
-  if (owner === 'scope + leaf')
-    return h('NativeView', null, h(HozoInheritedScope, { style: { color } }, labels))
-  return h(HozoInheritedView, { style: { color } }, labels)
+  return h('NativeView', null, h(HozoInheritedScope, { style: { color } }, labels))
 }
 
 const median = (xs: number[]) => xs.sort((a, b) => a - b)[xs.length >> 1]
@@ -116,7 +108,7 @@ const verdict = (ms: number, base: number) => {
 
 console.log(`List of ${ROWS} rows, median of ${RUNS - 5} runs (ms)`)
 const list: Record<string, { mount: number; update: number }> = {}
-for (const v of ['plain', 'leaf', 'scoped leaf', 'runtime route'] as Variant[]) {
+for (const v of ['plain', 'leaf', 'scoped leaf'] as Variant[]) {
   rowRenders = 0
   list[v] = await time((tick) => h(List, { variant: v, tick }))
   // A mount and an update per run: anything less means rows were skipped.
@@ -129,7 +121,7 @@ for (const [v, r] of Object.entries(list))
 
 console.log(`\nPressed colour over ${LABELS} opaque labels, median (ms)`)
 const pressed: Record<string, { mount: number; update: number }> = {}
-for (const o of ['prop', 'scope + leaf', 'runtime route'] as Owner[])
+for (const o of ['prop', 'scope + leaf'] as Owner[])
   pressed[o] = await time((n) => h(Pressed, { owner: o, pressed: n === 1 }))
 for (const [o, r] of Object.entries(pressed))
   console.log(

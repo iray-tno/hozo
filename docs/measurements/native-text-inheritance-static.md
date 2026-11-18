@@ -1,5 +1,7 @@
 # Native text inheritance: production static selection
 
+> **Historical.** RFC 006's baseline, reference, static-proof and runtime suites, and the scripts and CI steps that ran them, were removed in #2057, once [decision 013](../decisions/013-text-inheritance-compiled-where-visible.md) became the Native default. The reference model (`text-inheritance-reference-core.ts`) remains, and `text-inheritance-unified.test.ts` compares the default against it. The commands below ran at the commits they name.
+
 Bounded comparison: [#1146](https://github.com/iray-tno/hozo/issues/1146).
 Fixture source: `9fd5e5bc4031ab69e563fd11652c316996e1c97c` ([#1147](https://github.com/iray-tno/hozo/pull/1147)).
 This is a bounded rendering review, not default rollout or acceptance of RFC 006.

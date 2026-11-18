@@ -3,7 +3,7 @@
 [Decision 013](../decisions/013-text-inheritance-compiled-where-visible.md)
 asks for one cost comparison before the route becomes the default.
 
-**Script:** `packages/tailwind-conformance/src/text-inheritance-unified-cost.ts`
+**Script:** `packages/tailwind-conformance/src/text-inheritance-unified-cost.ts`. Since #2057 it no longer has the `runtime route` column, because RFC 006's route was deleted; the numbers below are from before that.
 
 ```sh
 cd packages/tailwind-conformance
