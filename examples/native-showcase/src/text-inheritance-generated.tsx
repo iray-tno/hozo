@@ -30,11 +30,11 @@ export const textFixtureManifest = {
       'packages/engine/src/text-size.ts':
         '48c4ab6d5f6617e5cf674ca1224a1987cfc7536e4d87217e676c15c5c3820c14',
       'packages/primitives/src/generated/inherited-text.ts':
-        'd67d5d20aa028a0030cecd7f19308f683f01bbca9b18b5914304554a8c6cdc4d',
+        '891fb18895c32ac7ee59939b1687a1461faca5f0932a5e7a686145aefba7b241',
       'packages/primitives/src/generated/inherited-view.ts':
         'ea17ee15cfa6873527c0c463e170ec29b42795dad52366b37031a29fb712555d',
       'packages/primitives/src/inherited-text.native.tsx':
-        '7a0210055d7dea5d37ab6c8367366964c268537acfd37582c35e2c25ef1a462e',
+        '3b9386c918b15ebc93b0131046ece0acb251b1d5997b6cfb7f3d9d36a01dd5c3',
       'packages/primitives/src/inherited-view.native.tsx':
         'fe69925e081457e50df070a073a91169f0ce22440c707ec25bd461150a7364cb',
       'packages/primitives/src/inherited-text-scope.tsx':
