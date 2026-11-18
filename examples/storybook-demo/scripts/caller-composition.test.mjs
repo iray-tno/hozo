@@ -5300,7 +5300,7 @@ for (const host of ['View', 'Text', 'Chip root', 'Chip remove']) {
   })
 }
 
-test('Chromium and Yoga agree on ranked logical and physical inline edges across directions, orders, states and the RTL swap (#2018)', {
+test('Chromium and Yoga agree on logical and physical inline edges across directions, orders, states and the RTL swap (#2018, #2050)', {
   skip: !executablePath,
 }, async () => {
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`
@@ -5370,6 +5370,32 @@ test('Chromium and Yoga agree on ranked logical and physical inline edges across
     {
       id: 'border-x-l',
       classes: 'border-x-4 border-l-2',
+      props: ['borderLeftWidth', 'borderRightWidth'],
+      family: 'border',
+    },
+    // #2050: a physical utility on its own keeps its side in RTL, as in
+    // Tailwind, rather than following the swap.
+    {
+      id: 'pl-alone',
+      classes: 'pl-1',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'p-pr',
+      classes: 'p-4 pr-2',
+      props: ['paddingLeft', 'paddingRight'],
+      family: 'padding',
+    },
+    {
+      id: 'ml-alone',
+      classes: 'ml-2',
+      props: ['marginLeft', 'marginRight'],
+      family: 'margin',
+    },
+    {
+      id: 'border-l-alone',
+      classes: 'border-l-2',
       props: ['borderLeftWidth', 'borderRightWidth'],
       family: 'border',
     },

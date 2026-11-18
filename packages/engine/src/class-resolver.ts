@@ -182,17 +182,27 @@ const INLINE_EDGES = [
 
 type InlineFamily = (typeof INLINE_EDGES)[number]
 
-/** The families these styles write both logically and physically. */
-function mixedInlineEdges(styles: Iterable<StyleObject>): InlineFamily[] {
+/**
+ * The families whose physical writes these styles need as logical ones: one
+ * style writes the two physical sides unevenly (only one, or two values),
+ * which the RTL swap would move (#2050), or, when `mixed` counts, the
+ * styles write the family both logically and physically (#2018).
+ */
+function inlineEdgesToProject(styles: Iterable<StyleObject>, mixed: boolean): InlineFamily[] {
   let logical = 0
   let physical = 0
+  let uneven = 0
   for (const style of styles) {
     INLINE_EDGES.forEach(([start, end, left, right], family) => {
       if (Object.hasOwn(style, start) || Object.hasOwn(style, end)) logical |= 1 << family
-      if (Object.hasOwn(style, left) || Object.hasOwn(style, right)) physical |= 1 << family
+      const hasLeft = Object.hasOwn(style, left)
+      const hasRight = Object.hasOwn(style, right)
+      if (hasLeft || hasRight) physical |= 1 << family
+      if (hasLeft !== hasRight || style[left] !== style[right]) uneven |= 1 << family
     })
   }
-  return INLINE_EDGES.filter((_, family) => logical & physical & (1 << family))
+  const project = uneven | (mixed ? logical & physical : 0)
+  return INLINE_EDGES.filter((_, family) => project & (1 << family))
 }
 
 /**
@@ -205,7 +215,9 @@ function mixedInlineEdges(styles: Iterable<StyleObject>): InlineFamily[] {
  * they are in this direction, and array order decides as the cascade did
  * (#2018). The family is chosen per class string, states included, as the
  * static compiler chooses it per element: `pl-1` must not change sides when
- * `hover:ps-8` beside it stops applying.
+ * `hover:ps-8` beside it stops applying. A physical utility on its own
+ * keeps its side too (`pl-4` stays on the left in RTL, as in Tailwind), so a
+ * family one style writes unevenly is renamed the same way.
  */
 function projectInlineEdges(
   styles: StyleObject[],
@@ -385,18 +397,24 @@ export function createClassResolver(
   const barriers = independentColors && new Set(independentColors[0].split(' '))
   const independent = independentColors && new Set(independentColors[1].split(' '))
   const isAmbient = (key: string) => Object.hasOwn(ambient, key)
-  // Checked once per map: most never write an inline family both ways, and
-  // then no class string can, so none is scanned. Only ranked maps: an
-  // unranked one keeps its written order and Yoga's own precedence.
+  // Checked once per map: most never write an inline family both ways or
+  // unevenly, and then no class string can, so none is scanned. A mixed
+  // family counts only in a ranked map: an unranked one keeps its written
+  // order and Yoga's own precedence.
+  const mixed = ranks !== undefined
   const edges =
-    ranks !== undefined &&
-    mixedInlineEdges([
-      ...Object.values(styles),
-      ...Object.values(states).flatMap((groups) => groups.map((group) => group[1])),
-    ]).length > 0
+    inlineEdgesToProject(
+      [
+        ...Object.values(styles),
+        ...Object.values(states).flatMap((groups) => groups.map((group) => group[1])),
+      ],
+      mixed,
+    ).length > 0
   const rtl = Boolean(ambient.rtl)
   const stringEdges = (entries: readonly { style: StyleObject }[], raw: readonly StyleObject[]) =>
-    edges ? mixedInlineEdges([...raw, ...entries.map((entry) => entry.style)]) : undefined
+    edges
+      ? inlineEdgesToProject([...raw, ...entries.map((entry) => entry.style)], mixed)
+      : undefined
   const project = (list: StyleObject[], resolved: { edges?: readonly InlineFamily[] }) =>
     projectInlineEdges(list, resolved.edges, rtl)
   // Class strings repeat constantly across renders and list items, and the

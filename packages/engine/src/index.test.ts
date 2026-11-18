@@ -49,7 +49,7 @@ test('build-time owner-state rank is consumed once per cache entry, with tie and
 test('ranked and fallback state templates keep their respective order and original style identities', () => {
   const base = { opacity: 1 }
   const hovered = { opacity: 0.5 }
-  const ambient = { paddingLeft: 16 }
+  const ambient = { marginTop: 16 }
   const barrier = { color: 'red' }
   const styles = { base, barrier }
   const states = {
