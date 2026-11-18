@@ -3,8 +3,9 @@
 - **Status**: Superseded for the default by
   [decision 013](../decisions/013-text-inheritance-compiled-where-visible.md),
   which Metro selects for Native builds. This RFC's protocol is what that
-  route reads. Its whole-component route (`textInheritance`) stays callable
-  only for the comparison suites, and is not a production route.
+  route reads. Its whole-component route (`textInheritance`), static proof
+  and device probe were deleted in #2057; the reference model stays, as what
+  decision 013's route is compared against.
 - **Authors**: codex-1
 - **Target packages**: `@hozo/engine`, `@hozo/primitives`, `@hozo/typography`,
   `@hozo/patterns`, `@hozo/compiler`; Native compiler crates.

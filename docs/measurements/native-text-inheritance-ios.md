@@ -1,5 +1,7 @@
 # Native text inheritance: first iOS rendering comparison
 
+> **Historical.** The device probe, its evidence scripts and the `text-inheritance` device scenario were removed in #2057, with RFC 006's route, once [decision 013](../decisions/013-text-inheritance-compiled-where-visible.md) became the Native default. The commands below ran at the commits they name.
+
 Reviewed dedicated run: [39305398979](https://github.com/iray-tno/hozo/actions/runs/39305398979),
 source `d8481a7020b1a6d0244e4169de4567d44fff5ba1` (#1105/#1106).
 This is the opt-in text scenario, not the ordinary full-smoke job.

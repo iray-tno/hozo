@@ -82,18 +82,29 @@ test('a leaf keeps values the protocol does not read instead of throwing', () =>
   ])
 })
 
-test('the existing reader still publishes to opaque children, so both readers agree on a frame', () => {
-  const { HozoInheritedLeafText, HozoInheritedScope, HozoInheritedText } = runtime()
+test('an outer leaf with opaque children resets the frame below it, so they inherit natively', () => {
+  const { HozoInheritedLeafText, HozoInheritedScope } = runtime()
   const Opaque = () => h(HozoInheritedLeafText, { testID: 'inner' }, 'inner')
   const root = render(
     h(
       HozoInheritedScope,
       { style: { color: '#ff0000', fontSize: 18 } },
-      h(HozoInheritedText, { testID: 'outer', style: { fontSize: 30 } }, h(Opaque)),
+      h(
+        HozoInheritedLeafText,
+        { testID: 'outer', style: { fontSize: 30 }, hozoOpaque: true },
+        h(Opaque),
+      ),
     ),
   )
+  // React Native applies the outer host's values to the inner Text itself; the
+  // inner reader must not put the frame from outside back over them.
   assert.deepEqual(hosts(root, 'NativeText'), [
-    { id: 'outer', style: { fontSize: 30, color: '#ff0000' } },
-    { id: 'inner', style: { fontSize: 30, color: '#ff0000' } },
+    { id: 'outer', style: { color: '#ff0000', fontSize: 30 } },
+    { id: 'inner', style: {} },
   ])
+})
+
+test('the leaf stays a label a pressable can style (#876)', () => {
+  const { HozoInheritedLeafText } = runtime()
+  assert.equal((HozoInheritedLeafText as { hozoLabelText?: boolean }).hozoLabelText, true)
 })

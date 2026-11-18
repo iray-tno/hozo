@@ -11,7 +11,6 @@ export function readAndroidScenario(value = 'full') {
       'svg-filters',
       'audio-output',
       'audio-settings',
-      'text-inheritance',
       'ui-docs',
       'code-block-performance',
       'code-block-windowed',

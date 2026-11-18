@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import {
   closeSync,
   cpSync,
@@ -26,11 +25,9 @@ import { launchIosApp } from './ios-launch.mjs'
 import { selectIosSimulator, waitForIosBoot } from './ios-simulator.mjs'
 import { selectStableIosText, waitForIosStorySelection } from './ios-story-selector.mjs'
 import { iosSvgEvidence, iosSvgRegion, readIosScenario } from './ios-svg-filter-evidence.mjs'
-import { iosTextCapture, iosTextProvenance } from './ios-text-evidence.mjs'
 import { waitForIosControl } from './ios-ui-wait.mjs'
 import { observeStoryRoute } from './story-route-evidence.mjs'
 import { exerciseSvgFilters } from './svg-filter-evidence.mjs'
-import { exerciseTextInheritance } from './text-pixels.mjs'
 import { exerciseUiDocs, UI_OVERLAY_SCENES, UI_STATE_SCENES } from './ui-docs-evidence.mjs'
 import {
   exerciseVideo,
@@ -285,42 +282,6 @@ try {
   }
   const binary = resolve(root, 'ios/build/Build/Products/Release-iphonesimulator/HozoShowcase.app')
   assert.ok(statSync(resolve(binary, 'main.jsbundle')).size > 0, 'standalone JS bundle is missing')
-  if (evidence.scenario === 'text-inheritance') {
-    const { prepareTextDeviceFixture } = await import(
-      '../../../packages/tailwind-conformance/src/text-inheritance-device-source.ts'
-    )
-    Object.assign(
-      evidence,
-      iosTextProvenance(
-        evidence,
-        process.env.GITHUB_RUN_ID,
-        JSON.parse(readFileSync(resolve(root, 'ios/build.json'), 'utf8')),
-        readFileSync(resolve(root, 'ios/HozoShowcase-simulator.zip')),
-        readFileSync(resolve(binary, 'main.jsbundle')),
-      ),
-    )
-    evidence.textFixture = prepareTextDeviceFixture().manifest
-    const require = createRequire(import.meta.url)
-    evidence.installedRuntimeVersions = {
-      react: require('react/package.json').version,
-      reactNative: require('react-native/package.json').version,
-    }
-    evidence.textSourceHashes = Object.fromEntries(
-      [
-        'src/text-inheritance-generated.tsx',
-        'src/text-inheritance-probe.tsx',
-        'src/text-inheritance-reference.native.ts',
-        'src/text-inheritance-opaque.native.tsx',
-        'scripts/text-pixels.mjs',
-        'scripts/ios-text-evidence.mjs',
-      ].map((name) => [
-        name,
-        createHash('sha256')
-          .update(readFileSync(resolve(root, name)))
-          .digest('hex'),
-      ]),
-    )
-  }
   const recognizer = resolve(output, 'recognize-text')
   run('xcrun', ['swiftc', resolve(root, 'scripts/recognize-text.swift'), '-o', recognizer], 120_000)
   const discovery = discoverIosDevices(run)
@@ -382,33 +343,7 @@ try {
   // Establish the reader against the app's own ready window before openurl
   // introduces an OS confirmation. Launch returning is not UI readiness.
   await waitFor((node) => node.AXUniqueId === 'mobile-menu-button', 'initial Storybook window')
-  if (evidence.scenario === 'text-inheritance') {
-    await exerciseTextInheritance(
-      {
-        story,
-        tap: (value) => tap(label(value), value),
-        waitFor: (value) => waitFor(label(value), value),
-        waitForImage,
-        record,
-        capture: async (name, mode, tick) => {
-          const expression = new RegExp(`^${mode} mount [1-9]\\d* tick ${tick}$`)
-          const node = await waitFor(
-            (node) => expression.test(node.AXLabel ?? ''),
-            `${mode} Text identity`,
-          )
-          const marker = await waitFor(label(`Text frame ${mode}`), 'presented mode marker')
-          const screen = parseIosNodes(latestTree).find((entry) => entry.type === 'Application')
-          const buffer = screenshot(name)
-          return {
-            name,
-            label: node.AXLabel,
-            ...iosTextCapture(buffer, node, marker, screen, mode),
-          }
-        },
-      },
-      evidence,
-    )
-  } else if (evidence.scenario === 'ui-docs') {
+  if (evidence.scenario === 'ui-docs') {
     evidence.uiDocs = await exerciseUiDocs(
       {
         // A timed-out openurl throws here, inside the walk, which records the

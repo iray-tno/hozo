@@ -29,7 +29,6 @@ pub use tailwind_plan::{
     TailwindPlanWrite, TailwindRootPlan,
 };
 mod text_forwarding;
-mod text_regions;
 pub mod tw_merge;
 #[rustfmt::skip]
 pub(crate) mod tw_merge_table;
@@ -116,9 +115,6 @@ pub struct ImportBinding {
 }
 
 pub struct ParseOutput {
-    /// Internal RFC 006 identity facts, populated only by its opt-in parse.
-    /// Ordinary compilation performs no extra semantic proof pass.
-    pub stable_text_roots: Vec<hozo_ir::SourceSpan>,
     /// Parser recovery is useful for inventory, but not proof that source parses.
     /// Keep these separate from target-independent semantic diagnostics.
     pub syntax_errors: Vec<ParseSyntaxError>,
@@ -382,35 +378,7 @@ pub fn parse_module_for_file_with_helpers(
         bindings,
         ReactNativeCompat::Lower,
         file,
-        ParseFeatures {
-            class_helpers,
-            ..ParseFeatures::default()
-        },
-    )
-}
-
-/// The internal text experiment reuses this parse's AST for identity facts.
-/// No project or ordinary compiler path selects it.
-#[doc(hidden)]
-pub fn parse_module_with_text_regions(
-    source_text: &str,
-    sources: Option<&[String]>,
-    registry: Option<&StylexModuleRegistry>,
-    bindings: &[StylexExternalBinding],
-    file: Option<&str>,
-    class_helpers: &[ClassHelper],
-) -> ParseOutput {
-    parse(
-        source_text,
-        sources,
-        registry,
-        bindings,
-        ReactNativeCompat::Lower,
-        file,
-        ParseFeatures {
-            class_helpers,
-            text_regions: true,
-        },
+        ParseFeatures { class_helpers },
     )
 }
 
@@ -475,19 +443,14 @@ pub fn parse_tsx_for_web_with_helpers(
         bindings,
         compat,
         None,
-        ParseFeatures {
-            class_helpers,
-            ..ParseFeatures::default()
-        },
+        ParseFeatures { class_helpers },
     )
 }
 
-/// Per-call optional analyses stay named and default-off. In particular,
-/// ordinary helper resolution must not accidentally select text proofs.
+/// Per-call optional analyses stay named and default-off.
 #[derive(Default)]
 struct ParseFeatures<'a> {
     class_helpers: &'a [ClassHelper],
-    text_regions: bool,
 }
 
 fn parse(
@@ -586,11 +549,6 @@ fn parse(
     non_class_spans.extend(text.spans);
 
     ParseOutput {
-        stable_text_roots: if features.text_regions && ret.diagnostics.is_empty() {
-            text_regions::stable_roots(&ret.program)
-        } else {
-            Vec::new()
-        },
         syntax_errors: ret
             .diagnostics
             .iter()

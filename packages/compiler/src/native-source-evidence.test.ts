@@ -83,7 +83,7 @@ test('retained Native IR owns the evidence option through cold and warm emission
 
 test('Native source evidence cannot silently switch to an owner or text experiment', () => {
   const compiler = createCompiler()
-  for (const option of ['ownerStyle', 'textReference', 'textInheritance', 'textStatic'])
+  for (const option of ['ownerStyle', 'textReference'])
     for (const method of ['compileNativeModule', 'prepareNativeModule'] as const)
       assert.throws(
         () =>

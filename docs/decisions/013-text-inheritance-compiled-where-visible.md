@@ -77,7 +77,8 @@ cannot see.
 6. **The adapters select this route by default for Native builds**, with a
    project option to turn it off. The previous whole-component runtime route
    stays callable for the existing comparison suites until it is deleted. It
-   is not a second production route.
+   is not a second production route. It was deleted in #2057; the reference
+   model and the comparison against it remain.
 
 The Web output does not change. CSS already does this.
 

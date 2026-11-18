@@ -371,8 +371,6 @@ impl PreparedNativeModule {
                 owner_facts: self.options.owner_facts()?,
                 owner_split_text: self.options.owner_text.is_some(),
                 text_reference: self.options.text_reference.unwrap_or(false),
-                text_inheritance: self.options.text_inheritance.unwrap_or(false),
-                text_static: self.options.text_static.unwrap_or(false),
                 text_unified: self.options.text_unified.unwrap_or(false),
                 tailwind: TailwindPlanOptions {
                     context: Some(&context.context),
@@ -473,23 +471,13 @@ impl Compiler {
     ) -> napi::Result<PreparedNativeModule> {
         let options = options.unwrap_or_default();
         options.validate_owner_style()?;
-        if options.text_reference.unwrap_or(false) && options.text_inheritance.unwrap_or(false) {
-            return Err(napi::Error::from_reason(
-                "Select one internal text experiment per compile call",
-            ));
-        }
-        if options.text_static.unwrap_or(false) && !options.text_inheritance.unwrap_or(false) {
-            return Err(napi::Error::from_reason(
-                "Internal textStatic requires textInheritance",
-            ));
-        }
+
         let bindings = external_bindings(bindings);
         let parsed = parse_native_module(
             &source,
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
             source_file.as_deref(),
-            options.text_static.unwrap_or(false),
             &self.text_forwarding,
             &self.class_helpers,
         );
@@ -596,7 +584,7 @@ mod tests {
                 None,
                 Some(NativeCompileOptions {
                     text_reference: Some(true),
-                    text_inheritance: Some(true),
+                    text_unified: Some(true),
                     ..Default::default()
                 }),
             )
@@ -655,7 +643,7 @@ mod tests {
                 None,
                 Some("Label.tsx".into()),
                 Some(NativeCompileOptions {
-                    text_inheritance: Some(true),
+                    text_unified: Some(true),
                     ..Default::default()
                 }),
             )
@@ -675,7 +663,7 @@ mod tests {
             retained.state.as_ref().unwrap().parsed.roots[0].node.style[0].property,
             StyleProperty::PaddingTop(hozo_ir::Length::Px(123.0))
         ));
-        assert_eq!(retained.options.text_inheritance, Some(true));
+        assert_eq!(retained.options.text_unified, Some(true));
         assert_eq!(retained.candidates().unwrap(), ["p-3"]);
         retained.dispose();
     }

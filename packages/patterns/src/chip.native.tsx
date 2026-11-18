@@ -1,13 +1,7 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
-import {
-  type ComponentProps,
-  type ComponentType,
-  type ReactNode,
-  useCallback,
-  useState,
-} from 'react'
+import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { useChipRowInteraction } from './chip-row-interaction.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
@@ -44,15 +38,11 @@ export interface HozoChipProps {
   hozoStyle?: (state: ChipSlotState) => StyleProp<ViewStyle | TextStyle>
   /** @internal The remove button never borrows its ancestor's focus. */
   hozoRemoveStyle?: (state: ChipSlotState) => StyleProp<ViewStyle | TextStyle>
-  /** @internal Resolved text scope at the actual row or selectable label. */
-  hozoInheritedLabel?: ComponentType<{ style?: StyleProp<TextStyle>; children?: ReactNode }>
-  /** @internal Preserve the existing Text hosts for passive labels and icons. */
-  hozoInheritedText?: ComponentType<ComponentProps<typeof Text>>
+
   testID?: string
 }
 
-function label(children: ReactNode, style: TextStyle, Owner?: HozoChipProps['hozoInheritedLabel']) {
-  if (Owner) return <Owner style={style}>{children}</Owner>
+function label(children: ReactNode, style: TextStyle) {
   if (Object.keys(style).length === 0) return hozoTextChildren(children)
   return typeof children === 'string' || typeof children === 'number' ? (
     <Text style={style}>{children}</Text>
@@ -87,16 +77,12 @@ export function HozoChip({
   removeStyle,
   hozoStyle,
   hozoRemoveStyle,
-  hozoInheritedLabel,
-  hozoInheritedText,
   testID,
 }: HozoChipProps) {
   const message = useHozoMessage()
   const selectable =
     selected !== undefined || defaultSelected !== undefined || onSelectedChange !== undefined
-  if (hozoInheritedLabel && !hozoInheritedText && (!selectable || onRemove))
-    throw new Error('Composite and passive Chip inheritance requires both label and Text bindings')
-  const LabelText = hozoInheritedText ?? Text
+
   const [uncontrolled, setUncontrolled] = useState(defaultSelected ?? false)
   const on = selected ?? uncontrolled
   const toggle = useCallback(() => {
@@ -140,13 +126,13 @@ export function HozoChip({
         onPress={onRemove}
       >
         {(interaction) => (
-          <LabelText
+          <Text
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
             style={removeLook(interaction)[1]}
           >
             {removeIcon}
-          </LabelText>
+          </Text>
         )}
       </Pressable>
     ) : null
@@ -164,32 +150,30 @@ export function HozoChip({
         onPress={toggle}
       >
         {/* Both controls can activate/hover the ancestor, never focus it. */}
-        {(interaction) => label(children, look(row?.state ?? interaction)[1], hozoInheritedLabel)}
+        {(interaction) => label(children, look(row?.state ?? interaction)[1])}
       </Pressable>
     ) : (
-      <LabelText style={look(row?.state ?? IDLE)[1]}>{children}</LabelText>
+      <Text style={look(row?.state ?? IDLE)[1]}>{children}</Text>
     )
 
   if (!onRemove && selectable) return body()
   return (
     <ChipRow selectable={selectable} disabled={disabled}>
       {(row) => {
-        const [box, text] = look(row.state)
+        const [box] = look(row.state)
         const content = (
           <>
             {body(row)}
             {remove(row.events.remove)}
           </>
         )
-        const Owner = hozoInheritedLabel
         return (
           <View
             {...row.events.row}
             style={[{ flexDirection: 'row', alignItems: 'center' }, box]}
             testID={testID}
           >
-            {/* Publish resolved row values, never its predicates or box styles. */}
-            {Owner ? <Owner style={text}>{content}</Owner> : content}
+            {content}
           </View>
         )
       }}

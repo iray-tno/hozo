@@ -608,97 +608,15 @@ successful run establishes virtual output; physical speakers, iOS output,
 Video speed, exact DSP parity, AT and session/interruption behavior remain
 separate checks. The harness setup itself establishes none of those results.
 
-### Native text inheritance comparison (experimental)
+### Native text inheritance comparison (removed)
 
-Select `Diagnostics/Text inheritance/Comparison`
-(`diagnostics-text-inheritance--comparison`). Five mounted panels compare real
-compiled labels: ordinary RN Text, the private RFC 006 Context reference,
-the binding selected by the existing private static proof, and the production
-Text/View runtime ABI from #1120, plus the production static selection from
-#1139. Both production factories keep their actual compiler/Metro
-imports; it does not receive an injected reference Text. Its owners use the
-shipped View helper and independent engine contexts. `production` remains
-runtime-only. `production-static` uses the additional internal `textStatic`
-selection: a proved complete Text root uses RN directly; missing proof keeps
-the exact runtime output. Route classification compares actual compiler
-outputs, not case names or the private proof.
-The private optimized static case can use
-RN's built-in nested-Text inheritance; the runtime-style case must retain
-the Context fallback. The opaque case adds a separately compiled memo/View
-wrapper: reference/optimized/both production panels receive no frame/style prop, while the ordinary control uses the
-explicitly styled runtime label. Its distinct source is recorded in the manifest.
-Ordinary compilation and full/release scenarios do not enable the protocol
-by default. Manifest v3 retains the twelve production leaf/source hashes,
-adds eleven compiler/proof selection-input hashes and fingerprints both
-production compiled outputs per case, separately from the private proof.
-The run/source commit pins the complete checkout beyond those explicit inputs.
-
-Use `Show ordinary/reference/optimized/production/production-static` to reveal each panel at the same
-position. Hidden panels remain mounted; an external mode-color marker lets
-the screenshot driver verify actual presentation independently of AX.
-Within a case, change the ancestor, update the label and restore; mount IDs
-in accessible labels must stay stable. Switching cases intentionally starts
-new labels. Actual `onTextLayout` callbacks log `[Hozo text layout]` records
-with line metrics and versions, but always `verdict: not-assessed`. These are
-not pixel, font-color/weight, AT or timing results. The source-bound device
-review is linked below. The app's RN 0.88.1
-also differs from the Node source probe's 0.87.1.
-The app's TypeScript `react-native` path mirrors its Metro singleton:
-workspace helper declarations are checked against the app's actual RN 0.88
-host, not their separate RN 0.87 development installation. This changes
-type resolution, not runtime imports or the comparator.
-
-Regenerate/check its compiled source with
-`node scripts/generate-text-inheritance.mjs [--check]` from this directory.
-Details and remaining device evidence:
-[Native text baseline guide](../../docs/native-text-inheritance-baseline.md#shared-reference-and-native-comparison-preparation).
-
-Select `platform=android`, `android-scenario=text-inheritance`, diagnostics off,
-with no reused build, for the opt-in screenshot driver (#1102/#1112). It retains
-40 static/runtime observations and 30 opaque observations, including
-local override application/removal: 70 states / 121 intended comparisons /
-84 actions across all five bindings. AX provides actual Text
-bounds and mount IDs. A screenshot must also show the current mode marker,
-source-colored root/nested ink and white background. It then requires exact
-same-device crop pixels and dimensions between bindings, static shielding,
-runtime color/height change and restoration. No image translation, scaling,
-blur or per-pixel tolerance hides a mismatch. Bounds compare the visible
-Text region; they are not native line/span introspection or complete paragraph
-shaping conformance. Callback logs remain diagnostic, not a pass oracle.
-
-`hozo-native-showcase-android-text-evidence` retains evidence.json, every
-screenshot/AX dump, raw callback logcat, APK hash, source commit and fixture
-manifest. Failure stops immediately with partial observations retained;
-inputs are never retried. Full/SVG/release scenarios are unchanged. The
-analyzer's synthetic tests are not Android results; actual run evidence must
-be inspected separately before claiming emulator rendering equivalence.
-Physical devices, exact individual-property semantics, AT and performance
-remain separate checks. No production default changes.
-
-The [first dedicated Android measurement](../../docs/measurements/native-text-inheritance-android.md)
-reviewed all 24 states/40 comparisons and their actual screenshots/APK hash.
-That does not validate CoreText. For the separate iOS follow-up, select
-`platform=ios`, `ios-scenario=text-inheritance`, diagnostics off and no reused
-or rebundled binary. The same driver/comparator uses measured AX points and
-screen dimensions to crop Retina pixels, retaining both coordinate systems.
-Fresh archive/source/run checks, archive/JS-bundle hashes and unchanged
-failure screenshots/AX/syslog are recorded in `hozo-native-showcase-ios-evidence`.
-No pixel resizing, blur or extra tolerance is introduced. Its synthetic
-geometry/provenance tests are not an iOS rendering result; inspect the actual
-dedicated run before claiming equivalence. Default full/SVG/Canvas/release
-coverage is unchanged.
-
-The [first dedicated iOS measurement](../../docs/measurements/native-text-inheritance-ios.md)
-also reviewed the original 24 states and archive/bundle hashes. Neither that
-sample nor the Android sample certifies the expanded opaque/production cases.
-The separate [production review](../../docs/measurements/native-text-inheritance-production.md)
-checks the previous 56-state four-panel run on each OS, including the opaque
-boundary, actual binary hashes and independent raw PNG/AX recomputation.
-`scripts/review-text-evidence.mjs` reproduces that offline check; the report
-lists its commands, visual subset and limits. That historical run does not
-certify this new five-panel fixture or production static selection; fresh
-Android/iOS builds and raw review are required. No performance, default
-production fallback or ADR acceptance follows.
+This showcase used to carry RFC 006's device comparison (`Diagnostics/Text inheritance`).
+It was removed with RFC 006's route in #2057, once
+[decision 013](../../docs/decisions/013-text-inheritance-compiled-where-visible.md)
+became the Native default. What it measured is kept in the
+[Android](../../docs/measurements/native-text-inheritance-android.md),
+[iOS](../../docs/measurements/native-text-inheritance-ios.md) and
+[production](../../docs/measurements/native-text-inheritance-production.md) reports.
 
 Manual checks on both platforms: select every story; toggle `disabled`; press
 and reset the counter; type/save a name; open/close the keyboard; assemble and

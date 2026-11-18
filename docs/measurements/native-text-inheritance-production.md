@@ -1,5 +1,7 @@
 # Native text inheritance: production-owned helpers on Android and iOS
 
+> **Historical.** The device probe, its evidence scripts and the `text-inheritance` device scenario were removed in #2057, with RFC 006's route, once [decision 013](../decisions/013-text-inheritance-compiled-where-visible.md) became the Native default. The commands below ran at the commits they name.
+
 Reviewed dedicated run: [39365177992](https://github.com/iray-tno/hozo/actions/runs/39365177992),
 source `83d96d9c32da00ba312eb16920e790ea58272728` (#1125).
 This completes the bounded rendering review in [#1123](https://github.com/iray-tno/hozo/issues/1123)
@@ -32,7 +34,7 @@ It is not an independent exhaustive test of each property.
 
 ## Independent raw review
 
-The offline [reviewer](../../examples/native-showcase/scripts/review-text-evidence.mjs)
+The offline [reviewer](https://github.com/iray-tno/hozo/blob/83d96d9c32da00ba312eb16920e790ea58272728/examples/native-showcase/scripts/review-text-evidence.mjs)
 does not import the smoke driver's crop, AX or pixel helpers. It reads raw
 PNG bytes and XML/JSON AX trees, independently finds unique Text/marker
 nodes, maps iOS points to the observed 3x pixels, slices RGBA rows and
