@@ -163,6 +163,14 @@ export async function prepareCandidateModule(
       orderingPolicy: TAILWIND_SCALAR_ORDER_POLICY,
       stylesheet: snapshot.serialize(),
       candidates: [...names].sort(),
+      // Every name the on-device map holds, refused ones included (they warn
+      // there themselves). Not the ordering seed above, which also holds the
+      // static classes: a worker reports a carried class missing from this.
+      ...(runtimePlan && {
+        runtimeCandidates: [
+          ...new Set(runtimePlan.entries.map(({ candidate }) => candidate)),
+        ].sort(),
+      }),
       // Admission needs emitted fallback entries, not the larger order seed.
       // Ordinary builds do not transport this experimental inventory.
       ...(ownerContributions &&

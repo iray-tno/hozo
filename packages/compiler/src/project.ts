@@ -10,6 +10,8 @@ import { readAnalysisAliases } from './analysis-config.ts'
 import {
   type CandidateCache,
   type ClassHelper,
+  type CompileDiagnostic,
+  type Compiler,
   classHelperCandidates,
   type FontAvailability,
   inspectStaticModuleImports,
@@ -1087,4 +1089,69 @@ export function projectTextForwarding(
     if (found.length > 0) out[importer] = found
   }
   return { importers: out, sources: [...sources].sort() }
+}
+
+/**
+ * The classes this file hands to the run-time resolver that the resolver's
+ * map does not hold (#2048).
+ *
+ * A class the compiler could not read is looked up at run time in the
+ * project-wide candidate map, which the startup scan built. A file the scan
+ * did not cover -- outside `content`, or edited since -- can carry a class
+ * that is not in it, and then that class simply does not apply. This scans
+ * the file the way the startup scan would and reports what it would have
+ * added.
+ *
+ * The scan collects anything shaped like a class, including a string such
+ * as `markPressed('rounded-rect')`. So a name absent from the map is
+ * reported only when it compiles to a style with this project's theme,
+ * which is what the map would have held for it. Absent names are rare, so
+ * the compile is paid almost never.
+ *
+ * `known` is every name the map holds, including those it refuses on this
+ * platform, which already warn at run time. It is not the ordering seed.
+ */
+export function classesMissingFromRuntimeMap(
+  source: string,
+  file: string,
+  known: ReadonlySet<string>,
+  compiler: Pick<Compiler, 'compileNative'>,
+  sources?: readonly string[],
+): CompileDiagnostic[] {
+  const cache = openCandidateCache(undefined, sources ? [...sources] : undefined)
+  cache.scanFile(file, source, 0)
+  const missing = cache
+    .candidates()
+    .filter((name) => !known.has(name) && compilesToStyle(name, compiler))
+    .sort()
+  return missing.map((name) => {
+    const at = firstOccurrence(source, name)
+    const line = at < 0 ? 0 : source.slice(0, at).split('\n').length
+    return {
+      code: 'CLASS_NOT_IN_RUNTIME_MAP',
+      severity: 'warning',
+      message:
+        `\`${name}\` (${path.basename(file)}${line ? `:${line}` : ''}) is resolved at run time, ` +
+        "and the project's candidate map does not have it, so it will not apply. Include this " +
+        "file in the project's `content`, or restart the bundler if it was edited after startup.",
+      spanStart: Math.max(at, 0),
+      spanEnd: Math.max(at, 0) + (at < 0 ? 0 : name.length),
+    }
+  })
+}
+
+/** Whether `name`, written as a static class, gives an element any style. */
+function compilesToStyle(name: string, compiler: Pick<Compiler, 'compileNative'>): boolean {
+  if (!/^[\w:./[\]()#%!-]+$/.test(name)) return false
+  const [component] = compiler.compileNative(
+    `import {View} from '@hozo/core';const el=<View className="${name}"/>`,
+  )
+  // A property with a value, not just the empty entry an unknown name gets.
+  return /[A-Za-z]+:\s*[^\s{]/.test(component?.styles ?? '')
+}
+
+/** Where `name` is first written as a whole class token. */
+function firstOccurrence(source: string, name: string): number {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return source.search(new RegExp(`(?<![\\w:-])${escaped}(?![\\w-])`))
 }

@@ -318,6 +318,12 @@ pub enum DiagnosticCode {
     /// rule only when that exact name is written literally somewhere else in
     /// the project. Mapping each value to a whole class makes it compile.
     ClassNameAssembled,
+    /// A class a file hands to the run-time resolver that the on-device class
+    /// map does not hold, so it does not apply. The map is built from the
+    /// project scan at startup; a file outside the scan's `content`, or one
+    /// edited since, can carry a class that is not in it. Reported by the
+    /// bundler integration, which holds that map, not by the compiler.
+    ClassNotInRuntimeMap,
     /// A prop whose value decides something the compiler has to write down
     /// once, and whose value isn't known until runtime.
     ///
@@ -6802,6 +6808,7 @@ impl DiagnosticCode {
             DiagnosticCode::DynamicClassNameNotResolved => "DYNAMIC_CLASS_NAME_NOT_RESOLVED",
             DiagnosticCode::ClassNamePassedThrough => "CLASS_NAME_PASSED_THROUGH",
             DiagnosticCode::ClassNameAssembled => "CLASS_NAME_ASSEMBLED",
+            DiagnosticCode::ClassNotInRuntimeMap => "CLASS_NOT_IN_RUNTIME_MAP",
             DiagnosticCode::DynamicPropNotResolved => "DYNAMIC_PROP_NOT_RESOLVED",
             DiagnosticCode::TailwindVariantCannotMatch => "TAILWIND_VARIANT_CANNOT_MATCH",
             DiagnosticCode::VisitedStyleIgnored => "VISITED_STYLE_IGNORED",

@@ -81,11 +81,12 @@
     "falsePositives": 0
   },
   "diagnostics": {
-    "declared": 38,
+    "declared": 39,
     "fires": 37,
     "silent": 0,
     "noCase": 0,
-    "unreachable": 1
+    "unreachable": 1,
+    "integration": 1
   },
   "rnwFree": {
     "cases": 20,

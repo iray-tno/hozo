@@ -199,7 +199,8 @@ export function Accessibility() {
       </Stat>
       <Stat label="Diagnostics that fire" value={`${diagnostics.fires} / ${diagnostics.declared}`}>
         Each provoked by a case. {diagnostics.silent} stayed silent, {diagnostics.noCase} has no
-        case yet, and {diagnostics.unreachable} is a defensive branch nothing can reach.
+        case yet, {diagnostics.unreachable} is a defensive branch nothing can reach, and{' '}
+        {diagnostics.integration ?? 0} is raised by a bundler integration rather than the compiler.
       </Stat>
       <Stat label="Platform contracts" value={`${a11yContracts.covered} / ${a11yContracts.cases}`}>
         Cases that compile one source through both backends and state what each must produce. They

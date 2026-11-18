@@ -65,15 +65,17 @@ export async function buildCatalog() {
       summary: summary.get(code) ?? '',
       ...(example && 'unreachable' in example
         ? { unreachable: example.unreachable }
-        : example
-          ? {
-              example: {
-                ...(example.module ? { module: example.module } : { jsx: example.jsx }),
-                backend: example.backend,
-              },
-              emitted: example.emitted,
-            }
-          : {}),
+        : example && 'raisedBy' in example
+          ? { raisedBy: example.raisedBy }
+          : example
+            ? {
+                example: {
+                  ...(example.module ? { module: example.module } : { jsx: example.jsx }),
+                  backend: example.backend,
+                },
+                emitted: example.emitted,
+              }
+            : {}),
     }
   }
   return `${JSON.stringify({ schemaVersion: 1, codes }, null, 2)}\n`

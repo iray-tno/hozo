@@ -442,7 +442,8 @@ console.log(
     `  fire when provoked  ${diagnosticCount('FIRES')}\n` +
     `  stayed silent       ${diagnosticCount('SILENT')}   (has to be zero)\n` +
     `  no case written     ${diagnosticCount('NO_CASE')}   (has to be zero)\n` +
-    `  unreachable by design ${diagnosticCount('UNREACHABLE')}`,
+    `  unreachable by design ${diagnosticCount('UNREACHABLE')}\n` +
+    `  raised by a bundler integration ${diagnosticCount('INTEGRATION')}`,
 )
 for (const result of diagnostics) {
   if (result.verdict === 'FIRES') continue
@@ -455,6 +456,7 @@ record('diagnostics', {
   silent: diagnosticCount('SILENT'),
   noCase: diagnosticCount('NO_CASE'),
   unreachable: diagnosticCount('UNREACHABLE'),
+  integration: diagnosticCount('INTEGRATION'),
 })
 
 record('rnwFree', { cases: rnwFree.length, covered: rnwFreeCovered })
