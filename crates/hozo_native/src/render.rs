@@ -940,7 +940,13 @@ pub(super) fn render_node(
     // the compiler cannot see publishes them around its children instead,
     // as far as the run-time protocol can carry them. What it cannot carry
     // keeps the warning below.
+    //
+    // Only inside a plain `View`. A runtime component -- a table section, a
+    // pressable styling its label -- reads its direct children, and a scope
+    // between them would hide every one of them from it. So would a
+    // `ScrollView`'s `stickyHeaderIndices`, which count them.
     let unified_scope: Vec<StyleDeclaration> = if cx.text_unified
+        && matches!(component, "View" | "Animated.View")
         && !forwards_label
         && !is_text_primitive(node.primitive)
         && !renders_text(component)

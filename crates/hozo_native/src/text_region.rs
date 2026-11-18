@@ -415,6 +415,18 @@ mod tests {
     }
 
     #[test]
+    fn unified_scope_never_hides_children_from_a_component_that_reads_them() {
+        // A table section clones its rows; a ScrollView counts its children.
+        for source in [
+            "<Table className=\"text-sm\"><TableBody>{rows}</TableBody></Table>",
+            "<ScrollView className=\"text-sm\">{rows}</ScrollView>",
+        ] {
+            let out = unified(source);
+            assert!(!out.jsx.contains("HozoInheritedScope"), "{}", out.jsx);
+        }
+    }
+
+    #[test]
     fn every_own_field_is_required_and_static_cannot_widen_the_protocol_domain() {
         let source = format!("import {{Text}} from '@hozo/core';const el=<Text className=\"{COMPLETE}\">Label</Text>");
         let parsed = hozo_parser::parse_tsx(&source);
