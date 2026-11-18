@@ -151,14 +151,9 @@ test('Native ready attempts reject incompatible text options before returning hi
       () =>
         compiler.compileNativeOrPrepare(input, context, undefined, undefined, {
           textReference: true,
-          textInheritance: true,
+          textUnified: true,
         }),
-      /Select one/,
-    )
-    assert.throws(
-      () =>
-        compiler.compileNativeOrPrepare(input, context, undefined, undefined, { textStatic: true }),
-      /requires textInheritance/,
+      /textUnified is its own route/,
     )
   }
 })

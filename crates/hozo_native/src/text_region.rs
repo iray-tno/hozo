@@ -1,11 +1,9 @@
-//! A deliberately small first static proof. Class resolution and Native
-//! scalar conversion remain owned by the existing parser/style lowering.
-//! Failure means the unchanged inheritance helper, not an authoring error.
+//! Decision 013's per-element assessment: what the run-time inheritance
+//! protocol can carry, and when a Text needs no reader at all. Class
+//! resolution and Native scalar conversion stay with the ordinary lowering.
 use std::collections::HashSet;
 
-use hozo_ir::{
-    Child, Condition, Length, LetterSpacing, LineHeight, Node, Primitive, StyleProperty, Theme,
-};
+use hozo_ir::{Child, Condition, Length, LetterSpacing, LineHeight, Node, StyleProperty, Theme};
 
 const FIELDS: [&str; 7] = [
     "color",
@@ -16,208 +14,6 @@ const FIELDS: [&str; 7] = [
     "textAlign",
     "textTransform",
 ];
-
-// Both routes assess the same protocol domain. A static proof must not
-// bypass an unassessed animation/relative CSS declaration just because ordinary
-// output happens to need no generated adapter for one value of it.
-pub(super) fn passive(node: &Node) -> bool {
-    // Reuse the existing transition planner and owner. A broad colour list is
-    // assessed only when the changing paints are text/background; a conditional
-    // border/gradient/etc still fails assessed_style below. Authored box styles
-    // could change without an interaction, which the box driver does not track.
-    let background_motion = node.style.iter().any(|style| {
-        matches!(&style.property, StyleProperty::TransitionProperty(value)
-            if inherited_color_properties(value) == Some(true))
-    });
-    let label_motion = matches!(node.primitive, Primitive::Button | Primitive::Pressable)
-        && node.carried_classes.is_empty()
-        && node.props.passthrough.iter().all(|prop| !prop.is_spread)
-        && (!background_motion
-            || (node.props.passthrough.iter().all(|prop| prop.name.as_deref() != Some("style"))
-                && node.style.iter().any(|style| matches!(style.property, StyleProperty::TextColor(_)) && style.condition == Condition::Always)))
-        && node.style.iter().any(|style| matches!(&style.property, StyleProperty::TransitionProperty(value) if inherited_color_properties(value) == Some(background_motion)))
-        && node.style.iter().all(|style| !matches!(&style.property, StyleProperty::TransitionProperty(value) if inherited_color_properties(value) != Some(background_motion)))
-        && super::transition::native_driver_transition(node, &node.style)
-            .is_some_and(|(_, _, _, opacity, transform, colors)| colors && !opacity && !transform);
-    let chip_label = node.primitive == Primitive::Chip
-        && node.props.passthrough.iter().all(|prop| {
-            // Fully opaque slots stay passthrough rather than becoming
-            // SlotStyle fallback leaves. Neither representation is assessed.
-            let opaque_slot = node
-                .primitive
-                .class_slots()
-                .iter()
-                .any(|slot| prop.name.as_deref() == Some(slot.class_prop));
-            !prop.is_spread && prop.name.is_some() && !opaque_slot
-        });
-    let assessed_style = |style: &hozo_ir::StyleDeclaration| {
-        (style.condition == Condition::Always
-            || (chip_label || matches!(node.primitive, Primitive::Button | Primitive::Pressable))
-                && (super::text::is_text_property(&style.property)
-                    || label_motion
-                        && background_motion
-                        && matches!(style.property, StyleProperty::BackgroundColor(_)))
-                && label_condition(&style.condition))
-            && (label_motion
-                || !matches!(
-                    style.property,
-                    StyleProperty::TransitionProperty(..)
-                        | StyleProperty::TransitionDuration(..)
-                        | StyleProperty::TransitionDelay(..)
-                        | StyleProperty::TransitionTimingFunction(..)
-                ))
-            && !matches!(
-                style.property,
-                StyleProperty::AnimationName(..)
-                    | StyleProperty::Animation(..)
-                    | StyleProperty::ThemeAnimation(..)
-                    | StyleProperty::FontFamily(..)
-                    | StyleProperty::Keyword("font-style" | "font-variant-numeric", _)
-                    | StyleProperty::FontVariant(..)
-                    | StyleProperty::LineHeight(LineHeight::Ratio(..))
-                    | StyleProperty::LetterSpacing(LetterSpacing::Em(..))
-                    | StyleProperty::FontSize(Length::Unit(_, hozo_ir::LengthUnit::Em))
-                    | StyleProperty::LineHeight(LineHeight::Length(Length::Unit(
-                        _,
-                        hozo_ir::LengthUnit::Em
-                    )))
-                    | StyleProperty::LetterSpacing(LetterSpacing::Px(Length::Unit(
-                        _,
-                        hozo_ir::LengthUnit::Em
-                    )))
-            )
-    };
-    (chip_label
-        || matches!(
-            node.primitive,
-            Primitive::View
-                | Primitive::Text
-                | Primitive::Paragraph
-                | Primitive::Strong
-                | Primitive::Heading
-                | Primitive::Small
-                | Primitive::Sub
-                | Primitive::Sup
-                | Primitive::Mark
-                | Primitive::NoBreak
-                | Primitive::Button
-                | Primitive::Pressable
-        ))
-        && !matches!(
-            node.props.heading_level,
-            Some(hozo_ir::HeadingLevel::Dynamic(_))
-        )
-        && node.class_name_fallback.is_empty()
-        && node.style.iter().all(assessed_style)
-        // A removable Chip owns a second class slot. Assess it by the same
-        // scalar/condition rules as the row; a root-only check misses fonts,
-        // animation and dynamic candidates in the removal label.
-        && node.props.class_slots.iter().all(|slot| {
-            slot.fallback.is_empty()
-                && slot.carried.is_empty()
-                && slot.style.iter().all(assessed_style)
-        })
-        && node.children.iter().all(|child| match child {
-            Child::Node(node) => passive(node),
-            Child::Verbatim { nested, .. } => nested.iter().all(|nested| passive(&nested.node)),
-            Child::Text(_) => true,
-        })
-}
-
-// This is an assessment gate, not another CSS transition planner. Extra colour
-// properties are harmless only while constant; assessed_style rejects changes
-// to them. In particular `all` must not certify an unrelated jumping property.
-fn inherited_color_properties(value: &str) -> Option<bool> {
-    let mut color = false;
-    let mut background = false;
-    for property in value.split(',').map(str::trim) {
-        match property {
-            "color" => color = true,
-            "background-color" => background = true,
-            "border-color"
-            | "outline-color"
-            | "text-decoration-color"
-            | "fill"
-            | "stroke"
-            | "--tw-gradient-from"
-            | "--tw-gradient-via"
-            | "--tw-gradient-to" => (),
-            _ => return None,
-        }
-    }
-    color.then_some(background)
-}
-
-// Only the existing control's own event predicates are assessed here. Do
-// not turn this gate into a second condition evaluator or grant decorative
-// descendants an outer control's events. Guards/codegen still own evaluation.
-fn label_condition(condition: &Condition) -> bool {
-    match condition {
-        Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => true,
-        Condition::All(parts) => !parts.is_empty() && parts.iter().all(label_condition),
-        _ => false,
-    }
-}
-
-pub(super) fn prove(root: &Node, theme: &Theme) -> Result<(), &'static str> {
-    fn prove_node(node: &Node, theme: &Theme, root: bool) -> Result<(), &'static str> {
-        if node.primitive != Primitive::Text
-            || !node.class_name_fallback.is_empty()
-            || !node.carried_classes.is_empty()
-            || !node.props.stylex_residuals.is_empty()
-        {
-            return Err("not a closed Text-only style region");
-        }
-        if node.props.passthrough.iter().any(|prop| {
-            prop.is_spread
-                || matches!(
-                    prop.name.as_deref(),
-                    Some("style" | "children" | "className")
-                )
-        }) {
-            return Err("authored style, children or spread can override the static frame");
-        }
-        let mut fields = HashSet::new();
-        for declaration in &node.style {
-            if declaration.condition != Condition::Always {
-                return Err("conditional declaration");
-            }
-            if matches!(
-                declaration.property,
-                StyleProperty::FontSize(Length::Unit(..))
-                    | StyleProperty::LineHeight(LineHeight::Ratio(..))
-                    | StyleProperty::LineHeight(LineHeight::Length(Length::Unit(..)))
-                    | StyleProperty::LetterSpacing(LetterSpacing::Em(..))
-                    | StyleProperty::LetterSpacing(LetterSpacing::Px(Length::Unit(..)))
-            ) {
-                return Err("relative or unresolved metric");
-            }
-            for (name, value) in super::style::property_and_value(&declaration.property, theme) {
-                if matches!(name, "fontFamily" | "fontStyle" | "fontVariant") {
-                    return Err("outside the seven-field protocol");
-                }
-                if FIELDS.contains(&name) {
-                    if !scalar(name, &value) {
-                        return Err("not a supported resolved scalar");
-                    }
-                    fields.insert(name.to_string());
-                }
-            }
-        }
-        if root && !FIELDS.iter().all(|name| fields.contains(*name)) {
-            return Err("root does not own all seven fields");
-        }
-        for child in &node.children {
-            match child {
-                Child::Text(_) => (),
-                Child::Node(child) => prove_node(child, theme, false)?,
-                Child::Verbatim { .. } => return Err("opaque child may read or publish a frame"),
-            }
-        }
-        Ok(())
-    }
-    prove_node(root, theme, true)
-}
 
 /// Decision 013: a declaration the run-time protocol can carry as written.
 /// Unconditional, resolved, and only the seven fields. Anything else stays
@@ -304,62 +100,6 @@ mod tests {
     use super::*;
     const COMPLETE: &str = "text-[#111111] text-[22px] leading-[32px] tracking-[1px] font-semibold text-left uppercase";
 
-    #[test]
-    fn complete_classes_delegate_to_existing_lowering_only_inside_the_proof() {
-        let source = format!("import {{Text}} from '@hozo/core'; const el=<Text className=\"{COMPLETE}\">Parent<Text className=\"text-[#1355bb] font-medium\">Nested</Text></Text>");
-        let parsed = hozo_parser::parse_tsx(&source);
-        let root = &parsed.roots[0].node;
-        assert_eq!(prove(root, &Theme::default()), Ok(()));
-        let normal = crate::lower(root, &source, &Theme::default());
-        let optimized =
-            crate::lower_text_inheritance_static(root, &[], &source, &Theme::default(), true);
-        assert_eq!(optimized.jsx, normal.jsx);
-        assert_eq!(optimized.styles, normal.styles);
-        assert!(optimized.runtime_imports.is_empty());
-        let unproved =
-            crate::lower_text_inheritance_static(root, &[], &source, &Theme::default(), false);
-        assert!(unproved.runtime_imports.contains(&"HozoInheritedText"));
-    }
-
-    #[test]
-    fn incomplete_dynamic_and_opaque_regions_keep_the_runtime_route() {
-        for (attrs, children) in [
-            ("className=\"text-red-500\"".to_string(), "Label"),
-            (
-                format!("className=\"{COMPLETE}\" style={{{{color:'#112233'}}}}"),
-                "Label",
-            ),
-            (format!("className=\"{COMPLETE}\" {{...props}}"), "Label"),
-            (
-                format!("className=\"{COMPLETE}\" children={{children}}"),
-                "Label",
-            ),
-            (format!("className=\"{COMPLETE}\""), "<Opaque/>"),
-            (
-                format!("className=\"{COMPLETE}\""),
-                "<View><Text>Nested</Text></View>",
-            ),
-            (
-                format!("className=\"{COMPLETE}\""),
-                "<Text style={own}>Nested</Text>",
-            ),
-            (format!("className=\"{COMPLETE}\""), "{children}"),
-        ] {
-            let source = format!(
-                "import {{Text,View}} from '@hozo/core'; const el=<Text {attrs}>{children}</Text>"
-            );
-            let parsed = hozo_parser::parse_tsx(&source);
-            let root = &parsed.roots[0].node;
-            assert!(prove(root, &Theme::default()).is_err(), "{source}");
-            let runtime = crate::lower_text_inheritance(root, &[], &source, &Theme::default());
-            let optimized =
-                crate::lower_text_inheritance_static(root, &[], &source, &Theme::default(), true);
-            assert_eq!(optimized.jsx, runtime.jsx);
-            assert_eq!(optimized.styles, runtime.styles);
-            assert_eq!(optimized.runtime_imports, runtime.runtime_imports);
-        }
-    }
-
     fn unified(body: &str) -> crate::LowerOutput {
         let source = format!("import {{Text,View}} from '@hozo/core'; const el={body}");
         let parsed = hozo_parser::parse_tsx(&source);
@@ -433,37 +173,23 @@ mod tests {
     }
 
     #[test]
-    fn every_own_field_is_required_and_static_cannot_widen_the_protocol_domain() {
+    fn every_field_is_required_before_a_text_needs_no_reader() {
         let source = format!("import {{Text}} from '@hozo/core';const el=<Text className=\"{COMPLETE}\">Label</Text>");
         let parsed = hozo_parser::parse_tsx(&source);
+        let theme = Theme::default();
+        assert!(covers_protocol(&parsed.roots[0].node.style, &theme));
         for field in FIELDS {
             let mut root = parsed.roots[0].node.clone();
             root.style.retain(|declaration| {
-                !super::super::style::property_and_value(&declaration.property, &Theme::default())
+                !super::super::style::property_and_value(&declaration.property, &theme)
                     .iter()
                     .any(|(name, _)| *name == field)
             });
-            assert_eq!(
-                prove(&root, &Theme::default()),
-                Err("root does not own all seven fields"),
-                "{field}"
-            );
+            assert!(!covers_protocol(&root.style, &theme), "{field}");
         }
-        for extra in [
-            "transition-none",
-            "animate-none",
-            "font-sans",
-            "dark:text-red-500",
-            "tracking-wide",
-        ] {
-            let source = source.replace(COMPLETE, &format!("{COMPLETE} {extra}"));
-            let parsed = hozo_parser::parse_tsx(&source);
-            let root = &parsed.roots[0].node;
-            let runtime = crate::lower_text_inheritance(root, &[], &source, &Theme::default());
-            let optimized =
-                crate::lower_text_inheritance_static(root, &[], &source, &Theme::default(), true);
-            assert_eq!(optimized.jsx, runtime.jsx, "{extra}");
-            assert_eq!(optimized.diagnostics, runtime.diagnostics, "{extra}");
-        }
+        // A conditional value can be absent when it matters.
+        let dark = source.replace("text-[#111111]", "dark:text-[#111111]");
+        let parsed = hozo_parser::parse_tsx(&dark);
+        assert!(!covers_protocol(&parsed.roots[0].node.style, &theme));
     }
 }

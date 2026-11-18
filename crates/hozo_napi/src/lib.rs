@@ -747,9 +747,7 @@ pub struct NativeCompileOptions {
     pub owner_facts: Option<Vec<String>>,
     pub owner_text: Option<String>,
     pub text_reference: Option<bool>,
-    pub text_inheritance: Option<bool>,
-    pub text_static: Option<bool>,
-    /// Decision 013's route. Internal until the adapters select it.
+    /// Decision 013's route, which Metro selects by default.
     pub text_unified: Option<bool>,
     pub tailwind_plan: Option<bool>,
 }
@@ -788,10 +786,7 @@ impl NativeCompileOptions {
 
     fn validate_owner_style(&self) -> napi::Result<()> {
         if self.source_evidence.unwrap_or(false)
-            && (self.owner_style.unwrap_or(false)
-                || self.text_reference.unwrap_or(false)
-                || self.text_inheritance.unwrap_or(false)
-                || self.text_static.unwrap_or(false))
+            && (self.owner_style.unwrap_or(false) || self.text_reference.unwrap_or(false))
         {
             return Err(napi::Error::from_reason(
                 "Internal sourceEvidence requires ordinary Native lowering",
@@ -805,11 +800,7 @@ impl NativeCompileOptions {
                 ));
             }
         }
-        if self.owner_style.unwrap_or(false)
-            && (self.text_reference.unwrap_or(false)
-                || self.text_inheritance.unwrap_or(false)
-                || self.text_static.unwrap_or(false))
-        {
+        if self.owner_style.unwrap_or(false) && self.text_reference.unwrap_or(false) {
             return Err(napi::Error::from_reason(
                 "Internal ownerStyle cannot be combined with text experiments",
             ));
@@ -817,9 +808,7 @@ impl NativeCompileOptions {
         // Source evidence may accompany it: the route only wraps rendered
         // fragments, so the copied source spans stay exact.
         if self.text_unified.unwrap_or(false)
-            && (self.owner_style.unwrap_or(false)
-                || self.text_reference.unwrap_or(false)
-                || self.text_inheritance.unwrap_or(false))
+            && (self.owner_style.unwrap_or(false) || self.text_reference.unwrap_or(false))
         {
             return Err(napi::Error::from_reason(
                 "textUnified is its own route; select no other text or owner experiment with it",
@@ -949,8 +938,7 @@ impl Compiler {
     /// source_file selects grammar; omitted retains the historical TSX API.
     /// options.text_reference is internal RFC 006 test wiring, never a project option;
     /// its output requires private contextual hosts and is not a shipped ABI.
-    /// options.text_inheritance selects the bounded production-owned ABI for
-    /// internal evaluation, also per-call and never a project option.
+    /// options.text_unified selects decision 013's route, Metro's default.
     #[napi]
     pub fn compile_native_module(
         &self,
@@ -974,9 +962,6 @@ impl Compiler {
                 owner_split_text: options.owner_text.is_some(),
                 text_reference: options.text_reference.unwrap_or(false),
                 owner_style: options.owner_style.unwrap_or(false),
-                text_inheritance: options.text_inheritance.unwrap_or(false),
-                text_static: options.text_static.unwrap_or(false)
-                    && options.text_inheritance.unwrap_or(false),
                 text_unified: options.text_unified.unwrap_or(false),
                 tailwind: TailwindPlanOptions {
                     context: self.tailwind_order.as_deref(),
@@ -1000,7 +985,6 @@ impl Compiler {
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
             None,
-            false,
             &self.text_forwarding,
             &self.class_helpers,
         );
@@ -1720,7 +1704,6 @@ fn lower_native(
         sources,
         stylex,
         None,
-        false,
         text_forwarding,
         class_helpers,
     );
@@ -1745,8 +1728,6 @@ struct NativeModuleOptions<'a> {
     owner_split_text: bool,
     source_file: Option<&'a str>,
     text_reference: bool,
-    text_inheritance: bool,
-    text_static: bool,
     text_unified: bool,
     tailwind: TailwindPlanOptions<'a>,
 }
@@ -1768,7 +1749,6 @@ fn lower_native_module(
         sources,
         stylex,
         options.source_file,
-        options.text_static,
         text_forwarding,
         class_helpers,
     );
@@ -1783,7 +1763,6 @@ fn parse_native_module(
         &[hozo_parser::StylexExternalBinding],
     )>,
     source_file: Option<&str>,
-    text_static: bool,
     text_forwarding: &hozo_parser::ForwardingTable,
     class_helpers: &[hozo_parser::ClassHelper],
 ) -> hozo_parser::ParseOutput {
@@ -1791,12 +1770,7 @@ fn parse_native_module(
         Some((registry, bindings)) => (Some(registry), bindings),
         None => (None, &[][..]),
     };
-    let parse = if text_static {
-        hozo_parser::parse_module_with_text_regions
-    } else {
-        hozo_parser::parse_module_for_file_with_helpers
-    };
-    let mut parsed = parse(
+    let mut parsed = hozo_parser::parse_module_for_file_with_helpers(
         source,
         sources,
         registry,
@@ -1913,16 +1887,6 @@ fn lower_native_components(
                     focus_visible: style.focus_visible,
                 });
                 output
-            } else if options.text_inheritance && !parsed.stable_text_roots.is_empty() {
-                hozo_native::lower_text_inheritance_static(
-                    &root.node,
-                    &root.forwarded,
-                    source,
-                    theme,
-                    parsed.stable_text_roots.contains(&root.node.span),
-                )
-            } else if options.text_inheritance {
-                hozo_native::lower_text_inheritance(&root.node, &root.forwarded, source, theme)
             } else if options.text_reference {
                 hozo_native::lower_text_reference(&root.node, &root.forwarded, source, theme)
             } else if options.text_unified {

@@ -75,11 +75,7 @@ test('the style-only request uses the actual compiler theme and is separate from
   const result = compiler.compileNativeModule(input, undefined, undefined, { ownerStyle: true })
   assert.ok(result.components[0]!.ownerStyle)
   assert.match(result.components[0]!.styles, /#123456/)
-  for (const textMode of [
-    { textReference: true },
-    { textInheritance: true },
-    { textStatic: true },
-  ]) {
+  for (const textMode of [{ textReference: true }]) {
     assert.throws(
       () =>
         compiler.compileNativeModule(input, undefined, undefined, {

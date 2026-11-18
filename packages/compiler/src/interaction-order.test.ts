@@ -24,7 +24,8 @@ function props(
   errors: string[] = [],
   authored?: PreparedTailwindContext,
 ) {
-  const options = { textInheritance: inherited }
+  // `inherited`: the default Native route, decision 013's, beside ordinary output.
+  const options = { textUnified: inherited }
   const component = (
     authored
       ? compiler.prepareNativeModule(source, undefined, undefined, options).emit(authored)
@@ -46,7 +47,6 @@ function props(
       module,
       children: null,
       HozoPressable: 'owner',
-      HozoInheritedPressable: 'owner',
       HozoChip: 'owner',
       hozoFilterStyles,
       remove: () => {},

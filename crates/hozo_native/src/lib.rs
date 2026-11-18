@@ -243,11 +243,8 @@ pub(crate) struct NativeRenderContext<'a> {
     /// RFC 006 experiment only; normal lowering never enables it. The
     /// resulting owner styles require the private contextual test hosts.
     pub text_reference: bool,
-    /// Internal per-call runtime integration. Never a project/default mode.
-    pub text_inheritance: bool,
     /// Decision 013: forwarding stays compiled; only what the build cannot
-    /// see reads the inheritance protocol at run time. Exclusive with
-    /// `text_inheritance`, which makes every element a reader.
+    /// see reads the inheritance protocol at run time.
     pub text_unified: bool,
     /// How many text hosts enclose the element being rendered. React Native
     /// inherits inside a Text, so only an element at depth 0 is outermost.
@@ -318,7 +315,7 @@ pub fn lower_forwarded(
     source: &str,
     theme: &Theme,
 ) -> LowerOutput {
-    lower_forwarded_impl(root, forwarded, source, theme, false, false)
+    lower_forwarded_impl(root, forwarded, source, theme, false)
 }
 
 /// Same ordinary renderer, with exact surviving child fragments. No default
@@ -353,45 +350,7 @@ pub fn lower_text_reference(
     source: &str,
     theme: &Theme,
 ) -> LowerOutput {
-    lower_forwarded_impl(root, forwarded, source, theme, true, false)
-}
-
-/// Production-owned ABI for passive roots and bounded semantic typography.
-/// Conservative opt-in: interaction, relative CSS metrics and layout adapters
-/// still need their own integration. The static entry point proves erasure.
-#[doc(hidden)]
-pub fn lower_text_inheritance(
-    root: &Node,
-    forwarded: &[StyleDeclaration],
-    source: &str,
-    theme: &Theme,
-) -> LowerOutput {
-    if text_region::passive(root) {
-        let output = lower_forwarded_impl(root, forwarded, source, theme, true, true);
-        if output.runtime_imports.iter().all(|name| {
-            matches!(
-                *name,
-                "HozoInheritedText"
-                    | "HozoInheritedRelativeText"
-                    | "HozoInheritedView"
-                    | "HozoInheritedPressable"
-                    | "HozoInheritedLabel"
-                    | "HozoChip"
-            )
-        }) {
-            return output;
-        }
-    }
-    // An explicitly requested internal path must not silently certify a
-    // partially integrated owner. Ordinary output itself is kept intact.
-    let mut output = lower_forwarded(root, forwarded, source, theme);
-    output.diagnostics.push(Diagnostic {
-        code: DiagnosticCode::NotWiredOnNative,
-        severity: Severity::Error,
-        message: "Internal text inheritance currently assesses passive Text/View, bounded semantic typography, Button/Pressable labels and Chip row/toggle/removal labels without spreads. Button/Pressable can additionally use planned colour transitions: explicit transition-[color], or colour lists with a base text colour and class-owned background paint (no authored root style). Changing border/other paints and non-colour transitions remain unassessed. Chip secondary class slots must satisfy the same assessed scalar and condition rules as its root. Only label typography and the assessed moving background can additionally use that owner's hover/active/focus/focus-visible conditions and their conjunctions. Other conditional classes, animation, relative CSS metrics, dynamic heading levels, font families/styles/variants and additional generated adapters remain unassessed. This root retains ordinary lowering; it is not runtime-inheritance evidence.".to_string(),
-        span: root.span,
-    });
-    output
+    lower_forwarded_impl(root, forwarded, source, theme, true)
 }
 
 /// Decision 013's route: the ordinary renderer, with outermost Text reading
@@ -420,40 +379,12 @@ pub fn lower_text_unified(
     )
 }
 
-/// Opt-in static selection keeps the measured runtime route independently
-/// callable. Identity comes from the same parser AST; styles from this IR.
-#[doc(hidden)]
-pub fn lower_text_inheritance_static(
-    root: &Node,
-    forwarded: &[StyleDeclaration],
-    source: &str,
-    theme: &Theme,
-    stable_root: bool,
-) -> LowerOutput {
-    if stable_root
-        && forwarded.is_empty()
-        && text_region::passive(root)
-        && text_region::prove(root, theme).is_ok()
-    {
-        let output = lower_forwarded(root, forwarded, source, theme);
-        if output.runtime_imports.is_empty()
-            && output.prelude.is_empty()
-            && output.diagnostics.is_empty()
-            && output.native_imports.iter().all(|name| *name == "Text")
-        {
-            return output;
-        }
-    }
-    lower_text_inheritance(root, forwarded, source, theme)
-}
-
 fn lower_forwarded_impl(
     root: &Node,
     forwarded: &[StyleDeclaration],
     source: &str,
     theme: &Theme,
     text_reference: bool,
-    text_inheritance: bool,
 ) -> LowerOutput {
     lower_forwarded_capturing(
         root,
@@ -462,7 +393,6 @@ fn lower_forwarded_impl(
         theme,
         RenderOptions {
             text_reference,
-            text_inheritance,
             ..Default::default()
         },
         None,
@@ -472,7 +402,6 @@ fn lower_forwarded_impl(
 #[derive(Default)]
 struct RenderOptions {
     text_reference: bool,
-    text_inheritance: bool,
     text_unified: bool,
     source_evidence: bool,
 }
@@ -487,7 +416,6 @@ fn lower_forwarded_capturing(
 ) -> LowerOutput {
     let RenderOptions {
         text_reference,
-        text_inheritance,
         text_unified,
         source_evidence,
     } = options;
@@ -514,7 +442,6 @@ fn lower_forwarded_capturing(
         diagnostics: &mut diagnostics,
         runtime: &mut runtime,
         text_reference,
-        text_inheritance,
         text_unified,
         text_depth: 0,
         owner_style,

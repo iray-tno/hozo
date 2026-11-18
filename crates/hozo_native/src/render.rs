@@ -483,9 +483,7 @@ pub(super) fn render_node(
     // Recorded here, where the tag is decided, and only for the primitives
     // Hozo lowered: a carried `Child::Verbatim` keeps whatever the author
     // imported and must not be imported over.
-    if !(matches!(node.primitive, Primitive::Svg(_))
-        || cx.text_inheritance && matches!(component, "Text" | "View" | "Pressable"))
-    {
+    if !matches!(node.primitive, Primitive::Svg(_)) {
         cx.runtime.need_native(component);
     }
     // A transition on something that is not a control. `Pressable` has its
@@ -967,11 +965,7 @@ pub(super) fn render_node(
         && text_declarations
             .iter()
             .all(|d| crate::text_region::protocol_scalar(d, theme));
-    if !text_declarations.is_empty()
-        && !forwards_label
-        && !cx.text_inheritance
-        && !scope_carries_all
-    {
+    if !text_declarations.is_empty() && !forwards_label && !scope_carries_all {
         match text_reach(node) {
             TextReach::Certain => {}
             TextReach::Opaque => cx.diagnostics.push(unwired_variant(
@@ -1402,9 +1396,6 @@ pub(super) fn render_node(
     {
         cx.runtime.need_component("HozoTextInput");
         "HozoTextInput"
-    } else if component == "Pressable" && cx.text_inheritance {
-        cx.runtime.need_component("HozoInheritedPressable");
-        "HozoInheritedPressable"
     } else if component == "Pressable" && needs_interaction_host {
         cx.runtime.need_component("HozoPressable");
         "HozoPressable"
@@ -1416,14 +1407,9 @@ pub(super) fn render_node(
         // ratio travels to a component that can. Costs a context read, and
         // only here -- everything the compiler *can* resolve stays a plain
         // `Text` with a number in a stylesheet.
-        if cx.text_inheritance {
-            cx.runtime.need_component("HozoInheritedRelativeText");
-            "HozoInheritedRelativeText"
-        } else {
-            cx.runtime.need_component("HozoRelativeText");
-            "HozoRelativeText"
-        }
-    } else if publishes_size && !cx.text_inheritance {
+        cx.runtime.need_component("HozoRelativeText");
+        "HozoRelativeText"
+    } else if publishes_size {
         // The other half. This element holds the size the ratio above
         // needs and holds it in a form only React Native can evaluate, so
         // it says what it resolved to.
@@ -2126,13 +2112,6 @@ pub(super) fn render_node(
     }
     if node.primitive == Primitive::Chip {
         cx.runtime.need_component("HozoChip");
-        if cx.text_inheritance {
-            cx.runtime.need_component("HozoInheritedLabel");
-            cx.runtime.need_component("HozoInheritedText");
-            props_text.push_str(
-                " hozoInheritedLabel={HozoInheritedLabel} hozoInheritedText={HozoInheritedText}",
-            );
-        }
     }
     if node.primitive == Primitive::Avatar {
         cx.runtime.need_component("HozoAvatar");
@@ -3007,12 +2986,6 @@ pub(super) fn render_node(
             cx.runtime.need_component("HozoInheritedLeafText");
             "HozoInheritedLeafText"
         }
-    } else if cx.text_inheritance && rendered_component == "Text" {
-        cx.runtime.need_component("HozoInheritedText");
-        "HozoInheritedText"
-    } else if cx.text_inheritance && rendered_component == "View" {
-        cx.runtime.need_component("HozoInheritedView");
-        "HozoInheritedView"
     } else {
         rendered_component
     };

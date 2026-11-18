@@ -328,7 +328,6 @@ const reads = {
     'crates/hozo_parser/src/jsx.rs',
     'crates/hozo_parser/src/stylex.rs',
     'crates/hozo_parser/src/tailwind_variants.rs',
-    'crates/hozo_parser/src/text_regions.rs',
     'crates/hozo_native/src/lib.rs',
     'crates/hozo_native/src/runtime_classes.rs',
     'crates/hozo_native/src/conditions.rs',

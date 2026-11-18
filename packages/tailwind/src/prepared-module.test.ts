@@ -192,8 +192,8 @@ test('Native grammar, forwarding and text ABI choices survive the boundary', asy
   for (const options of [
     {},
     { textReference: true },
-    { textInheritance: true },
-    { textInheritance: true, textStatic: true },
+    { textUnified: true },
+    { textUnified: true, sourceEvidence: true },
   ]) {
     const expected = compiler.compileNativeModule(plain, undefined, undefined, options)
     const staged = compiler.prepareNativeModule(plain, undefined, undefined, options)
@@ -212,8 +212,12 @@ test('Native grammar, forwarding and text ABI choices survive the boundary', asy
     failure,
   )
   assert.throws(
-    () => compiler.prepareNativeModule(plain, undefined, undefined, { textStatic: true }),
-    /requires textInheritance/,
+    () =>
+      compiler.prepareNativeModule(plain, undefined, undefined, {
+        textUnified: true,
+        textReference: true,
+      }),
+    /textUnified is its own route/,
   )
 })
 
