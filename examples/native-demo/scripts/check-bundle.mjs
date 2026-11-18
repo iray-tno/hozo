@@ -173,10 +173,10 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // and the separate production measurement. The existing metric is retained.
 //
 // Raised to 545 KB with maintainer approval for #2049, when Native text
-// inheritance became the default (decision 013). The share went from 519,146
-// with `nativeTextInheritance: 'compiled'` to 530,317, all of it new runtime
+// inheritance became the default (decision 013). The share went from 526,338
+// with `nativeTextInheritance: 'compiled'` to 537,711, all of it new runtime
 // modules every app now loads: the reader and scope (`inherited-leaves`,
-// 4.2 KB with its forwards 5.6 KB), the inheritance contexts
+// 4.4 KB, with its forwards 5.8 KB), the inheritance contexts
 // (`text-inheritance`, 2.7 KB; its protocol leaf 1.1 KB) and the scope provider
 // (`inherited-text-scope`, 1.3 KB). Splitting them from RFC 006's whole-route
 // reader had already taken the increase down from 14,014.

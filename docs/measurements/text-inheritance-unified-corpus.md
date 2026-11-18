@@ -13,7 +13,7 @@ node packages/tailwind-conformance/src/text-inheritance-unified-corpus.ts
 
 ## What it counts
 
-- **The corpus:** every `.tsx` file under `packages/ui`, `packages/patterns`,
+- **The corpus:** every tracked `.tsx` file under `packages/ui`, `packages/patterns`,
   `packages/form`, `packages/typography`, `examples` and `apps/landing`, except
   tests, stories and `.web.tsx` halves. The same corpus decision 013 was
   measured on.
@@ -24,16 +24,16 @@ node packages/tailwind-conformance/src/text-inheritance-unified-corpus.ts
 
 ## Results
 
-On `feat/text-inheritance-default`, over 259 files with 286 Native components.
+On `feat/text-inheritance-default`, over 261 files with 287 Native components. Decision 013 counted 286 on `78e95a58`, walking the directories rather than git's index.
 
 | | Count |
 | --- | ---: |
-| Components with unchanged output | 93 |
+| Components with unchanged output | 95 |
 | Components with at least one reader | 192 |
-| Components with at least one scope | 14 |
+| Components with at least one scope | 11 |
 | Readers | 599 |
 | of which reset their context for an opaque child (`hozoOpaque`) | 212 |
-| Scopes | 26 |
+| Scopes | 18 |
 | `Text` left plain (nested, or setting all seven fields) | 98 |
 | Components with an error diagnostic ordinary lowering did not report | 0 |
 
@@ -48,6 +48,5 @@ cannot assess is lowered as it was before.
 - **Most components gain a reader.** Every outermost `Text` that does not set
   all seven fields reads the rest, so readers are common. Their cost is the
   0.25 µs per `Text` per commit measured beside this.
-- **Scopes are rare:** 26, in the 14 components where a text-styled container
-  has a child the compiler cannot see. Before, those children got none of the
-  container's text styles.
+- **Scopes are rare:** 18, in the 11 components where a text-styled `View` has a child the compiler cannot see. Before, those children got none of the container's text styles.
+- **A component that reads its own children gets no scope.** A table section or a pressable is one, and so is a `ScrollView`, whose sticky headers are counted by index. It keeps the ordinary warning.

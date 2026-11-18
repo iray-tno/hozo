@@ -74,6 +74,9 @@ export function HozoInheritedLeafText({
     </Component>
   )
 }
+// A pressable hands its text styles to a direct label (#876). The reader is
+// the compiled form of the `Text` that label is, so it must stay one.
+;(HozoInheritedLeafText as { hozoLabelText?: boolean }).hozoLabelText = true
 
 const EMPTY = Object.freeze({})
 

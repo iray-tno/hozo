@@ -1,8 +1,8 @@
 // Decision 013's corpus count: what the route changes in this repository's
 // own Native components, against ordinary lowering. Run from the repository
 // root: `node packages/tailwind-conformance/src/text-inheritance-unified-corpus.ts`.
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import path from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { createCompiler } from '../../compiler/src/index.ts'
 
 const ROOTS = [
@@ -14,16 +14,12 @@ const ROOTS = [
   'apps/landing/src',
 ]
 
-const files: string[] = []
-const walk = (dir: string) => {
-  for (const name of readdirSync(dir)) {
-    if (name === 'node_modules' || name === 'dist' || name.startsWith('.')) continue
-    const file = path.join(dir, name)
-    if (statSync(file).isDirectory()) walk(file)
-    else if (name.endsWith('.tsx') && !/\.(test|stories|web)\.tsx$/.test(name)) files.push(file)
-  }
-}
-for (const root of ROOTS) walk(root)
+// Tracked files only: a build or test run leaves generated `.tsx` behind.
+const files = execFileSync('git', ['ls-files', '--', ...ROOTS.map((root) => `${root}/*.tsx`)], {
+  encoding: 'utf8',
+})
+  .split('\n')
+  .filter((file) => file && !/\.(test|stories|web)\.tsx$/.test(file))
 
 const compiler = createCompiler()
 const count = {
