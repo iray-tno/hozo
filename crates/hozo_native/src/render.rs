@@ -120,23 +120,25 @@ pub(super) fn render_node(
     // Registered patterns resolve with their actual owner's state; ordinary
     // primitives keep their existing callback/prop state path below.
     for expr_ref in &node.class_name_fallback {
+        let code = hozo_parser::class_fallback_code(&source_text(source, *expr_ref), "className");
+        let message = if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
+            "`className` can't be resolved at build time. Its pattern slot resolves it on device \
+             from the project-wide candidate map with that owner's available state. \
+             Use a static string for build-time validation; runtime condition support remains limited."
+                .to_string()
+        } else {
+            format!(
+                "`{}` can't be resolved at build time, so it's resolved on device from the \
+                 project-wide candidate map. Conditional utilities (`hover:`, `md:`, `pressed:`) \
+                 can't be carried that way and will warn at runtime -- write those as a static \
+                 className so they compile to a real style variant.",
+                source_text(source, *expr_ref)
+            )
+        };
         cx.diagnostics.push(Diagnostic {
-            code: DiagnosticCode::DynamicClassNameNotResolved,
+            code,
             severity: Severity::Warning,
-            message: if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
-                "`className` can't be resolved at build time. Its pattern slot resolves it on device \
-                 from the project-wide candidate map with that owner's available state. \
-                 Use a static string for build-time validation; runtime condition support remains limited."
-                    .to_string()
-            } else {
-                format!(
-                    "`{}` can't be resolved at build time, so it's resolved on device from the \
-                     project-wide candidate map. Conditional utilities (`hover:`, `md:`, `pressed:`) \
-                     can't be carried that way and will warn at runtime -- write those as a static \
-                     className so they compile to a real style variant.",
-                    source_text(source, *expr_ref)
-                )
-            },
+            message: message + hozo_parser::class_fallback_note(code),
             span: node.span,
         });
     }
@@ -2439,11 +2441,13 @@ pub(super) fn render_node(
                 source,
                 written.evaluation.as_deref(),
             );
-            for _ in &expressions {
+            for expr in &written.fallback {
+                let code =
+                    hozo_parser::class_fallback_code(&source_text(source, *expr), slot.class_prop);
                 cx.diagnostics.push(Diagnostic {
-                    code: DiagnosticCode::DynamicClassNameNotResolved,
+                    code,
                     severity: Severity::Warning,
-                    message: format!("`{}` retains an opaque class expression resolved from the project-wide candidate map{}; use a static string for build-time validation.", slot.class_prop, if route.is_some() { " with its owner's available state" } else { "" }),
+                    message: format!("`{}` retains an opaque class expression resolved from the project-wide candidate map{}; use a static string for build-time validation.{}", slot.class_prop, if route.is_some() { " with its owner's available state" } else { "" }, hozo_parser::class_fallback_note(code)),
                     span: written.span,
                 });
             }
@@ -2501,8 +2505,9 @@ pub(super) fn render_node(
             let owned = crate::pattern::interaction_slot(node.primitive, slot.class_prop).is_some();
             let has_facts =
                 crate::pattern::constant_facts(node.primitive, slot.class_prop).is_some();
+            let code = hozo_parser::class_fallback_code(&expr, slot.class_prop);
             cx.diagnostics.push(Diagnostic {
-                code: DiagnosticCode::DynamicClassNameNotResolved,
+                code,
                 severity: Severity::Warning,
                 message: if owned || has_facts {
                     format!(
@@ -2519,7 +2524,7 @@ pub(super) fn render_node(
                          and will warn at runtime -- write those as a static string so they compile.",
                         slot.class_prop
                     )
-                },
+                } + hozo_parser::class_fallback_note(code),
                 // The attribute, not the element: an element has several
                 // class lists, and the report names the one it means.
                 span: prop.span.0,

@@ -121,6 +121,12 @@ const PROVOCATIONS: Record<string, Provocation> = {
     backend: 'native',
   },
   DYNAMIC_CLASS_NAME_NOT_RESOLVED: { source: '<View className={cls}>x</View>', backend: 'native' },
+  CLASS_NAME_PASSED_THROUGH: { source: '<View className={className}>x</View>', backend: 'native' },
+  CLASS_NAME_ASSEMBLED: {
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is the authored template.
+    source: '<View className={`bg-${tone}-500`}>x</View>',
+    backend: 'native',
+  },
   // `multiline` decides which element a TextInput becomes on Web, so an
   // expression there is a question the compiler cannot answer.
   DYNAMIC_PROP_NOT_RESOLVED: {

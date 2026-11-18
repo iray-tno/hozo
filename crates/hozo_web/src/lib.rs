@@ -1444,8 +1444,10 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             }
         } else {
             for expr_ref in &node.class_name_fallback {
+                let code =
+                    hozo_parser::class_fallback_code(&source_text(source, *expr_ref), "className");
                 cx.diagnostics.push(hozo_ir::Diagnostic {
-                    code: hozo_ir::DiagnosticCode::DynamicClassNameNotResolved,
+                    code,
                     severity: hozo_ir::Severity::Warning,
                     message: format!(
                         "`{}` can't be resolved at build time, so it's passed through and its CSS \
@@ -1453,7 +1455,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                      whose text appears literally somewhere in the project are covered -- one \
                      assembled at runtime (`` `bg-${{color}}-500` ``) still won't be.",
                         source_text(source, *expr_ref)
-                    ),
+                    ) + hozo_parser::class_fallback_note(code),
                     span: node.span,
                 });
             }
@@ -1508,11 +1510,15 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             .chain(slot.carried.iter().map(String::as_str))
             .collect();
         if !slot.fallback.is_empty() || slot.evaluation.is_some() {
-            for _ in &slot.fallback {
+            for expr in &slot.fallback {
+                let code = hozo_parser::class_fallback_code(
+                    &source_text(source, *expr),
+                    slot.slot.class_prop,
+                );
                 cx.diagnostics.push(hozo_ir::Diagnostic {
-                    code: hozo_ir::DiagnosticCode::DynamicClassNameNotResolved,
+                    code,
                     severity: hozo_ir::Severity::Warning,
-                    message: format!("`{}` retains an opaque class expression; its CSS comes from the project-wide candidate stylesheet. Use a static string for build-time validation.", slot.slot.class_prop),
+                    message: format!("`{}` retains an opaque class expression; its CSS comes from the project-wide candidate stylesheet. Use a static string for build-time validation.{}", slot.slot.class_prop, hozo_parser::class_fallback_note(code)),
                     span: slot.span,
                 });
             }
@@ -1590,13 +1596,22 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                     .any(|slot| slot.class_prop == name)
             })
     }) {
+        let name = prop.name.as_deref().unwrap_or_default();
+        // The value as written: the attribute's span covers `name={value}`.
+        let attribute = &source[prop.span.0.start as usize..prop.span.0.end as usize];
+        let value = attribute
+            .split_once('=')
+            .map(|(_, value)| value.trim())
+            .and_then(|value| value.strip_prefix('{')?.strip_suffix('}'))
+            .unwrap_or_default();
+        let code = hozo_parser::class_fallback_code(value, name);
         cx.diagnostics.push(hozo_ir::Diagnostic {
-            code: hozo_ir::DiagnosticCode::DynamicClassNameNotResolved,
+            code,
             severity: hozo_ir::Severity::Warning,
             message: format!(
                 "`{}` can't be resolved at build time, so it's passed through and its CSS comes                  from the project-wide candidate stylesheet instead. Only classes whose text                  appears literally somewhere in the project are covered.",
-                prop.name.as_deref().unwrap_or_default()
-            ),
+                name
+            ) + hozo_parser::class_fallback_note(code),
             span: prop.span.0,
         });
     }
