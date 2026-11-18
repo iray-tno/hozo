@@ -59,8 +59,10 @@ cannot see.
      fields, it stays a plain `Text`. This is the static proof, generalised
      from "a `memo()` root" to any `Text`.
    - Otherwise it becomes `HozoInheritedLeafText`, which reads the two
-     inheritance contexts, or `HozoInheritedText` when it has opaque children
-     that must see its frame.
+     inheritance contexts. It publishes nothing: a `Text` its opaque children
+     render inherits from this host natively. When it has such children it
+     resets the contexts below it to empty, so they do not apply the outer
+     frame over this host's own values.
 4. **A text-styled container publishes only around what it cannot see.** When
    a container has text declarations and an opaque child, its children are
    wrapped in one `HozoInheritedScope`. This renders no host; it publishes the
