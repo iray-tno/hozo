@@ -534,6 +534,14 @@ const pages = {
     await page.getByRole('radio', { name: 'red, #ef4444' }).click()
     await page.getByText('Chosen: #ef4444').waitFor()
     const hex = page.locator('.hozo-ui-example input')
+    // The field's text follows the colour one render later (an effect copies
+    // it), so "Chosen" can show before the field does. Filling in that gap
+    // let the effect rewrite the value between fill's select-all and its
+    // insert, which put the caret at the end: CI recorded "#ef4444#10b981"
+    // (#1603). Wait for the field itself.
+    await page.waitForFunction(
+      () => document.querySelector('.hozo-ui-example input')?.value === '#ef4444',
+    )
     // The field commits on every change, so typing is the whole action; the
     // Enter this used to press did nothing. When the text does not follow,
     // the page is recorded as it was, because one CI run timed out here with
