@@ -35,6 +35,13 @@ export {
   type RuntimeCandidateReconciliation,
   reconcileRuntimeCandidateContributions,
 } from './candidate-reconciliation.ts'
+export {
+  type CarrierClosure,
+  type CarrierClosureOptions,
+  type CarrierInstance,
+  captureCarrierClosure,
+  locateDeclaredPackage,
+} from './carrier-closure.ts'
 export { prepareInstanceOwnerCallers } from './owner-caller-participant.ts'
 export {
   type InstanceOwnerCallerPreview,
