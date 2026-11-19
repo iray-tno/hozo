@@ -23,6 +23,8 @@ export interface HozoSubmitButtonProps {
    */
   className?: string
   style?: StyleProp<ViewStyle>
+  /** @internal Complete prepared submit button class contribution (RFC 010). */
+  hozoSubmitButtonStyle?: (state: FormButtonClassFacts) => StyleProp<ViewStyle | TextStyle>
   disabled?: boolean
   accessibilityLabel?: string
   accessibilityHint?: string
@@ -46,6 +48,7 @@ export function HozoSubmitButton({
   children,
   className,
   style,
+  hozoSubmitButtonStyle,
   disabled = false,
   accessibilityLabel,
   accessibilityHint,
@@ -58,6 +61,8 @@ export function HozoSubmitButton({
   onFocus,
   onBlur,
 }: HozoSubmitButtonProps) {
+  if (hozoSubmitButtonStyle && className !== undefined)
+    throw new Error('Prepared SubmitButton styles must consume className')
   const submit = useFormSubmit()
   const { state, handlers } = usePressableInteraction({ focusVisible: true })
   useEffect(() => {
@@ -66,17 +71,18 @@ export function HozoSubmitButton({
       handlers.pressOut()
     }
   }, [disabled, handlers])
+  const facts = {
+    ...formButtonClassConstants,
+    ...state,
+    disabled,
+    enabled: !disabled,
+    pressed: !disabled && state.pressed,
+    focused: !disabled && state.focused,
+    focusVisible: !disabled && state.focusVisible,
+  } satisfies FormButtonClassFacts
   const [box, text] = hozoSplitTextStyle(
     StyleSheet.flatten([
-      hozoClasses(className, {
-        ...formButtonClassConstants,
-        ...state,
-        disabled,
-        enabled: !disabled,
-        pressed: !disabled && state.pressed,
-        focused: !disabled && state.focused,
-        focusVisible: !disabled && state.focusVisible,
-      } satisfies FormButtonClassFacts),
+      hozoSubmitButtonStyle ? hozoSubmitButtonStyle(facts) : hozoClasses(className, facts),
       hozoAuthoredStyle(style),
     ]) ?? {},
   )

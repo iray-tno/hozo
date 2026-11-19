@@ -5,6 +5,7 @@ import {
 } from '../../packages/compiler/src/owner-package.ts'
 import {
   components,
+  formComponents,
   ownerPublications,
   ownerShadow,
   primitiveExports,
@@ -27,10 +28,11 @@ export function packageOwnerChannels(
 ) {
   const declared = new Set()
   const contracts = new Map()
+  const slotCatalog = { ...components, ...formComponents }
   for (const contract of shadow.contracts) {
     if (contracts.has(contract.owner)) throw new Error('Duplicate catalog owner')
     const [component] = contract.owner.split('.')
-    if (!components[component]?.some((slot) => slot.classProp === contract.classProp))
+    if (!slotCatalog[component]?.some((slot) => slot.classProp === contract.classProp))
       throw new Error(`Owner is not an inventoried catalog slot: ${contract.owner}`)
     contracts.set(contract.owner, contract)
   }

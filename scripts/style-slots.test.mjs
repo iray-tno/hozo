@@ -118,16 +118,23 @@ test('the form inventory matches every public Web and Native class prop without 
   assert.equal(checkPublicProps(formComponents, 'form'), '')
   assert.equal(Object.keys(formComponents).length, 11)
   assert.equal(Object.values(formComponents).flat().length, 52)
+  const auditedFormOwners = new Set(['form-wrapper', 'submit-button', 'file-picker-button'])
   assert.ok(
     Object.values(formComponents)
       .flat()
       .every(
         (slot) =>
           slot.lowering === 'component-managed' &&
-          slot.owner === 'pending-audit' &&
+          (slot.owner === 'pending-audit' || auditedFormOwners.has(slot.owner)) &&
           !slot.callback &&
           !slot.profile,
       ),
+  )
+  assert.equal(
+    Object.values(formComponents)
+      .flat()
+      .filter((slot) => slot.owner === 'pending-audit').length,
+    49,
   )
   assert.ok(!outputs()['crates/hozo_ir/src/class_slots.rs'].includes('Self::Calendar'))
 })
@@ -209,12 +216,15 @@ test('slot usage keeps findings for distinct imported JSX names and narrows by p
 test('the owner shadow replaces spike JSON without promoting pending catalog slots', () => {
   const rendered = outputs()
   assert.deepEqual(JSON.parse(rendered['scripts/style-slots/owner-shadow.json']), ownerShadow)
+  const allComponents = { ...components, ...formComponents }
+  const auditedOwners = new Set(['Tabs.Tab', 'Form.root', 'SubmitButton.root', 'FileDropzone.root'])
   for (const contract of ownerShadow.contracts) {
     const [component] = contract.owner.split('.')
-    const slot = components[component].find((slot) => slot.classProp === contract.classProp)
+    const slot = allComponents[component].find((slot) => slot.classProp === contract.classProp)
     assert.ok(slot, 'a shadow contribution must refer to an inventoried class prop')
-    assert.equal(slot.owner, 'pending-audit')
-    assert.equal(contract.audit, contract.owner === 'Tabs.Tab' ? 'audited' : 'unknown')
+    if (Object.hasOwn(components, component)) assert.equal(slot.owner, 'pending-audit')
+    else assert.notEqual(slot.owner, 'pending-audit')
+    assert.equal(contract.audit, auditedOwners.has(contract.owner) ? 'audited' : 'unknown')
     assert.equal(slot.callback, undefined, 'shadow data must not add a Primitive callback route')
   }
 })

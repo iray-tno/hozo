@@ -14,6 +14,12 @@
 
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import {
+  applyWebOwnerPreviews,
+  matchingAuditedOwners,
+  prepareAuditedOwnerBatch,
+  previewAuditedOwnerBatch,
+} from './audited-owners.ts'
 import { lowerCanvasPaints } from './canvas.ts'
 import { namespaceHozoClasses } from './class-namespace.ts'
 import { GENERATED_ABI } from './generated-abi.ts'
@@ -34,6 +40,12 @@ import { type SourceCopy, type SourceEdit, SourceProvenance } from './source-pro
 import type { StylexModuleCache } from './stylex-project.ts'
 import type { TailwindModuleAttempt } from './tailwind-session.ts'
 
+export {
+  composeNativeOwnerPreviews,
+  matchingAuditedOwners,
+  prepareAuditedOwnerBatch,
+  previewAuditedOwnerBatch,
+} from './audited-owners.ts'
 export { namespaceHozoClasses } from './class-namespace.ts'
 export { prepareOwnerLowerModule } from './owner-caller-lower.ts'
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
@@ -726,8 +738,28 @@ export function lowerModule(
   stylexModules?: StylexModuleCache,
   options: LowerModuleOptions = {},
 ): LoweredModule | undefined {
-  const lowered = lowerModuleUnchecked(code, id, file, compiler, root, stylexModules, options)
-  return completeModuleResolution(lowered, root, file, options)
+  const hasOwners = semanticModuleEligible(file, 'web') && matchingAuditedOwners(code).length > 0
+  if (!hasOwners) {
+    const lowered = lowerModuleUnchecked(code, id, file, compiler, root, stylexModules, options)
+    return completeModuleResolution(lowered, root, file, options)
+  }
+  const provenance = new SourceProvenance(code)
+  const observe = options.observe
+  const tracked: LowerModuleOptions = {
+    ...options,
+    observe(event) {
+      if (event.edits && event.source !== undefined) provenance.apply(event.source, event.edits)
+      observe?.(event)
+    },
+  }
+  const lowered = completeModuleResolution(
+    lowerModuleUnchecked(code, id, file, compiler, root, stylexModules, tracked),
+    root,
+    file,
+    tracked,
+  )
+  const previews = previewAuditedOwnerBatch(code, compiler, 'web', file)
+  return applyWebOwnerPreviews(code, id, file, lowered, provenance, previews)
 }
 
 /** @internal Retain the actual post-Canvas primitive parse across preparation.
@@ -868,38 +900,95 @@ export function lowerModuleOrPrepare(
   // The caller may reuse/mutate its options while preparation awaits. Capture
   // observer identity and policy just as the native handle captures parse facts.
   const captured = { ...options }
-  const lowered = lowerModuleUnchecked(
-    code,
-    id,
-    file,
-    compiler,
-    root,
-    stylexModules,
-    captured,
-    (source, bindings, compileOptions, finish) => {
-      const prepared = ready
-        ? compiler.compileWebOrPrepare(source, ready, bindings, compileOptions)
-        : compiler.prepareWebModule(source, bindings, compileOptions)
-      if (Array.isArray(prepared)) {
-        return {
-          kind: 'complete' as const,
-          output: completeModuleResolution(finish(prepared), root, file, captured),
+  const ownerBatch = semanticModuleEligible(file, 'web')
+    ? prepareAuditedOwnerBatch(code, compiler, 'web', file)
+    : undefined
+  if (ownerBatch && ownerBatch.candidates.length === 0) ownerBatch.dispose()
+  const activeOwners = ownerBatch && ownerBatch.candidates.length > 0 ? ownerBatch : undefined
+  const provenance = activeOwners ? new SourceProvenance(code) : undefined
+  if (activeOwners && provenance) {
+    const observe = captured.observe
+    captured.observe = (event) => {
+      if (event.edits && event.source !== undefined) provenance.apply(event.source, event.edits)
+      observe?.(event)
+    }
+  }
+  let lowered: LoweredModule | undefined | TailwindModuleAttempt<LoweredModule | undefined>
+  try {
+    lowered = lowerModuleUnchecked(
+      code,
+      id,
+      file,
+      compiler,
+      root,
+      stylexModules,
+      captured,
+      (source, bindings, compileOptions, finish) => {
+        const prepared = ready
+          ? compiler.compileWebOrPrepare(source, ready, bindings, compileOptions)
+          : compiler.prepareWebModule(source, bindings, compileOptions)
+        if (Array.isArray(prepared)) {
+          return {
+            kind: 'complete' as const,
+            output: completeModuleResolution(finish(prepared), root, file, captured),
+          }
         }
-      }
-      return {
-        kind: 'prepared' as const,
-        module: ownedLowering(
-          prepared.candidates,
-          (context) =>
-            completeModuleResolution(finish(prepared.emit(context)), root, file, captured),
-          () => prepared.dispose(),
+        return {
+          kind: 'prepared' as const,
+          module: ownedLowering(
+            prepared.candidates,
+            (context) =>
+              completeModuleResolution(finish(prepared.emit(context)), root, file, captured),
+            () => prepared.dispose(),
+          ),
+        }
+      },
+    )
+  } catch (error) {
+    activeOwners?.dispose()
+    throw error
+  }
+  const ordinary: TailwindModuleAttempt<LoweredModule | undefined> =
+    lowered && 'kind' in lowered
+      ? lowered
+      : { kind: 'complete', output: completeModuleResolution(lowered, root, file, captured) }
+  if (!activeOwners || !provenance) return ordinary
+  if (ordinary.kind === 'prepared') {
+    const candidates = Object.freeze(
+      [...new Set([...ordinary.module.candidates, ...activeOwners.candidates])].sort(),
+    )
+    return {
+      kind: 'prepared',
+      module: ownedLowering(
+        candidates,
+        (context) => {
+          const base = ordinary.module.emit(context)
+          const previews = activeOwners.emit(context)
+          return applyWebOwnerPreviews(code, id, file, base, provenance, previews)
+        },
+        () => {
+          ordinary.module.dispose()
+          activeOwners.dispose()
+        },
+      ),
+    }
+  }
+  return {
+    kind: 'prepared',
+    module: ownedLowering(
+      activeOwners.candidates,
+      (context) =>
+        applyWebOwnerPreviews(
+          code,
+          id,
+          file,
+          ordinary.output,
+          provenance,
+          activeOwners.emit(context),
         ),
-      }
-    },
-  )
-  if (lowered && 'kind' in lowered) return lowered
-  // No primitive parse or context is needed for these independent domains.
-  return { kind: 'complete', output: completeModuleResolution(lowered, root, file, captured) }
+      () => activeOwners.dispose(),
+    ),
+  }
 }
 
 function ownedLowering(

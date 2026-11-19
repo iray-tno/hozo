@@ -46,6 +46,8 @@ export interface HozoFileDropzoneProps extends FileRules {
   /** Web drag-over only. Not press feedback or the Native picker's busy state. */
   activeClassName?: string
   style?: StyleProp<ViewStyle>
+  /** @internal Complete prepared file picker class contribution (RFC 010). */
+  hozoFileDropzoneStyle?: (state: FilePickerClassFacts) => StyleProp<ViewStyle | TextStyle>
   testID?: string
 }
 
@@ -120,8 +122,11 @@ export function HozoFileDropzone({
   pickFiles,
   className,
   style,
+  hozoFileDropzoneStyle,
   testID,
 }: HozoFileDropzoneProps) {
+  if (hozoFileDropzoneStyle && className !== undefined)
+    throw new Error('Prepared FileDropzone styles must consume className')
   const message = useHozoMessage()
   const { locale } = useHozoI18n()
   const [busy, setBusy] = useState(false)
@@ -143,19 +148,20 @@ export function HozoFileDropzone({
       handlers.pressOut()
     }
   }, [isDisabled, handlers])
+  const facts = {
+    ...filePickerClassConstants,
+    ...state,
+    disabled: isDisabled,
+    enabled: !isDisabled,
+    pressed: !isDisabled && state.pressed,
+    focused: !isDisabled && state.focused,
+    focusVisible: !isDisabled && state.focusVisible,
+    // Native's busy/disabled announcements do not manufacture extra
+    // ARIA styling predicates: those constants come from the catalog.
+  } satisfies FilePickerClassFacts
   const [box, text] = hozoSplitTextStyle(
     StyleSheet.flatten([
-      hozoClasses(className, {
-        ...filePickerClassConstants,
-        ...state,
-        disabled: isDisabled,
-        enabled: !isDisabled,
-        pressed: !isDisabled && state.pressed,
-        focused: !isDisabled && state.focused,
-        focusVisible: !isDisabled && state.focusVisible,
-        // Native's busy/disabled announcements do not manufacture extra
-        // ARIA styling predicates: those constants come from the catalog.
-      } satisfies FilePickerClassFacts),
+      hozoFileDropzoneStyle ? hozoFileDropzoneStyle(facts) : hozoClasses(className, facts),
       hozoAuthoredStyle(style),
     ]) ?? {},
   )

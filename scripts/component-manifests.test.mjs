@@ -13,7 +13,7 @@ import {
 } from '../packages/compiler/src/manifest.ts'
 import { parseOwnerPackageShadow } from '../packages/compiler/src/owner-package.ts'
 import { sourcePackageChannels } from './component-manifests.mjs'
-import { ownerShadow } from './style-slots/catalog.mjs'
+import { ownerPublications, ownerShadow } from './style-slots/catalog.mjs'
 
 test('source package channels retain public value aliases but not types, tests or stories', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-package-channels-'))
@@ -105,7 +105,13 @@ test('patterns publishes its catalog-owned contract without cloning it onto the 
     readFileSync(path.join(dir, json.hozo.manifest), 'utf8'),
     serializeManifest(manifest),
   )
-  assert.deepEqual(manifest.owners, ownerShadow)
+  const patternsOwners = {
+    schema: ownerShadow.schema,
+    contracts: ownerShadow.contracts.filter((row) =>
+      ownerPublications.some((pub) => pub.owner === row.owner && pub.package === '@hozo/patterns'),
+    ),
+  }
+  assert.deepEqual(manifest.owners, patternsOwners)
   for (const name of ['BottomSheet', 'HozoBottomSheet'])
     assert.deepEqual(manifest.exports.find((row) => row.name === name).owners, [
       'BottomSheet.handle',

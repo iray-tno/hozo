@@ -39,7 +39,7 @@ test('disabled reaches the button and the input', () => {
   const html = render({ disabled: true })
   assert.match(
     html,
-    /<button data-hozo-pressable="" type="button" aria-label="Upload photo" disabled="">/,
+    /<button data-hozo-pressable="" type="button" aria-label="Upload photo" disabled="" data-hozo-disabled="">/,
     html,
   )
   assert.match(html, /<input type="file" disabled=""/, html)

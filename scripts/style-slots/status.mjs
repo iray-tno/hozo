@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { components, ownerShadow } from './catalog.mjs'
+import { components, formComponents, ownerShadow } from './catalog.mjs'
 import { evidenceSource } from './evidence-source.mjs'
 import { assessMetroBundleEvidence, metroBundleScope } from './metro-bundle-evidence.mjs'
 import { scopedDenominators } from './scoped-denominators.mjs'
@@ -15,6 +15,7 @@ const contractScope = 'box-and-owned-label-host-delivery'
 
 export function stylingFactStatus({
   catalog = components,
+  formCatalog = formComponents,
   shadow = ownerShadow,
   commit,
   receipts = [],
@@ -23,6 +24,7 @@ export function stylingFactStatus({
 } = {}) {
   const slots = Object.values(catalog).flat()
   const managed = slots.filter((slot) => slot.lowering === 'component-managed')
+  const formSlots = Object.values(formCatalog).flat()
   const observations = receipts.map((receipt) =>
     assess(receipt, commit, expectedManifestSha256, trackedChanges),
   )
@@ -50,6 +52,9 @@ export function stylingFactStatus({
       pendingOwners: slots.filter((slot) => slot.owner === 'pending-audit').length,
       componentManaged: managed.length,
       componentManagedPending: managed.filter((slot) => slot.owner === 'pending-audit').length,
+      formComponents: Object.keys(formCatalog).length,
+      formSlots: formSlots.length,
+      formPendingOwners: formSlots.filter((slot) => slot.owner === 'pending-audit').length,
       shadowContributions: shadow.contracts.length,
       shadowAuditUnknown: shadow.contracts.filter((contract) => contract.audit === 'unknown')
         .length,

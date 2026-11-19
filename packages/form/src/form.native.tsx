@@ -29,6 +29,8 @@ export interface HozoFormProps {
    */
   className?: string
   style?: StyleProp<ViewStyle>
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoFormStyle?: () => StyleProp<ViewStyle>
   testID?: string
   children?: ReactNode
 }
@@ -76,9 +78,12 @@ export function HozoForm({
   accessibilityLabel,
   className,
   style,
+  hozoFormStyle,
   testID,
   children,
 }: HozoFormProps) {
+  if (hozoFormStyle && className !== undefined)
+    throw new Error('Prepared Form styles must consume className')
   const context = useMemo<FormContextValue>(
     () => ({
       submit: () => {
@@ -94,7 +99,10 @@ export function HozoForm({
     <FormContext.Provider value={context}>
       <View
         accessibilityLabel={accessibilityLabel}
-        style={[hozoClasses(className, nonControlClassFacts), hozoAuthoredStyle(style)]}
+        style={[
+          hozoFormStyle ? hozoFormStyle() : hozoClasses(className, nonControlClassFacts),
+          hozoAuthoredStyle(style),
+        ]}
         testID={testID}
       >
         {children}

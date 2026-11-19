@@ -1137,13 +1137,20 @@ function inputReceipts() {
   }
 }
 
+const patternsShadow = {
+  schema: ownerShadow.schema,
+  contracts: ownerShadow.contracts.filter((row) =>
+    ['BottomSheet.handle', 'Tabs.Tab', 'Toolbar.root'].includes(row.owner),
+  ),
+}
+
 test('every declared audited shadow contract needs its own current independent host proof', () => {
   const input = contractInputs()
   input.declaration.audit = 'audited'
   const proof = assessTabsContract(input)
   assert.equal(proof.passed, true)
   const args = {
-    contracts: structuredClone(ownerShadow.contracts),
+    contracts: structuredClone(patternsShadow.contracts),
     proofs: [proof],
     sourceCommit: commit,
     manifestSha256: 'b'.repeat(64),
@@ -1199,7 +1206,7 @@ function contractReceipt() {
   input.declaration.audit = 'audited'
   const proof = assessTabsContract(input)
   proof.declarationGate = assessDeclaredAudits({
-    contracts: ownerShadow.contracts,
+    contracts: patternsShadow.contracts,
     proofs: [proof],
     sourceCommit: commit,
     manifestSha256: input.manifestSha256,
@@ -1208,7 +1215,7 @@ function contractReceipt() {
 }
 
 test('status separates a declared audit from one unambiguous current host proof', () => {
-  const options = { commit, expectedManifestSha256: 'b'.repeat(64) }
+  const options = { commit, shadow: patternsShadow, expectedManifestSha256: 'b'.repeat(64) }
   const receipt = contractReceipt()
   assert.equal(receipt.passed, true)
   const report = stylingFactStatus({ ...options, receipts: [receipt] })
@@ -1484,9 +1491,12 @@ test('inventory stays separate from scoped evidence and missing global measures 
     pendingOwners: 56,
     componentManaged: 33,
     componentManagedPending: 33,
-    shadowContributions: 3,
+    formComponents: 11,
+    formSlots: 52,
+    formPendingOwners: 49,
+    shadowContributions: 6,
     shadowAuditUnknown: 2,
-    shadowAuditDeclared: 1,
+    shadowAuditDeclared: 4,
   })
   assert.equal(report.observations[0].status, 'measured')
   assert.equal(report.observations[0].matchedPairs, 5)

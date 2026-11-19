@@ -239,9 +239,9 @@ const owned = (
 
 // Form inventory is deliberately separate from the closed Primitive mappings.
 // A named slot here is not an assessed owner or a new compiler callback ABI.
-function formSlots(names, paired = 'className') {
+function formSlots(names, paired = 'className', overrides = {}) {
   const styles = new Set(paired.split(' '))
-  return slots(names).map((slot) => ({
+  return slots(names, { overrides }).map((slot) => ({
     ...slot,
     lowering: 'component-managed',
     ...(styles.has(slot.classProp)
@@ -270,9 +270,27 @@ export const formComponents = {
     'className labelClassName requiredClassName descriptionClassName errorClassName',
     '',
   ),
-  FileDropzone: formSlots('className activeClassName'),
-  Form: formSlots('className'),
-  SubmitButton: formSlots('className'),
+  FileDropzone: formSlots('className activeClassName', 'className', {
+    className: {
+      owner: 'file-picker-button',
+      gate: 'always',
+      composition: 'prepared-owner-contract; split-box-text',
+    },
+  }),
+  Form: formSlots('className', 'className', {
+    className: {
+      owner: 'form-wrapper',
+      gate: 'always',
+      composition: 'prepared-owner-contract',
+    },
+  }),
+  SubmitButton: formSlots('className', 'className', {
+    className: {
+      owner: 'submit-button',
+      gate: 'always',
+      composition: 'prepared-owner-contract; split-box-text',
+    },
+  }),
   NativeSelect: formSlots(
     'className indicatorClassName sheetClassName scrimClassName optionClassName',
     'className sheetClassName scrimClassName optionClassName',
@@ -694,6 +712,59 @@ export const ownerShadow = {
         },
       ],
     },
+    {
+      owner: 'Form.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoFormStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'form',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'SubmitButton.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSubmitButtonStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['disabled'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'FileDropzone.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoFileDropzoneStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['disabled'], splitText: true },
+        },
+      ],
+    },
   ],
 }
 
@@ -716,6 +787,21 @@ export const ownerPublications = [
     owner: 'Tabs.Tab',
     package: '@hozo/patterns',
     exports: ['Tabs', 'HozoTabs'],
+  },
+  {
+    owner: 'Form.root',
+    package: '@hozo/form',
+    exports: ['Form', 'HozoForm'],
+  },
+  {
+    owner: 'SubmitButton.root',
+    package: '@hozo/form',
+    exports: ['SubmitButton', 'HozoSubmitButton'],
+  },
+  {
+    owner: 'FileDropzone.root',
+    package: '@hozo/form',
+    exports: ['FileDropzone', 'HozoFileDropzone'],
   },
 ]
 

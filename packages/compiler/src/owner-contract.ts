@@ -9,7 +9,7 @@ export interface OwnerShape {
   id: string
   when: Gate
   nativeHost: 'Pressable' | 'View'
-  webHost: 'button' | 'div'
+  webHost: 'button' | 'div' | 'form'
   events: ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
   /** Explicit preparation inputs, not inferred from a synthetic host. */
   inputs?: { facts: OwnerFact[]; splitText: boolean }
@@ -86,7 +86,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
   }
   const root = object(input, ['schema', 'contracts'], 'root')
   if (root.schema !== OWNER_SHADOW_VERSION) fail('schema')
-  const contracts = list(root.contracts, 32, 'contracts').map((value, index) => {
+  const contracts = list(root.contracts, 128, 'contracts').map((value, index) => {
     const at = `contracts[${index}]`
     const contract = object(
       value,
@@ -178,7 +178,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       const id = identifier(shape.id, `${at}.shape.id`)
       if (
         !['Pressable', 'View'].includes(shape.nativeHost as string) ||
-        !['button', 'div'].includes(shape.webHost as string)
+        !['button', 'div', 'form'].includes(shape.webHost as string)
       )
         fail(`${at}.shape host`)
       if (!Array.isArray(shape.events) || shape.events.length > 4) fail(`${at}.shape events`)
@@ -188,8 +188,11 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       )
         fail(`${at}.shape event`)
       unique(events, `${at}.shape events`)
-      // Only this prototype's two supported host pairs have application evidence.
-      if (shape.nativeHost === 'View' && (shape.webHost !== 'div' || events.length !== 0))
+      // Only verified host pairs have application evidence.
+      if (
+        shape.nativeHost === 'View' &&
+        (!['div', 'form'].includes(shape.webHost as string) || events.length !== 0)
+      )
         fail(`${at}.decoration events/host`)
       if (shape.nativeHost === 'Pressable' && shape.webHost !== 'button') fail(`${at}.control host`)
       let inputs: OwnerShape['inputs']

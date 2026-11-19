@@ -36,6 +36,42 @@ test('Toolbar root is one unknown-audit non-interactive shape, not an item event
   assert.equal(selectOwnerShape(toolbar, { present: false }).status, 'absent')
   assert.equal(selectOwnerShape(toolbar, {}).status, 'unresolved')
 })
+test('Form, SubmitButton and FileDropzone root contracts are audited on their declared host shapes', () => {
+  const form = parsed().contracts.find((row) => row.owner === 'Form.root')!
+  assert.equal(form.audit, 'audited')
+  assert.deepEqual(form.abi, { nativePreparedProp: 'hozoFormStyle', webClassProp: 'className' })
+  assert.deepEqual(form.shapes, [
+    {
+      id: 'root',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'form',
+      events: [],
+    },
+  ])
+  for (const [owner, prop] of [
+    ['SubmitButton.root', 'hozoSubmitButtonStyle'],
+    ['FileDropzone.root', 'hozoFileDropzoneStyle'],
+  ]) {
+    const entry = parsed().contracts.find((row) => row.owner === owner)!
+    assert.equal(entry.audit, 'audited')
+    assert.deepEqual(entry.abi, { nativePreparedProp: prop, webClassProp: 'className' })
+    assert.deepEqual(entry.shapes, [
+      {
+        id: 'root',
+        when: { eq: ['present', true] },
+        nativeHost: 'Pressable',
+        webHost: 'button',
+        events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+        inputs: { facts: ['disabled'], splitText: true },
+      },
+    ])
+  }
+  rejects((value) => {
+    const submit = value.contracts.find((row) => row.owner === 'SubmitButton.root')!
+    submit.shapes[0]!.webHost = 'form'
+  }, /control host/)
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)
