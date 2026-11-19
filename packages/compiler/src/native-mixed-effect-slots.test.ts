@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
+import { hozoAuthoredEdges } from '../../engine/src/authored-edges.ts'
 import { hozoAuthoredStyle } from '../../engine/src/authored-gap.ts'
 import { type ClassResolver, createClassResolver } from '../../engine/src/class-resolver.ts'
 import { hozoFilterStyles } from '../../engine/src/filter-slots.ts'
@@ -54,6 +55,8 @@ function selected(tag: 'View' | 'Pressable', literal: string) {
     'hozoTransformStyles',
     'hozoFilterStyles',
     'hozoAuthoredStyle',
+    'hozoAuthoredEdges',
+    'I18nManager',
     'classes',
     'style',
     `return (${result.jsx.slice(start, end)})`,
@@ -68,6 +71,8 @@ function selected(tag: 'View' | 'Pressable', literal: string) {
       hozoTransformStyles,
       hozoFilterStyles,
       hozoAuthoredStyle,
+      hozoAuthoredEdges,
+      { isRTL: false, doLeftAndRightSwapInRTL: true },
       classes,
       style,
     )

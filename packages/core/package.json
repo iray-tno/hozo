@@ -40,6 +40,10 @@
       "types": "./dist/generated/animation.d.ts",
       "default": "./dist/generated/animation.js"
     },
+    "./generated/authored-edges": {
+      "types": "./dist/generated/authored-edges.d.ts",
+      "default": "./dist/generated/authored-edges.js"
+    },
     "./generated/avatar": {
       "types": "./dist/generated/avatar.d.ts",
       "default": "./dist/generated/avatar.js"

@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { createCompiler } from '../../../packages/compiler/src/index.ts'
+import { hozoAuthoredEdges } from '../../../packages/engine/src/authored-edges.ts'
 import * as gapStyles from '../../../packages/engine/src/generated/gap-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 import { textLeaves } from './text-leaves.mjs'
@@ -724,9 +725,11 @@ test('the actual shared name field disables dictionary corrections without bypas
         TextInput: 'TextInput',
         Pressable: 'Pressable',
         StyleSheet: { create: (styles) => styles },
+        I18nManager: { isRTL: false, doLeftAndRightSwapInRTL: true },
       }
     if (name === '@hozo/core/generated/pressable') return { HozoPressable: 'Pressable' }
     if (name === '@hozo/core/generated/text-input') return { HozoTextInput: 'TextInput' }
+    if (name === '@hozo/core/generated/authored-edges') return { hozoAuthoredEdges }
     if (name === './patterns.tsx') return {}
     if (name === './ui-states.tsx') return {}
     if (name === './svg-filters.tsx') return {}

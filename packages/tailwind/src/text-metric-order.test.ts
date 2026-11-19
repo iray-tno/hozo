@@ -5,6 +5,7 @@ import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { createCompiler, openCandidateCache, prepareFinalTailwindContext } from '@hozo/compiler'
 import { transformSync } from 'esbuild'
+import { hozoAuthoredEdges } from '../../engine/src/authored-edges.ts'
 import {
   createClassResolver,
   hozoMixedTextMetricStyles,
@@ -219,6 +220,8 @@ test('mixed Text and TextInput use candidate default identities without a candid
         hozoClasses,
         hozoMixedTextMetricStyles,
         hozoAuthoredStyle: (style: unknown) => style,
+        hozoAuthoredEdges,
+        I18nManager: { isRTL: false, doLeftAndRightSwapInRTL: true },
       },
     )
     for (const own of [undefined, { lineHeight: 41 }]) {
