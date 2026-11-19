@@ -10,6 +10,7 @@ import { gzipSync } from 'node:zlib'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
 import { createClassResolver, createClassTransitions, hozoSplitTextStyle } from '@hozo/engine'
+import { hozoEdgeSpreadStyles } from '@hozo/engine/generated/authored-edges'
 import { hozoFilterStyles } from '@hozo/engine/generated/filter-slots'
 import { hozoAuthoredStyle, hozoGapSpreadStyles } from '@hozo/engine/generated/gap-styles'
 import { hozoSpreadStyles } from '@hozo/engine/generated/spread-styles'
@@ -5008,7 +5009,14 @@ test("a UI wrapper keeps its compiled look when a caller's Native style comes th
     'utf8',
   )
   const native = compiler.compileNative(source).find((part) => part.jsx.includes('HozoListbox'))
-  assert.ok(native.jsx.includes('{...hozoGapSpreadStyles('), native.jsx)
+  // The wrapper's class is opaque, so the caller's style goes through the
+  // edge-aware boundary, gap projection included (#2050).
+  assert.ok(
+    native.jsx.includes(
+      '{...hozoEdgeSpreadStyles(I18nManager.isRTL, I18nManager.doLeftAndRightSwapInRTL, true)(',
+    ),
+    native.jsx,
+  )
   const { HozoListbox } = load('listbox.native.tsx')
   const render = (rest) => {
     const element = evaluate(
@@ -5021,6 +5029,8 @@ test("a UI wrapper keeps its compiled look when a caller's Native style comes th
         hozoClasses: () => undefined,
         hozoSpreadStyles,
         hozoGapSpreadStyles,
+        hozoEdgeSpreadStyles,
+        I18nManager: { isRTL: false, doLeftAndRightSwapInRTL: true },
         HozoListbox,
       },
     )
