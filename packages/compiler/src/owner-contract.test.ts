@@ -43,7 +43,7 @@ function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: Reg
 }
 
 test('shadow data is explicit, bounded and independent of the shipped v1 manifest protocol', () => {
-  assert.equal(MANIFEST_VERSION, 1)
+  assert.equal(MANIFEST_VERSION, 2)
   assert.equal(parsed().schema, OWNER_SHADOW_VERSION)
   assert.equal(contract().owner, 'BottomSheet.handle')
   assert.equal(contract().audit, 'unknown')

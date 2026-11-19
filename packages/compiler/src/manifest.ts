@@ -27,8 +27,16 @@ import {
   type TextForwardingModule,
 } from './index.ts'
 
-/** Bumped when a reader could misread an older or newer manifest. */
-export const MANIFEST_VERSION = 1
+/** Bumped when a reader could misread an older or newer manifest. Version 2
+ * adds RFC 010's package channels beside `textForwarding` (#2044). */
+export const MANIFEST_VERSION = 2
+
+/** A manifest holding only `textForwarding`, as `buildManifest` and the
+ * `hozo-manifest` command write it. Still read, so a package that ships one
+ * keeps working. */
+export const TEXT_MANIFEST_VERSION = 1
+
+const READABLE_VERSIONS: readonly number[] = [TEXT_MANIFEST_VERSION, MANIFEST_VERSION]
 
 /** The file a package names in `package.json`'s `hozo.manifest`. */
 export const DEFAULT_MANIFEST_FILE = 'hozo.manifest.json'
@@ -151,19 +159,20 @@ export function buildManifest(options: BuildManifestOptions): HozoManifest {
   for (const [name, entry] of Object.entries(textForwarding).sort(([a], [b]) => (a < b ? -1 : 1))) {
     sorted[name] = entry
   }
-  return { version: MANIFEST_VERSION, textForwarding: sorted }
+  return { version: TEXT_MANIFEST_VERSION, textForwarding: sorted }
 }
 
 /**
  * A manifest's text forwarding in the shape `Compiler.setTextForwarding`
  * takes, for the components callers import from `module`.
  *
- * A manifest of another version is not read: its fields may not mean what
- * this reader thinks, and reading nothing leaves the caller compiling as it
- * did without one.
+ * Versions 1 and 2 store `textForwarding` the same way. A manifest of any
+ * other version is not read: its fields may not mean what this reader
+ * thinks, and reading nothing leaves the caller compiling as it did without
+ * one.
  */
 export function textForwardingModule(module: string, manifest: HozoManifest): TextForwardingModule {
-  if (manifest.version !== MANIFEST_VERSION) return { module, components: [] }
+  if (!READABLE_VERSIONS.includes(manifest.version)) return { module, components: [] }
   return {
     module,
     components: Object.entries(manifest.textForwarding ?? {}).map(([name, entry]) => ({

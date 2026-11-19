@@ -47,26 +47,27 @@ function options() {
   }
 }
 
-test('package producer reuses Rust extraction and preserves the v1 text channel without duplication', () => {
+test('package producer reuses Rust extraction and writes v2 with the text channel stored once', () => {
   const manifest = buildPackageManifest(text, options())
   assert.deepEqual(manifest.textForwarding, text.textForwarding)
-  assert.equal(manifest.version, 1)
-  assert.equal(Object.hasOwn(manifest.package, 'textForwarding'), false)
-  assert.deepEqual(manifest.package.candidates, ['hover:p-8', 'p-2', 'p-4'])
+  assert.equal(manifest.version, 2)
+  assert.equal(Object.hasOwn(manifest, 'package'), false)
+  assert.deepEqual(manifest.textPublish, [])
+  assert.deepEqual(manifest.candidates, ['hover:p-8', 'p-2', 'p-4'])
   assert.deepEqual(
-    manifest.package.exports.map((row) => row.name),
+    manifest.exports.map((row) => row.name),
     ['Button', 'cn'],
   )
-  assert.deepEqual(manifest.package.helpers, ['cn'])
-  assert.equal(manifest.package.owners, null)
+  assert.deepEqual(manifest.helpers, ['cn'])
+  assert.equal(manifest.owners, null)
   assert.deepEqual(textForwardingModule('kit', manifest), textForwardingModule('kit', text))
   const reverse = options()
   reverse.sources.reverse()
   reverse.exports.reverse()
   assert.equal(serializeManifest(buildPackageManifest(text, reverse)), serializeManifest(manifest))
   const normalized = parseOwnerPackageShadow(serializeManifest(manifest))
-  assert.deepEqual(normalized.textForwarding, text)
-  assert.deepEqual(normalized.candidates, manifest.package.candidates)
+  assert.deepEqual(normalized.textForwarding.textForwarding, text.textForwarding)
+  assert.deepEqual(normalized.candidates, manifest.candidates)
 
   const edge = { importer: '/app/index.tsx', specifier: 'kit' }
   const capture = captureOwnerManifests(
@@ -89,24 +90,52 @@ test('package producer reuses Rust extraction and preserves the v1 text channel 
   const contribution = collectOwnerPackageContributions(capture)
   assert.equal(contribution.status, 'complete')
   if (contribution.status !== 'complete') return
-  assert.deepEqual(contribution.candidates, manifest.package.candidates)
-  assert.deepEqual(contribution.instances[0]!.data.textForwarding, text)
+  assert.deepEqual(contribution.candidates, manifest.candidates)
+  assert.deepEqual(
+    contribution.instances[0]!.data.textForwarding.textForwarding,
+    text.textForwarding,
+  )
   assert.ok(Object.isFrozen(contribution.instances[0]!.data.textForwarding))
 })
 
-test('envelope readers reject ambiguous text, unsupported versions, missing channels and extra fields', () => {
+test('v2 readers reject unsupported versions, missing channels and extra fields', () => {
   const manifest = buildPackageManifest(text, options())
-  const invalid = [
-    { ...manifest, version: 2 },
+  const invalid: unknown[] = [
+    { ...manifest, version: 3 },
     { ...manifest, unknown: true },
-    { ...manifest, package: { ...manifest.package, textForwarding: text } },
-    { ...manifest, package: { ...manifest.package, schema: 'future' } },
+    { ...manifest, schema: 'rfc010-package-shadow-0' },
+    { ...manifest, package: {} },
   ]
-  for (const key of Object.keys(manifest.package)) {
-    const value = structuredClone(manifest)
-    delete (value.package as Record<string, unknown>)[key]
+  for (const key of Object.keys(manifest)) {
+    if (key === 'version') continue
+    const value = structuredClone(manifest) as unknown as Record<string, unknown>
+    delete value[key]
     invalid.push(value)
   }
+  for (const value of invalid)
+    assert.throws(() => parseOwnerPackageShadow(JSON.stringify(value)), /Invalid owner package/)
+})
+
+test('a v1 envelope, as packages shipped it before v2, is still read with the same channels', () => {
+  const manifest = buildPackageManifest(text, options())
+  const { version, textForwarding, textPublish, ...channels } = manifest
+  assert.equal(version, 2)
+  assert.deepEqual(textPublish, [])
+  const v1 = {
+    version: 1,
+    textForwarding,
+    package: { schema: 'rfc010-package-shadow-0', ...channels },
+  }
+  const fromV1 = parseOwnerPackageShadow(JSON.stringify(v1))
+  const fromV2 = parseOwnerPackageShadow(serializeManifest(manifest))
+  assert.deepEqual(fromV1.textForwarding, text)
+  assert.deepEqual({ ...fromV1, textForwarding: null }, { ...fromV2, textForwarding: null })
+  assert.deepEqual(textForwardingModule('kit', v1), textForwardingModule('kit', manifest))
+  const invalid = [
+    { ...v1, version: 2 },
+    { ...v1, package: { ...v1.package, textForwarding: text } },
+    { ...v1, package: { ...v1.package, schema: 'future' } },
+  ]
   for (const value of invalid)
     assert.throws(() => parseOwnerPackageShadow(JSON.stringify(value)), /Invalid owner package/)
 })

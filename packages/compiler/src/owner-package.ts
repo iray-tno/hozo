@@ -1,24 +1,58 @@
-// Package-channel shadow, not MANIFEST_VERSION=2 or trusted primitive lowering.
+// The package channels of a manifest: v2's top-level fields, the v1
+// envelope's experimental `package` field, or the internal shadow form.
+// Reading a channel is not trusted primitive lowering; nothing in the
+// compiler lowers from `exports[].primitive` yet (#2044).
 import type { HozoManifest, TextForwardingEntry } from './manifest.ts'
 import { type OwnerContractShadow, parseOwnerContractShadow } from './owner-contract.ts'
 
 export const OWNER_PACKAGE_SCHEMA = 'rfc010-package-shadow-0'
+/** RFC 010 §4.1's manifest version that carries the package channels. */
+export const PACKAGE_MANIFEST_VERSION = 2
+export interface PackageExport {
+  name: string
+  owners: string[]
+  /** The compiler primitive a trusted import of this export lowers to. */
+  primitive?: string
+}
+/** An export that renders its string children inside a `View`, and whether
+ * its pressable shares its state with a Text inside it (`PATTERN_HOSTS`). */
+export interface TextPublication {
+  name: string
+  sharesState: boolean
+}
 export interface OwnerPackageShadow {
   schema: typeof OWNER_PACKAGE_SCHEMA
   owners: OwnerContractShadow | null
-  exports: { name: string; owners: string[] }[]
+  exports: PackageExport[]
+  textPublish: TextPublication[]
   candidates: string[]
   helpers: string[]
   compiledByConsumer: boolean
   /** Kept readable by the existing v1 converter, not a text-erasure proof. */
   textForwarding: HozoManifest
 }
-/** A v1-readable envelope: text is stored once, in its established channel.
- * This optional experimental extension is not the finalized RFC010 v2 ABI.
+/** Manifest v2: the package channels at the top level, beside the text
+ * forwarding that v1 readers know, stored once.
  */
 export interface HozoPackageManifest extends HozoManifest {
-  package: Omit<OwnerPackageShadow, 'textForwarding'>
+  version: typeof PACKAGE_MANIFEST_VERSION
+  exports: PackageExport[]
+  owners: OwnerContractShadow | null
+  textPublish: TextPublication[]
+  candidates: string[]
+  helpers: string[]
+  compiledByConsumer: boolean
 }
+const V2_FIELDS = [
+  'version',
+  'exports',
+  'owners',
+  'textPublish',
+  'textForwarding',
+  'candidates',
+  'helpers',
+  'compiledByConsumer',
+]
 function fail(at: string): never {
   throw new Error(`Invalid owner package: ${at}`)
 }
@@ -59,7 +93,7 @@ function unique(values: string[]) {
 }
 function forwarding(input: unknown, exported: Set<string>): HozoManifest {
   const root = object(input, ['version', 'textForwarding'])
-  if (root.version !== 1) fail('legacy version')
+  if (root.version !== 1 && root.version !== PACKAGE_MANIFEST_VERSION) fail('legacy version')
   const entries = root.textForwarding
   if (
     !entries ||
@@ -106,7 +140,7 @@ function forwarding(input: unknown, exported: Set<string>): HozoManifest {
       },
     ]
   })
-  return { version: 1, textForwarding: Object.fromEntries(pairs) }
+  return { version: root.version as number, textForwarding: Object.fromEntries(pairs) }
 }
 
 /** @internal Bounded data only. Missing channels are errors, not empty facts.
@@ -120,9 +154,20 @@ export function parseOwnerPackageShadow(text: string): OwnerPackageShadow {
   } catch {
     fail('JSON')
   }
-  // Both transport forms use the same channel validator. In particular the
+  // Every transport form uses the same channel validator. In particular the
   // envelope cannot hide a second, contradictory copy of the text summary.
-  if (parsed && typeof parsed === 'object' && Object.hasOwn(parsed, 'package')) {
+  if (
+    parsed &&
+    typeof parsed === 'object' &&
+    (parsed as { version?: unknown }).version === PACKAGE_MANIFEST_VERSION
+  ) {
+    const { version, textForwarding, ...channels } = object(parsed, V2_FIELDS)
+    parsed = {
+      schema: OWNER_PACKAGE_SCHEMA,
+      ...channels,
+      textForwarding: { version, textForwarding },
+    }
+  } else if (parsed && typeof parsed === 'object' && Object.hasOwn(parsed, 'package')) {
     const envelope = object(parsed, ['version', 'textForwarding', 'package'])
     const channels = object(envelope.package, [
       'schema',
@@ -137,25 +182,40 @@ export function parseOwnerPackageShadow(text: string): OwnerPackageShadow {
       textForwarding: { version: envelope.version, textForwarding: envelope.textForwarding },
     }
   }
-  const root = object(parsed, [
-    'schema',
-    'owners',
-    'exports',
-    'candidates',
-    'helpers',
-    'compiledByConsumer',
-    'textForwarding',
-  ])
+  const root = object(
+    parsed,
+    [
+      'schema',
+      'owners',
+      'exports',
+      'candidates',
+      'helpers',
+      'compiledByConsumer',
+      'textForwarding',
+    ],
+    ['textPublish'],
+  )
   if (root.schema !== OWNER_PACKAGE_SCHEMA) fail('schema')
   const owners = root.owners === null ? null : parseOwnerContractShadow(JSON.stringify(root.owners))
   const declared = new Set(owners?.contracts.map((contract) => contract.owner) ?? [])
-  const exports = list(root.exports, 128).map((value) => {
-    const row = object(value, ['name', 'owners'])
+  const exports = list(root.exports, 128).map((value): PackageExport => {
+    const row = object(value, ['name', 'owners'], ['primitive'])
     const refs = unique(list(row.owners, 32).map((value) => string(value, 161)))
     if (!refs.every((ref) => declared.has(ref))) fail('owner reference')
-    return { name: name(row.name), owners: refs }
+    return {
+      name: name(row.name),
+      owners: refs,
+      ...(Object.hasOwn(row, 'primitive') ? { primitive: name(row.primitive) } : {}),
+    }
   })
   const exported = new Set(unique(exports.map((entry) => entry.name)))
+  const textPublish = list(root.textPublish ?? [], 128).map((value) => {
+    const row = object(value, ['name', 'sharesState'])
+    if (!exported.has(name(row.name))) fail('text publication export')
+    if (typeof row.sharesState !== 'boolean') fail('text publication state')
+    return { name: row.name as string, sharesState: row.sharesState }
+  })
+  unique(textPublish.map((row) => row.name))
   const referenced = new Set(exports.flatMap((entry) => entry.owners))
   if ([...declared].some((owner) => !referenced.has(owner))) fail('unpublished owner')
   const candidates = unique(
@@ -172,6 +232,7 @@ export function parseOwnerPackageShadow(text: string): OwnerPackageShadow {
     schema: OWNER_PACKAGE_SCHEMA,
     owners,
     exports,
+    textPublish,
     candidates,
     helpers,
     compiledByConsumer: root.compiledByConsumer,

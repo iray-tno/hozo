@@ -129,7 +129,10 @@ const PACKAGES = {
   },
   form: {
     dependencyOverrides: { '@hozo/engine': 'workspace:^' },
-    exports: { '.': './dist/index.js' },
+    exports: { '.': './dist/index.js', './hozo.manifest.json': './hozo.manifest.json' },
+    // Manifest v2 (#2044); `scripts/component-manifests.mjs` keeps it current.
+    files: ['dist', 'hozo.manifest.json'],
+    hozo: { manifest: './hozo.manifest.json' },
     native: true,
     keywords: ['react-native', 'react', 'form', 'date-picker', 'calendar', 'accessibility'],
   },

@@ -733,3 +733,24 @@ export const textHosts = [
   { package: '@hozo/patterns', export: 'Checkbox', sharesState: true },
   { package: '@hozo/patterns', export: 'Switch', sharesState: true },
 ]
+
+// Exports the compiler lowers as one of its primitives, by package. The
+// compiler trusts these packages as primitive sources (`sources.ts`) and
+// maps a trusted import by name, so each export here is the Primitive of the
+// same name; the manifest publishes the pairing and CI compares it with the
+// compiler's table. `@hozo/ui` and `@hozo/form` are not primitive sources.
+export const primitiveExports = {
+  '@hozo/patterns': [
+    'Avatar',
+    'Chip',
+    'ColorPicker',
+    'Combobox',
+    'CommandPalette',
+    'Dialog',
+    'Listbox',
+    'Menu',
+    'OtpInput',
+    'Pagination',
+    'Stepper',
+  ],
+}

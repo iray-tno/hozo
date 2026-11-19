@@ -21,7 +21,7 @@ import { valueExports } from './generated-abi.mjs'
 import { packageOwnerChannels } from './style-slots/package-owners.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-/** UI and patterns opt into package channels explicitly. This
+/** UI, patterns and form opt into package channels explicitly. This
  * is NOT automatic metadata for every source package or a contract audit.
  * Value exports use the existing esbuild type-erasure probe (no execution).
  * Entries need explicit named exports; star-export resolution is not claimed.
@@ -77,7 +77,7 @@ async function main() {
       entry = json.exports?.['.']
       if (typeof entry !== 'string') throw new Error('UI manifest needs its explicit source entry')
       channels = await sourcePackageChannels(dir, entry, { packageName: json.name })
-    } else if (json.name === '@hozo/patterns') {
+    } else if (json.name === '@hozo/patterns' || json.name === '@hozo/form') {
       // The package publishes dist; source summaries must not depend on stale
       // built output or guess a selected platform from package-name spelling.
       entry = './src/index.ts'

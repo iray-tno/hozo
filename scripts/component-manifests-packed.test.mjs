@@ -133,7 +133,7 @@ test('the real pnpm UI tarball carries reproducible candidate and legacy text ch
   const contributions = collectOwnerPackageContributions(capture)
   assert.equal(contributions.status, 'complete')
   if (contributions.status !== 'complete') return
-  assert.deepEqual(contributions.candidates, regenerated.package.candidates)
+  assert.deepEqual(contributions.candidates, regenerated.candidates)
   assert.equal(contributions.instances[0].instance, instance)
   assert.deepEqual(contributions.instances[0].entries, [realpathSync(entry)])
   assert.equal(contributions.instances[0].data.owners, null)
@@ -151,7 +151,7 @@ test('the real pnpm UI tarball carries reproducible candidate and legacy text ch
   t.diagnostic(
     JSON.stringify({
       sourceFiles: sourceFiles.length,
-      exports: regenerated.package.exports.length,
+      exports: regenerated.exports.length,
       candidates: contributions.candidates.length,
       textSummaries: Object.keys(legacy.textForwarding).length,
       manifestBytes: Buffer.byteLength(text),
@@ -169,7 +169,7 @@ test('packed Tabs callers retain per-instance provenance, stateful carriers and 
   const manifestFile = path.join(instance, json.hozo.manifest)
   const text = readFileSync(manifestFile, 'utf8')
   const manifest = JSON.parse(text)
-  const tab = manifest.package.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
+  const tab = manifest.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
   assert.equal(
     tab.audit,
     'audited',
@@ -183,11 +183,8 @@ test('packed Tabs callers retain per-instance provenance, stateful carriers and 
   const second = path.join(unpacked, 'other-install')
   cpSync(instance, second, { recursive: true })
   const stripped = structuredClone(manifest)
-  stripped.package.owners.contracts = stripped.package.owners.contracts.filter(
-    (row) => row.owner !== tab.owner,
-  )
-  for (const row of stripped.package.exports)
-    row.owners = row.owners.filter((owner) => owner !== tab.owner)
+  stripped.owners.contracts = stripped.owners.contracts.filter((row) => row.owner !== tab.owner)
+  for (const row of stripped.exports) row.owners = row.owners.filter((owner) => owner !== tab.owner)
   writeFileSync(path.join(second, json.hozo.manifest), JSON.stringify(stripped))
 
   const consumer = path.join(unpacked, 'tab-consumer')
@@ -228,7 +225,7 @@ test('packed Tabs callers retain per-instance provenance, stateful carriers and 
     const selected = selectOwnerPackageContract(lease, request(0, imported))
     assert.equal(selected.status, 'selected')
     assert.deepEqual(JSON.parse(selected.shadow), {
-      schema: manifest.package.owners.schema,
+      schema: manifest.owners.schema,
       contracts: [tab],
     })
     assert.equal(selected.identity.owner, 'Tabs.Tab')
@@ -259,7 +256,7 @@ export function App({tabs,index,author}) {return <Choices tabs={tabs} index={ind
   const project = new InstanceOwnerCallerProject(lease, compiler, async (names, signal) => {
     preparations++
     if (preparations === 1) assert.ok(classes.split(' ').every((token) => names.includes(token)))
-    assert.ok(manifest.package.candidates.every((token) => names.includes(token)))
+    assert.ok(manifest.candidates.every((token) => names.includes(token)))
     return JSON.stringify((await css.prepareOrder(names, signal)).snapshot)
   })
   const receipts = []
@@ -365,7 +362,7 @@ export function App({tabs,index,author}) {return <Choices tabs={tabs} index={ind
       assert.equal((await project.emit(input, request(0))).preview.code, input)
     }
     const leaseChanged = structuredClone(manifest)
-    leaseChanged.package.owners.contracts.find(
+    leaseChanged.owners.contracts.find(
       (row) => row.owner === tab.owner,
     ).shapes[0].inputs.splitText = false
     writeFileSync(manifestFile, JSON.stringify(leaseChanged))
@@ -409,11 +406,7 @@ test('the built patterns tarball preserves scoped owner facts for both selected 
   const text = readFileSync(path.join(instance, json.hozo.manifest), 'utf8')
   assert.equal(text, readFileSync(path.join(root, 'packages/patterns', json.hozo.manifest), 'utf8'))
   assert.equal(text, serializeManifest(manifest))
-  assert.deepEqual(
-    manifest.package.owners,
-    ownerShadow,
-    'transport of the catalog, not a copied fixture',
-  )
+  assert.deepEqual(manifest.owners, ownerShadow, 'transport of the catalog, not a copied fixture')
   assert.deepEqual(manifest.textForwarding, {})
 
   const captures = []
@@ -450,9 +443,7 @@ test('the built patterns tarball preserves scoped owner facts for both selected 
     'selected entry/platform identities stay distinct',
   )
 
-  const contract = manifest.package.owners.contracts.find(
-    (row) => row.owner === 'BottomSheet.handle',
-  )
+  const contract = manifest.owners.contracts.find((row) => row.owner === 'BottomSheet.handle')
   assert.equal(contract.audit, 'unknown')
   assert.equal(selectOwnerShape(contract, { present: false }).status, 'absent')
   for (const resizable of [false, true]) {
@@ -477,15 +468,13 @@ export const App=()=> <BottomSheet open handleClassName="p-[8px]"><Text classNam
     'publication must not activate experimental owner lowering',
   )
   for (const imported of ['BottomSheet', 'HozoBottomSheet']) {
-    assert.deepEqual(manifest.package.exports.find((row) => row.name === imported).owners, [
-      contract.owner,
-    ])
+    assert.deepEqual(manifest.exports.find((row) => row.name === imported).owners, [contract.owner])
     const source = `import {${imported} as Sheet} from '@hozo/patterns';
 export const App=()=> <Sheet open handleClassName="p-[8px] opacity-50" handleStyle={authored}/>`
     const options = {
       source: json.name,
       imported,
-      shadow: JSON.stringify({ schema: manifest.package.owners.schema, contracts: [contract] }),
+      shadow: JSON.stringify({ schema: manifest.owners.schema, contracts: [contract] }),
     }
     const preview = previewOwnerLiteralCallers(source, compiler, options)
     assert.equal(preview.findings[0].disposition, 'prepared-literal')
@@ -535,7 +524,7 @@ export const App=()=> <Sheet open handleClassName="p-[8px] opacity-50" handleSty
     webCompiler,
     async (names, signal) => {
       webPreparations++
-      assert.ok(manifest.package.candidates.every((name) => names.includes(name)))
+      assert.ok(manifest.candidates.every((name) => names.includes(name)))
       return JSON.stringify((await css.prepareOrder(names, signal)).snapshot)
     },
   )
@@ -603,7 +592,7 @@ export const App=()=> <Sheet open handleClassName="p-[8px] opacity-50" handleSty
     async (names, signal) => {
       preparations++
       assert.ok(names.includes('p-2'))
-      assert.ok(manifest.package.candidates.every((name) => names.includes(name)))
+      assert.ok(manifest.candidates.every((name) => names.includes(name)))
       return JSON.stringify((await css.prepareOrder(names, signal)).snapshot)
     },
   )
@@ -671,9 +660,9 @@ export const App=()=> <Sheet handleClassName="p-2"/>`
   t.diagnostic(
     JSON.stringify({
       sourceFiles: sourceFiles.length,
-      exports: manifest.package.exports.length,
-      candidates: manifest.package.candidates.length,
-      contracts: manifest.package.owners.contracts.length,
+      exports: manifest.exports.length,
+      candidates: manifest.candidates.length,
+      contracts: manifest.owners.contracts.length,
       audit: contract.audit,
       compiledByConsumer: false,
       manifestBytes: Buffer.byteLength(text),

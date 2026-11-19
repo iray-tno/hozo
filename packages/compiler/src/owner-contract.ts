@@ -1,4 +1,4 @@
-// RFC010 shadow vocabulary, deliberately separate from MANIFEST_VERSION=1.
+// RFC010 shadow vocabulary, carried by manifest v2 and the v1 envelope.
 // Parsing a declaration does not audit its host or authorize caller rewriting.
 export const OWNER_SHADOW_VERSION = 'rfc010-owner-shadow-0'
 

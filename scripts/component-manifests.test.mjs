@@ -43,10 +43,10 @@ export type Props = { className?: string }; export const Inner = 'p-4 p-2'`,
       ['src/index.ts', 'src/widget.tsx'],
     )
     const manifest = buildPackageManifest({ version: 1, textForwarding: {} }, options)
-    assert.deepEqual(manifest.package.candidates, ['p-2', 'p-4'])
-    assert.equal(manifest.package.owners, null)
-    assert.deepEqual(manifest.package.helpers, [])
-    assert.equal(manifest.package.compiledByConsumer, true)
+    assert.deepEqual(manifest.candidates, ['p-2', 'p-4'])
+    assert.equal(manifest.owners, null)
+    assert.deepEqual(manifest.helpers, [])
+    assert.equal(manifest.compiledByConsumer, true)
     writeFileSync(
       path.join(root, 'src', 'index.ts'),
       `export /* authored spacing */ * from './widget.tsx'`,
@@ -105,14 +105,14 @@ test('patterns publishes its catalog-owned contract without cloning it onto the 
     readFileSync(path.join(dir, json.hozo.manifest), 'utf8'),
     serializeManifest(manifest),
   )
-  assert.deepEqual(manifest.package.owners, ownerShadow)
+  assert.deepEqual(manifest.owners, ownerShadow)
   for (const name of ['BottomSheet', 'HozoBottomSheet'])
-    assert.deepEqual(manifest.package.exports.find((row) => row.name === name).owners, [
+    assert.deepEqual(manifest.exports.find((row) => row.name === name).owners, [
       'BottomSheet.handle',
     ])
   for (const name of ['Tabs', 'HozoTabs'])
-    assert.deepEqual(manifest.package.exports.find((row) => row.name === name).owners, ['Tabs.Tab'])
-  assert.equal(manifest.package.compiledByConsumer, false)
+    assert.deepEqual(manifest.exports.find((row) => row.name === name).owners, ['Tabs.Tab'])
+  assert.equal(manifest.compiledByConsumer, false)
   assert.deepEqual(manifest.textForwarding, {})
   const compiler = createCompiler()
   const source = `import {Tabs} from '@hozo/patterns';
@@ -138,7 +138,7 @@ test('the published UI manifest is freshly derived and preserves all legacy text
   const shipped = readFileSync(path.join(dir, json.hozo.manifest), 'utf8')
   assert.equal(shipped, serializeManifest(manifest), 'run pnpm manifests after source edits')
   const normalized = parseOwnerPackageShadow(shipped)
-  assert.deepEqual(normalized.textForwarding, legacy)
+  assert.deepEqual(normalized.textForwarding.textForwarding, legacy.textForwarding)
   assert.deepEqual(
     textForwardingModule(json.name, manifest),
     textForwardingModule(json.name, legacy),
@@ -149,5 +149,6 @@ test('the published UI manifest is freshly derived and preserves all legacy text
   )
   assert.ok(normalized.candidates.includes('bg-hozo-accent'))
   assert.equal(normalized.owners, null, 'generation is not a behavioral owner audit')
-  assert.equal(Object.hasOwn(manifest.package, 'textForwarding'), false)
+  assert.equal(manifest.version, 2)
+  assert.equal(Object.hasOwn(manifest, 'package'), false, 'v2 stores each channel once, at the top')
 })

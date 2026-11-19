@@ -9,6 +9,7 @@ import {
 import {
   OWNER_PACKAGE_SCHEMA,
   type OwnerPackageShadow,
+  PACKAGE_MANIFEST_VERSION,
   parseOwnerPackageShadow,
 } from './owner-package.ts'
 
@@ -178,7 +179,11 @@ export function captureOwnerManifests(
     let packageData: OwnerPackageShadow | undefined
     try {
       const input = JSON.parse(manifest.text)
-      if (input?.schema === OWNER_PACKAGE_SCHEMA || (input && Object.hasOwn(input, 'package'))) {
+      if (
+        input?.schema === OWNER_PACKAGE_SCHEMA ||
+        input?.version === PACKAGE_MANIFEST_VERSION ||
+        (input && Object.hasOwn(input, 'package'))
+      ) {
         packageData = parseOwnerPackageShadow(manifest.text)
         shadow = packageData.owners ?? { schema: OWNER_SHADOW_VERSION, contracts: [] }
       } else shadow = parseOwnerContractShadow(manifest.text)
