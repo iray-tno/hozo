@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { captureCarrierClosure } from './carrier-closure.ts'
+import { captureCarrierClosure, carrierGuard, carrierTripMessage } from './carrier-closure.ts'
 import { buildPackageManifest, serializeManifest } from './manifest.ts'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
@@ -169,4 +169,43 @@ test('over the edge budget is incomplete, not a partial set', () => {
       reasons: ['carrier-edge-budget'],
     })
   })
+})
+
+test('the guard trips only on a package with a manifest outside the capture', () => {
+  fixture((app) => {
+    const kit = install(app, 'kit', {}, 'p-4')
+    install(app, 'plain', { dependencies: { behind: '1' } })
+    const behind = install(app, 'behind', {}, 'gap-3')
+    // A nested marker inside an ordinary package's dist must not hide it.
+    mkdirSync(path.join(behind, 'dist'), { recursive: true })
+    writeFileSync(path.join(behind, 'dist', 'package.json'), '{"type":"module"}')
+    writeFileSync(path.join(behind, 'dist', 'index.js'), 'export {}\n')
+    writeFileSync(
+      path.join(app, 'package.json'),
+      JSON.stringify({
+        name: 'app',
+        hozo: { manifest: './gone.json' },
+        dependencies: { kit: '1', plain: '1' },
+      }),
+    )
+    writeFileSync(path.join(app, 'App.tsx'), 'export {}\n')
+    const closure = captureCarrierClosure(app, options)
+    const guard = carrierGuard(closure)
+    // The app itself, a carrier, and an ordinary late package all pass.
+    assert.equal(guard(path.join(app, 'App.tsx')), undefined)
+    assert.equal(guard(path.join(kit, 'index.js')), undefined)
+    assert.equal(guard(path.join(app, 'node_modules/plain/index.js')), undefined)
+    assert.equal(guard('\0virtual:module'), undefined)
+    // Reached only through `plain`: its candidates were never captured.
+    const trip = guard(`${path.join(behind, 'dist', 'index.js')}?v=1`)
+    assert.deepEqual(trip, { instance: behind, name: 'behind' })
+    assert.match(carrierTripMessage(closure, trip!), /behind .*declares a Hozo manifest/)
+  })
+})
+
+test('the guard passes every resolution a real app makes into its own packages', () => {
+  const app = path.join(repo, 'examples/native-showcase')
+  const guard = carrierGuard(captureCarrierClosure(app, options))
+  for (const name of ['ui', 'patterns', 'form', 'core'])
+    assert.equal(guard(path.join(repo, 'packages', name, 'src', 'index.ts')), undefined)
 })

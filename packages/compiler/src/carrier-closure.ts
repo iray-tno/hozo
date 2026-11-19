@@ -11,7 +11,7 @@
 // path, or only through a package without a manifest -- is left to a guard at
 // resolve time, which compares against `instances` below.
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import {
@@ -65,6 +65,12 @@ export interface CarrierClosureOptions {
   locate?(importerRoot: string, name: string): string | undefined
   /** Carrier edges, at most captureOwnerManifests' own budget of 512. */
   maxEdges?: number
+}
+
+/** A resolution into a package with a manifest that the capture did not hold. */
+export interface CarrierTrip {
+  readonly instance: string
+  readonly name: string
 }
 
 const NAME = /^(?:@[\w.-]+\/)?[\w.-]+$/
@@ -121,6 +127,79 @@ function declaredNames(json: Record<string, unknown>, fields: readonly string[])
     for (const name of Object.keys(entries)) names.add(name)
   }
   return [...names].sort()
+}
+
+type Owner = { instance: string; name: string; manifest: boolean } | null
+
+/**
+ * The guard for every resolution after the capture: decision 2 of
+ * docs/measurements/manifest-candidate-capture.md.
+ *
+ * Returns a trip when `file` lies in a package instance whose `package.json`
+ * declares `hozo.manifest` and that the capture did not hold. Its candidates
+ * would be missing from the frozen set, so the build has to stop before
+ * output rather than ship a component whose classes have no rules. Any other
+ * late package is ignored: 68 instances arrived late in the measured Metro
+ * build and none carried a manifest, so a guard refusing every unknown
+ * package would refuse an ordinary app.
+ *
+ * The owner is the nearest `package.json` with a `name`, so a nested
+ * `{"type":"module"}` marker inside `dist/` does not hide its package. Owners
+ * are cached per directory: one metadata read per instance, then lookups.
+ */
+export function carrierGuard(closure: CarrierClosure): (file: string) => CarrierTrip | undefined {
+  const allowed = new Set([closure.root, ...closure.carriers.map((row) => row.instance)])
+  const owners = new Map<string, Owner>()
+  function ownerOf(start: string): Owner {
+    const visited: string[] = []
+    let dir = start
+    let found: Owner = null
+    for (;;) {
+      const cached = owners.get(dir)
+      if (cached !== undefined) {
+        found = cached
+        break
+      }
+      visited.push(dir)
+      const metadata = path.join(dir, 'package.json')
+      if (existsSync(metadata)) {
+        try {
+          const json = JSON.parse(readFileSync(metadata, 'utf8'))
+          if (typeof json?.name === 'string') {
+            found = {
+              instance: realpathSync(dir),
+              name: json.name,
+              manifest: typeof json.hozo?.manifest === 'string',
+            }
+            break
+          }
+        } catch {}
+      }
+      const parent = path.dirname(dir)
+      if (parent === dir || path.basename(dir) === 'node_modules') break
+      dir = parent
+    }
+    for (const seen of visited) owners.set(seen, found)
+    return found
+  }
+  return (file) => {
+    const physical = file.split('?')[0]!
+    if (!path.isAbsolute(physical) || physical.includes('\0')) return undefined
+    const owner = ownerOf(path.dirname(physical))
+    if (!owner?.manifest || allowed.has(owner.instance)) return undefined
+    return Object.freeze({ instance: owner.instance, name: owner.name })
+  }
+}
+
+/** The error a trip fails the build with. */
+export function carrierTripMessage(closure: CarrierClosure, trip: CarrierTrip): string {
+  return (
+    `[hozo] ${trip.name} (${trip.instance}) declares a Hozo manifest, but the ` +
+    `candidates captured at startup do not include it, so its classes would ` +
+    `have no styles. Add ${trip.name} to the dependencies in ` +
+    `${path.join(closure.root, 'package.json')} and restart, so the next ` +
+    `capture holds it.`
+  )
 }
 
 /**
