@@ -70,6 +70,14 @@ on:
         description: 'Total Canvas mounts (1-10); extra stress rounds abort on any failure, never retry it'
         type: string
         default: '1'
+      ui-docs-pages:
+        description: '#2065 experiment: comma-separated docs pages'
+        type: string
+        default: ''
+      ui-docs-repeat:
+        description: '#2065 experiment: repeat count'
+        type: string
+        default: '1'
       android-scenario:
         description: 'Full showcase or isolated SVG, audio, text, docs previews, or CodeBlock timing'
         type: choice
@@ -96,7 +104,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: native-showcase-${{ github.workflow }}-${{ github.ref }}-${{ inputs.release-signing || false }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.android-gpu || 'swiftshader_indirect' }}-${{ inputs.android-scenario || 'full' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
+  group: native-showcase-${{ github.workflow }}-${{ github.ref }}-${{ inputs.release-signing || false }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.android-gpu || 'swiftshader_indirect' }}-${{ inputs.android-scenario || 'full' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}-${{ inputs.ui-docs-pages || 'all' }}
   cancel-in-progress: true
 
 jobs:
@@ -200,6 +208,8 @@ jobs:
           HOZO_ANDROID_TARGET: ${{ inputs.android-target || 'google_apis' }}
           HOZO_ANDROID_CANVAS_ROUNDS: ${{ inputs.android-canvas-rounds || '1' }}
           HOZO_ANDROID_SCENARIO: ${{ inputs.android-scenario || 'full' }}
+          HOZO_UI_DOCS_PAGES: ${{ inputs.ui-docs-pages }}
+          HOZO_UI_DOCS_REPEAT: ${{ inputs.ui-docs-repeat }}
           HOZO_CODE_BLOCK_PROFILE: ${{ inputs.code-block-profile && '1' || '' }}
       - uses: actions/upload-artifact@v4
         if: always()

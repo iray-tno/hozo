@@ -444,11 +444,18 @@ try {
         },
       },
       output,
-      {
-        states: UI_STATE_SCENES,
-        overlays: UI_OVERLAY_SCENES,
-        landscape: UI_LANDSCAPE_OVERLAY_SCENES,
-      },
+      process.env.HOZO_UI_DOCS_PAGES
+        ? {
+            // #2065 isolation experiment: a fixed page order, repeated.
+            pages: Array.from({ length: Number(process.env.HOZO_UI_DOCS_REPEAT || 1) }, () =>
+              process.env.HOZO_UI_DOCS_PAGES.split(','),
+            ).flat(),
+          }
+        : {
+            states: UI_STATE_SCENES,
+            overlays: UI_OVERLAY_SCENES,
+            landscape: UI_LANDSCAPE_OVERLAY_SCENES,
+          },
     )
   } else {
     await fullShowcase()
