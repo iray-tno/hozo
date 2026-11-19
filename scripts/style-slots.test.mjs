@@ -20,6 +20,7 @@ import {
   checkGenerated,
   formFactSource,
   outputs,
+  patternHostsSource,
   validateCatalog,
 } from './style-slots/generate.mjs'
 import { checkPublicProps } from './style-slots/public-props.mjs'
@@ -421,4 +422,13 @@ test('the contract checks run outside Turbo cached tests and keep pending owners
   const unused = components.ColorPicker.find((slot) => slot.classProp === 'eyeDropperClassName')
   assert.equal(unused.lowering, 'web-only')
   assert.ok(unused.reason)
+})
+
+test('text hosts are authored once in the catalog; the Rust table is its generated copy', () => {
+  const rust = outputs()['crates/hozo_parser/src/pattern_hosts.rs']
+  assert.ok(rust.includes('("@hozo/patterns", "Checkbox", true),'))
+  const host = { package: '@hozo/patterns', export: 'Alert', sharesState: false }
+  assert.throws(() => patternHostsSource([host, host]), /duplicate text host/)
+  assert.throws(() => patternHostsSource([{ ...host, sharesState: 'no' }]), /Invalid/)
+  assert.throws(() => patternHostsSource([{ ...host, package: 'patterns' }]), /Invalid/)
 })

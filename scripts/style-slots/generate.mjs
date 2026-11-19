@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { components, formFactProfiles, ownerShadow, profiles } from './catalog.mjs'
+import { components, formFactProfiles, ownerShadow, profiles, textHosts } from './catalog.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const header =
@@ -350,6 +350,7 @@ ${Object.entries(facts)
     'scripts/style-slots/owner-shadow.json': `${JSON.stringify(ownerShadow, null, 2)}\n`,
     'crates/hozo_ir/src/class_slots.rs': ir,
     'crates/hozo_native/src/pattern_contracts.rs': native,
+    'crates/hozo_parser/src/pattern_hosts.rs': patternHostsSource(),
     'packages/patterns/src/slot-facts.native.ts': ts,
     'packages/form/src/class-facts.native.ts': constantNonControl(
       facts,
@@ -358,6 +359,34 @@ ${Object.entries(facts)
     ),
     'packages/form/src/owner-facts.native.ts': formFactSource(),
   }
+}
+
+/** The compiled-in copy of `textHosts`, read when a package's source is
+ * summarized for text forwarding. */
+export function patternHostsSource(hosts = textHosts) {
+  const seen = new Set()
+  for (const host of hosts) {
+    const id = `${host.package}\u0000${host.export}`
+    if (
+      !/^@hozo\/[a-z][a-z-]*$/.test(host.package) ||
+      !/^[A-Z][A-Za-z0-9]*$/.test(host.export) ||
+      typeof host.sharesState !== 'boolean' ||
+      seen.has(id)
+    )
+      throw new Error(`Invalid or duplicate text host: ${host.package} ${host.export}`)
+    seen.add(id)
+  }
+  const rows = hosts
+    .map((host) => `    (${quoted(host.package)}, ${quoted(host.export)}, ${host.sharesState}),`)
+    .join('\n')
+  return `${header}
+/// Pattern components that render their string children inside a \`View\`,
+/// and whether each shares its pressable's state with a Text inside it.
+/// Authored as \`textHosts\` in the catalog, which says why each is here.
+pub(crate) const PATTERN_HOSTS: [(&str, &str, bool); ${hosts.length}] = [
+${rows}
+];
+`
 }
 
 export function checkGenerated() {
