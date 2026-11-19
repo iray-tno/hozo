@@ -180,6 +180,8 @@ async function checkBundles(t, evidence, manifest) {
       new URL('../../../packages/engine/dist/class-resolver.js', import.meta.url),
       path.join(core, 'resolver.js'),
     )
+    // The resolver shares its inline-edge table with the authored-edge helper.
+    copyFileSync(engineFile('authored-edges.js'), path.join(core, 'authored-edges.js'))
     // Execute the actual Native adapter, not a newly invented renderItem
     // shim. The RN host below remains a stand-in: this proves callback
     // delivery through HozoFlatList, not VirtualizedList/windowing behavior.
