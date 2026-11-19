@@ -40,6 +40,7 @@ import {
 } from '@hozo/compiler/lower'
 import {
   CACHE_DIR,
+  checksRuntimeClasses,
   classesMissingFromRuntimeMap,
   discoverOwnerPackageCallers,
   discoverSources,
@@ -363,7 +364,7 @@ function configureHozo(
         const current = await currentEpoch((message) => this.warn(message))
         checkRequest()
         const compiler = current.compiler
-        if (file && !scannable && !isDerivedModule)
+        if (file && !scannable && !isDerivedModule && checksRuntimeClasses(file))
           // Outside the walk, so its classes never reach the candidate
           // stylesheet: one resolved at run time has no rule (#2048).
           for (const diagnostic of classesMissingFromRuntimeMap(

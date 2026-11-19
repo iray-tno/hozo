@@ -5,6 +5,7 @@ import { type Compiler, type PreparedModule, TAILWIND_SCALAR_ORDER_POLICY } from
 import { formatDiagnostic } from '@hozo/compiler/diagnostics'
 import { SourceProvenance } from '@hozo/compiler/lower'
 import {
+  checksRuntimeClasses,
   classesMissingFromRuntimeMap,
   type NativeTextInheritance,
   type OwnerContractRequest,
@@ -237,10 +238,11 @@ export class MetroTailwindWorker {
   }
 
   /** A carried class the run-time map does not hold does not apply (#2048).
-   * Not for a dependency's files, whose classes the app's author cannot
-   * change, matching the compiler's own diagnostics. */
+   * Not for a dependency's files or built output (`checksRuntimeClasses`). */
   reportMissingRuntimeClasses(source: string, filename: string, warn = console.warn) {
-    if (!this.#runtimeCandidates || /[\\/]node_modules[\\/]/.test(filename)) return
+    // Metro names a file relative to the project root, so the candidate
+    // module itself arrives as `node_modules/.hozo/...`, with no leading slash.
+    if (!this.#runtimeCandidates || !checksRuntimeClasses(filename)) return
     if (!/\.[cm]?[jt]sx?$/.test(filename)) return
     for (const diagnostic of classesMissingFromRuntimeMap(
       source,

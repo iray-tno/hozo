@@ -51,6 +51,24 @@ export const Card = () => <View className="p-4 bg-red-500" />
   assert.deepEqual(classesMissingFromRuntimeMap(label, '/app/bench.tsx', new Set(), compiler), [])
 })
 
+test('a name is reported only where it is written inside a string', () => {
+  // A variable named like a class, as three-kumimono's scene has: not reported.
+  const scene = `// the ring 'ring'\nconst ring = new Mesh()\ngroup.add(ring)\n`
+  assert.deepEqual(classesMissingFromRuntimeMap(scene, '/app/scene.ts', new Set(), compiler), [])
+  // Template text counts, before and after an interpolation; the code inside does not.
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the source under test holds a template.
+  const tile = 'const look = (on) => `h-4 ${on ? w : ring} p-6`\nconst w = 2\n'
+  assert.deepEqual(
+    classesMissingFromRuntimeMap(tile, '/app/tile.ts', new Set(), compiler).map(({ message }) =>
+      message
+        .match(/^`([^`]+)` \(([^)]+)\)/)
+        ?.slice(1)
+        .join(' '),
+    ),
+    ['h-4 tile.ts:1', 'p-6 tile.ts:1'],
+  )
+})
+
 test('a declared marker is not reported, by exact name or by prefix (#2073)', () => {
   const filter = `export const F = () => <Filter type="saturate" barClassName="h-4 w-32" />\n`
   const named = (markers: string[]) =>
