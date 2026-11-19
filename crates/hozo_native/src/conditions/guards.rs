@@ -67,8 +67,11 @@ pub(super) fn resolve(
     if !target.owner_facts.is_empty() {
         let fact = match condition {
             Condition::Disabled | Condition::Enabled => Some(OwnerFact::Disabled),
+            Condition::FormState(FormState::ReadOnly) => Some(OwnerFact::ReadOnly),
             Condition::Aria(state) if state == "selected" => Some(OwnerFact::AriaSelected),
             Condition::Aria(state) if state == "disabled" => Some(OwnerFact::AriaDisabled),
+            Condition::Aria(state) if state == "invalid" => Some(OwnerFact::AriaInvalid),
+            Condition::Aria(state) if state == "required" => Some(OwnerFact::AriaRequired),
             Condition::Aria(state) => {
                 return Err(format!(
                     "Owner preparation has no declared aria-{state} fact."

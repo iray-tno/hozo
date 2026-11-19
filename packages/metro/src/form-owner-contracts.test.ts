@@ -48,6 +48,7 @@ function loadNativeFormModule(
     View: host('View'),
     Pressable: host('Pressable'),
     Text: host('Text'),
+    TextInput: host('TextInput'),
     StyleSheet: {
       create: <T>(styles: T) => styles,
       flatten: flattenStyle,
@@ -91,6 +92,7 @@ function loadNativeFormModule(
           typeof children === 'string'
             ? React.createElement(rn.Text as unknown as React.ComponentType, { style }, children)
             : children,
+        useAnnounce: () => () => {},
         useHozoMessage: () => (key: string) => key,
         useHozoI18n: () => ({ locale: 'en-US' }),
       }
@@ -374,4 +376,183 @@ export function Screen({ disabled }: { disabled?: boolean }) {
   )
   assert.equal(classResolverCalls, 1)
   assert.equal(flattenStyle(formMod.captured[0]?.props.style).paddingBottom, 99)
+})
+
+test('Native Field and TextArea deliver prepared styles to every declared host without calling hozoClasses (#2045)', () => {
+  const compiler = createCompiler()
+  const source = `import { Field, TextArea } from '@hozo/form'
+export function Screen({
+  disabled,
+  readOnly,
+  invalid,
+  required,
+}: {
+  disabled?: boolean
+  readOnly?: boolean
+  invalid?: boolean
+  required?: boolean
+}) {
+  return (
+    <Field
+      label="Bio"
+      required={required}
+      description="Keep it short"
+      error={invalid ? 'Invalid bio' : undefined}
+      className="pt-2"
+      labelClassName="text-[#112233] font-bold"
+      requiredClassName="text-[#cc0000]"
+      descriptionClassName="text-[#445566]"
+      errorClassName="text-[#990000]"
+    >
+      {(control) => (
+        <TextArea
+          accessibilityLabel={control.accessibilityLabel}
+          accessibilityLabelledBy={control.accessibilityLabelledBy}
+          maxLength={40}
+          disabled={disabled}
+          readOnly={readOnly}
+          aria-invalid={invalid}
+          aria-required={required}
+          className="pt-3"
+          fieldClassName="pt-4 text-[16px] leading-[24px] bg-[#101010] focus:bg-[#202020] focus-visible:bg-[#303030] disabled:bg-[#404040] read-only:bg-[#505050] aria-[invalid=true]:bg-[#606060] aria-required:bg-[#707070]"
+          countClassName="text-[#778899]"
+        />
+      )}
+    </Field>
+  )
+}
+export function Fallback({ dynamic }: { dynamic: string }) {
+  return <TextArea fieldClassName="placeholder:text-[#888888]" className={dynamic} />
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoFieldStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoLabelStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoRequiredStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDescriptionStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoErrorStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTextAreaStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoCountStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  // Placeholder utility emits an extra host prop, so it stays on the fallback route rather than dropping.
+  assert.match(transformed, /fieldClassName="placeholder:text-\[#888888\]"/)
+  assert.match(transformed, /className=\{dynamic\}/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const fieldMod = loadNativeFormModule('field.native.tsx', { hozoClasses: spyHozoClasses })
+  const textAreaMod = loadNativeFormModule('text-area.native.tsx', { hozoClasses: spyHozoClasses })
+  const screenMod = {
+    exports: {} as {
+      Screen: React.ComponentType<{
+        disabled?: boolean
+        readOnly?: boolean
+        invalid?: boolean
+        required?: boolean
+      }>
+    },
+  }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/form')
+        return { Field: fieldMod.exports.Field, TextArea: textAreaMod.exports.TextArea }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(
+    React.createElement(screenMod.exports.Screen, {
+      required: true,
+      invalid: true,
+      readOnly: true,
+    }),
+  )
+  assert.equal(
+    classResolverCalls,
+    0,
+    'prepared Field and TextArea literals must bypass hozoClasses',
+  )
+
+  const fieldView = fieldMod.captured.find((entry) => entry.host === 'View')
+  assert.ok(fieldView)
+  assert.equal(flattenStyle(fieldView.props.style).paddingTop, 8)
+  const fieldTexts = fieldMod.captured.filter((entry) => entry.host === 'Text')
+  assert.equal(fieldTexts.length, 4)
+  assert.equal(flattenStyle(fieldTexts[0]!.props.style).color, '#112233')
+  assert.equal(flattenStyle(fieldTexts[0]!.props.style).fontWeight, '700')
+  assert.equal(flattenStyle(fieldTexts[1]!.props.style).color, '#cc0000')
+  assert.equal(flattenStyle(fieldTexts[2]!.props.style).color, '#990000')
+  assert.equal(flattenStyle(fieldTexts[3]!.props.style).color, '#445566')
+
+  const areaView = textAreaMod.captured.find((entry) => entry.host === 'View')
+  assert.ok(areaView)
+  assert.equal(flattenStyle(areaView.props.style).paddingTop, 12)
+  const areaInput = textAreaMod.captured.find((entry) => entry.host === 'TextInput')
+  assert.ok(areaInput)
+  const inputStyle = flattenStyle(areaInput.props.style)
+  assert.equal(inputStyle.paddingTop, 16)
+  // Auto-grow reads lineHeight (24) and paddingTop (16) from the prepared style: 2 * 24 + 16 = 64.
+  assert.equal(inputStyle.height, 64)
+  assert.equal(inputStyle.backgroundColor, '#707070')
+  const areaCount = textAreaMod.captured.find((entry) => entry.host === 'Text')
+  assert.ok(areaCount)
+  assert.equal(flattenStyle(areaCount.props.style).color, '#778899')
+
+  // Reject dual carriers on every slot.
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoFieldStyle'],
+    ['labelClassName', 'hozoLabelStyle'],
+    ['requiredClassName', 'hozoRequiredStyle'],
+    ['descriptionClassName', 'hozoDescriptionStyle'],
+    ['errorClassName', 'hozoErrorStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            fieldMod.exports.Field as React.ComponentType<Record<string, unknown>>,
+            {
+              label: 'Name',
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+              children: () => null,
+            },
+          ),
+        ),
+      new RegExp(`Prepared Field styles must consume ${classProp}`),
+    )
+  }
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoTextAreaStyle'],
+    ['fieldClassName', 'hozoFieldStyle'],
+    ['countClassName', 'hozoCountStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            textAreaMod.exports.TextArea as React.ComponentType<Record<string, unknown>>,
+            { [classProp]: 'pt-2', [preparedProp]: () => ({}) },
+          ),
+        ),
+      new RegExp(`Prepared TextArea styles must consume ${classProp}`),
+    )
+  }
 })

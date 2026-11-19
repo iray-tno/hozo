@@ -38,8 +38,10 @@ fn is_relation_marker(class: &str) -> bool {
 pub fn lower_owner_class(root: &Node, source: &str, theme: &Theme, evidence: bool) -> LowerOutput {
     let mut props = root.props.clone();
     props.class_slots.clear();
-    let eligible = matches!(root.primitive, Primitive::View | Primitive::Pressable)
-        && root.children.is_empty()
+    let eligible = matches!(
+        root.primitive,
+        Primitive::View | Primitive::Pressable | Primitive::Text | Primitive::TextInput
+    ) && root.children.is_empty()
         && props == PropSet::default()
         && root
             .props
@@ -64,6 +66,13 @@ pub fn lower_owner_class(root: &Node, source: &str, theme: &Theme, evidence: boo
         evidence,
         eligible.then_some(&mut carrier),
     );
+    // A synthetic leaf TextInput prepares styles only; the real owner
+    // component owns its accessible name.
+    if eligible && root.primitive == Primitive::TextInput {
+        output
+            .diagnostics
+            .retain(|d| d.code != DiagnosticCode::A11yMissingAccessibleName);
+    }
     if !output.diagnostics.is_empty() || !output.runtime_imports.is_empty() {
         carrier = None;
     }
@@ -71,7 +80,7 @@ pub fn lower_owner_class(root: &Node, source: &str, theme: &Theme, evidence: boo
         output.diagnostics.push(Diagnostic {
             code: DiagnosticCode::NotWiredOnWeb,
             severity: Severity::Error,
-            message: "Internal ownerClass requires a leaf View/Pressable with only complete class input, no expressions, residuals, carried classes, other props or runtime effects. Ordinary output is retained; no partial class carrier is certified.".into(),
+            message: "Internal ownerClass requires a leaf View/Pressable/Text/TextInput with only complete class input, no expressions, residuals, carried classes, other props or runtime effects. Ordinary output is retained; no partial class carrier is certified.".into(),
             span: root.span,
         });
     }
@@ -96,7 +105,7 @@ mod tests {
 
     #[test]
     fn captures_the_existing_class_without_synthetic_base_or_host_changes() {
-        for tag in ["View", "Pressable"] {
+        for tag in ["View", "Pressable", "Text", "TextInput"] {
             let source = format!("const el=<{tag} className=\"p-2 hover:opacity-50 aria-selected:bg-red-500 disabled:font-bold\"/>");
             let parsed = hozo_parser::parse_tsx(&source);
             let root = &parsed.roots[0].node;
@@ -153,7 +162,7 @@ mod tests {
             "const el=<Pressable className=\"p-2\" disabled/>",
             "const el=<Pressable className=\"p-2\" onPress={act}/>",
             "const el=<View className=\"p-2\"><Text>Label</Text></View>",
-            "const el=<Text className=\"text-red-500\"/>",
+            "const el=<ScrollView className=\"p-2\"/>",
         ] {
             let parsed = hozo_parser::parse_tsx(source);
             let root = &parsed.roots[0].node;

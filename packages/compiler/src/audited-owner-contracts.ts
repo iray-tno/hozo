@@ -29,4 +29,60 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     shadow:
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"FileDropzone.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoFileDropzoneStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled"],"splitText":true}}]}]}',
   },
+  {
+    owner: 'Field.root',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Field.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoFieldStyle","webClassProp":"className"},"authoredStyles":[],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Field.label',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Field.label","classProp":"labelClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoLabelStyle","webClassProp":"labelClassName"},"authoredStyles":[],"shapes":[{"id":"label","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"label","events":[]}]}]}',
+  },
+  {
+    owner: 'Field.required',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Field.required","classProp":"requiredClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoRequiredStyle","webClassProp":"requiredClassName"},"authoredStyles":[],"shapes":[{"id":"required","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"span","events":[]}]}]}',
+  },
+  {
+    owner: 'Field.description',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Field.description","classProp":"descriptionClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDescriptionStyle","webClassProp":"descriptionClassName"},"authoredStyles":[],"shapes":[{"id":"description","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"span","events":[]}]}]}',
+  },
+  {
+    owner: 'Field.error',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Field.error","classProp":"errorClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoErrorStyle","webClassProp":"errorClassName"},"authoredStyles":[],"shapes":[{"id":"error","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"span","events":[]}]}]}',
+  },
+  {
+    owner: 'TextArea.root',
+    package: '@hozo/form',
+    exports: ['TextArea', 'HozoTextArea'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TextArea.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTextAreaStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'TextArea.field',
+    package: '@hozo/form',
+    exports: ['TextArea', 'HozoTextArea'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TextArea.field","classProp":"fieldClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoFieldStyle","webClassProp":"fieldClassName"},"authoredStyles":[{"prop":"fieldStyle","order":0}],"shapes":[{"id":"field","when":{"eq":["present",true]},"nativeHost":"TextInput","webHost":"textarea","events":["focused","focusVisible"],"inputs":{"facts":["disabled","readOnly","aria-invalid","aria-required"],"splitText":false}}]}]}',
+  },
+  {
+    owner: 'TextArea.count',
+    package: '@hozo/form',
+    exports: ['TextArea', 'HozoTextArea'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TextArea.count","classProp":"countClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCountStyle","webClassProp":"countClassName"},"authoredStyles":[{"prop":"countStyle","order":0}],"shapes":[{"id":"count","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"span","events":[]}]}]}',
+  },
 ]

@@ -66,6 +66,12 @@ export interface HozoTextAreaProps {
   style?: StyleProp<ViewStyle>
   fieldStyle?: StyleProp<TextStyle>
   countStyle?: StyleProp<TextStyle>
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoTextAreaStyle?: () => StyleProp<ViewStyle>
+  /** @internal Complete prepared field class contribution (RFC 010). */
+  hozoFieldStyle?: (state: TextAreaFieldClassFacts) => StyleProp<TextStyle>
+  /** @internal Complete prepared count class contribution (RFC 010). */
+  hozoCountStyle?: () => StyleProp<TextStyle>
   testID?: string
   onBlur?: () => void
   onFocus?: () => void
@@ -118,10 +124,19 @@ export function HozoTextArea({
   style,
   fieldStyle,
   countStyle,
+  hozoTextAreaStyle,
+  hozoFieldStyle,
+  hozoCountStyle,
   testID,
   onBlur,
   onFocus,
 }: HozoTextAreaProps) {
+  if (hozoTextAreaStyle && className !== undefined)
+    throw new Error('Prepared TextArea styles must consume className')
+  if (hozoFieldStyle && fieldClassName !== undefined)
+    throw new Error('Prepared TextArea styles must consume fieldClassName')
+  if (hozoCountStyle && countClassName !== undefined)
+    throw new Error('Prepared TextArea styles must consume countClassName')
   // The count from the prop, then the project's i18n, then English
   // (decision 008). Held stable, because announcing it is an effect on it.
   const message = useHozoMessage()
@@ -162,7 +177,9 @@ export function HozoTextArea({
   // only its inline override. Resolve once, then share the flattened result.
   const resolvedField =
     StyleSheet.flatten([
-      hozoClasses(fieldClassName, fieldFacts) as StyleProp<TextStyle>,
+      hozoFieldStyle
+        ? hozoFieldStyle(fieldFacts)
+        : (hozoClasses(fieldClassName, fieldFacts) as StyleProp<TextStyle>),
       hozoAuthoredStyle(fieldStyle),
     ]) ?? {}
   const lineHeight = usableLineHeight(resolvedField.lineHeight, resolvedField.fontSize)
@@ -187,7 +204,12 @@ export function HozoTextArea({
   }, [announce, announceRemaining, formatCount, maxLength, remaining])
 
   return (
-    <View style={[hozoClasses(className, nonControlClassFacts), hozoAuthoredStyle(style)]}>
+    <View
+      style={[
+        hozoTextAreaStyle ? hozoTextAreaStyle() : hozoClasses(className, nonControlClassFacts),
+        hozoAuthoredStyle(style),
+      ]}
+    >
       <TextInput
         multiline
         value={text}
@@ -237,7 +259,10 @@ export function HozoTextArea({
         <Text
           accessibilityElementsHidden
           importantForAccessibility="no"
-          style={[hozoClasses(countClassName, nonControlClassFacts), hozoAuthoredStyle(countStyle)]}
+          style={[
+            hozoCountStyle ? hozoCountStyle() : hozoClasses(countClassName, nonControlClassFacts),
+            hozoAuthoredStyle(countStyle),
+          ]}
         >
           {formatCount(remaining, maxLength)}
         </Text>

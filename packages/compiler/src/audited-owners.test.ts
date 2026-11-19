@@ -117,3 +117,58 @@ export function Screen() {
   assert.match(lowered.css, /padding:\s*16px|padding-top:\s*16px/)
   assert.ok(prepareFinalTailwindContext)
 })
+
+test('ordinary Web lowering compiles Field and TextArea literals across all audited slots', () => {
+  const compiler = createCompiler()
+  const source = `import { Field, TextArea } from '@hozo/form'
+export function Screen({ dynamic }: { dynamic: string }) {
+  return (
+    <Field
+      label="Bio"
+      required
+      description="Short bio"
+      error="Too short"
+      className="flex flex-col gap-2"
+      labelClassName="text-sm font-bold"
+      requiredClassName="text-[#cc0000]"
+      descriptionClassName="text-[#555555]"
+      errorClassName="text-[#aa0000]"
+    >
+      {(control) => (
+        <TextArea
+          id={control.id}
+          aria-describedby={control['aria-describedby']}
+          aria-invalid={control['aria-invalid']}
+          aria-required={control['aria-required']}
+          maxLength={100}
+          className="flex flex-col gap-1"
+          fieldClassName="p-2 focus-visible:bg-[#112233] disabled:opacity-50 read-only:bg-[#223344] aria-[invalid=true]:bg-[#334455] aria-required:bg-[#445566]"
+          countClassName="text-[#666666]"
+        />
+      )}
+    </Field>
+  )
+}
+export function Dynamic({ value }: { value: string }) {
+  return <TextArea fieldClassName={value} />
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /className="flex flex-col gap-2"/)
+  assert.doesNotMatch(lowered.code, /labelClassName="text-sm font-bold"/)
+  assert.doesNotMatch(lowered.code, /requiredClassName="text-\[#cc0000\]"/)
+  assert.doesNotMatch(lowered.code, /descriptionClassName="text-\[#555555\]"/)
+  assert.doesNotMatch(lowered.code, /errorClassName="text-\[#aa0000\]"/)
+  assert.doesNotMatch(lowered.code, /className="flex flex-col gap-1"/)
+  assert.doesNotMatch(lowered.code, /fieldClassName="p-2/)
+  assert.doesNotMatch(lowered.code, /countClassName="text-\[#666666\]"/)
+  assert.match(lowered.code, /labelClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /fieldClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /countClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /fieldClassName=\{value\}/)
+  assert.match(lowered.css, /font-weight:\s*700/)
+  assert.match(lowered.css, /:read-only/)
+  assert.match(lowered.css, /\[aria-invalid="true"\]/)
+  assert.match(lowered.css, /\[aria-required="true"\]/)
+})

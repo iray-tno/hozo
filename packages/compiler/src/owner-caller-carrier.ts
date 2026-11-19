@@ -37,7 +37,12 @@ export function nativeOwnerCarrier(
         !root.ownerStyle.callback &&
         !root.ownerStyle.focusVisible)) &&
     root.prelude.length === 0 &&
-    root.runtimeImports.every((name) => !!shape.inputs && name === 'HozoPressable') &&
+    root.runtimeImports.every(
+      (name) =>
+        !!shape.inputs &&
+        ((shape.nativeHost === 'Pressable' && name === 'HozoPressable') ||
+          (shape.nativeHost === 'TextInput' && name === 'HozoTextInput')),
+    ) &&
     root.nativeImports.every((name) => name === shape.nativeHost) &&
     messages.length === 0
   return {

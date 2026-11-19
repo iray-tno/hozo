@@ -118,7 +118,19 @@ test('the form inventory matches every public Web and Native class prop without 
   assert.equal(checkPublicProps(formComponents, 'form'), '')
   assert.equal(Object.keys(formComponents).length, 11)
   assert.equal(Object.values(formComponents).flat().length, 52)
-  const auditedFormOwners = new Set(['form-wrapper', 'submit-button', 'file-picker-button'])
+  const auditedFormOwners = new Set([
+    'form-wrapper',
+    'submit-button',
+    'file-picker-button',
+    'field-wrapper',
+    'field-label',
+    'field-required-mark',
+    'field-description',
+    'field-error',
+    'textarea-wrapper',
+    'textarea-field',
+    'textarea-count',
+  ])
   assert.ok(
     Object.values(formComponents)
       .flat()
@@ -134,7 +146,7 @@ test('the form inventory matches every public Web and Native class prop without 
     Object.values(formComponents)
       .flat()
       .filter((slot) => slot.owner === 'pending-audit').length,
-    49,
+    41,
   )
   assert.ok(!outputs()['crates/hozo_ir/src/class_slots.rs'].includes('Self::Calendar'))
 })
@@ -217,7 +229,20 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
   const rendered = outputs()
   assert.deepEqual(JSON.parse(rendered['scripts/style-slots/owner-shadow.json']), ownerShadow)
   const allComponents = { ...components, ...formComponents }
-  const auditedOwners = new Set(['Tabs.Tab', 'Form.root', 'SubmitButton.root', 'FileDropzone.root'])
+  const auditedOwners = new Set([
+    'Tabs.Tab',
+    'Form.root',
+    'SubmitButton.root',
+    'FileDropzone.root',
+    'Field.root',
+    'Field.label',
+    'Field.required',
+    'Field.description',
+    'Field.error',
+    'TextArea.root',
+    'TextArea.field',
+    'TextArea.count',
+  ])
   for (const contract of ownerShadow.contracts) {
     const [component] = contract.owner.split('.')
     const slot = allComponents[component].find((slot) => slot.classProp === contract.classProp)

@@ -686,8 +686,15 @@ export interface NativeCompileOptions extends CompileEvidence {
   sourceEvidence?: boolean
   /** @internal RFC010 leaf-owner preparation; not a project/bundler mode. */
   ownerStyle?: boolean
-  /** @internal Explicit existing-owner booleans, requires ownerStyle. Literal Pressable only. */
-  ownerFacts?: readonly ('disabled' | 'aria-selected' | 'aria-disabled')[]
+  /** @internal Explicit existing-owner booleans, requires ownerStyle. Literal Pressable/TextInput only. */
+  ownerFacts?: readonly (
+    | 'disabled'
+    | 'readOnly'
+    | 'aria-selected'
+    | 'aria-disabled'
+    | 'aria-invalid'
+    | 'aria-required'
+  )[]
   /** @internal Existing box/owned-label split; no parent/opaque text inheritance. */
   ownerText?: 'split'
   /** @internal RFC 006's reference model, which decision 013's route is compared against. */

@@ -19,7 +19,7 @@ import {
 import { lowerModule } from '@hozo/compiler/lower'
 import { emitFinalTailwindBatch, TailwindProjectSession } from '@hozo/compiler/project'
 import { createClassResolver, cx } from '@hozo/engine'
-import { FileDropzone, Form, SubmitButton } from '@hozo/form'
+import { Field, FileDropzone, Form, SubmitButton, TextArea } from '@hozo/form'
 import { Chip } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
@@ -5897,6 +5897,275 @@ export function Screen({ disabled = false }) {
           `${label}/${state.name}`,
         )
       }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('Field and TextArea deliver markers to declared hosts and match Chromium vs Native prepared states (#2045)', {
+  skip: !executablePath,
+}, async () => {
+  const compiler = createCompiler()
+  const fieldClasses =
+    'p-3 bg-[#112233] text-[#ffffff] focus:bg-[#223344] focus-visible:bg-[#334455] read-only:bg-[#445566] disabled:bg-[#556677] aria-[invalid=true]:bg-[#667788] aria-required:bg-[#778899]'
+  const source = `import { Field, TextArea } from '@hozo/form'
+export function Screen({ disabled = false, readOnly = false, invalid = false, required = false }) {
+  return (
+    <Field
+      label="Notes"
+      required
+      description="Details"
+      error="Problem"
+      className="pt-2"
+      labelClassName="text-[#112233]"
+      requiredClassName="text-[#cc0000]"
+      descriptionClassName="text-[#334455]"
+      errorClassName="text-[#990000]"
+    >
+      {(control) => (
+        <TextArea
+          id={control.id}
+          maxLength={50}
+          disabled={disabled}
+          readOnly={readOnly}
+          aria-invalid={invalid}
+          aria-required={required}
+          className="pt-3"
+          fieldClassName="${fieldClasses}"
+          countClassName="text-[#556677]"
+        />
+      )}
+    </Field>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webCjs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webCjs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (specifier) => {
+      if (specifier === '@hozo/form') return { Field, TextArea }
+      throw new Error(`Unexpected web require: ${specifier}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeCjs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const nativeMod = { exports: {} }
+  const nativeElements = {}
+  runInNewContext(nativeCjs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props, ...children) => {
+      if (typeof type === 'string') nativeElements[type] = props
+      if (type === 'Field' && typeof children[0] === 'function') children[0]({})
+      return { type, props, children }
+    },
+    require: (specifier) => {
+      if (specifier === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (specifier === '@hozo/form') return { Field: 'Field', TextArea: 'TextArea' }
+      throw new Error(`Unexpected native require: ${specifier}`)
+    },
+  })
+  nativeMod.exports.Screen({})
+  for (const prop of [
+    'className',
+    'labelClassName',
+    'requiredClassName',
+    'descriptionClassName',
+    'errorClassName',
+  ])
+    assert.equal(nativeElements.Field[prop], undefined)
+  for (const prop of ['className', 'fieldClassName', 'countClassName'])
+    assert.equal(nativeElements.TextArea[prop], undefined)
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+    return m ? `rgb(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)})` : hex
+  }
+  assert.equal(flat(nativeElements.Field.hozoFieldStyle()).paddingTop, 8)
+  assert.equal(flat(nativeElements.Field.hozoLabelStyle()).color, '#112233')
+  assert.equal(flat(nativeElements.Field.hozoRequiredStyle()).color, '#cc0000')
+  assert.equal(flat(nativeElements.Field.hozoDescriptionStyle()).color, '#334455')
+  assert.equal(flat(nativeElements.Field.hozoErrorStyle()).color, '#990000')
+  assert.equal(flat(nativeElements.TextArea.hozoTextAreaStyle()).paddingTop, 12)
+  assert.equal(flat(nativeElements.TextArea.hozoCountStyle()).color, '#556677')
+
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    const baseHtml = renderToStaticMarkup(createElement(webMod.exports.Screen, {}))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${baseHtml}`)
+    // Item 2 (Web): markers reach every declared host element.
+    const fieldMarkers = await page.evaluate(() => {
+      const root = document.querySelector('body > div')
+      const label = root.querySelector('label')
+      const req = label.querySelector('span[aria-hidden="true"]')
+      const err = root.querySelector('span[role="alert"]')
+      const desc = root.querySelector('span[id$="-hint"]')
+      const areaRoot = root.querySelector('textarea').parentElement
+      const count = areaRoot.querySelector('span[id$="-count"]')
+      return {
+        rootPaddingTop: parseFloat(getComputedStyle(root).paddingTop),
+        labelColor: getComputedStyle(label).color,
+        reqColor: getComputedStyle(req).color,
+        errColor: getComputedStyle(err).color,
+        descColor: getComputedStyle(desc).color,
+        areaPaddingTop: parseFloat(getComputedStyle(areaRoot).paddingTop),
+        countColor: getComputedStyle(count).color,
+      }
+    })
+    assert.deepEqual(fieldMarkers, {
+      rootPaddingTop: 8,
+      labelColor: hexToRgb('#112233'),
+      reqColor: hexToRgb('#cc0000'),
+      errColor: hexToRgb('#990000'),
+      descColor: hexToRgb('#334455'),
+      areaPaddingTop: 12,
+      countColor: hexToRgb('#556677'),
+    })
+
+    // Item 3 (Chromium vs Native): TextArea.field state matrix.
+    const states = [
+      {
+        name: 'rest',
+        props: {},
+        pseudo: [],
+        facts: {
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          readOnly: false,
+          'aria-invalid': false,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'focus',
+        props: {},
+        pseudo: ['focus'],
+        facts: {
+          focused: true,
+          focusVisible: false,
+          disabled: false,
+          readOnly: false,
+          'aria-invalid': false,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'focus-visible',
+        props: {},
+        pseudo: ['focus', 'focus-visible'],
+        facts: {
+          focused: true,
+          focusVisible: true,
+          disabled: false,
+          readOnly: false,
+          'aria-invalid': false,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'read-only',
+        props: { readOnly: true },
+        pseudo: [],
+        facts: {
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          readOnly: true,
+          'aria-invalid': false,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'disabled',
+        props: { disabled: true },
+        pseudo: [],
+        facts: {
+          focused: false,
+          focusVisible: false,
+          disabled: true,
+          readOnly: true,
+          'aria-invalid': false,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'aria-invalid',
+        props: { invalid: true },
+        pseudo: [],
+        facts: {
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          readOnly: false,
+          'aria-invalid': true,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'aria-required',
+        props: { required: true },
+        pseudo: [],
+        facts: {
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          readOnly: false,
+          'aria-invalid': false,
+          'aria-required': true,
+        },
+      },
+    ]
+    for (const state of states) {
+      const html = renderToStaticMarkup(createElement(webMod.exports.Screen, state.props))
+      await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', {
+        nodeId: root.nodeId,
+        selector: 'textarea',
+      })
+      if (state.pseudo.length)
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: state.pseudo })
+      const webStyle = await page.locator('textarea').evaluate((el) => {
+        const cs = getComputedStyle(el)
+        return {
+          paddingTop: parseFloat(cs.paddingTop),
+          backgroundColor: cs.backgroundColor,
+          color: cs.color,
+        }
+      })
+      const nativeStyle = flat(nativeElements.TextArea.hozoFieldStyle(state.facts))
+      assert.deepEqual(
+        {
+          paddingTop: nativeStyle.paddingTop,
+          backgroundColor: hexToRgb(nativeStyle.backgroundColor),
+          color: hexToRgb(nativeStyle.color),
+        },
+        webStyle,
+        `TextArea.field/${state.name}`,
+      )
     }
   } finally {
     await page.close()

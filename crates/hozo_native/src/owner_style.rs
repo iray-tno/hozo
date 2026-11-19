@@ -8,24 +8,33 @@ use super::*;
 #[doc(hidden)]
 pub enum OwnerFact {
     Disabled,
+    ReadOnly,
     AriaSelected,
     AriaDisabled,
+    AriaInvalid,
+    AriaRequired,
 }
 
 impl OwnerFact {
     pub fn key(self) -> &'static str {
         match self {
             Self::Disabled => "disabled",
+            Self::ReadOnly => "readOnly",
             Self::AriaSelected => "aria-selected",
             Self::AriaDisabled => "aria-disabled",
+            Self::AriaInvalid => "aria-invalid",
+            Self::AriaRequired => "aria-required",
         }
     }
 
     pub(crate) fn alias(self) -> &'static str {
         match self {
             Self::Disabled => "__hozoOwnerDisabled",
+            Self::ReadOnly => "__hozoOwnerReadOnly",
             Self::AriaSelected => "__hozoOwnerAriaSelected",
             Self::AriaDisabled => "__hozoOwnerAriaDisabled",
+            Self::AriaInvalid => "__hozoOwnerAriaInvalid",
+            Self::AriaRequired => "__hozoOwnerAriaRequired",
         }
     }
 
@@ -61,6 +70,7 @@ pub(super) fn record(
     if let Some(target) = cx.owner_style.as_deref_mut() {
         *target = attribute
             .strip_prefix(" style={")
+            .or_else(|| attribute.strip_prefix(" hozoStyle={"))
             .and_then(|value| value.strip_suffix('}'))
             .map(|expression| OwnerStyle {
                 facts: cx.owner_inputs.facts.to_vec(),
@@ -165,9 +175,14 @@ pub fn lower_owner_style_with_inputs(
             _ => false,
         }
     }
-    let eligible = matches!(root.primitive, Primitive::View | Primitive::Pressable)
+    let eligible = matches!(
+        root.primitive,
+        Primitive::View | Primitive::Pressable | Primitive::Text | Primitive::TextInput
+    )
         && facts.iter().enumerate().all(|(at, fact)| !facts[..at].contains(fact))
-        && ((facts.is_empty() && !inputs.split_text) || root.primitive == Primitive::Pressable)
+        && ((facts.is_empty() && !inputs.split_text)
+            || root.primitive == Primitive::Pressable
+            || (root.primitive == Primitive::TextInput && !inputs.split_text))
         // The residual resolver's semantic inputs need their own delivery proof.
         && ((facts.is_empty() && !inputs.split_text) || root.class_name_fallback.is_empty())
         && (!inputs.split_text || root.style.iter().all(|d| split_text_supported(&d.property, theme) && d.condition.split_subtree().is_none()))
@@ -198,13 +213,20 @@ pub fn lower_owner_style_with_inputs(
         RenderOptions::default(),
         eligible.then_some((&mut carrier, inputs)),
     );
+    // A synthetic leaf TextInput prepares styles only; the real owner
+    // component owns its accessible name.
+    if eligible && root.primitive == Primitive::TextInput {
+        output
+            .diagnostics
+            .retain(|d| d.code != DiagnosticCode::A11yMissingAccessibleName);
+    }
     // These are the existing owner's supplied state and residual resolver,
     // not wrappers to install. Every other helper/hook needs separate evidence.
     let style_only = output.prelude.is_empty()
         && output
             .runtime_imports
             .iter()
-            .all(|name| matches!(*name, "HozoPressable" | "hozoClasses"));
+            .all(|name| matches!(*name, "HozoPressable" | "HozoTextInput" | "hozoClasses"));
     if !style_only {
         carrier = None;
     }
@@ -225,7 +247,7 @@ pub fn lower_owner_style_with_inputs(
         output.diagnostics.push(Diagnostic {
             code: DiagnosticCode::NotWiredOnNative,
             severity: Severity::Error,
-            message: "Internal ownerStyle currently requires a leaf View/Pressable with only class input, no inherited context, expression capture, extra host props, wrappers or hooks. Ordinary output is retained; no partial style plan is certified.".into(),
+            message: "Internal ownerStyle currently requires a leaf View/Pressable/Text/TextInput with only class input, no inherited context, expression capture, extra host props, wrappers or hooks. Ordinary output is retained; no partial style plan is certified.".into(),
             span: root.span,
         });
     }
@@ -270,7 +292,8 @@ mod tests {
     #[test]
     fn refuses_non_style_effects_and_unavailable_owner_state() {
         for source in [
-            "const el=<Text className=\"text-red-500\"/>",
+            "const el=<ScrollView className=\"p-2\"/>",
+            "const el=<Text className=\"hover:text-red-500\"/>",
             "const el=<View className=\"p-2\"><View/></View>",
             "const el=<View style={{opacity:0.5}} className=\"p-2\"/>",
             "const el=<Pressable className={`p-2 ${input.value}`}/>",
@@ -291,6 +314,71 @@ mod tests {
                     .any(|d| d.severity == Severity::Error),
                 "{source}"
             );
+        }
+    }
+
+    #[test]
+    fn text_and_text_input_leaf_hosts_compile_explicit_owner_carriers() {
+        let (text_output, text_carrier) =
+            compile("const el=<Text className=\"text-sm font-bold text-red-500\"/>");
+        let text_carrier = text_carrier.expect("leaf Text compiles resting carrier");
+        assert!(
+            text_output.diagnostics.is_empty(),
+            "{:?}",
+            text_output.diagnostics
+        );
+        assert!(text_carrier.literal_resting && !text_carrier.callback);
+        assert!(text_output.styles.contains("fontSize: 14"));
+
+        let source = "const el=<TextInput className=\"border p-2 focus:border-blue-500 focus-visible:border-purple-500 disabled:opacity-50 read-only:bg-gray-100 aria-[invalid=true]:border-red-500 aria-required:border-amber-500\"/>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let facts = [
+            OwnerFact::Disabled,
+            OwnerFact::ReadOnly,
+            OwnerFact::AriaInvalid,
+            OwnerFact::AriaRequired,
+        ];
+        let (output, carrier) = lower_owner_style_with_inputs(
+            &parsed.roots[0].node,
+            &[],
+            source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &facts,
+                split_text: false,
+            },
+        );
+        let carrier =
+            carrier.expect("leaf TextInput compiles stateful carrier with declared facts");
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(carrier.callback && !carrier.literal_resting);
+        for fact in facts {
+            assert!(
+                carrier.expression.contains(&fact.parameter()),
+                "{}",
+                carrier.expression
+            );
+        }
+        assert!(carrier.expression.contains("focused"));
+        assert!(carrier.expression.contains("focusVisible"));
+
+        for rejected in [
+            "const el=<TextInput className=\"hover:border-blue-500\"/>",
+            "const el=<TextInput className=\"active:border-blue-500\"/>",
+            "const el=<TextInput className=\"placeholder:text-gray-400\"/>",
+        ] {
+            let parsed = hozo_parser::parse_tsx(rejected);
+            let (_, carrier) = lower_owner_style_with_inputs(
+                &parsed.roots[0].node,
+                &[],
+                rejected,
+                &Theme::default(),
+                OwnerStyleInputs {
+                    facts: &facts,
+                    split_text: false,
+                },
+            );
+            assert!(carrier.is_none(), "{rejected}");
         }
     }
 

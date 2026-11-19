@@ -269,6 +269,33 @@ export const formComponents = {
   Field: formSlots(
     'className labelClassName requiredClassName descriptionClassName errorClassName',
     '',
+    {
+      className: {
+        owner: 'field-wrapper',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+      labelClassName: {
+        owner: 'field-label',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+      requiredClassName: {
+        owner: 'field-required-mark',
+        gate: 'required',
+        composition: 'prepared-owner-contract',
+      },
+      descriptionClassName: {
+        owner: 'field-description',
+        gate: 'description-present',
+        composition: 'prepared-owner-contract',
+      },
+      errorClassName: {
+        owner: 'field-error',
+        gate: 'error-present',
+        composition: 'prepared-owner-contract',
+      },
+    },
   ),
   FileDropzone: formSlots('className activeClassName', 'className', {
     className: {
@@ -298,6 +325,23 @@ export const formComponents = {
   TextArea: formSlots(
     'className fieldClassName countClassName',
     'className fieldClassName countClassName',
+    {
+      className: {
+        owner: 'textarea-wrapper',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+      fieldClassName: {
+        owner: 'textarea-field',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+      countClassName: {
+        owner: 'textarea-count',
+        gate: 'maxLength-present',
+        composition: 'prepared-owner-contract',
+      },
+    },
   ),
   TimePicker: formSlots(
     'className fieldClassName valueClassName periodClassName stepClassName',
@@ -765,6 +809,146 @@ export const ownerShadow = {
         },
       ],
     },
+    {
+      owner: 'Field.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoFieldStyle', webClassProp: 'className' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Field.label',
+      classProp: 'labelClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoLabelStyle', webClassProp: 'labelClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'label',
+          when: { eq: ['present', true] },
+          nativeHost: 'Text',
+          webHost: 'label',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Field.required',
+      classProp: 'requiredClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoRequiredStyle', webClassProp: 'requiredClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'required',
+          when: { eq: ['present', true] },
+          nativeHost: 'Text',
+          webHost: 'span',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Field.description',
+      classProp: 'descriptionClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoDescriptionStyle', webClassProp: 'descriptionClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'description',
+          when: { eq: ['present', true] },
+          nativeHost: 'Text',
+          webHost: 'span',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Field.error',
+      classProp: 'errorClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoErrorStyle', webClassProp: 'errorClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'error',
+          when: { eq: ['present', true] },
+          nativeHost: 'Text',
+          webHost: 'span',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'TextArea.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTextAreaStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'TextArea.field',
+      classProp: 'fieldClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoFieldStyle', webClassProp: 'fieldClassName' },
+      authoredStyles: [{ prop: 'fieldStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'field',
+          when: { eq: ['present', true] },
+          nativeHost: 'TextInput',
+          webHost: 'textarea',
+          events: ['focused', 'focusVisible'],
+          inputs: {
+            facts: ['disabled', 'readOnly', 'aria-invalid', 'aria-required'],
+            splitText: false,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'TextArea.count',
+      classProp: 'countClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCountStyle', webClassProp: 'countClassName' },
+      authoredStyles: [{ prop: 'countStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'count',
+          when: { eq: ['present', true] },
+          nativeHost: 'Text',
+          webHost: 'span',
+          events: [],
+        },
+      ],
+    },
   ],
 }
 
@@ -802,6 +986,46 @@ export const ownerPublications = [
     owner: 'FileDropzone.root',
     package: '@hozo/form',
     exports: ['FileDropzone', 'HozoFileDropzone'],
+  },
+  {
+    owner: 'Field.root',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+  },
+  {
+    owner: 'Field.label',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+  },
+  {
+    owner: 'Field.required',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+  },
+  {
+    owner: 'Field.description',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+  },
+  {
+    owner: 'Field.error',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+  },
+  {
+    owner: 'TextArea.root',
+    package: '@hozo/form',
+    exports: ['TextArea', 'HozoTextArea'],
+  },
+  {
+    owner: 'TextArea.field',
+    package: '@hozo/form',
+    exports: ['TextArea', 'HozoTextArea'],
+  },
+  {
+    owner: 'TextArea.count',
+    package: '@hozo/form',
+    exports: ['TextArea', 'HozoTextArea'],
   },
 ]
 

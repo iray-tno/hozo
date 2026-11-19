@@ -766,8 +766,11 @@ impl NativeCompileOptions {
         for key in keys {
             let fact = match key.as_str() {
                 "disabled" => hozo_native::OwnerFact::Disabled,
+                "readOnly" => hozo_native::OwnerFact::ReadOnly,
                 "aria-selected" => hozo_native::OwnerFact::AriaSelected,
                 "aria-disabled" => hozo_native::OwnerFact::AriaDisabled,
+                "aria-invalid" => hozo_native::OwnerFact::AriaInvalid,
+                "aria-required" => hozo_native::OwnerFact::AriaRequired,
                 _ => {
                     return Err(napi::Error::from_reason(format!(
                         "Unsupported owner fact: {key}"

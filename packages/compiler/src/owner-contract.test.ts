@@ -72,6 +72,66 @@ test('Form, SubmitButton and FileDropzone root contracts are audited on their de
     submit.shapes[0]!.webHost = 'form'
   }, /control host/)
 })
+test('Field and TextArea contracts declare empty authoredStyles, Text leaves, and TextInput facts', () => {
+  for (const [owner, classProp, prop, nativeHost, webHost] of [
+    ['Field.root', 'className', 'hozoFieldStyle', 'View', 'div'],
+    ['Field.label', 'labelClassName', 'hozoLabelStyle', 'Text', 'label'],
+    ['Field.required', 'requiredClassName', 'hozoRequiredStyle', 'Text', 'span'],
+    ['Field.description', 'descriptionClassName', 'hozoDescriptionStyle', 'Text', 'span'],
+    ['Field.error', 'errorClassName', 'hozoErrorStyle', 'Text', 'span'],
+  ] as const) {
+    const entry = parsed().contracts.find((row) => row.owner === owner)!
+    assert.equal(entry.audit, 'audited')
+    assert.equal(entry.classProp, classProp)
+    assert.deepEqual(entry.abi, { nativePreparedProp: prop, webClassProp: classProp })
+    assert.deepEqual(entry.authoredStyles, [])
+    assert.deepEqual(entry.shapes, [
+      {
+        id: owner.split('.')[1],
+        when: { eq: ['present', true] },
+        nativeHost,
+        webHost,
+        events: [],
+      },
+    ])
+  }
+  const field = parsed().contracts.find((row) => row.owner === 'TextArea.field')!
+  assert.equal(field.audit, 'audited')
+  assert.deepEqual(field.abi, {
+    nativePreparedProp: 'hozoFieldStyle',
+    webClassProp: 'fieldClassName',
+  })
+  assert.deepEqual(field.authoredStyles, [{ prop: 'fieldStyle', order: 0 }])
+  assert.deepEqual(field.shapes, [
+    {
+      id: 'field',
+      when: { eq: ['present', true] },
+      nativeHost: 'TextInput',
+      webHost: 'textarea',
+      events: ['focused', 'focusVisible'],
+      inputs: {
+        facts: ['disabled', 'readOnly', 'aria-invalid', 'aria-required'],
+        splitText: false,
+      },
+    },
+  ])
+  rejects((value) => {
+    const entry = value.contracts.find((row) => row.owner === 'TextArea.field')!
+    entry.shapes[0]!.events.push('hovered')
+  }, /input events\/host/)
+  rejects((value) => {
+    const entry = value.contracts.find((row) => row.owner === 'TextArea.field')!
+    entry.shapes[0]!.inputs!.splitText = true
+  }, /full control snapshot/)
+  rejects((value) => {
+    const entry = value.contracts.find((row) => row.owner === 'Field.label')!
+    entry.shapes[0]!.webHost = 'div'
+  }, /text events\/host/)
+  rejects((value) => {
+    const entry = value.contracts.find((row) => row.owner === 'Field.label')!
+    entry.shapes[0]!.events = ['hovered']
+  }, /text events\/host/)
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

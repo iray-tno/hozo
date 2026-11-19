@@ -51,14 +51,15 @@ test('extra host effects, capture and hooks cannot be certified as a partial sty
     '<View className="grid grid-cols-2"/>',
     '<View className="md:p-2"/>',
     '<View className="hover:opacity-50"/>',
-    '<Text className="text-red-500"/>',
+    '<ScrollView className="p-2"/>',
+    '<Text className="hover:text-red-500"/>',
     '<Pressable disabled className="p-2"/>',
     `<Pressable className={\`p-2 \${input.value}\`}/>`,
     `<Pressable className={\`p-2 \${pressed}\`}/>`,
     '<Pressable className={hot ? "p-2" : "p-3"}/>',
     '<Pressable className="text-red-500"/>',
   ]) {
-    const input = `import {View,Text,Pressable} from '@hozo/core'; export function X(){return ${element}}`
+    const input = `import {View,Text,Pressable,ScrollView} from '@hozo/core'; export function X(){return ${element}}`
     const result = compiler.compileNativeModule(input, undefined, undefined, { ownerStyle: true })
     assert.ok(result.components[0]!.ownerStyle == null, element)
     assert.ok(

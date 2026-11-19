@@ -13,7 +13,10 @@ import type { SourceEdit, SourceProvenance } from './source-provenance.ts'
 
 export function matchingAuditedOwners(source: string): readonly AuditedOwnerContract[] {
   if (!AUDITED_OWNER_CONTRACTS.length) return []
-  return AUDITED_OWNER_CONTRACTS.filter((contract) => source.includes(contract.package))
+  return AUDITED_OWNER_CONTRACTS.filter(
+    (contract) =>
+      source.includes(contract.package) && contract.exports.some((name) => source.includes(name)),
+  )
 }
 
 export function previewAuditedOwnerBatch(
