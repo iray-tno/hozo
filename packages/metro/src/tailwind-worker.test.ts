@@ -501,6 +501,19 @@ test('a class carried to run time and absent from the device map is reported; a 
   // A dependency's file is not the app author's to change.
   worker.reportMissingRuntimeClasses(demo, path.join(root, 'node_modules', 'lib', 'demo.tsx'), warn)
   assert.equal(warnings.length, 1)
+  // Nor is the generated candidate module, which Metro names relative to the root.
+  worker.reportMissingRuntimeClasses(
+    `export const s = { a: { 'border-color': 'red' } }`,
+    path.join(CACHE_DIR, 'candidates.native.js'),
+    warn,
+  )
+  // Nor a workspace dependency's built output, which a symlink resolves to.
+  worker.reportMissingRuntimeClasses(
+    `export const decoration = { underline: 'underline' }`,
+    path.join('..', '..', 'packages', 'typography', 'dist', 'text.native.js'),
+    warn,
+  )
+  assert.equal(warnings.length, 1)
 })
 
 test('a development build warns about a name the device map lacks, apart from the declared markers (#2073)', async (t) => {

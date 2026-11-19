@@ -40,8 +40,12 @@ module.exports = withHozo(config, {
   // this root. A class a demo hands a component as a string, such as the
   // Skeleton demo's bar size, is resolved on device from the candidate map,
   // so the scan has to read those files too, or the class draws nothing
-  // (#1205). `**/*` keeps the walk this root had without `include`.
-  content: { include: ['**/*', '../../apps/landing/src/examples/**/*'] },
+  // (#1205). The shared showcase scenes in examples/showcase hand components
+  // classes the same way, such as the media seek thumb's focus outline.
+  // `**/*` keeps the walk this root had without `include`.
+  content: {
+    include: ['**/*', '../showcase/src/**/*', '../../apps/landing/src/examples/**/*'],
+  },
 }).then((hozoConfig) =>
   withStorybook(hozoConfig, {
     enabled: true,

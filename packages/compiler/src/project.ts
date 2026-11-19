@@ -313,6 +313,19 @@ export interface HozoProjectOptions {
   markerClasses?: readonly string[]
 }
 
+/**
+ * Whether the check for classes missing from the run-time map should read
+ * `file`. Not a dependency's files, whose classes the app's author cannot
+ * change, as the compiler's own diagnostics treat `node_modules`, and not
+ * built output (`dist`), which is never what anyone writes. In a workspace a
+ * dependency is a symlink to its package's `dist`, so its path need not name
+ * `node_modules`. Bundlers may also name a file relative to the root, so the
+ * segment may start the path.
+ */
+export function checksRuntimeClasses(file: string): boolean {
+  return !/(?:^|[\\/])(?:node_modules|dist)[\\/]/.test(file)
+}
+
 /** Whether `name` is one of the project's declared `markerClasses`. */
 export function isMarkerClass(name: string, markers: readonly string[] = []): boolean {
   return markers.some((marker) =>
@@ -1132,9 +1145,10 @@ export function projectTextForwarding(
  *
  * The scan collects anything shaped like a class, including a string such
  * as `markPressed('rounded-rect')`. So a name absent from the map is
- * reported only when it compiles to a style with this project's theme,
- * which is what the map would have held for it. Absent names are rare, so
- * the compile is paid almost never.
+ * reported only when it is written inside a string -- a variable named
+ * `ring` is not a class -- and compiles to a style with this project's
+ * theme, which is what the map would have held for it. Absent names are
+ * rare, so the compile is paid almost never.
  *
  * `known` is every name the map holds, including those it refuses on this
  * platform, which already warn at run time. It is not the ordering seed.
@@ -1149,15 +1163,16 @@ export function classesMissingFromRuntimeMap(
 ): CompileDiagnostic[] {
   const cache = openCandidateCache(undefined, sources ? [...sources] : undefined)
   cache.scanFile(file, source, 0)
-  const missing = cache
+  const absent = cache
     .candidates()
-    .filter(
-      (name) =>
-        !known.has(name) && !isMarkerClass(name, markers) && compilesToStyle(name, compiler),
-    )
-    .sort()
-  return missing.map((name) => {
-    const at = firstOccurrence(source, name)
+    .filter((name) => !known.has(name) && !isMarkerClass(name, markers))
+  if (absent.length === 0) return []
+  const strings = stringSpans(source)
+  const missing = absent
+    .map((name) => [name, firstOccurrence(source, name, strings)] as const)
+    .filter(([name, at]) => at >= 0 && compilesToStyle(name, compiler))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  return missing.map(([name, at]) => {
     const line = at < 0 ? 0 : source.slice(0, at).split('\n').length
     return {
       code: 'CLASS_NOT_IN_RUNTIME_MAP',
@@ -1183,8 +1198,78 @@ function compilesToStyle(name: string, compiler: Pick<Compiler, 'compileNative'>
   return /[A-Za-z]+:\s*[^\s{]/.test(component?.styles ?? '')
 }
 
-/** Where `name` is first written as a whole class token. */
-function firstOccurrence(source: string, name: string): number {
+/** Where `name` is first written as a whole class token inside a string, or -1. */
+function firstOccurrence(
+  source: string,
+  name: string,
+  strings: readonly (readonly [number, number])[],
+): number {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return source.search(new RegExp(`(?<![\\w:-])${escaped}(?![\\w-])`))
+  for (const match of source.matchAll(new RegExp(`(?<![\\w:-])${escaped}(?![\\w-])`, 'g'))) {
+    const at = match.index
+    if (strings.some(([start, end]) => at >= start && at + name.length <= end)) return at
+  }
+  return -1
+}
+
+/**
+ * The spans of string literals and template text in `source`, skipping
+ * comments. A lexer's approximation: a regular expression literal holding a
+ * quote can misplace the spans after it, which costs at worst a missed or
+ * misplaced report, not a crash.
+ */
+function stringSpans(source: string): [number, number][] {
+  const spans: [number, number][] = []
+  // The brace depth at which each open template's `${` began.
+  const templates: number[] = []
+  let depth = 0
+  let i = 0
+  const quoted = (quote: string) => {
+    const start = ++i
+    while (i < source.length && source[i] !== quote && source[i] !== '\n')
+      i += source[i] === '\\' ? 2 : 1
+    spans.push([start, i])
+    i++
+  }
+  // Template text from `i` up to its closing backtick or next `${`.
+  const template = () => {
+    const start = i
+    while (i < source.length && source[i] !== '`') {
+      if (source[i] === '\\') i += 2
+      else if (source[i] === '$' && source[i + 1] === '{') {
+        spans.push([start, i])
+        templates.push(depth)
+        depth++
+        i += 2
+        return
+      } else i++
+    }
+    spans.push([start, i])
+    i++
+  }
+  while (i < source.length) {
+    const char = source[i]
+    if (char === '/' && source[i + 1] === '/') {
+      const end = source.indexOf('\n', i)
+      i = end < 0 ? source.length : end
+    } else if (char === '/' && source[i + 1] === '*') {
+      const end = source.indexOf('*/', i + 2)
+      i = end < 0 ? source.length : end + 2
+    } else if (char === '"' || char === "'") quoted(char)
+    else if (char === '`') {
+      i++
+      template()
+    } else if (char === '{') {
+      depth++
+      i++
+    } else if (char === '}') {
+      depth--
+      i++
+      if (templates.at(-1) === depth) {
+        templates.pop()
+        template()
+      }
+    } else i++
+  }
+  return spans
 }
