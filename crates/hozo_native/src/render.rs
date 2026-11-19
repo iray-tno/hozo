@@ -2776,12 +2776,26 @@ pub(super) fn render_node(
                     })
                 })
                 .collect();
-            let helper = if project_spread_gap {
+            // A caller's style through a spread loses its inline edges to a
+            // class's start/end exactly as a named `style` would (#2050), so
+            // the same elements compose it through the edge-aware boundary.
+            let edges = !node.class_name_fallback.is_empty()
+                || crate::edge_projection::writes_logical_inline(&node.style);
+            let helper_text;
+            let helper = if edges {
+                cx.runtime.need_component("hozoEdgeSpreadStyles");
+                cx.runtime.need_native("I18nManager");
+                helper_text = format!(
+                    "hozoEdgeSpreadStyles(I18nManager.isRTL, I18nManager.doLeftAndRightSwapInRTL, {project_spread_gap})"
+                );
+                helper_text.as_str()
+            } else if project_spread_gap {
+                cx.runtime.need_component("hozoGapSpreadStyles");
                 "hozoGapSpreadStyles"
             } else {
+                cx.runtime.need_component("hozoSpreadStyles");
                 "hozoSpreadStyles"
             };
-            cx.runtime.need_component(helper);
             let mut group = Some(crate::spread_style::helper_call(
                 &held.held,
                 &written_last,

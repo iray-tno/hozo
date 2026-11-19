@@ -47,6 +47,10 @@ function run(jsx: string, styles: string, calls: string[], values: Record<string
     hozoDomStyle: (style: unknown) => style,
     hozoViewDomProps: (props: unknown) => props,
     hozoGapSpreadStyles: (props: object, _: unknown, spread: object) => ({ ...props, ...spread }),
+    hozoEdgeSpreadStyles: () => (props: object, _: unknown, spread: object) => ({
+      ...props,
+      ...spread,
+    }),
     hozoInteractive: () => ({}),
     nativeDisabledProps: (props: unknown) => props,
     View: 'View',

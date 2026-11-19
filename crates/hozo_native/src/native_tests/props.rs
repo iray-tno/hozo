@@ -361,8 +361,13 @@ fn a_wrappers_spread_composes_with_the_pattern_slot_styles_it_compiled() {
         }
         "#,
     );
+    // An opaque caller class may write a start or end edge, so the caller's
+    // style goes through the edge-aware boundary, gap projection included
+    // (#2050).
     assert!(
-        jsx.starts_with("<HozoListbox {...hozoGapSpreadStyles({ "),
+        jsx.starts_with(
+            "<HozoListbox {...hozoEdgeSpreadStyles(I18nManager.isRTL, I18nManager.doLeftAndRightSwapInRTL, true)({ "
+        ),
         "{jsx}"
     );
     assert!(jsx.contains("optionStyle: hozoStyles.hozo1"), "{jsx}");
