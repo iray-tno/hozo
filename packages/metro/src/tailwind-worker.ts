@@ -55,10 +55,17 @@ export async function readTailwindTransfer(reference: MetroTailwindReference) {
       data.runtimeCandidates.some((name: unknown) => typeof name !== 'string'))
   )
     throw new Error('[hozo] Invalid Metro runtime candidate list; restart Metro')
+  if (
+    Object.hasOwn(data, 'markerClasses') &&
+    (!Array.isArray(data.markerClasses) ||
+      data.markerClasses.some((name: unknown) => typeof name !== 'string'))
+  )
+    throw new Error('[hozo] Invalid Metro marker class list; restart Metro')
   return {
     snapshot: await restoreTailwindStylesheet(data.stylesheet),
     candidates: data.candidates as string[],
     ...(data.runtimeCandidates && { runtimeCandidates: data.runtimeCandidates as string[] }),
+    ...(data.markerClasses && { markerClasses: data.markerClasses as string[] }),
     ...(nativeRuntime && {
       nativeRuntime: {
         sha256: nativeRuntime.sha256 as string,
@@ -79,12 +86,14 @@ export class MetroTailwindWorker {
   readonly #nativeRuntime?: { sha256: string; candidates: ReadonlySet<string> }
   /** What the on-device class map holds, from the same startup scan. */
   readonly #runtimeCandidates?: ReadonlySet<string>
+  readonly #markerClasses?: readonly string[]
 
   constructor(compiler: Compiler, transfer: Awaited<ReturnType<typeof readTailwindTransfer>>) {
     this.compiler = compiler
     this.#names = new Set(transfer.candidates)
     this.#universe = new TailwindCandidateUniverse(this.#names)
     if (transfer.runtimeCandidates) this.#runtimeCandidates = new Set(transfer.runtimeCandidates)
+    this.#markerClasses = transfer.markerClasses
     if (transfer.nativeRuntime)
       this.#nativeRuntime = {
         sha256: transfer.nativeRuntime.sha256,
@@ -239,6 +248,7 @@ export class MetroTailwindWorker {
       this.#runtimeCandidates,
       this.compiler,
       this.compiler.sources,
+      this.#markerClasses,
     ))
       warn(formatDiagnostic(diagnostic))
   }

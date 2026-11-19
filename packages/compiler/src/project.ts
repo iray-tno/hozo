@@ -299,6 +299,34 @@ export interface HozoProjectOptions {
    * @default 'unified'
    */
   nativeTextInheritance?: NativeTextInheritance
+  /**
+   * Class names that are not meant to style anything: an app's own markers,
+   * such as `js-row` or a name a test selects by (#2073).
+   *
+   * Each entry is an exact name, or a prefix ending in `*` (`'js-*'`). On
+   * Native, a development build warns once about a class it is handed at
+   * run time and cannot find in the project's map, because such a class
+   * would otherwise just not apply. A name listed here is not warned about,
+   * and neither are Tailwind's own `group` and `peer`. The build-time check
+   * for classes missing from that map skips them too.
+   */
+  markerClasses?: readonly string[]
+}
+
+/** Whether `name` is one of the project's declared `markerClasses`. */
+export function isMarkerClass(name: string, markers: readonly string[] = []): boolean {
+  return markers.some((marker) =>
+    marker.endsWith('*') ? name.startsWith(marker.slice(0, -1)) : name === marker,
+  )
+}
+
+/**
+ * The line a Metro candidate module ends with: in a development build, the
+ * resolver warns about names its map lacks, apart from the declared markers.
+ * Behind `__DEV__`, so a release build carries neither the call nor the list.
+ */
+export function unknownClassWarningLine(markers: readonly string[] = []): string {
+  return `if (typeof __DEV__ !== 'undefined' && __DEV__) hozoClasses.warnUnknownClasses?.(${JSON.stringify(markers)})\n`
 }
 
 export type NativeTextInheritance = 'unified' | 'compiled'
@@ -1117,12 +1145,16 @@ export function classesMissingFromRuntimeMap(
   known: ReadonlySet<string>,
   compiler: Pick<Compiler, 'compileNative'>,
   sources?: readonly string[],
+  markers?: readonly string[],
 ): CompileDiagnostic[] {
   const cache = openCandidateCache(undefined, sources ? [...sources] : undefined)
   cache.scanFile(file, source, 0)
   const missing = cache
     .candidates()
-    .filter((name) => !known.has(name) && compilesToStyle(name, compiler))
+    .filter(
+      (name) =>
+        !known.has(name) && !isMarkerClass(name, markers) && compilesToStyle(name, compiler),
+    )
     .sort()
   return missing.map((name) => {
     const at = firstOccurrence(source, name)
@@ -1133,7 +1165,8 @@ export function classesMissingFromRuntimeMap(
       message:
         `\`${name}\` (${path.basename(file)}${line ? `:${line}` : ''}) is resolved at run time, ` +
         "and the project's candidate map does not have it, so it will not apply. Include this " +
-        "file in the project's `content`, or restart the bundler if it was edited after startup.",
+        "file in the project's `content`, or restart the bundler if it was edited after startup. " +
+        'If it is not used as a class, list it in `markerClasses`.',
       spanStart: Math.max(at, 0),
       spanEnd: Math.max(at, 0) + (at < 0 ? 0 : name.length),
     }
