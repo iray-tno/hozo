@@ -27,7 +27,7 @@
 // Rust owns scanning, staleness, and persistence.
 
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { type CandidateCache, scanTailwindOrderCandidates } from '@hozo/compiler'
 import { formatDiagnostic, reportDiagnostics } from '@hozo/compiler/diagnostics'
@@ -40,6 +40,11 @@ import {
 } from '@hozo/compiler/lower'
 import {
   CACHE_DIR,
+  type CarrierClosure,
+  type CarrierTrip,
+  captureCarrierClosure,
+  carrierGuard,
+  carrierTripMessage,
   checksRuntimeClasses,
   classesMissingFromRuntimeMap,
   discoverOwnerPackageCallers,
@@ -134,6 +139,32 @@ export function hozoWithDiscoveredOwnerCallers(
   return configureHozo(options, undefined, [], true, true, preflight)
 }
 
+/**
+ * The packages with a Hozo manifest this app can reach, whose manifests'
+ * candidates stand in for scanning their sources (#2047). Incomplete means
+ * the ordinary route for the whole build, before any output: the source
+ * scan, and no guard. Decision 012 point 4.
+ */
+function completeCarrierClosure(
+  root: string,
+  warn: (message: string) => void,
+): CarrierClosure | undefined {
+  // No manifest of its own to read dependencies from: nothing to capture.
+  if (!existsSync(path.join(root, 'package.json'))) return undefined
+  let closure: CarrierClosure
+  try {
+    closure = captureCarrierClosure(root, { platform: 'web', epoch: 'vite-carriers-0' })
+  } catch (error) {
+    warn(`[hozo] package manifests not captured; scanning sources: ${error}`)
+    return undefined
+  }
+  if (closure.contributions.status === 'complete') return closure
+  warn(
+    `[hozo] package manifests incomplete (${closure.contributions.reasons.join(', ')}); scanning sources`,
+  )
+  return undefined
+}
+
 function configureHozo(
   options: HozoOptions,
   ownerPlan?: ViteOwnerCandidatePlan,
@@ -144,6 +175,10 @@ function configureHozo(
 ): Plugin[] {
   // One matching compiler/session per stylesheet epoch, never per file.
   let root = process.cwd()
+  // The frozen package manifests this build's candidates came from, and the
+  // guard for every module loaded after them (#2047).
+  let carriers: CarrierClosure | undefined
+  let guard: ((file: string) => CarrierTrip | undefined) | undefined
   let cache: CandidateCache
   let stylexModules: StylexModuleCache
   let candidateCssPath = ''
@@ -855,7 +890,22 @@ function configureHozo(
         // The whole project, not just what the bundler happens to reach: a
         // class can be produced by a module the graph never resolves
         // statically.
-        const project = discoveredProject ?? scanProject(root, options.content, options.sources)
+        // Captured here, before any module is resolved; the experimental owner
+        // paths above bring their own. An explicit `content.packages` already
+        // says which packages contribute, so it keeps the scan it names.
+        carriers =
+          ownerPlan || discoverOwnerSources || options.content?.packages !== undefined
+            ? undefined
+            : completeCarrierClosure(root, (message) => this.warn(message))
+        guard = carriers && carrierGuard(carriers)
+        const project =
+          discoveredProject ??
+          scanProject(
+            root,
+            options.content,
+            options.sources,
+            carriers?.carriers.length ? carriers.contributions : undefined,
+          )
         cache = owners
           ? withOwnerPackageCandidates(project, owners.contributions, options.sources)
           : project.cache
@@ -977,6 +1027,16 @@ function configureHozo(
       // Everything a project wrote itself, before any other plugin has had
       // it. `enforce: 'pre'` is what makes `code` the source as written.
       ...pass((file) => !isTransformedSource(file)),
+
+      // Every module Vite loads, in a build and in the dev server, passes
+      // here before it can reach output. A package with a manifest that the
+      // capture at buildStart did not hold would ship classes with no rules,
+      // so the build stops and names it. Nothing is loaded here.
+      load(id) {
+        const trip = guard?.(id)
+        if (trip) this.error(carrierTripMessage(carriers!, trip))
+        return null
+      },
 
       moduleParsed(module) {
         inventory?.moduleParsed(module)
