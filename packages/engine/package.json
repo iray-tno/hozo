@@ -57,6 +57,10 @@
       "types": "./dist/generated/animation.d.ts",
       "default": "./dist/generated/animation.js"
     },
+    "./generated/authored-edges": {
+      "types": "./dist/generated/authored-edges.d.ts",
+      "default": "./dist/generated/authored-edges.js"
+    },
     "./generated/class-resolver": {
       "types": "./dist/generated/class-resolver.d.ts",
       "default": "./dist/generated/class-resolver.js"

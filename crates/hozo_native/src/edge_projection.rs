@@ -202,6 +202,21 @@ pub(crate) fn prepare_declarations(
     (out, conflicts)
 }
 
+/// Whether an element's classes reach React Native with a start or end key
+/// in some inline family: a logical utility, or a physical one this module
+/// rewrites. Yoga prefers those keys to an authored `paddingRight` in any
+/// order, so the author's `style` needs `hozoAuthoredEdges` to win (#2050).
+/// Even physical sides alone stay physical, and plain last-wins already
+/// lets the author's key replace them.
+pub(crate) fn writes_logical_inline(declarations: &[StyleDeclaration]) -> bool {
+    declarations.iter().any(|decl| {
+        matches!(
+            classify_property(&decl.property),
+            Some((_, EdgeKind::Logical))
+        )
+    }) || !uneven_physical(declarations).is_empty()
+}
+
 /// Families in which one utility, under one condition, writes the left and
 /// right sides differently or writes only one of them. The swap would move
 /// such a write to the other side in RTL.
@@ -402,6 +417,58 @@ mod tests {
         }
         let out = compile_ordered(&view("p-4"));
         assert!(out.styles.contains("paddingLeft: 16"), "{}", out.styles);
+    }
+
+    fn styled(classes: &str) -> String {
+        format!(
+            "import {{ View }} from '@hozo/core'
+const el = <View className=\"{classes}\" style={{{{ paddingRight: 99 }}}} />
+"
+        )
+    }
+
+    #[test]
+    fn an_authored_style_beside_a_class_start_or_end_composes_through_the_edge_helper() {
+        // #2050: Yoga prefers the class's `paddingEnd` to the author's
+        // `paddingRight` in any order, so plain array order cannot let the
+        // author win.
+        for classes in ["px-8", "ps-8", "pl-1", "border-s-2"] {
+            let out = compile_ordered(&styled(classes));
+            assert!(
+                out.jsx.contains("hozoAuthoredEdges(["),
+                "{classes}: {}",
+                out.jsx
+            );
+            assert!(
+                out.jsx
+                    .contains("I18nManager.isRTL, I18nManager.doLeftAndRightSwapInRTL)"),
+                "{classes}: {}",
+                out.jsx
+            );
+            assert!(
+                out.runtime_imports.contains(&"hozoAuthoredEdges"),
+                "{classes}: {:?}",
+                out.runtime_imports
+            );
+            assert!(
+                out.native_imports.contains(&"I18nManager"),
+                "{classes}: {:?}",
+                out.runtime_imports
+            );
+        }
+    }
+
+    #[test]
+    fn an_authored_style_beside_physical_or_unrelated_classes_stays_a_plain_array() {
+        // Last-wins already lets the author replace an even physical side.
+        for classes in ["p-4", "m-2", "bg-red-500", "pt-2"] {
+            let out = compile_ordered(&styled(classes));
+            assert!(
+                !out.jsx.contains("hozoAuthoredEdges"),
+                "{classes}: {}",
+                out.jsx
+            );
+        }
     }
 
     #[test]

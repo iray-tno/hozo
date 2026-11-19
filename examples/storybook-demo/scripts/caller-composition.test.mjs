@@ -27,6 +27,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
 import Yoga from 'yoga-layout'
+import { hozoAuthoredEdges } from '../../../packages/engine/src/authored-edges.ts'
 import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
 import {
   hozoMixedTextMetricStyles,
@@ -77,10 +78,12 @@ function evaluate(code, context) {
   runInNewContext(transformSync(code, { loader: 'tsx', jsxFactory: 'h', format: 'cjs' }).code, {
     module,
     nativeDisabledProps,
+    hozoAuthoredEdges,
     hozoAuthoredStyle,
     hozoGapSpreadStyles,
     hozoMixedTextMetricStyles,
     hozoShadowStyles,
+    I18nManager: { isRTL: false, doLeftAndRightSwapInRTL: true },
     ...context,
   })
   return module.exports
@@ -5545,6 +5548,141 @@ test('Chromium and Yoga agree on logical and physical inline edges across direct
                 `candidate ${entry.id}/${dir}/swap=${swap}/${classes}/${prop}`,
               )
             }
+          }
+        }
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test("an author's style edge beats a class's edge on the side React Native gives it, static and candidate (#2050)", {
+  skip: !executablePath,
+}, async () => {
+  const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`
+  // `style` is React Native's own: with the swap, RTL moves a physical key to
+  // the logical side, so the reference there is the logical CSS property.
+  const cases = [
+    { classes: 'px-8', style: { paddingRight: 99 }, family: 'padding' },
+    { classes: 'ps-8', style: { paddingRight: 99 }, family: 'padding' },
+    { classes: 'pe-8', style: { paddingLeft: 99 }, family: 'padding' },
+    { classes: 'pl-1', style: { paddingRight: 99 }, family: 'padding' },
+    { classes: 'pl-1', style: { paddingLeft: 99 }, family: 'padding' },
+    { classes: 'p-4', style: { paddingRight: 99 }, family: 'padding' },
+    { classes: 'px-8', style: { paddingEnd: 99 }, family: 'padding' },
+    { classes: 'mx-8', style: { marginLeft: 9 }, family: 'margin' },
+  ]
+  const cssProperty = (key, logical) =>
+    ({
+      paddingLeft: logical ? 'padding-inline-start' : 'padding-left',
+      paddingRight: logical ? 'padding-inline-end' : 'padding-right',
+      paddingStart: 'padding-inline-start',
+      paddingEnd: 'padding-inline-end',
+      marginLeft: logical ? 'margin-inline-start' : 'margin-left',
+    })[key]
+  const props = { padding: ['paddingLeft', 'paddingRight'], margin: ['marginLeft', 'marginRight'] }
+  const allNames = [...new Set(cases.flatMap((c) => c.classes.split(' ')))]
+  const compiled = await compile(css, { base: process.cwd() })
+  const referenceCss = compiled.build(allNames)
+  const compiler = createCompiler()
+  const cache = openCandidateCache()
+  cache.scanFile('authored-edge-matrix.ts', JSON.stringify(allNames.join(' ')), 1)
+  const nativeModuleCode = cache.renderNativeModule()
+  const yoga = (styleObj, family, dir) => {
+    const root = Yoga.Node.create()
+    root.setWidth(400)
+    root.setHeight(100)
+    const node = Yoga.Node.create()
+    const edges = {
+      Left: Yoga.EDGE_LEFT,
+      Right: Yoga.EDGE_RIGHT,
+      Start: Yoga.EDGE_START,
+      End: Yoga.EDGE_END,
+    }
+    for (const [k, v] of Object.entries(styleObj)) {
+      const match = /^(padding|margin)(Left|Right|Start|End)$/.exec(k)
+      if (match && typeof v === 'number')
+        node[match[1] === 'padding' ? 'setPadding' : 'setMargin'](edges[match[2]], v)
+    }
+    root.insertChild(node, 0)
+    root.calculateLayout(400, 100, dir === 'rtl' ? Yoga.DIRECTION_RTL : Yoga.DIRECTION_LTR)
+    const get = family === 'padding' ? 'getComputedPadding' : 'getComputedMargin'
+    const out = {
+      [`${family}Left`]: `${node[get](Yoga.EDGE_LEFT)}px`,
+      [`${family}Right`]: `${node[get](Yoga.EDGE_RIGHT)}px`,
+    }
+    root.freeRecursive()
+    return out
+  }
+  // `swapLeftAndRightInRTL`, as in the matrix above.
+  const swapped = (styleObj) => {
+    const out = {}
+    const physical = []
+    for (const [k, v] of Object.entries(styleObj)) {
+      const to = k.replace(/Left$/, 'Start').replace(/Right$/, 'End')
+      if (to === k) out[k] = v
+      else physical.push([to, v])
+    }
+    for (const [k, v] of physical) out[k] = v
+    return out
+  }
+  const flat = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
+  const literal = (style) =>
+    `{ ${Object.entries(style)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(', ')} }`
+
+  const page = await browser.newPage()
+  try {
+    for (const entry of cases) {
+      const id = `${entry.classes} + ${JSON.stringify(entry.style)}`
+      const [staticNative] = compiler.compileNative(
+        `import { View } from '@hozo/core'; export const C = () => <View className="${entry.classes}" style={${literal(entry.style)}} />`,
+      )
+      const [opaqueNative] = compiler.compileNative(
+        `import { View } from '@hozo/core'; export const C = ({ cls }) => <View className={cls} style={${literal(entry.style)}} />`,
+      )
+      assert.ok(staticNative.jsx.includes('hozoAuthoredEdges(') || entry.classes === 'p-4', id)
+      for (const dir of ['ltr', 'rtl']) {
+        for (const swap of [false, true]) {
+          const logical = dir === 'rtl' && swap
+          const inline = Object.entries(entry.style)
+            .map(([k, v]) => `${cssProperty(k, logical)}:${v}px`)
+            .join(';')
+          await page.setContent(
+            `<html dir="${dir}"><style>${referenceCss}</style><div class="${entry.classes}" style="width:100px;height:40px;${inline}">x</div></html>`,
+          )
+          const expected = await page.locator('div').evaluate((el, names) => {
+            const s = getComputedStyle(el)
+            return Object.fromEntries(names.map((p) => [p, s[p]]))
+          }, props[entry.family])
+          const I18nManager = { isRTL: dir === 'rtl', doLeftAndRightSwapInRTL: swap }
+          const hozoClasses = evaluate(nativeModuleCode.replace(/^import .*$/gm, ''), {
+            createClassResolver,
+            I18nManager,
+          }).hozoClasses
+          const scope = {
+            View: 'View',
+            h: (_type, elementProps) => elementProps,
+            useHozoEnvironment: (q) => q === dir,
+            hozoAuthoredEdges,
+            hozoAuthoredStyle,
+            hozoClasses,
+            I18nManager,
+            cls: entry.classes,
+          }
+          for (const [route, native] of [
+            ['static', staticNative],
+            ['candidate', opaqueNative],
+          ]) {
+            const rendered = evaluate(
+              `const hozoStyles=${native.styles};${native.prelude.join('\n')};module.exports=(${native.jsx})`,
+              scope,
+            )
+            const style = flat(rendered.style)
+            const actual = yoga(logical ? swapped(style) : style, entry.family, dir)
+            assert.deepEqual(actual, expected, `${route} ${id}/${dir}/swap=${swap}`)
           }
         }
       }

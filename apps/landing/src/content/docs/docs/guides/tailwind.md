@@ -70,7 +70,7 @@ React Native's default left/right swap (`I18nManager.swapLeftAndRightInRTL`, on 
 - **Where it applies:** a physical class that writes one side, or two different sides, and every physical class on an element that also writes the same edge logically.
 - **Where it does not:** a class that writes both sides alike (`p-4`, `m-2`) stays physical, because the swap moves both sides together and nothing changes.
 
-A `style` prop that writes a physical edge beside a class that writes it logically (`className="px-8" style={{ paddingRight: 99 }}`) does not follow this yet: React Native prefers the logical key. Write the style logically (`paddingEnd`) for now.
+A `style` prop wins over the classes on every inline edge it writes, as an inline style does on the Web: `className="px-8" style={{ paddingRight: 99 }}` gives 99 on that side, although Yoga on its own prefers the class's `paddingEnd`. The `style` keeps React Native's own meaning, which Hozo does not rewrite: with the swap on, `paddingRight` in an RTL layout is the end side, as it would be without the class. Write `paddingStart` or `paddingEnd` when you mean a side of the line.
 
 ## Layout features React Native does not have natively
 

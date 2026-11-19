@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { createCompiler, openCandidateCache, prepareTailwindContext } from '@hozo/compiler'
 import Yoga from 'yoga-layout'
+import { hozoAuthoredEdges } from '../../engine/src/authored-edges.ts'
 import { hozoAuthoredStyle } from '../../engine/src/authored-gap.ts'
 import { hozoDomStyle } from '../../engine/src/dom-style.ts'
 import { hozoGapSpreadStyles } from '../../engine/src/gap-styles.ts'
@@ -198,6 +199,8 @@ export async function prepareGapAliasSubjects() {
               runtimeNames: classes,
               hozoClasses: resolve,
               hozoAuthoredStyle,
+              hozoAuthoredEdges,
+              I18nManager: { isRTL: false, doLeftAndRightSwapInRTL: true },
               hozoSpreadStyles,
               hozoGapSpreadStyles,
               rest: {

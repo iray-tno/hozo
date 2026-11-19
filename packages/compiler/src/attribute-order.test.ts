@@ -42,6 +42,8 @@ function run(jsx: string, styles: string, calls: string[], values: Record<string
     StyleSheet: { create: (value: unknown) => value },
     hozoClasses: () => ({}),
     hozoAuthoredStyle: (style: unknown) => style,
+    hozoAuthoredEdges: (classes: unknown, authored: unknown) => [classes, authored],
+    I18nManager: { isRTL: false, doLeftAndRightSwapInRTL: true },
     hozoDomStyle: (style: unknown) => style,
     hozoViewDomProps: (props: unknown) => props,
     hozoGapSpreadStyles: (props: object, _: unknown, spread: object) => ({ ...props, ...spread }),

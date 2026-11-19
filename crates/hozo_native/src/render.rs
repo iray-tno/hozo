@@ -1697,6 +1697,22 @@ pub(super) fn render_node(
                 &format!(" style={{[{}]}}", authored_style.join(", ")),
             );
         }
+    } else if !authored_style.is_empty()
+        && !style_array_parts.is_empty()
+        && (!node.class_name_fallback.is_empty()
+            || crate::edge_projection::writes_logical_inline(&node.style))
+    {
+        // Yoga prefers a class's `paddingEnd` to the author's `paddingRight`
+        // whatever the order; the helper lets the author's edge win, on the
+        // side React Native would give it alone (#2050). An opaque class may
+        // write any edge, so it takes the same boundary.
+        cx.runtime.need_component("hozoAuthoredEdges");
+        cx.runtime.need_native("I18nManager");
+        style_array_parts = vec![format!(
+            "hozoAuthoredEdges([{}], [{}], I18nManager.isRTL, I18nManager.doLeftAndRightSwapInRTL)",
+            style_array_parts.join(", "),
+            authored_style.join(", ")
+        )];
     } else {
         style_array_parts.extend(authored_style);
     }

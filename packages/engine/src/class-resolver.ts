@@ -1,3 +1,4 @@
+import { INLINE_EDGES, type InlineFamily } from './authored-edges.ts'
 import type { FilterSlots } from './filter-slots.ts'
 import type { GradientSlots } from './gradient-slots.ts'
 import type { ShadowSlots } from './shadow-slots.ts'
@@ -170,17 +171,6 @@ interface TemplateEntry {
 interface RankedEntry extends TemplateEntry {
   rank: number | undefined
 }
-
-/** Each inline family as `[start, end, left, right]`. */
-const INLINE_EDGES = [
-  ['paddingStart', 'paddingEnd', 'paddingLeft', 'paddingRight'],
-  ['marginStart', 'marginEnd', 'marginLeft', 'marginRight'],
-  ['start', 'end', 'left', 'right'],
-  ['borderStartWidth', 'borderEndWidth', 'borderLeftWidth', 'borderRightWidth'],
-  ['borderStartColor', 'borderEndColor', 'borderLeftColor', 'borderRightColor'],
-] as const
-
-type InlineFamily = (typeof INLINE_EDGES)[number]
 
 /**
  * The families whose physical writes these styles need as logical ones: one
