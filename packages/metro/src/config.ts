@@ -355,6 +355,7 @@ async function configureHozo<T extends MetroConfigShape>(
       content: options.content,
       preflight: options.preflight,
       sources: options.sources,
+      markerClasses: options.markerClasses,
     },
     initialOwners,
   )

@@ -139,6 +139,12 @@ export type ClassResolver = ((
   leadingRegisters?: ReadonlyMap<StyleObject, StyleObject>
   /** @internal Bit mask of this namespace's installed deferrable composers. */
   effectMask?: number
+  /**
+   * @internal Development only. Warn once about each name absent from the map,
+   * unless `markers` declares it: an exact name, or a prefix ending in `*`.
+   * The bundler calls it behind `__DEV__`, so a release build never does.
+   */
+  warnUnknownClasses?: (markers: readonly string[]) => void
 }
 
 /** @internal Generated-data ABI, not a utility parser or a public cascade API. */
@@ -423,6 +429,8 @@ export function createClassResolver(
   // Warn once per class, not once per render -- a warning inside a list's
   // render path would otherwise repeat for every row, every frame.
   const warned = new Set<string>()
+  // Set only by `warnUnknownClasses`, which only development builds call.
+  let unknownIsMissing: ((name: string) => boolean) | undefined
   const warn = (name: string, reason: string) => {
     if (warned.has(name)) return
     warned.add(name)
@@ -547,10 +555,20 @@ export function createClassResolver(
         continue
       }
       // An unknown class isn't necessarily a Hozo problem -- it may be an
-      // app's own non-Tailwind class, or a testID-ish marker -- so only the
-      // ones the compiler recognized and refused are reported.
+      // app's own non-Tailwind class, or a testID-ish marker. So by default
+      // only the ones the compiler recognized and refused are reported. In
+      // development the bundler can switch on the rest, with the project's
+      // declared markers (`markerClasses`) excluded (#2073).
       const reason = unsupported[name]
       if (reason) warn(name, reason)
+      else if (unknownIsMissing?.(name))
+        warn(
+          name,
+          `\`${name}\` is not in this app's class map, so it does not apply. If it is a ` +
+            "Tailwind class, it was assembled at run time or written in a file the bundler's scan " +
+            "did not read: write it out whole in a file the project's `content` covers. If it is " +
+            'not meant to style anything, list it in `markerClasses`.',
+        )
     }
     if (ranked && (!colors || canKeepRanks)) {
       // Stable ties keep input order. Cache the selected entry order; hot
@@ -664,5 +682,24 @@ export function createClassResolver(
     // than cached -- it changes with the state.
     return project(compose ? compose(all, deferred) : all, resolved)
   }
+  hozoClasses.warnUnknownClasses = (markers) => {
+    const names = new Set<string>(BUILTIN_MARKERS)
+    const prefixes = [...BUILTIN_MARKER_PREFIXES]
+    for (const marker of markers) {
+      if (marker.endsWith('*')) prefixes.push(marker.slice(0, -1))
+      else names.add(marker)
+    }
+    unknownIsMissing = (name) =>
+      !names.has(name) && !prefixes.some((prefix) => name.startsWith(prefix))
+    // A string resolved before this call would otherwise keep its silence.
+    cache.clear()
+  }
   return hozoClasses
 }
+
+/**
+ * Tailwind's own non-styling names: a `group` or `peer` marks an element for
+ * its descendants or siblings and writes no style of its own.
+ */
+const BUILTIN_MARKERS = ['group', 'peer']
+const BUILTIN_MARKER_PREFIXES = ['group/', 'peer/']

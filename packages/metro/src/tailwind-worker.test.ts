@@ -502,3 +502,51 @@ test('a class carried to run time and absent from the device map is reported; a 
   worker.reportMissingRuntimeClasses(demo, path.join(root, 'node_modules', 'lib', 'demo.tsx'), warn)
   assert.equal(warnings.length, 1)
 })
+
+test('a development build warns about a name the device map lacks, apart from the declared markers (#2073)', async (t) => {
+  const { root, config } = fixture(t)
+  writeFileSync(path.join(root, 'src', 'tones.ts'), `export const tone=()=> 'p-4'`)
+  await withHozo(config, { markerClasses: ['js-*', 'saturate'] })
+  const code = readFileSync(path.join(root, CACHE_DIR, 'candidates.native.js'), 'utf8')
+  // The resolver is this realm’s, so it warns through this realm’s console.
+  const run = (dev: boolean | undefined) => {
+    const warnings: string[] = []
+    const warn = t.mock.method(console, 'warn', (message: string) => warnings.push(message))
+    const resolve = runInNewContext(
+      `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}\nhozoClasses`,
+      {
+        createClassResolver,
+        hozoTextMetricStyles,
+        hozoTransformStyles,
+        I18nManager: { isRTL: false },
+        ...(dev === undefined ? {} : { __DEV__: dev }),
+      },
+    )
+    resolve('p-4 bg-foo-500 js-row group')
+    warn.mock.restore()
+    return warnings
+  }
+  assert.deepEqual(
+    run(true).map((message) => message.match(/`([^`]+)`/)?.[1]),
+    ['bg-foo-500'],
+    'the missing name warns; the declared marker and `group` do not',
+  )
+  assert.deepEqual(run(false), [], 'a release build does not warn')
+  assert.deepEqual(run(undefined), [], 'nor does a runtime without `__DEV__`')
+
+  // The build-time check honours the same declaration.
+  const transfer = await readTailwindTransfer(readMetroState(root)!.tailwind!)
+  assert.deepEqual(transfer.markerClasses, ['js-*', 'saturate'])
+  const worker = new MetroTailwindWorker(createCompiler(transfer.snapshot.theme), transfer)
+  t.after(() => worker.invalidate())
+  const warnings: string[] = []
+  worker.reportMissingRuntimeClasses(
+    `export const F=()=> <Filter type="saturate" barClassName="h-4" />`,
+    path.join(root, '..', 'docs', 'filter.tsx'),
+    (message) => warnings.push(message),
+  )
+  assert.deepEqual(
+    warnings.map((message) => message.match(/`([^`]+)`/)?.[1]),
+    ['h-4'],
+  )
+})

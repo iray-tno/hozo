@@ -30,6 +30,7 @@ import {
   preflightEnabled,
   scanProject,
   scanSummary,
+  unknownClassWarningLine,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
 import { loadProjectTailwindSnapshot, loadProjectTheme, type Theme } from '@hozo/tailwind'
@@ -148,7 +149,9 @@ export async function prepareCandidateModule(
         resolvedTheme,
       )
     : undefined
-  const code = runtimePlan?.code ?? cache.renderNativeModule(resolvedTheme)
+  const code =
+    (runtimePlan?.code ?? cache.renderNativeModule(resolvedTheme)) +
+    unknownClassWarningLine(options.markerClasses)
   let tailwind: MetroTailwindReference | undefined
   let tailwindContent: string | undefined
   if (snapshot) {
@@ -171,6 +174,8 @@ export async function prepareCandidateModule(
           ...new Set(runtimePlan.entries.map(({ candidate }) => candidate)),
         ].sort(),
       }),
+      // Absent when none are declared, so the transfer is unchanged.
+      ...(options.markerClasses?.length ? { markerClasses: [...options.markerClasses] } : {}),
       // Admission needs emitted fallback entries, not the larger order seed.
       // Ordinary builds do not transport this experimental inventory.
       ...(ownerContributions &&

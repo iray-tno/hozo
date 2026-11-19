@@ -50,3 +50,13 @@ export const Card = () => <View className="p-4 bg-red-500" />
   const label = `export const go = () => markPressed('rounded-rect')\n`
   assert.deepEqual(classesMissingFromRuntimeMap(label, '/app/bench.tsx', new Set(), compiler), [])
 })
+
+test('a declared marker is not reported, by exact name or by prefix (#2073)', () => {
+  const filter = `export const F = () => <Filter type="saturate" barClassName="h-4 w-32" />\n`
+  const named = (markers: string[]) =>
+    classesMissingFromRuntimeMap(filter, '/app/f.tsx', new Set(), compiler, undefined, markers).map(
+      ({ message }) => message.match(/^`([^`]+)`/)?.[1],
+    )
+  assert.deepEqual(named([]), ['h-4', 'saturate', 'w-32'])
+  assert.deepEqual(named(['saturate', 'w-*']), ['h-4'])
+})

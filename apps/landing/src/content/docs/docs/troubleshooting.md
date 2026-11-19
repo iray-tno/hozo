@@ -42,6 +42,18 @@ a declaration does not prove their conflict rules. See
 sees it and emits no rule. Write the full class names somewhere the build can
 read them, for example in an object that maps each colour to its class.
 
+On React Native, a development build warns once about each class it is handed
+at run time and cannot find in the project's map: `` `bg-foo-500` is not in
+this app's class map ``. A name that is meant to mark an element rather than
+style it, such as `js-row`, is not a missing class. List those in
+`markerClasses`, as exact names or as prefixes ending in `*`:
+
+```js
+withHozo(config, { markerClasses: ['card-title', 'js-*'] })
+```
+
+Tailwind's own `group` and `peer` never need listing.
+
 ## Something else
 
 Run the audit over the whole project and read its findings, each with a file,

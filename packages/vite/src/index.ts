@@ -372,6 +372,7 @@ function configureHozo(
             new Set(cache.candidates()),
             compiler,
             options.sources,
+            options.markerClasses,
           ))
             this.warn(formatDiagnostic(diagnostic))
         const absoluteFile = path.resolve(file)
