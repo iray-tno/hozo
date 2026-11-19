@@ -17,9 +17,16 @@ const exports = [
   'Toolbar',
   'HozoToolbar',
 ]
+const patternsShadow = {
+  schema: ownerShadow.schema,
+  contracts: ownerShadow.contracts.filter((row) =>
+    ownerPublications.some((pub) => pub.owner === row.owner && pub.package === '@hozo/patterns'),
+  ),
+}
+
 test('catalog publication owns the contract once and attaches only actual package export aliases', () => {
   const result = channels('@hozo/patterns', exports)
-  assert.deepEqual(result.owners, ownerShadow)
+  assert.deepEqual(result.owners, patternsShadow)
   assert.notEqual(result.owners, ownerShadow, 'producer output must not mutate the catalog')
   assert.deepEqual(result.exports, [
     { name: 'BottomSheet', owners: ['BottomSheet.handle'] },
@@ -51,6 +58,22 @@ test('catalog publication owns the contract once and attaches only actual packag
     assert.equal(facade.owners, null)
     assert.ok(facade.exports.every((row) => row.owners.length === 0))
   }
+  const formResult = channels('@hozo/form', [
+    'Form',
+    'HozoForm',
+    'SubmitButton',
+    'HozoSubmitButton',
+    'FileDropzone',
+    'HozoFileDropzone',
+  ])
+  assert.deepEqual(
+    formResult.owners.contracts.map((row) => [row.owner, row.audit]),
+    [
+      ['Form.root', 'audited'],
+      ['SubmitButton.root', 'audited'],
+      ['FileDropzone.root', 'audited'],
+    ],
+  )
   assert.deepEqual(channels('@hozo/patterns', [...exports].reverse()), result)
 })
 

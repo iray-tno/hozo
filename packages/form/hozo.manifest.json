@@ -27,11 +27,15 @@
     },
     {
       "name": "FileDropzone",
-      "owners": []
+      "owners": [
+        "FileDropzone.root"
+      ]
     },
     {
       "name": "Form",
-      "owners": []
+      "owners": [
+        "Form.root"
+      ]
     },
     {
       "name": "HozoCalendar",
@@ -55,11 +59,15 @@
     },
     {
       "name": "HozoFileDropzone",
-      "owners": []
+      "owners": [
+        "FileDropzone.root"
+      ]
     },
     {
       "name": "HozoForm",
-      "owners": []
+      "owners": [
+        "Form.root"
+      ]
     },
     {
       "name": "HozoNativeSelect",
@@ -67,7 +75,9 @@
     },
     {
       "name": "HozoSubmitButton",
-      "owners": []
+      "owners": [
+        "SubmitButton.root"
+      ]
     },
     {
       "name": "HozoTextArea",
@@ -91,7 +101,9 @@
     },
     {
       "name": "SubmitButton",
-      "owners": []
+      "owners": [
+        "SubmitButton.root"
+      ]
     },
     {
       "name": "TextArea",
@@ -358,7 +370,129 @@
       "owners": []
     }
   ],
-  "owners": null,
+  "owners": {
+    "schema": "rfc010-owner-shadow-0",
+    "contracts": [
+      {
+        "owner": "Form.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoFormStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "form",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "SubmitButton.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoSubmitButtonStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "Pressable",
+            "webHost": "button",
+            "events": [
+              "pressed",
+              "hovered",
+              "focused",
+              "focusVisible"
+            ],
+            "inputs": {
+              "facts": [
+                "disabled"
+              ],
+              "splitText": true
+            }
+          }
+        ]
+      },
+      {
+        "owner": "FileDropzone.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoFileDropzoneStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "Pressable",
+            "webHost": "button",
+            "events": [
+              "pressed",
+              "hovered",
+              "focused",
+              "focusVisible"
+            ],
+            "inputs": {
+              "facts": [
+                "disabled"
+              ],
+              "splitText": true
+            }
+          }
+        ]
+      }
+    ]
+  },
   "textPublish": [],
   "textForwarding": {},
   "candidates": [

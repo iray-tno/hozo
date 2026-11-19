@@ -1,7 +1,14 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { components, formFactProfiles, ownerShadow, profiles, textHosts } from './catalog.mjs'
+import {
+  components,
+  formFactProfiles,
+  ownerPublications,
+  ownerShadow,
+  profiles,
+  textHosts,
+} from './catalog.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const header =
@@ -346,8 +353,45 @@ ${Object.entries(facts)
         .join('\n')}\n}\n`,
   )
   .join('')}`
+  const auditedOwners = ownerShadow.contracts
+    .filter((contract) => contract.audit === 'audited')
+    .flatMap((contract) => {
+      const publication = ownerPublications.find((row) => row.owner === contract.owner)
+      if (publication?.package !== '@hozo/form') return []
+      return [
+        {
+          owner: contract.owner,
+          package: publication.package,
+          exports: publication.exports,
+          shadow: JSON.stringify({ schema: ownerShadow.schema, contracts: [contract] }),
+        },
+      ]
+    })
+  const auditedOwnersTs = `${header}
+export interface AuditedOwnerContract {
+  readonly owner: string
+  readonly package: string
+  readonly exports: readonly string[]
+  readonly shadow: string
+}
+
+export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
+${auditedOwners
+  .map(
+    (entry) => `  {
+    owner: '${entry.owner}',
+    package: '${entry.package}',
+    exports: [${entry.exports.map((name) => `'${name}'`).join(', ')}],
+    shadow:
+      '${entry.shadow.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}',
+  },`,
+  )
+  .join('\n')}
+]
+`
   return {
     'scripts/style-slots/owner-shadow.json': `${JSON.stringify(ownerShadow, null, 2)}\n`,
+    'packages/compiler/src/audited-owner-contracts.ts': auditedOwnersTs,
     'crates/hozo_ir/src/class_slots.rs': ir,
     'crates/hozo_native/src/pattern_contracts.rs': native,
     'crates/hozo_parser/src/pattern_hosts.rs': patternHostsSource(),

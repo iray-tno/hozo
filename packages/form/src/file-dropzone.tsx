@@ -110,6 +110,7 @@ export function HozoFileDropzone({
         type="button"
         aria-label={accessibilityLabel}
         disabled={disabled}
+        data-hozo-disabled={disabled ? '' : undefined}
         data-hozo-drag-active={active ? '' : undefined}
         className={[className, active && activeClassName].filter(Boolean).join(' ') || undefined}
         data-testid={testID}

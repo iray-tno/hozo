@@ -29,8 +29,13 @@ import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import {
   assertRuntimeImportsUnbound,
+  composeNativeOwnerPreviews,
   generatedRuntimeImports,
+  matchingAuditedOwners,
+  prepareAuditedOwnerBatch,
+  previewAuditedOwnerBatch,
   type SourceEdit,
+  SourceProvenance,
 } from '@hozo/compiler/lower'
 import type {
   NativeTextInheritance,
@@ -108,8 +113,17 @@ export function transformHozoSource(
   observe?: NativeRewriteObserver,
   textInheritance: NativeTextInheritance = 'unified',
 ): string | null {
-  const options = nativeCompileOptions(observe, textInheritance)
-  return transformWithModule(
+  const hasOwners =
+    semanticModuleEligible(filename, 'native') && matchingAuditedOwners(code).length > 0
+  const provenance = hasOwners ? new SourceProvenance(code) : undefined
+  const track: NativeRewriteObserver | undefined = provenance
+    ? (input, edits) => {
+        provenance.apply(input, edits)
+        observe?.(input, edits)
+      }
+    : observe
+  const options = nativeCompileOptions(track, textInheritance)
+  const ordinary = transformWithModule(
     code,
     filename,
     projectRoot,
@@ -117,8 +131,11 @@ export function transformHozoSource(
     stylexModules,
     (source, bindings, finish) =>
       finish(compiler.compileNativeModule(source, bindings, undefined, options)),
-    observe,
+    track,
   )
+  if (!provenance) return ordinary
+  const previews = previewAuditedOwnerBatch(code, compiler, 'native', filename)
+  return composeNativeOwnerPreviews(code, ordinary, provenance, previews)
 }
 
 /** @internal Stage at the real post-Canvas boundary, not an inspection parse
@@ -135,25 +152,101 @@ export function transformHozoSourceOrPrepare(
   observe?: NativeRewriteObserver,
   textInheritance: NativeTextInheritance = 'unified',
 ): TailwindModuleAttempt<string | null> {
-  const options = nativeCompileOptions(observe, textInheritance)
-  const result = transformWithModule(
-    code,
-    filename,
-    projectRoot,
-    compiler,
-    stylexModules,
-    (source, bindings, finish): TailwindModuleAttempt<string | null> => {
-      const parsed = context
-        ? compiler.compileNativeOrPrepare(source, context, bindings, undefined, options)
-        : compiler.prepareNativeModule(source, bindings, undefined, options)
-      if ('components' in parsed) return { kind: 'complete', output: finish(parsed) }
-      return { kind: 'prepared', module: ownNativeTransform(parsed, finish) }
+  const ownerBatch = semanticModuleEligible(filename, 'native')
+    ? prepareAuditedOwnerBatch(code, compiler, 'native', filename)
+    : undefined
+  if (ownerBatch && ownerBatch.candidates.length === 0) ownerBatch.dispose()
+  const activeOwners = ownerBatch && ownerBatch.candidates.length > 0 ? ownerBatch : undefined
+  const provenance = activeOwners ? new SourceProvenance(code) : undefined
+  const track: NativeRewriteObserver | undefined = provenance
+    ? (input, edits) => {
+        provenance.apply(input, edits)
+        observe?.(input, edits)
+      }
+    : observe
+  const options = nativeCompileOptions(track, textInheritance)
+  let raw: TailwindModuleAttempt<string | null> | string | null
+  try {
+    raw = transformWithModule(
+      code,
+      filename,
+      projectRoot,
+      compiler,
+      stylexModules,
+      (source, bindings, finish): TailwindModuleAttempt<string | null> => {
+        const parsed = context
+          ? compiler.compileNativeOrPrepare(source, context, bindings, undefined, options)
+          : compiler.prepareNativeModule(source, bindings, undefined, options)
+        if ('components' in parsed) return { kind: 'complete', output: finish(parsed) }
+        return { kind: 'prepared', module: ownNativeTransform(parsed, finish) }
+      },
+      track,
+    )
+  } catch (error) {
+    activeOwners?.dispose()
+    throw error
+  }
+  const ordinary: TailwindModuleAttempt<string | null> =
+    typeof raw === 'object' && raw !== null ? raw : { kind: 'complete', output: raw }
+  if (!activeOwners || !provenance) return ordinary
+  if (ordinary.kind === 'prepared') {
+    const candidates = Object.freeze(
+      [...new Set([...ordinary.module.candidates, ...activeOwners.candidates])].sort(),
+    )
+    let active = true
+    const dispose = () => {
+      if (!active) return
+      active = false
+      ordinary.module.dispose()
+      activeOwners.dispose()
+    }
+    return {
+      kind: 'prepared',
+      module: {
+        candidates,
+        emit(finalContext) {
+          if (!active) throw new Error('Native transform has already been emitted or disposed')
+          active = false
+          try {
+            const base = ordinary.module.emit(finalContext)
+            const previews = activeOwners.emit(finalContext)
+            return composeNativeOwnerPreviews(code, base, provenance, previews)
+          } finally {
+            ordinary.module.dispose()
+            activeOwners.dispose()
+          }
+        },
+        dispose,
+      },
+    }
+  }
+  let active = true
+  const dispose = () => {
+    if (!active) return
+    active = false
+    activeOwners.dispose()
+  }
+  return {
+    kind: 'prepared',
+    module: {
+      candidates: activeOwners.candidates,
+      emit(finalContext) {
+        if (!active) throw new Error('Native transform has already been emitted or disposed')
+        active = false
+        try {
+          return composeNativeOwnerPreviews(
+            code,
+            ordinary.output,
+            provenance,
+            activeOwners.emit(finalContext),
+          )
+        } finally {
+          activeOwners.dispose()
+        }
+      },
+      dispose,
     },
-    observe,
-  )
-  return typeof result === 'object' && result !== null
-    ? result
-    : { kind: 'complete', output: result }
+  }
 }
 
 /** Decision 013 is the default; 'compiled' is the project's opt-out. */

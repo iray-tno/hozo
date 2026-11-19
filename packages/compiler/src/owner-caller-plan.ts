@@ -52,6 +52,7 @@ interface OwnerCallerOptions {
   shadow: string
   sourceFile?: string
   experimentalNativePartial?: boolean
+  planPrefix?: string
 }
 
 function preparationOptions(shape: OwnerShape): NativeCompileOptions {
@@ -213,9 +214,10 @@ function collectOwnerLiteralCallers(
 
   return (context) => {
     let serial = 0
+    const prefix = options.planPrefix ?? ''
     const fresh = (stem: string) => {
       while (true) {
-        const name = `__hozoOwner${stem}${serial++}`
+        const name = `__hozoOwner${prefix}${stem}${serial++}`
         // Conservative source-wide exclusion also protects references injected
         // inside a nested scope, not merely the module's top-level bindings.
         if (!source.includes(name)) return name

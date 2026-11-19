@@ -155,6 +155,124 @@
           "events": []
         }
       ]
+    },
+    {
+      "owner": "Form.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoFormStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "form",
+          "events": []
+        }
+      ]
+    },
+    {
+      "owner": "SubmitButton.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoSubmitButtonStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "Pressable",
+          "webHost": "button",
+          "events": [
+            "pressed",
+            "hovered",
+            "focused",
+            "focusVisible"
+          ],
+          "inputs": {
+            "facts": [
+              "disabled"
+            ],
+            "splitText": true
+          }
+        }
+      ]
+    },
+    {
+      "owner": "FileDropzone.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoFileDropzoneStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "Pressable",
+          "webHost": "button",
+          "events": [
+            "pressed",
+            "hovered",
+            "focused",
+            "focusVisible"
+          ],
+          "inputs": {
+            "facts": [
+              "disabled"
+            ],
+            "splitText": true
+          }
+        }
+      ]
     }
   ]
 }

@@ -262,7 +262,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       webTabs: read('artifacts/style-fact-model/tabs-browser.json'),
     })
     report.declarationGate = assessDeclaredAudits({
-      contracts: shadow.contracts,
+      contracts: published.contracts,
       proofs: [report],
       sourceCommit: source.sourceCommit,
       manifestSha256: createHash('sha256').update(manifestText).digest('hex'),

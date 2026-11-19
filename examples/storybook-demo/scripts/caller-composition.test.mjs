@@ -19,6 +19,7 @@ import {
 import { lowerModule } from '@hozo/compiler/lower'
 import { emitFinalTailwindBatch, TailwindProjectSession } from '@hozo/compiler/project'
 import { createClassResolver, cx } from '@hozo/engine'
+import { FileDropzone, Form, SubmitButton } from '@hozo/form'
 import { Chip } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
@@ -5701,6 +5702,200 @@ test("an author's style edge beats a class's edge on the side React Native gives
             assert.deepEqual(actual, expected, `${route} ${id}/${dir}/swap=${swap}`)
           }
         }
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('Form, SubmitButton and FileDropzone deliver markers to declared hosts and match Chromium vs Native prepared states (#2045)', {
+  skip: !executablePath,
+}, async () => {
+  const compiler = createCompiler()
+  const stateClasses =
+    'p-3 bg-[#112233] text-[#ffffff] hover:bg-[#223344] active:bg-[#334455] focus-visible:bg-[#445566] disabled:bg-[#556677] disabled:text-[#8899aa]'
+  const source = `import { Form, SubmitButton, FileDropzone } from '@hozo/form'
+export function Screen({ disabled = false }) {
+  return (
+    <Form accessibilityLabel="Profile" className="pt-3">
+      <SubmitButton disabled={disabled} className="${stateClasses}">Save</SubmitButton>
+      <FileDropzone accessibilityLabel="Upload" disabled={disabled} className="${stateClasses}">Drop</FileDropzone>
+    </Form>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webCjs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webCjs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (specifier) => {
+      if (specifier === '@hozo/form') return { Form, SubmitButton, FileDropzone }
+      throw new Error(`Unexpected web require: ${specifier}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeCjs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const nativeMod = { exports: {} }
+  const nativeElements = {}
+  runInNewContext(nativeCjs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (typeof type === 'string') nativeElements[type] = props
+      return { type, props }
+    },
+    require: (specifier) => {
+      if (specifier === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (specifier === '@hozo/form')
+        return { Form: 'Form', SubmitButton: 'SubmitButton', FileDropzone: 'FileDropzone' }
+      throw new Error(`Unexpected native require: ${specifier}`)
+    },
+  })
+  nativeMod.exports.Screen({})
+  assert.equal(nativeElements.Form.className, undefined)
+  assert.equal(nativeElements.SubmitButton.className, undefined)
+  assert.equal(nativeElements.FileDropzone.className, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+    return m ? `rgb(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)})` : hex
+  }
+  assert.equal(flat(nativeElements.Form.hozoFormStyle()).paddingTop, 12)
+
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    const enabledHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { disabled: false }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${enabledHtml}`)
+    // Item 2 (Web): marker classes reach declared hosts (<form>, <button>, <button>).
+    const formPadding = await page
+      .locator('form[aria-label="Profile"]')
+      .evaluate((el) => parseFloat(getComputedStyle(el).paddingTop))
+    assert.equal(formPadding, 12)
+
+    const states = [
+      {
+        name: 'rest',
+        disabled: false,
+        pseudo: [],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+        },
+      },
+      {
+        name: 'hover',
+        disabled: false,
+        pseudo: ['hover'],
+        facts: {
+          hovered: true,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+        },
+      },
+      {
+        name: 'active',
+        disabled: false,
+        pseudo: ['active'],
+        facts: {
+          hovered: false,
+          pressed: true,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+        },
+      },
+      {
+        name: 'focus-visible',
+        disabled: false,
+        pseudo: ['focus', 'focus-visible'],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: true,
+          focusVisible: true,
+          disabled: false,
+        },
+      },
+      {
+        name: 'disabled',
+        disabled: true,
+        pseudo: [],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: true,
+        },
+      },
+    ]
+
+    for (const [label, selector, carrier] of [
+      ['SubmitButton', 'button[type="submit"]', nativeElements.SubmitButton.hozoSubmitButtonStyle],
+      [
+        'FileDropzone',
+        'button[aria-label="Upload"]',
+        nativeElements.FileDropzone.hozoFileDropzoneStyle,
+      ],
+    ]) {
+      for (const state of states) {
+        const html = renderToStaticMarkup(
+          createElement(webMod.exports.Screen, { disabled: state.disabled }),
+        )
+        await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+        const { root } = await cdp.send('DOM.getDocument')
+        const { nodeId } = await cdp.send('DOM.querySelector', {
+          nodeId: root.nodeId,
+          selector,
+        })
+        if (state.pseudo.length) {
+          await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: state.pseudo })
+        }
+        const webStyle = await page.locator(selector).evaluate((el) => {
+          const cs = getComputedStyle(el)
+          return {
+            paddingTop: parseFloat(cs.paddingTop),
+            backgroundColor: cs.backgroundColor,
+            color: cs.color,
+          }
+        })
+        const nativeStyle = flat(carrier(state.facts))
+        assert.deepEqual(
+          {
+            paddingTop: nativeStyle.paddingTop,
+            backgroundColor: hexToRgb(nativeStyle.backgroundColor),
+            color: hexToRgb(nativeStyle.color),
+          },
+          webStyle,
+          `${label}/${state.name}`,
+        )
       }
     }
   } finally {

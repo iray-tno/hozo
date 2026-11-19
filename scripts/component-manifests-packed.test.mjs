@@ -40,7 +40,7 @@ import { fixtureNode } from '../packages/metro/fixtures/fixture-process.mjs'
 import { loadProjectTailwindSnapshot } from '../packages/tailwind/src/project-snapshot.ts'
 import { sourcePackageChannels } from './component-manifests.mjs'
 import { valueExports } from './generated-abi.mjs'
-import { ownerShadow } from './style-slots/catalog.mjs'
+import { ownerPublications, ownerShadow } from './style-slots/catalog.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 
@@ -406,7 +406,17 @@ test('the built patterns tarball preserves scoped owner facts for both selected 
   const text = readFileSync(path.join(instance, json.hozo.manifest), 'utf8')
   assert.equal(text, readFileSync(path.join(root, 'packages/patterns', json.hozo.manifest), 'utf8'))
   assert.equal(text, serializeManifest(manifest))
-  assert.deepEqual(manifest.owners, ownerShadow, 'transport of the catalog, not a copied fixture')
+  const patternsOwners = {
+    schema: ownerShadow.schema,
+    contracts: ownerShadow.contracts.filter((row) =>
+      ownerPublications.some((pub) => pub.owner === row.owner && pub.package === '@hozo/patterns'),
+    ),
+  }
+  assert.deepEqual(
+    manifest.owners,
+    patternsOwners,
+    'transport of the catalog, not a copied fixture',
+  )
   assert.deepEqual(manifest.textForwarding, {})
 
   const captures = []
@@ -434,7 +444,7 @@ test('the built patterns tarball preserves scoped owner facts for both selected 
     if (contributions.status !== 'complete') return
     assert.deepEqual(contributions.instances[0].entries, [realpathSync(entry)])
     assert.equal(contributions.instances[0].data.compiledByConsumer, false)
-    assert.deepEqual(contributions.instances[0].data.owners, ownerShadow)
+    assert.deepEqual(contributions.instances[0].data.owners, patternsOwners)
     captures.push(capture)
   }
   assert.notEqual(
