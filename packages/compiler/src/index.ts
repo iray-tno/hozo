@@ -694,6 +694,11 @@ export interface NativeCompileOptions extends CompileEvidence {
     | 'aria-disabled'
     | 'aria-invalid'
     | 'aria-required'
+    | 'data-hozo-outside'
+    | 'data-hozo-disabled'
+    | 'data-hozo-range-start'
+    | 'data-hozo-range-end'
+    | 'data-hozo-in-range'
   )[]
   /** @internal Existing box/owned-label split; no parent/opaque text inheritance. */
   ownerText?: 'split'

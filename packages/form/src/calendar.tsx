@@ -470,6 +470,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           type="button"
           aria-label={previousMonthLabel}
           disabled={!backReachable}
+          data-hozo-disabled={!backReachable ? '' : undefined}
           className={monthButtonClassName}
           onClick={() => page(-1)}
         >
@@ -488,6 +489,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           type="button"
           aria-label={nextMonthLabel}
           disabled={!forwardReachable}
+          data-hozo-disabled={!forwardReachable ? '' : undefined}
           className={monthButtonClassName}
           onClick={() => page(1)}
         >

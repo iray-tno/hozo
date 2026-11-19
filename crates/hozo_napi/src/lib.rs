@@ -771,6 +771,11 @@ impl NativeCompileOptions {
                 "aria-disabled" => hozo_native::OwnerFact::AriaDisabled,
                 "aria-invalid" => hozo_native::OwnerFact::AriaInvalid,
                 "aria-required" => hozo_native::OwnerFact::AriaRequired,
+                "data-hozo-outside" => hozo_native::OwnerFact::DataHozoOutside,
+                "data-hozo-disabled" => hozo_native::OwnerFact::DataHozoDisabled,
+                "data-hozo-range-start" => hozo_native::OwnerFact::DataHozoRangeStart,
+                "data-hozo-range-end" => hozo_native::OwnerFact::DataHozoRangeEnd,
+                "data-hozo-in-range" => hozo_native::OwnerFact::DataHozoInRange,
                 _ => {
                     return Err(napi::Error::from_reason(format!(
                         "Unsupported owner fact: {key}"

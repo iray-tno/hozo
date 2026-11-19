@@ -200,3 +200,30 @@ export function Screen() {
   assert.match(lowered.css, /\[aria-invalid="true"\]/)
   assert.match(lowered.css, /\[aria-required="true"\]/)
 })
+
+test('ordinary Web lowering compiles all five Calendar slots by default', () => {
+  const compiler = createCompiler()
+  const source = `import { Calendar } from '@hozo/form'
+export function Screen() {
+  return (
+    <Calendar
+      className="p-2 text-[#112233]"
+      headerClassName="p-1 text-[#223344]"
+      gridClassName="p-3 text-[#334455]"
+      monthButtonClassName="p-2 disabled:opacity-50"
+      dayClassName="p-1 aria-selected:bg-[#112233] data-[hozo-outside]:opacity-50 data-[hozo-range-start]:bg-[#223344] data-[hozo-range-end]:bg-[#334455] data-[hozo-in-range]:bg-[#445566]"
+    />
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /className="p-2 text-\[#112233\]"/)
+  assert.doesNotMatch(lowered.code, /headerClassName="p-1/)
+  assert.doesNotMatch(lowered.code, /gridClassName="p-3/)
+  assert.doesNotMatch(lowered.code, /monthButtonClassName="p-2/)
+  assert.doesNotMatch(lowered.code, /dayClassName="p-1/)
+  assert.match(lowered.code, /dayClassName=\{"hozo-owner-/)
+  assert.match(lowered.css, /\[data-hozo-range-start\]/)
+  assert.match(lowered.css, /\[data-hozo-in-range\]/)
+})

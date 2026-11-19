@@ -13,6 +13,11 @@ pub enum OwnerFact {
     AriaDisabled,
     AriaInvalid,
     AriaRequired,
+    DataHozoOutside,
+    DataHozoDisabled,
+    DataHozoRangeStart,
+    DataHozoRangeEnd,
+    DataHozoInRange,
 }
 
 impl OwnerFact {
@@ -24,6 +29,11 @@ impl OwnerFact {
             Self::AriaDisabled => "aria-disabled",
             Self::AriaInvalid => "aria-invalid",
             Self::AriaRequired => "aria-required",
+            Self::DataHozoOutside => "data-hozo-outside",
+            Self::DataHozoDisabled => "data-hozo-disabled",
+            Self::DataHozoRangeStart => "data-hozo-range-start",
+            Self::DataHozoRangeEnd => "data-hozo-range-end",
+            Self::DataHozoInRange => "data-hozo-in-range",
         }
     }
 
@@ -35,6 +45,11 @@ impl OwnerFact {
             Self::AriaDisabled => "__hozoOwnerAriaDisabled",
             Self::AriaInvalid => "__hozoOwnerAriaInvalid",
             Self::AriaRequired => "__hozoOwnerAriaRequired",
+            Self::DataHozoOutside => "__hozoOwnerDataHozoOutside",
+            Self::DataHozoDisabled => "__hozoOwnerDataHozoDisabled",
+            Self::DataHozoRangeStart => "__hozoOwnerDataHozoRangeStart",
+            Self::DataHozoRangeEnd => "__hozoOwnerDataHozoRangeEnd",
+            Self::DataHozoInRange => "__hozoOwnerDataHozoInRange",
         }
     }
 
@@ -181,6 +196,7 @@ pub fn lower_owner_style_with_inputs(
     )
         && facts.iter().enumerate().all(|(at, fact)| !facts[..at].contains(fact))
         && ((facts.is_empty() && !inputs.split_text)
+            || (root.primitive == Primitive::View && facts.is_empty() && inputs.split_text)
             || root.primitive == Primitive::Pressable
             || (root.primitive == Primitive::TextInput && !inputs.split_text))
         // The residual resolver's semantic inputs need their own delivery proof.
@@ -541,7 +557,8 @@ mod tests {
             "<Pressable className=\"p-2 *:text-red-500\"/>",
             "<Pressable className={`p-2 ${extra}`}/>",
             "<Pressable className=\"text-red-500\"><Text/></Pressable>",
-            "<View className=\"text-red-500\"/>",
+            "<View className=\"text-[2em]\"/>",
+            "<View className=\"hover:text-red-500\"/>",
         ] {
             let source = format!("const el={element}");
             let parsed = hozo_parser::parse_tsx(&source);
@@ -563,6 +580,66 @@ mod tests {
                     .any(|d| d.severity == Severity::Error),
                 "{element}"
             );
+        }
+
+        // Stateless split-text Views compile box + text declarations into a resting carrier.
+        let view_source = "const el=<View className=\"p-2 text-[#112233] font-bold\"/>";
+        let view_parsed = hozo_parser::parse_tsx(view_source);
+        let (view_output, view_carrier) = lower_owner_style_with_inputs(
+            &view_parsed.roots[0].node,
+            &[],
+            view_source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                split_text: true,
+                ..Default::default()
+            },
+        );
+        let view_carrier =
+            view_carrier.expect("stateless split-text View compiles resting carrier");
+        assert!(view_output.diagnostics.is_empty());
+        assert!(view_carrier.split_text && view_carrier.literal_resting && !view_carrier.callback);
+        assert!(view_output.styles.contains("color: '#112233'"));
+        assert!(
+            !compile(view_source).0.styles.contains("#112233"),
+            "View without split_text must not emit text styles"
+        );
+        assert!(
+            compile("const el=<View className=\"text-[#112233]\"/>")
+                .1
+                .is_none(),
+            "text-only View without split_text has no carrier"
+        );
+
+        // Data-attribute owner facts compile standalone, negated, and stacked guards.
+        let day_source = "const el=<Pressable className=\"p-1 data-[hozo-outside]:opacity-50 data-[hozo-range-start]:bg-[#112233] not-data-[hozo-disabled]:text-[#ffffff] hover:data-[hozo-in-range]:bg-[#223344]\"/>";
+        let day_parsed = hozo_parser::parse_tsx(day_source);
+        let day_facts = [
+            OwnerFact::DataHozoOutside,
+            OwnerFact::DataHozoDisabled,
+            OwnerFact::DataHozoRangeStart,
+            OwnerFact::DataHozoRangeEnd,
+            OwnerFact::DataHozoInRange,
+        ];
+        let (day_output, day_carrier) = lower_owner_style_with_inputs(
+            &day_parsed.roots[0].node,
+            &[],
+            day_source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &day_facts,
+                split_text: true,
+            },
+        );
+        let day_carrier = day_carrier.expect("Calendar day data-hozo-* facts compile");
+        assert!(
+            day_output.diagnostics.is_empty(),
+            "{:?}",
+            day_output.diagnostics
+        );
+        assert!(day_carrier.callback && day_carrier.split_text);
+        for fact in day_facts {
+            assert!(day_carrier.expression.contains(&fact.parameter()));
         }
     }
 }

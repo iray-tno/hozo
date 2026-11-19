@@ -10,12 +10,17 @@ export type OwnerFact =
   | 'aria-disabled'
   | 'aria-invalid'
   | 'aria-required'
+  | 'data-hozo-outside'
+  | 'data-hozo-disabled'
+  | 'data-hozo-range-start'
+  | 'data-hozo-range-end'
+  | 'data-hozo-in-range'
 
 export interface OwnerShape {
   id: string
   when: Gate
   nativeHost: 'Pressable' | 'View' | 'Text' | 'TextInput'
-  webHost: 'button' | 'div' | 'form' | 'label' | 'span' | 'textarea' | 'select'
+  webHost: 'button' | 'div' | 'form' | 'label' | 'span' | 'textarea' | 'select' | 'table' | 'td'
   events: ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
   /** Explicit preparation inputs, not inferred from a synthetic host. */
   inputs?: { facts: OwnerFact[]; splitText: boolean }
@@ -184,7 +189,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       const id = identifier(shape.id, `${at}.shape.id`)
       if (
         !['Pressable', 'View', 'Text', 'TextInput'].includes(shape.nativeHost as string) ||
-        !['button', 'div', 'form', 'label', 'span', 'textarea', 'select'].includes(
+        !['button', 'div', 'form', 'label', 'span', 'textarea', 'select', 'table', 'td'].includes(
           shape.webHost as string,
         )
       )
@@ -199,7 +204,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       // Only verified host pairs have application evidence.
       if (
         shape.nativeHost === 'View' &&
-        (!['div', 'form'].includes(shape.webHost as string) || events.length !== 0)
+        (!['div', 'form', 'table'].includes(shape.webHost as string) || events.length !== 0)
       )
         fail(`${at}.decoration events/host`)
       if (
@@ -209,7 +214,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
         fail(`${at}.text events/host`)
       if (
         shape.nativeHost === 'Pressable' &&
-        !['button', 'select'].includes(shape.webHost as string)
+        !['button', 'select', 'td'].includes(shape.webHost as string)
       )
         fail(`${at}.control host`)
       if (
@@ -223,7 +228,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
         const supplied = object(shape.inputs, ['facts', 'splitText'], `${at}.shape inputs`)
         if (
           !Array.isArray(supplied.facts) ||
-          supplied.facts.length > 6 ||
+          supplied.facts.length > 12 ||
           typeof supplied.splitText !== 'boolean'
         )
           fail(`${at}.shape inputs values`)
@@ -237,14 +242,18 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
               'aria-disabled',
               'aria-invalid',
               'aria-required',
+              'data-hozo-outside',
+              'data-hozo-disabled',
+              'data-hozo-range-start',
+              'data-hozo-range-end',
+              'data-hozo-in-range',
             ].includes(fact),
           )
         )
           fail(`${at}.shape input fact`)
         unique(facts, `${at}.shape input facts`)
-        // Stateful consumers require the complete existing host snapshot.
-        // Partial event owners need backend requirement metadata, not JSX text
-        // inspection or borrowing a surrounding component's event state.
+        // Stateful consumers require the complete existing host snapshot;
+        // stateless split-text Views carry box+text resting styles only.
         const pressableReady =
           shape.nativeHost === 'Pressable' &&
           ['pressed', 'hovered', 'focused', 'focusVisible'].every((event) =>
@@ -256,7 +265,9 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
           ['focused', 'focusVisible'].every((event) =>
             events.includes(event as OwnerShape['events'][number]),
           )
-        if (!pressableReady && !textInputReady)
+        const splitTextViewReady =
+          shape.nativeHost === 'View' && supplied.splitText && facts.length === 0
+        if (!pressableReady && !textInputReady && !splitTextViewReady)
           fail(`${at}.shape inputs need the full control snapshot`)
         inputs = { facts, splitText: supplied.splitText }
       }

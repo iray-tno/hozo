@@ -653,3 +653,115 @@ export function Screen({
     /Prepared NativeSelect styles must consume className/,
   )
 })
+
+test('Native Calendar delivers prepared styles across all five slots without calling hozoClasses (#2045)', () => {
+  const compiler = createCompiler()
+  const source = `import { Calendar } from '@hozo/form'
+export function Screen() {
+  return (
+    <Calendar
+      range
+      today={{ year: 2026, month: 9, day: 24 }}
+      defaultMonth={{ year: 2026, month: 9 }}
+      min={{ year: 2026, month: 9, day: 10 }}
+      value={{ start: { year: 2026, month: 9, day: 12 }, end: { year: 2026, month: 9, day: 14 } }}
+      locale="en-US"
+      firstDayOfWeek={1}
+      className="pt-2 text-[#112233]"
+      headerClassName="pt-3 text-[#223344]"
+      gridClassName="pt-4 text-[#334455]"
+      monthButtonClassName="pt-5 bg-[#101010] disabled:bg-[#202020]"
+      dayClassName="pt-1 bg-[#010101] data-[hozo-outside]:bg-[#121212] data-[hozo-disabled]:bg-[#232323] data-[hozo-range-start]:bg-[#343434] data-[hozo-range-end]:bg-[#454545] data-[hozo-in-range]:bg-[#565656]"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoCalendarStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoHeaderStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoGridStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoMonthButtonStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDayStyle=\{__hozoOwner\d+_Plan\d+\}/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 99 }
+  }
+  const calendarMod = loadNativeFormModule('calendar.native.tsx', { hozoClasses: spyHozoClasses })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/form') return { Calendar: calendarMod.exports.Calendar }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  assert.equal(classResolverCalls, 0, 'prepared Calendar literals must never call hozoClasses')
+
+  const views = calendarMod.captured.filter((entry) => entry.host === 'View')
+  assert.equal(flattenStyle(views[0]!.props.style).paddingTop, 8)
+  assert.equal(flattenStyle(views[1]!.props.style).paddingTop, 12)
+  assert.equal(flattenStyle(views[2]!.props.style).paddingTop, 16)
+
+  const pressables = calendarMod.captured.filter((entry) => entry.host === 'Pressable')
+  // Previous month button is disabled because min is Sept 10; next month button is enabled.
+  assert.equal(flattenStyle(pressables[0]!.props.style).backgroundColor, '#202020')
+  assert.equal(flattenStyle(pressables[1]!.props.style).backgroundColor, '#101010')
+  // Day cells start at index 2 (42 cells).
+  const dayByLabel = (part: string) =>
+    pressables.find(
+      (entry) =>
+        typeof entry.props.accessibilityLabel === 'string' &&
+        entry.props.accessibilityLabel.includes(part),
+    )!
+  assert.equal(flattenStyle(dayByLabel('August 31, 2026').props.style).backgroundColor, '#232323')
+  assert.equal(flattenStyle(dayByLabel('October 1, 2026').props.style).backgroundColor, '#121212')
+  assert.equal(
+    flattenStyle(dayByLabel('September 12, 2026').props.style).backgroundColor,
+    '#343434',
+  )
+  assert.equal(
+    flattenStyle(dayByLabel('September 13, 2026').props.style).backgroundColor,
+    '#565656',
+  )
+  assert.equal(
+    flattenStyle(dayByLabel('September 14, 2026').props.style).backgroundColor,
+    '#454545',
+  )
+
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoCalendarStyle'],
+    ['headerClassName', 'hozoHeaderStyle'],
+    ['gridClassName', 'hozoGridStyle'],
+    ['monthButtonClassName', 'hozoMonthButtonStyle'],
+    ['dayClassName', 'hozoDayStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            calendarMod.exports.Calendar as React.ComponentType<Record<string, unknown>>,
+            { [classProp]: 'pt-2', [preparedProp]: () => ({}) },
+          ),
+        ),
+      new RegExp(`Prepared Calendar styles must consume ${classProp}`),
+    )
+  }
+})

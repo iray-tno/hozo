@@ -259,6 +259,33 @@ export const formComponents = {
   Calendar: formSlots(
     'className dayClassName headerClassName gridClassName monthButtonClassName',
     'className dayClassName headerClassName monthButtonClassName',
+    {
+      className: {
+        owner: 'calendar-wrapper',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      dayClassName: {
+        owner: 'calendar-day-cell',
+        gate: 'each-day',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      headerClassName: {
+        owner: 'calendar-header',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      gridClassName: {
+        owner: 'calendar-grid',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      monthButtonClassName: {
+        owner: 'calendar-month-button',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
   ),
   DatePicker: formSlots(pickerClasses, 'className triggerClassName dialogClassName'),
   DateRangePicker: formSlots(pickerClasses, 'className triggerClassName dialogClassName'),
@@ -980,6 +1007,110 @@ export const ownerShadow = {
         },
       ],
     },
+    {
+      owner: 'Calendar.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCalendarStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Calendar.header',
+      classProp: 'headerClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoHeaderStyle', webClassProp: 'headerClassName' },
+      authoredStyles: [{ prop: 'headerStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'header',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Calendar.grid',
+      classProp: 'gridClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoGridStyle', webClassProp: 'gridClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'grid',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'table',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Calendar.monthButton',
+      classProp: 'monthButtonClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoMonthButtonStyle', webClassProp: 'monthButtonClassName' },
+      authoredStyles: [{ prop: 'monthButtonStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'monthButton',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['disabled'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Calendar.day',
+      classProp: 'dayClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoDayStyle', webClassProp: 'dayClassName' },
+      authoredStyles: [
+        { prop: 'dayStyle', order: 0 },
+        { prop: 'dayTextStyle', order: 1 },
+      ],
+      shapes: [
+        {
+          id: 'day',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'td',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: {
+            facts: [
+              'aria-selected',
+              'aria-disabled',
+              'data-hozo-outside',
+              'data-hozo-disabled',
+              'data-hozo-range-start',
+              'data-hozo-range-end',
+              'data-hozo-in-range',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
   ],
 }
 
@@ -1062,6 +1193,31 @@ export const ownerPublications = [
     owner: 'NativeSelect.root',
     package: '@hozo/form',
     exports: ['NativeSelect', 'HozoNativeSelect'],
+  },
+  {
+    owner: 'Calendar.root',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+  },
+  {
+    owner: 'Calendar.header',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+  },
+  {
+    owner: 'Calendar.grid',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+  },
+  {
+    owner: 'Calendar.monthButton',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+  },
+  {
+    owner: 'Calendar.day',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
   },
 ]
 

@@ -618,6 +618,8 @@ pub(super) fn build_style_entries(
                             | Condition::Not(_)
                             | Condition::FormState(FormState::ReadOnly)
                     ) || presence_closed(atom)
+                        || (matches!(atom, Condition::DataAttribute(_))
+                            && !target.owner_facts.is_empty())
                 });
                 if !supported {
                     diagnostics.push(unwired_variant(
@@ -692,6 +694,38 @@ pub(super) fn build_style_entries(
                                 guards.push(format!("({})", render_condition_expr(source, expr)));
                             }
                             Condition::StartingStyle => enters_from = true,
+                            Condition::DataAttribute(_)
+                                if !presence_closed(atom) && !target.owner_facts.is_empty() =>
+                            {
+                                match guards::resolve(atom, target, source, runtime) {
+                                    Ok(guards::Guard::InteractiveScoped {
+                                        available,
+                                        predicate,
+                                    }) => {
+                                        guards.push(format!("({available} && {predicate})"));
+                                        uses_interactive_state = true;
+                                    }
+                                    Ok(guards::Guard::Known(true)) => {}
+                                    Ok(guards::Guard::Known(false)) => applies = false,
+                                    Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),
+                                    Ok(guards::Guard::Interactive(guard)) => {
+                                        guards.push(guard);
+                                        uses_interactive_state = true;
+                                    }
+                                    Ok(guards::Guard::Scoped {
+                                        available,
+                                        predicate,
+                                    }) => guards.push(format!("({available} && {predicate})")),
+                                    Err(reason) => {
+                                        diagnostics.push(unwired_variant(
+                                            node,
+                                            &reason,
+                                            Severity::Error,
+                                        ));
+                                        applies = false;
+                                    }
+                                }
+                            }
                             Condition::DataAttribute(_) => leaves_to = true,
                             _ => unreachable!("unsupported atoms were rejected above"),
                         }
@@ -765,6 +799,31 @@ pub(super) fn build_style_entries(
             // here it is the state `HozoAnimated` reads from `Presence`, so
             // the entry is handed over as `hozoExit` rather than joining the
             // style array.
+            Condition::DataAttribute(_)
+                if !presence_closed(&condition) && !target.owner_facts.is_empty() =>
+            {
+                match guards::resolve(&condition, target, source, runtime) {
+                    Ok(guards::Guard::InteractiveScoped {
+                        available,
+                        predicate,
+                    }) => pressed_parts.extend(guarded(&format!("({available} && {predicate}) && "))),
+                    Ok(guards::Guard::Known(true)) => conditional.extend(guarded("")),
+                    Ok(guards::Guard::Known(false)) => {}
+                    Ok(guards::Guard::Dynamic(guard)) => {
+                        conditional.extend(guarded(&format!("{guard} && ")))
+                    }
+                    Ok(guards::Guard::Interactive(guard)) => {
+                        pressed_parts.extend(guarded(&format!("{guard} && ")))
+                    }
+                    Ok(guards::Guard::Scoped {
+                        available,
+                        predicate,
+                    }) => conditional.extend(guarded(&format!("({available} && {predicate}) && "))),
+                    Err(reason) => {
+                        diagnostics.push(unwired_variant(node, &reason, Severity::Error))
+                    }
+                }
+            }
             Condition::DataAttribute(_) if presence_closed(&condition) => match frames.as_deref_mut() {
                 Some(frames) => frames.exit.extend(guarded("")),
                 None => diagnostics.push(unwired_variant(

@@ -71,6 +71,8 @@ test('catalog publication owns the contract once and attaches only actual packag
     'HozoTextArea',
     'NativeSelect',
     'HozoNativeSelect',
+    'Calendar',
+    'HozoCalendar',
   ])
   assert.deepEqual(
     formResult.owners.contracts.map((row) => [row.owner, row.audit]),
@@ -87,6 +89,11 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['TextArea.field', 'audited'],
       ['TextArea.count', 'audited'],
       ['NativeSelect.root', 'audited'],
+      ['Calendar.root', 'audited'],
+      ['Calendar.header', 'audited'],
+      ['Calendar.grid', 'audited'],
+      ['Calendar.monthButton', 'audited'],
+      ['Calendar.day', 'audited'],
     ],
   )
   assert.deepEqual(channels('@hozo/patterns', [...exports].reverse()), result)

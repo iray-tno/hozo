@@ -1440,12 +1440,22 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         Condition::LastChild => Some("last".to_string()),
         Condition::Disabled => Some("disabled".to_string()),
         Condition::Enabled => Some("enabled".to_string()),
-        // Named by position rather than by content, the same way the
-        // arbitrary selectors are: an attribute or a query can hold any
-        // character and a style identifier cannot. These are refused
-        // before anything references them, so the name never reaches the
-        // output.
-        Condition::DataAttribute(_) => Some("data".to_string()),
+        // Declared owner `data-hozo-*` predicates reach StyleSheet keys and need
+        // distinct JS identifiers so sibling data conditions do not overwrite
+        // each other. Other data attributes are refused (except Presence's
+        // closed state) and keep the generic `"data"` suffix.
+        Condition::DataAttribute(selector) => {
+            if let Some(key) = crate::candidate::data_fact_key(selector) {
+                if key.starts_with("data-hozo-") {
+                    return Some(
+                        key.replace('_', "__")
+                            .replace('-', "_")
+                            .replace('=', "_eq_"),
+                    );
+                }
+            }
+            Some("data".to_string())
+        }
         Condition::Supports(_) => Some("supports".to_string()),
         Condition::HasSelector(_) => Some("has".to_string()),
         Condition::Has(inner) => Some(format!(

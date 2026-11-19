@@ -906,7 +906,7 @@ fn state_keys(condition: &Condition) -> Option<Vec<String>> {
 /// Presence and equality have disjoint keys; quoted and unquoted safe tokens
 /// normalize alike. Escapes, whitespace, flags and other CSS operators stay
 /// unsupported rather than receiving an approximate selector interpretation.
-fn data_fact_key(selector: &str) -> Option<String> {
+pub(crate) fn data_fact_key(selector: &str) -> Option<String> {
     let query = selector.strip_prefix("[data-")?.strip_suffix(']')?;
     let (name, value) = match query.split_once('=') {
         Some((name, value)) => (name, Some(value)),

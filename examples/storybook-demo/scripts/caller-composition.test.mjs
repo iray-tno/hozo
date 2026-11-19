@@ -19,7 +19,15 @@ import {
 import { lowerModule } from '@hozo/compiler/lower'
 import { emitFinalTailwindBatch, TailwindProjectSession } from '@hozo/compiler/project'
 import { createClassResolver, cx } from '@hozo/engine'
-import { Field, FileDropzone, Form, NativeSelect, SubmitButton, TextArea } from '@hozo/form'
+import {
+  Calendar,
+  Field,
+  FileDropzone,
+  Form,
+  NativeSelect,
+  SubmitButton,
+  TextArea,
+} from '@hozo/form'
 import { Chip } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
@@ -6376,6 +6384,269 @@ export function Screen({ disabled = false, invalid = false, required = false }) 
         },
         webStyle,
         `NativeSelect.root/${state.name}`,
+      )
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('Calendar delivers markers to all five hosts and matches Chromium vs Native prepared states (#2045)', {
+  skip: !executablePath,
+}, async () => {
+  const compiler = createCompiler()
+  const monthClasses =
+    'p-2 bg-[#112233] text-[#ffffff] hover:bg-[#223344] active:bg-[#334455] focus-visible:bg-[#445566] disabled:bg-[#556677]'
+  const dayClasses =
+    'p-1 bg-[#101010] text-[#ffffff] hover:bg-[#202020] active:bg-[#303030] focus-visible:bg-[#404040] data-[hozo-outside]:bg-[#505050] aria-disabled:bg-[#606060] data-[hozo-disabled]:text-[#aaaaaa] aria-selected:bg-[#707070] data-[hozo-range-start]:bg-[#808080] data-[hozo-in-range]:bg-[#909090] data-[hozo-range-end]:bg-[#a0a0a0]'
+  const source = `import { Calendar } from '@hozo/form'
+export function Screen() {
+  return (
+    <Calendar
+      range
+      accessibilityLabel="Trip"
+      today={{ year: 2026, month: 9, day: 24 }}
+      defaultMonth={{ year: 2026, month: 9 }}
+      min={{ year: 2026, month: 9, day: 10 }}
+      value={{ start: { year: 2026, month: 9, day: 12 }, end: { year: 2026, month: 9, day: 14 } }}
+      locale="en-US"
+      firstDayOfWeek={1}
+      className="pt-2 text-[#112233]"
+      headerClassName="pt-3 text-[#223344]"
+      gridClassName="pt-4 text-[#334455]"
+      monthButtonClassName="${monthClasses}"
+      dayClassName="${dayClasses}"
+    />
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webCjs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webCjs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (specifier) => {
+      if (specifier === '@hozo/form') return { Calendar }
+      throw new Error(`Unexpected web require: ${specifier}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeCjs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const nativeMod = { exports: {} }
+  const nativeElements = {}
+  runInNewContext(nativeCjs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (typeof type === 'string') nativeElements[type] = props
+      return { type, props }
+    },
+    require: (specifier) => {
+      if (specifier === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (specifier === '@hozo/form') return { Calendar: 'Calendar' }
+      throw new Error(`Unexpected native require: ${specifier}`)
+    },
+  })
+  nativeMod.exports.Screen()
+  for (const prop of [
+    'className',
+    'headerClassName',
+    'gridClassName',
+    'monthButtonClassName',
+    'dayClassName',
+  ])
+    assert.equal(nativeElements.Calendar[prop], undefined)
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+    return m ? `rgb(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)})` : hex
+  }
+  assert.equal(flat(nativeElements.Calendar.hozoCalendarStyle()).paddingTop, 8)
+  assert.equal(flat(nativeElements.Calendar.hozoCalendarStyle()).color, '#112233')
+  assert.equal(flat(nativeElements.Calendar.hozoHeaderStyle()).paddingTop, 12)
+  assert.equal(flat(nativeElements.Calendar.hozoGridStyle()).paddingTop, 16)
+
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+
+    const structural = await page.evaluate(() => {
+      const root = document.querySelector('div[role="group"]')
+      const header = root.firstElementChild
+      const grid = root.querySelector('table[role="grid"]')
+      return {
+        rootPaddingTop: parseFloat(getComputedStyle(root).paddingTop),
+        rootColor: getComputedStyle(root).color,
+        headerPaddingTop: parseFloat(getComputedStyle(header).paddingTop),
+        gridPaddingTop: parseFloat(getComputedStyle(grid).paddingTop),
+      }
+    })
+    assert.deepEqual(structural, {
+      rootPaddingTop: 8,
+      rootColor: hexToRgb('#112233'),
+      headerPaddingTop: 12,
+      gridPaddingTop: 16,
+    })
+
+    // Month buttons: previous is disabled, next is enabled.
+    for (const [label, selector, pseudo, facts] of [
+      [
+        'monthButton/disabled',
+        'button[aria-label="Previous month"]',
+        [],
+        { hovered: false, pressed: false, focused: false, focusVisible: false, disabled: true },
+      ],
+      [
+        'monthButton/rest',
+        'button[aria-label="Next month"]',
+        [],
+        { hovered: false, pressed: false, focused: false, focusVisible: false, disabled: false },
+      ],
+      [
+        'monthButton/hover',
+        'button[aria-label="Next month"]',
+        ['hover'],
+        { hovered: true, pressed: false, focused: false, focusVisible: false, disabled: false },
+      ],
+      [
+        'monthButton/active',
+        'button[aria-label="Next month"]',
+        ['active'],
+        { hovered: false, pressed: true, focused: false, focusVisible: false, disabled: false },
+      ],
+      [
+        'monthButton/focus-visible',
+        'button[aria-label="Next month"]',
+        ['focus', 'focus-visible'],
+        { hovered: false, pressed: false, focused: true, focusVisible: true, disabled: false },
+      ],
+    ]) {
+      await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })
+      if (pseudo.length)
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: pseudo })
+      const webStyle = await page.locator(selector).evaluate((el) => {
+        const cs = getComputedStyle(el)
+        return {
+          paddingTop: parseFloat(cs.paddingTop),
+          backgroundColor: cs.backgroundColor,
+          color: cs.color,
+        }
+      })
+      const nativeStyle = flat(nativeElements.Calendar.hozoMonthButtonStyle(facts))
+      assert.deepEqual(
+        {
+          paddingTop: nativeStyle.paddingTop,
+          backgroundColor: hexToRgb(nativeStyle.backgroundColor),
+          color: hexToRgb(nativeStyle.color),
+        },
+        webStyle,
+        label,
+      )
+    }
+
+    // Day cells: rest, hover, outside, disabled, range-start, in-range, range-end.
+    const dayBase = {
+      hovered: false,
+      pressed: false,
+      focused: false,
+      focusVisible: false,
+      'aria-selected': false,
+      'aria-disabled': false,
+      'data-hozo-outside': false,
+      'data-hozo-disabled': false,
+      'data-hozo-range-start': false,
+      'data-hozo-range-end': false,
+      'data-hozo-in-range': false,
+    }
+    for (const [label, selector, pseudo, facts] of [
+      ['day/rest', 'td[aria-label*="September 20, 2026"]', [], dayBase],
+      [
+        'day/hover',
+        'td[aria-label*="September 20, 2026"]',
+        ['hover'],
+        { ...dayBase, hovered: true },
+      ],
+      [
+        'day/focus-visible',
+        'td[aria-label*="September 20, 2026"]',
+        ['focus', 'focus-visible'],
+        { ...dayBase, focused: true, focusVisible: true },
+      ],
+      [
+        'day/outside',
+        'td[aria-label*="October 1, 2026"]',
+        [],
+        { ...dayBase, 'data-hozo-outside': true },
+      ],
+      [
+        'day/disabled',
+        'td[aria-label*="September 5, 2026"]',
+        [],
+        { ...dayBase, 'aria-disabled': true, 'data-hozo-disabled': true },
+      ],
+      [
+        'day/range-start',
+        'td[aria-label*="September 12, 2026"]',
+        [],
+        { ...dayBase, 'aria-selected': true, 'data-hozo-range-start': true },
+      ],
+      [
+        'day/in-range',
+        'td[aria-label*="September 13, 2026"]',
+        [],
+        { ...dayBase, 'aria-selected': true, 'data-hozo-in-range': true },
+      ],
+      [
+        'day/range-end',
+        'td[aria-label*="September 14, 2026"]',
+        [],
+        { ...dayBase, 'aria-selected': true, 'data-hozo-range-end': true },
+      ],
+    ]) {
+      await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })
+      if (pseudo.length)
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: pseudo })
+      const webStyle = await page.locator(selector).evaluate((el) => {
+        const cs = getComputedStyle(el)
+        return {
+          paddingTop: parseFloat(cs.paddingTop),
+          backgroundColor: cs.backgroundColor,
+          color: cs.color,
+        }
+      })
+      const nativeStyle = flat(nativeElements.Calendar.hozoDayStyle(facts))
+      assert.deepEqual(
+        {
+          paddingTop: nativeStyle.paddingTop,
+          backgroundColor: hexToRgb(nativeStyle.backgroundColor),
+          color: hexToRgb(nativeStyle.color),
+        },
+        webStyle,
+        label,
       )
     }
   } finally {

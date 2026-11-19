@@ -77,6 +77,20 @@ pub(super) fn resolve(
                     "Owner preparation has no declared aria-{state} fact."
                 ))
             }
+            Condition::DataAttribute(selector) => {
+                match crate::candidate::data_fact_key(selector).as_deref() {
+                    Some("data-hozo-outside") => Some(OwnerFact::DataHozoOutside),
+                    Some("data-hozo-disabled") => Some(OwnerFact::DataHozoDisabled),
+                    Some("data-hozo-range-start") => Some(OwnerFact::DataHozoRangeStart),
+                    Some("data-hozo-range-end") => Some(OwnerFact::DataHozoRangeEnd),
+                    Some("data-hozo-in-range") => Some(OwnerFact::DataHozoInRange),
+                    _ => {
+                        return Err(format!(
+                        "Owner preparation has no declared data attribute fact for `{selector}`."
+                    ))
+                    }
+                }
+            }
             _ => None,
         };
         if let Some(fact) = fact {

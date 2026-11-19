@@ -92,4 +92,39 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     shadow:
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"NativeSelect.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSelectStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0},{"prop":"textStyle","order":1}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"select","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-invalid","aria-required"],"splitText":true}}]}]}',
   },
+  {
+    owner: 'Calendar.root',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Calendar.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCalendarStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Calendar.header',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Calendar.header","classProp":"headerClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoHeaderStyle","webClassProp":"headerClassName"},"authoredStyles":[{"prop":"headerStyle","order":0}],"shapes":[{"id":"header","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Calendar.grid',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Calendar.grid","classProp":"gridClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoGridStyle","webClassProp":"gridClassName"},"authoredStyles":[],"shapes":[{"id":"grid","when":{"eq":["present",true]},"nativeHost":"View","webHost":"table","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Calendar.monthButton',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Calendar.monthButton","classProp":"monthButtonClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoMonthButtonStyle","webClassProp":"monthButtonClassName"},"authoredStyles":[{"prop":"monthButtonStyle","order":0}],"shapes":[{"id":"monthButton","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Calendar.day',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Calendar.day","classProp":"dayClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDayStyle","webClassProp":"dayClassName"},"authoredStyles":[{"prop":"dayStyle","order":0},{"prop":"dayTextStyle","order":1}],"shapes":[{"id":"day","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"td","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["aria-selected","aria-disabled","data-hozo-outside","data-hozo-disabled","data-hozo-range-start","data-hozo-range-end","data-hozo-in-range"],"splitText":true}}]}]}',
+  },
 ]

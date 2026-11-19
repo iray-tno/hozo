@@ -131,6 +131,11 @@ test('the form inventory matches every public Web and Native class prop without 
     'textarea-field',
     'textarea-count',
     'native-select-control',
+    'calendar-wrapper',
+    'calendar-day-cell',
+    'calendar-header',
+    'calendar-grid',
+    'calendar-month-button',
   ])
   assert.ok(
     Object.values(formComponents)
@@ -147,7 +152,7 @@ test('the form inventory matches every public Web and Native class prop without 
     Object.values(formComponents)
       .flat()
       .filter((slot) => slot.owner === 'pending-audit').length,
-    40,
+    35,
   )
   assert.ok(!outputs()['crates/hozo_ir/src/class_slots.rs'].includes('Self::Calendar'))
 })
@@ -244,6 +249,11 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
     'TextArea.field',
     'TextArea.count',
     'NativeSelect.root',
+    'Calendar.root',
+    'Calendar.header',
+    'Calendar.grid',
+    'Calendar.monthButton',
+    'Calendar.day',
   ])
   for (const contract of ownerShadow.contracts) {
     const [component] = contract.owner.split('.')

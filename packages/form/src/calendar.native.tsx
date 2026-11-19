@@ -82,6 +82,16 @@ interface Shared {
   gridClassName?: string
   /** Each month button resolves this with its own interaction/bounds facts. */
   monthButtonClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoCalendarStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared header class contribution (RFC 010). */
+  hozoHeaderStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared grid class contribution (RFC 010). */
+  hozoGridStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared month button class contribution (RFC 010). */
+  hozoMonthButtonStyle?: (state: FormButtonClassFacts) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared day cell class contribution (RFC 010). */
+  hozoDayStyle?: (state: CalendarDayClassFacts) => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   /** @internal Resolved picker ancestry, below Calendar's own declarations. */
   hozoInheritedTextStyle?: StyleProp<TextStyle>
@@ -292,6 +302,7 @@ function CalendarDay({
   extra,
   content,
   className,
+  hozoDayStyle,
   style,
   textStyle,
   inheritedText,
@@ -302,26 +313,28 @@ function CalendarDay({
   extra: string
   content: ReactNode
   className?: string
+  hozoDayStyle?: (state: CalendarDayClassFacts) => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   textStyle?: StyleProp<TextStyle>
   inheritedText: StyleProp<TextStyle>
   onChoose: () => void
 }) {
   const { state, handlers } = usePressableInteraction({ focusVisible: true })
+  const facts = {
+    ...calendarDayClassConstants,
+    ...state,
+    'aria-selected': day.selected,
+    'aria-disabled': day.disabled,
+    'data-hozo-outside': day.outside,
+    'data-hozo-disabled': day.disabled,
+    'data-hozo-range-start': day.rangeStart,
+    'data-hozo-range-end': day.rangeEnd,
+    'data-hozo-in-range': day.inRange,
+  } satisfies CalendarDayClassFacts
   const [box, text] = hozoSplitTextStyle(
     StyleSheet.flatten([
       { flex: 1 },
-      hozoClasses(className, {
-        ...calendarDayClassConstants,
-        ...state,
-        'aria-selected': day.selected,
-        'aria-disabled': day.disabled,
-        'data-hozo-outside': day.outside,
-        'data-hozo-disabled': day.disabled,
-        'data-hozo-range-start': day.rangeStart,
-        'data-hozo-range-end': day.rangeEnd,
-        'data-hozo-in-range': day.inRange,
-      } satisfies CalendarDayClassFacts),
+      hozoDayStyle ? hozoDayStyle(facts) : hozoClasses(className, facts),
       hozoAuthoredStyle(style),
     ]) ?? {},
   )
@@ -363,6 +376,7 @@ function CalendarMonthButton({
   children,
   disabled,
   className,
+  hozoMonthButtonStyle,
   style,
   inheritedText,
   onPress,
@@ -371,6 +385,7 @@ function CalendarMonthButton({
   children: string
   disabled: boolean
   className?: string
+  hozoMonthButtonStyle?: (state: FormButtonClassFacts) => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   inheritedText: StyleProp<TextStyle>
   onPress: () => void
@@ -382,17 +397,18 @@ function CalendarMonthButton({
       handlers.pressOut()
     }
   }, [disabled, handlers])
+  const facts = {
+    ...formButtonClassConstants,
+    ...state,
+    disabled,
+    enabled: !disabled,
+    pressed: !disabled && state.pressed,
+    focused: !disabled && state.focused,
+    focusVisible: !disabled && state.focusVisible,
+  } satisfies FormButtonClassFacts
   const [box, text] = hozoSplitTextStyle(
     StyleSheet.flatten([
-      hozoClasses(className, {
-        ...formButtonClassConstants,
-        ...state,
-        disabled,
-        enabled: !disabled,
-        pressed: !disabled && state.pressed,
-        focused: !disabled && state.focused,
-        focusVisible: !disabled && state.focusVisible,
-      } satisfies FormButtonClassFacts),
+      hozoMonthButtonStyle ? hozoMonthButtonStyle(facts) : hozoClasses(className, facts),
       hozoAuthoredStyle(style),
     ]) ?? {},
   )
@@ -445,6 +461,11 @@ export function HozoCalendar(props: HozoCalendarProps) {
     gridClassName,
     monthButtonClassName,
     dayClassName,
+    hozoCalendarStyle,
+    hozoHeaderStyle,
+    hozoGridStyle,
+    hozoMonthButtonStyle,
+    hozoDayStyle,
     style,
     hozoInheritedTextStyle,
     headerStyle,
@@ -467,6 +488,16 @@ export function HozoCalendar(props: HozoCalendarProps) {
     todayLabel: todayLabelProp,
     renderDay,
   } = props
+  if (hozoCalendarStyle && className !== undefined)
+    throw new Error('Prepared Calendar styles must consume className')
+  if (hozoHeaderStyle && headerClassName !== undefined)
+    throw new Error('Prepared Calendar styles must consume headerClassName')
+  if (hozoGridStyle && gridClassName !== undefined)
+    throw new Error('Prepared Calendar styles must consume gridClassName')
+  if (hozoMonthButtonStyle && monthButtonClassName !== undefined)
+    throw new Error('Prepared Calendar styles must consume monthButtonClassName')
+  if (hozoDayStyle && dayClassName !== undefined)
+    throw new Error('Prepared Calendar styles must consume dayClassName')
   // A string from the prop, then the project's i18n, then English;
   // `locale` the same way (decision 008).
   const message = useHozoMessage()
@@ -528,17 +559,21 @@ export function HozoCalendar(props: HozoCalendarProps) {
   // not drawn on a Native View. Only labels owned here receive these
   // declarations; this is not a provider or a clone of custom day layouts.
   const [rootBox, rootText] = hozoSplitTextStyle(
-    StyleSheet.flatten([hozoClasses(className, nonControlClassFacts), hozoAuthoredStyle(style)]) ??
-      {},
+    StyleSheet.flatten([
+      hozoCalendarStyle ? hozoCalendarStyle() : hozoClasses(className, nonControlClassFacts),
+      hozoAuthoredStyle(style),
+    ]) ?? {},
   )
   const [headerBox, headerText] = hozoSplitTextStyle(
     StyleSheet.flatten([
-      hozoClasses(headerClassName, nonControlClassFacts),
+      hozoHeaderStyle ? hozoHeaderStyle() : hozoClasses(headerClassName, nonControlClassFacts),
       hozoAuthoredStyle(headerStyle),
     ]) ?? {},
   )
   const [gridBox, gridText] = hozoSplitTextStyle(
-    StyleSheet.flatten(hozoClasses(gridClassName, nonControlClassFacts)) ?? {},
+    StyleSheet.flatten(
+      hozoGridStyle ? hozoGridStyle() : hozoClasses(gridClassName, nonControlClassFacts),
+    ) ?? {},
   )
 
   return (
@@ -552,6 +587,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           label={previousMonthLabel}
           disabled={!monthIsReachable(monthStep(shown, -1), min, max)}
           className={monthButtonClassName}
+          hozoMonthButtonStyle={hozoMonthButtonStyle}
           style={monthButtonStyle}
           inheritedText={[hozoInheritedTextStyle, rootText as TextStyle, headerText as TextStyle]}
           onPress={() => page(-1)}
@@ -574,6 +610,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           label={nextMonthLabel}
           disabled={!monthIsReachable(monthStep(shown, 1), min, max)}
           className={monthButtonClassName}
+          hozoMonthButtonStyle={hozoMonthButtonStyle}
           style={monthButtonStyle}
           inheritedText={[hozoInheritedTextStyle, rootText as TextStyle, headerText as TextStyle]}
           onPress={() => page(1)}
@@ -622,6 +659,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
                   extra={said}
                   content={content}
                   className={dayClassName}
+                  hozoDayStyle={hozoDayStyle}
                   style={dayStyle}
                   textStyle={dayTextStyle}
                   inheritedText={[

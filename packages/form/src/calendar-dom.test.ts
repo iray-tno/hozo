@@ -115,13 +115,23 @@ test('a day outside the bounds says so, in both vocabularies', () => {
   // August 31st and the first nine days of September: every cell before the
   // minimum in a Monday-first September 2026 grid.
   assert.equal(count(html, 'aria-disabled="true"'), 10)
-  assert.equal(count(html, 'data-hozo-disabled=""'), 10, 'the hook a `disabled:` variant needs')
+  assert.equal(
+    [...html.matchAll(/<td[^>]*data-hozo-disabled=""/g)].length,
+    10,
+    'the hook a `disabled:` variant needs',
+  )
 })
 
 test('a month with nothing reachable in it cannot be paged to', () => {
   // Every day in August is before the minimum, so going back is refused.
   // October is unbounded, so going forward is not.
-  assert.equal(disabledButtons(render({ min: date(2026, 9, 10) })), 1)
+  const bounded = render({ min: date(2026, 9, 10) })
+  assert.equal(disabledButtons(bounded), 1)
+  assert.equal(
+    [...bounded.matchAll(/<button[^>]*data-hozo-disabled=""/g)].length,
+    1,
+    'disabled month buttons carry the hook a `disabled:` variant needs',
+  )
   assert.equal(disabledButtons(render()), 0, 'unbounded, so both directions are open')
 })
 

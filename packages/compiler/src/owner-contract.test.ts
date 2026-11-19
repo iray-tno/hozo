@@ -155,6 +155,46 @@ test('NativeSelect root contract declares select webHost and Pressable form fact
     form.shapes[0]!.webHost = 'select'
   }, /decoration events\/host/)
 })
+test('Calendar contracts declare split-text Views, table/td hosts, and data-hozo-* facts', () => {
+  for (const [owner, classProp, prop, webHost] of [
+    ['Calendar.root', 'className', 'hozoCalendarStyle', 'div'],
+    ['Calendar.header', 'headerClassName', 'hozoHeaderStyle', 'div'],
+    ['Calendar.grid', 'gridClassName', 'hozoGridStyle', 'table'],
+  ] as const) {
+    const entry = parsed().contracts.find((row) => row.owner === owner)!
+    assert.equal(entry.audit, 'audited')
+    assert.deepEqual(entry.abi, { nativePreparedProp: prop, webClassProp: classProp })
+    assert.deepEqual(entry.shapes, [
+      {
+        id: owner.split('.')[1],
+        when: { eq: ['present', true] },
+        nativeHost: 'View',
+        webHost,
+        events: [],
+        inputs: { facts: [], splitText: true },
+      },
+    ])
+  }
+  const day = parsed().contracts.find((row) => row.owner === 'Calendar.day')!
+  assert.equal(day.audit, 'audited')
+  assert.equal(day.shapes[0]!.webHost, 'td')
+  assert.deepEqual(day.shapes[0]!.inputs, {
+    facts: [
+      'aria-selected',
+      'aria-disabled',
+      'data-hozo-outside',
+      'data-hozo-disabled',
+      'data-hozo-range-start',
+      'data-hozo-range-end',
+      'data-hozo-in-range',
+    ],
+    splitText: true,
+  })
+  rejects((value) => {
+    const entry = value.contracts.find((row) => row.owner === 'Calendar.root')!
+    entry.shapes[0]!.inputs!.facts = ['disabled']
+  }, /full control snapshot/)
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)
