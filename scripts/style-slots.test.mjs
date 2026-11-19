@@ -122,6 +122,7 @@ test('the form inventory matches every public Web and Native class prop without 
     'form-wrapper',
     'submit-button',
     'file-picker-button',
+    'file-dropzone-drag-active',
     'field-wrapper',
     'field-label',
     'field-required-mark',
@@ -131,6 +132,10 @@ test('the form inventory matches every public Web and Native class prop without 
     'textarea-field',
     'textarea-count',
     'native-select-control',
+    'native-select-indicator',
+    'native-select-sheet',
+    'native-select-scrim',
+    'native-select-option',
     'calendar-wrapper',
     'calendar-day-cell',
     'calendar-header',
@@ -168,7 +173,7 @@ test('the form inventory matches every public Web and Native class prop without 
     Object.values(formComponents)
       .flat()
       .filter((slot) => slot.owner === 'pending-audit').length,
-    5,
+    0,
   )
   assert.ok(!outputs()['crates/hozo_ir/src/class_slots.rs'].includes('Self::Calendar'))
 })
@@ -256,6 +261,7 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
     'Form.root',
     'SubmitButton.root',
     'FileDropzone.root',
+    'FileDropzone.active',
     'Field.root',
     'Field.label',
     'Field.required',
@@ -265,6 +271,10 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
     'TextArea.field',
     'TextArea.count',
     'NativeSelect.root',
+    'NativeSelect.indicator',
+    'NativeSelect.sheet',
+    'NativeSelect.scrim',
+    'NativeSelect.option',
     'Calendar.root',
     'Calendar.header',
     'Calendar.grid',

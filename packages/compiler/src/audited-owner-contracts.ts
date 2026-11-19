@@ -30,6 +30,13 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"FileDropzone.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoFileDropzoneStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled"],"splitText":true}}]}]}',
   },
   {
+    owner: 'FileDropzone.active',
+    package: '@hozo/form',
+    exports: ['FileDropzone', 'HozoFileDropzone'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"FileDropzone.active","classProp":"activeClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":null,"webClassProp":"activeClassName"},"authoredStyles":[],"shapes":[{"id":"active","when":{"eq":["present",true]},"nativeHost":null,"webHost":"button","events":["pressed","hovered","focused","focusVisible"]}]}]}',
+  },
+  {
     owner: 'Field.root',
     package: '@hozo/form',
     exports: ['Field', 'HozoField'],
@@ -91,6 +98,34 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     exports: ['NativeSelect', 'HozoNativeSelect'],
     shadow:
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"NativeSelect.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSelectStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0},{"prop":"textStyle","order":1}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"select","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-invalid","aria-required"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'NativeSelect.indicator',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"NativeSelect.indicator","classProp":"indicatorClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoIndicatorStyle","webClassProp":null},"authoredStyles":[],"shapes":[{"id":"indicator","when":{"eq":["present",true]},"nativeHost":"View","webHost":null,"events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-invalid","aria-required"],"splitText":false}}]}]}',
+  },
+  {
+    owner: 'NativeSelect.sheet',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"NativeSelect.sheet","classProp":"sheetClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSheetStyle","webClassProp":null},"authoredStyles":[{"prop":"sheetStyle","order":0}],"shapes":[{"id":"sheet","when":{"eq":["present",true]},"nativeHost":"View","webHost":null,"events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'NativeSelect.scrim',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"NativeSelect.scrim","classProp":"scrimClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoScrimStyle","webClassProp":null},"authoredStyles":[{"prop":"scrimStyle","order":0}],"shapes":[{"id":"scrim","when":{"eq":["present",true]},"nativeHost":"View","webHost":null,"events":[]}]}]}',
+  },
+  {
+    owner: 'NativeSelect.option',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"NativeSelect.option","classProp":"optionClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoOptionStyle","webClassProp":null},"authoredStyles":[{"prop":"optionStyle","order":0},{"prop":"textStyle","order":1}],"shapes":[{"id":"option","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":null,"events":["pressed"],"inputs":{"facts":["disabled","aria-selected","aria-disabled"],"splitText":true}}]}]}',
   },
   {
     owner: 'Calendar.root',

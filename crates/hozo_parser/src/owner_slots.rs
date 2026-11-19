@@ -14,7 +14,7 @@ pub struct OwnerSlotBinding {
     pub source: String,
     pub imported: String,
     pub class_prop: String,
-    pub prepared_prop: String,
+    pub prepared_prop: Option<String>,
 }
 
 pub struct OwnerSlotSite {
@@ -174,9 +174,10 @@ pub fn inspect_owner_class_slots(
                 Some("spread")
             } else if classes.len() != 1 {
                 Some("duplicate-class")
-            } else if attributes
-                .iter()
-                .any(|attr| named(attr, &binding.prepared_prop))
+            } else if binding
+                .prepared_prop
+                .as_deref()
+                .is_some_and(|prop| attributes.iter().any(|attr| named(attr, prop)))
             {
                 Some("prepared-present")
             } else {
@@ -223,7 +224,7 @@ mod tests {
                 source: "@hozo/patterns".into(),
                 imported: "BottomSheet".into(),
                 class_prop: "handleClassName".into(),
-                prepared_prop: "hozoHandleStyle".into(),
+                prepared_prop: Some("hozoHandleStyle".into()),
             }],
             None,
         )

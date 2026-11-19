@@ -288,6 +288,83 @@ test('TimePicker contracts declare interactive spinbutton View and data-hozo-ste
     entry.shapes[0]!.inputs!.splitText = false
   }, /full control snapshot/)
 })
+test('single-platform contracts declare null host/carrier on the absent platform (#2095)', () => {
+  const active = parsed().contracts.find((row) => row.owner === 'FileDropzone.active')!
+  assert.equal(active.audit, 'audited')
+  assert.deepEqual(active.abi, { nativePreparedProp: null, webClassProp: 'activeClassName' })
+  assert.deepEqual(active.authoredStyles, [])
+  assert.deepEqual(active.shapes, [
+    {
+      id: 'active',
+      when: { eq: ['present', true] },
+      nativeHost: null,
+      webHost: 'button',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+    },
+  ])
+  const indicator = parsed().contracts.find((row) => row.owner === 'NativeSelect.indicator')!
+  assert.equal(indicator.audit, 'audited')
+  assert.deepEqual(indicator.abi, { nativePreparedProp: 'hozoIndicatorStyle', webClassProp: null })
+  assert.deepEqual(indicator.shapes, [
+    {
+      id: 'indicator',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: null,
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['disabled', 'aria-invalid', 'aria-required'], splitText: false },
+    },
+  ])
+  const sheet = parsed().contracts.find((row) => row.owner === 'NativeSelect.sheet')!
+  assert.equal(sheet.audit, 'audited')
+  assert.deepEqual(sheet.abi, { nativePreparedProp: 'hozoSheetStyle', webClassProp: null })
+  assert.deepEqual(sheet.shapes[0]!.inputs, { facts: [], splitText: true })
+  const scrim = parsed().contracts.find((row) => row.owner === 'NativeSelect.scrim')!
+  assert.equal(scrim.audit, 'audited')
+  assert.deepEqual(scrim.abi, { nativePreparedProp: 'hozoScrimStyle', webClassProp: null })
+  assert.equal(scrim.shapes[0]!.inputs, undefined)
+  const option = parsed().contracts.find((row) => row.owner === 'NativeSelect.option')!
+  assert.equal(option.audit, 'audited')
+  assert.deepEqual(option.abi, { nativePreparedProp: 'hozoOptionStyle', webClassProp: null })
+  assert.deepEqual(option.shapes, [
+    {
+      id: 'option',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: null,
+      events: ['pressed'],
+      inputs: { facts: ['disabled', 'aria-selected', 'aria-disabled'], splitText: true },
+    },
+  ])
+  rejects((doc) => {
+    const entry = doc.contracts.find((row) => row.owner === 'FileDropzone.active')!
+    entry.abi.webClassProp = null
+  }, /empty carriers/)
+  rejects((doc) => {
+    const entry = doc.contracts.find((row) => row.owner === 'FileDropzone.active')!
+    entry.shapes[0]!.webHost = null
+  }, /shape host/)
+  rejects((doc) => {
+    const entry = doc.contracts.find((row) => row.owner === 'FileDropzone.active')!
+    entry.authoredStyles = [{ prop: 'style', order: 0 }]
+  }, /authoredStyles requires native carrier/)
+  rejects((doc) => {
+    const entry = doc.contracts.find((row) => row.owner === 'FileDropzone.active')!
+    entry.shapes[0]!.inputs = { facts: [], splitText: false }
+  }, /inputs require native host/)
+  rejects((doc) => {
+    const entry = doc.contracts.find((row) => row.owner === 'FileDropzone.active')!
+    entry.abi.nativePreparedProp = 'hozoActiveStyle'
+  }, /native host\/carrier mismatch/)
+  rejects((doc) => {
+    const entry = doc.contracts.find((row) => row.owner === 'NativeSelect.sheet')!
+    entry.abi.webClassProp = 'sheetClassName'
+  }, /web host\/carrier mismatch/)
+  rejects((doc) => {
+    const entry = doc.contracts.find((row) => row.owner === 'NativeSelect.option')!
+    entry.shapes[0]!.events = ['pressed', 'hovered']
+  }, /full control snapshot/)
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

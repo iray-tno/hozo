@@ -1194,7 +1194,7 @@ export interface OwnerSlotBinding {
   source: string
   imported: string
   classProp: string
-  preparedProp: string
+  preparedProp?: string
 }
 export interface OwnerSlotInspection {
   /** Insert generated module declarations after hashbang/directive prologue. */

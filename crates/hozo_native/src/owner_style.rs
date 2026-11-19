@@ -236,15 +236,7 @@ pub fn lower_owner_style_with_inputs(
             _ => false,
         }
     }
-    let interactive_view = root.primitive == Primitive::View
-        && inputs.split_text
-        && !inputs.events.is_empty()
-        && inputs.events.iter().all(|event| {
-            matches!(
-                event,
-                OwnerEvent::Hovered | OwnerEvent::Focused | OwnerEvent::FocusVisible
-            )
-        });
+    let interactive_view = root.primitive == Primitive::View && !inputs.events.is_empty();
     let eligible = matches!(
         root.primitive,
         Primitive::View | Primitive::Pressable | Primitive::Text | Primitive::TextInput
@@ -261,7 +253,7 @@ pub fn lower_owner_style_with_inputs(
                 && inputs.events.is_empty()
                 && inputs.split_text)
             || interactive_view
-            || (root.primitive == Primitive::Pressable && inputs.events.is_empty())
+            || root.primitive == Primitive::Pressable
             || (root.primitive == Primitive::TextInput
                 && inputs.events.is_empty()
                 && !inputs.split_text))
@@ -799,6 +791,110 @@ mod tests {
         assert!(step_output.styles.contains("data_hozo_step_eq_decrease"));
         for fact in step_facts {
             assert!(step_carrier.expression.contains(&fact.parameter()));
+        }
+
+        // NativeSelect.indicator: box-only View with full trigger events/facts refuses text styles.
+        let ind_source = "const el=<View className=\"w-2 h-2 border-b-2 border-[#111111] active:border-[#222222] hover:border-[#333333] focus-visible:border-[#444444] disabled:opacity-50 aria-[invalid=true]:border-[#555555]\"/>";
+        let ind_parsed = hozo_parser::parse_tsx(ind_source);
+        let ind_events = [
+            OwnerEvent::Pressed,
+            OwnerEvent::Hovered,
+            OwnerEvent::Focused,
+            OwnerEvent::FocusVisible,
+        ];
+        let ind_facts = [
+            OwnerFact::Disabled,
+            OwnerFact::AriaInvalid,
+            OwnerFact::AriaRequired,
+        ];
+        let (ind_output, ind_carrier) = lower_owner_style_with_inputs(
+            &ind_parsed.roots[0].node,
+            &[],
+            ind_source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &ind_facts,
+                events: &ind_events,
+                split_text: false,
+            },
+        );
+        let ind_carrier = ind_carrier.expect("box-only interactive View compiles");
+        assert!(
+            ind_output.diagnostics.is_empty(),
+            "{:?}",
+            ind_output.diagnostics
+        );
+        assert!(ind_carrier.callback && !ind_carrier.split_text && ind_carrier.focus_visible);
+        let ind_text_parsed =
+            hozo_parser::parse_tsx("const el=<View className=\"text-[#111111]\"/>");
+        assert!(
+            lower_owner_style_with_inputs(
+                &ind_text_parsed.roots[0].node,
+                &[],
+                "const el=<View className=\"text-[#111111]\"/>",
+                &Theme::default(),
+                OwnerStyleInputs {
+                    facts: &ind_facts,
+                    events: &ind_events,
+                    split_text: false,
+                },
+            )
+            .1
+            .is_none(),
+            "box-only interactive View must refuse text utilities"
+        );
+
+        // NativeSelect.option: press-only Pressable compiles pressed/facts and refuses hover/focus.
+        let opt_source = "const el=<Pressable className=\"p-2 text-[#111111] active:bg-[#222222] aria-selected:bg-[#333333] disabled:opacity-50\"/>";
+        let opt_parsed = hozo_parser::parse_tsx(opt_source);
+        let opt_events = [OwnerEvent::Pressed];
+        let opt_facts = [
+            OwnerFact::Disabled,
+            OwnerFact::AriaSelected,
+            OwnerFact::AriaDisabled,
+        ];
+        let (opt_output, opt_carrier) = lower_owner_style_with_inputs(
+            &opt_parsed.roots[0].node,
+            &[],
+            opt_source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &opt_facts,
+                events: &opt_events,
+                split_text: true,
+            },
+        );
+        let opt_carrier = opt_carrier.expect("press-only Pressable compiles");
+        assert!(
+            opt_output.diagnostics.is_empty(),
+            "{:?}",
+            opt_output.diagnostics
+        );
+        assert!(opt_carrier.callback && opt_carrier.split_text);
+        assert!(opt_carrier.expression.contains("{ pressed,"));
+        assert!(!opt_carrier.expression.contains("hovered"));
+        for rejected in [
+            "const el=<Pressable className=\"hover:bg-[#444444]\"/>",
+            "const el=<Pressable className=\"focus:bg-[#444444]\"/>",
+            "const el=<Pressable className=\"focus-visible:bg-[#444444]\"/>",
+        ] {
+            let parsed = hozo_parser::parse_tsx(rejected);
+            assert!(
+                lower_owner_style_with_inputs(
+                    &parsed.roots[0].node,
+                    &[],
+                    rejected,
+                    &Theme::default(),
+                    OwnerStyleInputs {
+                        facts: &opt_facts,
+                        events: &opt_events,
+                        split_text: true,
+                    },
+                )
+                .1
+                .is_none(),
+                "press-only Pressable must refuse {rejected}"
+            );
         }
     }
 }

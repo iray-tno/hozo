@@ -7380,3 +7380,116 @@ export function Screen({ disabled = false }: { disabled?: boolean }) {
     await page.close()
   }
 })
+
+test('single-platform @hozo/form slots prepare only on their real host platform (#2095)', async () => {
+  const compiler = createCompiler()
+  const source = `import { FileDropzone, NativeSelect } from '@hozo/form'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <FileDropzone
+        accessibilityLabel="Upload"
+        className="pt-2 bg-[#111111] border-[#222222]"
+        activeClassName="bg-[#336699] border-[#0055aa]"
+      >
+        Drop
+      </FileDropzone>
+      <NativeSelect
+        options={[{ value: 'a', label: 'Alpha' }]}
+        value="a"
+        className="pt-3 bg-[#121212]"
+        indicatorClassName="w-2 h-2 border-b-2 border-[#444444]"
+        sheetClassName="pt-4 bg-[#555555]"
+        scrimClassName="bg-[#000000]"
+        optionClassName="pt-2 bg-[#666666] active:bg-[#777777] aria-selected:bg-[#888888]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  // Web compiles FileDropzone.activeClassName and leaves NativeSelect's 4 Native-only props untouched.
+  assert.match(web.code, /activeClassName=\{"hozo-owner-/)
+  assert.match(web.code, /indicatorClassName="w-2 h-2 border-b-2 border-\[#444444\]"/)
+  assert.match(web.code, /sheetClassName="pt-4 bg-\[#555555\]"/)
+  assert.match(web.code, /scrimClassName="bg-\[#000000\]"/)
+  assert.match(web.code, /optionClassName="pt-2 bg-\[#666666\]/)
+  assert.doesNotMatch(web.css, /#444444|#555555|#666666|#777777|#888888/)
+
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let compiledActiveClass
+  const probeMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: probeMod,
+    exports: probeMod.exports,
+    h: (type, props) => {
+      if (type === 'FileDropzone') compiledActiveClass = props.activeClassName
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/form') return { FileDropzone: 'FileDropzone', NativeSelect: 'NativeSelect' }
+      throw new Error(`unexpected web probe import ${id}`)
+    },
+  })
+  probeMod.exports.Screen()
+  assert.match(compiledActiveClass, /^hozo-owner-/)
+
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/form') return { FileDropzone, NativeSelect }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  // Native compiles NativeSelect's 4 Native-only props and leaves FileDropzone.activeClassName untouched.
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  assert.match(nativeCode, /activeClassName="bg-\[#336699\] border-\[#0055aa\]"/)
+  assert.match(nativeCode, /hozoIndicatorStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(nativeCode, /hozoSheetStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(nativeCode, /hozoScrimStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(nativeCode, /hozoOptionStyle=\{__hozoOwner\d+_Plan\d+\}/)
+
+  const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const styles = await page.evaluate((activeClass) => {
+      const button = document.querySelector('#wrap button[aria-label="Upload"]')
+      const resting = {
+        paddingTop: parseFloat(getComputedStyle(button).paddingTop),
+        backgroundColor: getComputedStyle(button).backgroundColor,
+        borderTopColor: getComputedStyle(button).borderTopColor,
+      }
+      button.classList.add(...activeClass.split(' '))
+      const active = {
+        paddingTop: parseFloat(getComputedStyle(button).paddingTop),
+        backgroundColor: getComputedStyle(button).backgroundColor,
+        borderTopColor: getComputedStyle(button).borderTopColor,
+      }
+      return { resting, active }
+    }, compiledActiveClass)
+    assert.deepEqual(styles.resting, {
+      paddingTop: 8,
+      backgroundColor: 'rgb(17, 17, 17)',
+      borderTopColor: 'rgb(34, 34, 34)',
+    })
+    assert.deepEqual(styles.active, {
+      paddingTop: 8,
+      backgroundColor: 'rgb(51, 102, 153)',
+      borderTopColor: 'rgb(0, 85, 170)',
+    })
+  } finally {
+    await page.close()
+  }
+})

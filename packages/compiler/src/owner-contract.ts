@@ -23,8 +23,18 @@ export type OwnerFact =
 export interface OwnerShape {
   id: string
   when: Gate
-  nativeHost: 'Pressable' | 'View' | 'Text' | 'TextInput'
-  webHost: 'button' | 'div' | 'form' | 'label' | 'span' | 'textarea' | 'select' | 'table' | 'td'
+  nativeHost: 'Pressable' | 'View' | 'Text' | 'TextInput' | null
+  webHost:
+    | 'button'
+    | 'div'
+    | 'form'
+    | 'label'
+    | 'span'
+    | 'textarea'
+    | 'select'
+    | 'table'
+    | 'td'
+    | null
   events: ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
   /** Explicit preparation inputs, not inferred from a synthetic host. */
   inputs?: { facts: OwnerFact[]; splitText: boolean }
@@ -39,8 +49,8 @@ export interface ShadowOwnerContract {
   /** Symbolic booleans supplied by the owner; never JS expressions. */
   bindings: string[]
   abi: {
-    nativePreparedProp: string
-    webClassProp: string
+    nativePreparedProp: string | null
+    webClassProp: string | null
     /** One interactive shape consumes this carrier; the original class stays. */
     nativePartial?: { prop: string; shape: string }
   }
@@ -148,11 +158,18 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
     const abi = object(contract.abi, ['nativePreparedProp', 'webClassProp'], `${at}.abi`, [
       'nativePartial',
     ])
-    const nativePreparedProp = identifier(abi.nativePreparedProp, `${at}.abi.nativePreparedProp`)
-    if (!/^hozo[A-Z]/.test(nativePreparedProp)) fail(`${at}.abi private carrier`)
-    if (abi.webClassProp !== contract.classProp) fail(`${at}.abi web carrier`)
+    const nativePreparedProp =
+      abi.nativePreparedProp === null
+        ? null
+        : identifier(abi.nativePreparedProp, `${at}.abi.nativePreparedProp`)
+    if (nativePreparedProp !== null && !/^hozo[A-Z]/.test(nativePreparedProp))
+      fail(`${at}.abi private carrier`)
+    const webClassProp = abi.webClassProp === null ? null : (abi.webClassProp as string)
+    if (webClassProp !== null && webClassProp !== contract.classProp) fail(`${at}.abi web carrier`)
+    if (nativePreparedProp === null && webClassProp === null) fail(`${at}.abi empty carriers`)
     let nativePartial: ShadowOwnerContract['abi']['nativePartial']
     if (Object.hasOwn(abi, 'nativePartial')) {
+      if (nativePreparedProp === null) fail(`${at}.abi native partial requires native carrier`)
       const partial = object(abi.nativePartial, ['prop', 'shape'], `${at}.abi native partial`)
       const prop = identifier(partial.prop, `${at}.abi native partial prop`)
       const shape = identifier(partial.shape, `${at}.abi native partial shape`)
@@ -162,6 +179,8 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
     }
     if (!Array.isArray(contract.authoredStyles) || contract.authoredStyles.length > 16)
       fail(`${at}.authoredStyles`)
+    if (nativePreparedProp === null && contract.authoredStyles.length > 0)
+      fail(`${at}.authoredStyles requires native carrier`)
     const authoredStyles = contract.authoredStyles.map((value) => {
       const author = object(value, ['prop', 'order'], `${at}.author`)
       const prop = identifier(author.prop, `${at}.author.prop`)
@@ -183,6 +202,8 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       authoredStyles.map((author) => String(author.order)),
       `${at}.author order`,
     )
+    const nativeHosts = ['Pressable', 'View', 'Text', 'TextInput']
+    const webHosts = ['button', 'div', 'form', 'label', 'span', 'textarea', 'select', 'table', 'td']
     const shapes = list(contract.shapes, 16, `${at}.shapes`).map((value): OwnerShape => {
       const shape = object(
         value,
@@ -191,13 +212,15 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
         ['inputs'],
       )
       const id = identifier(shape.id, `${at}.shape.id`)
-      if (
-        !['Pressable', 'View', 'Text', 'TextInput'].includes(shape.nativeHost as string) ||
-        !['button', 'div', 'form', 'label', 'span', 'textarea', 'select', 'table', 'td'].includes(
-          shape.webHost as string,
-        )
-      )
+      const validNative =
+        shape.nativeHost === null || nativeHosts.includes(shape.nativeHost as string)
+      const validWeb = shape.webHost === null || webHosts.includes(shape.webHost as string)
+      if (!validNative || !validWeb || (shape.nativeHost === null && shape.webHost === null))
         fail(`${at}.shape host`)
+      if ((shape.nativeHost !== null) !== (nativePreparedProp !== null))
+        fail(`${at}.shape native host/carrier mismatch`)
+      if ((shape.webHost !== null) !== (webClassProp !== null))
+        fail(`${at}.shape web host/carrier mismatch`)
       if (!Array.isArray(shape.events) || shape.events.length > 4) fail(`${at}.shape events`)
       const events = shape.events as OwnerShape['events']
       if (
@@ -205,37 +228,70 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       )
         fail(`${at}.shape event`)
       unique(events, `${at}.shape events`)
-      // Only verified host pairs have application evidence.
+      const dualPlatform = shape.nativeHost !== null && shape.webHost !== null
+      const nativeOnly = shape.nativeHost !== null && shape.webHost === null
+      const webOnly = shape.nativeHost === null && shape.webHost !== null
+      // Only verified host pairs (or explicit single-platform hosts) have application evidence.
       const interactiveViewEvents =
         shape.webHost === 'div' &&
         events.length === 3 &&
         ['hovered', 'focused', 'focusVisible'].every((event) =>
           events.includes(event as OwnerShape['events'][number]),
         )
-      if (
-        shape.nativeHost === 'View' &&
-        (!['div', 'form', 'table'].includes(shape.webHost as string) ||
-          (events.length !== 0 && !interactiveViewEvents))
-      )
-        fail(`${at}.decoration events/host`)
-      if (
-        shape.nativeHost === 'Text' &&
-        (!['label', 'span'].includes(shape.webHost as string) || events.length !== 0)
-      )
-        fail(`${at}.text events/host`)
-      if (
+      const nativeOnlyInteractiveView =
+        nativeOnly && shape.nativeHost === 'View' && events.length > 0
+      const nativeOnlyPressOnly =
+        nativeOnly &&
         shape.nativeHost === 'Pressable' &&
-        !['button', 'select', 'td'].includes(shape.webHost as string)
-      )
-        fail(`${at}.control host`)
-      if (
-        shape.nativeHost === 'TextInput' &&
-        (shape.webHost !== 'textarea' ||
-          !events.every((event) => ['focused', 'focusVisible'].includes(event)))
-      )
-        fail(`${at}.input events/host`)
+        events.length === 1 &&
+        events[0] === 'pressed'
+      if (dualPlatform) {
+        if (
+          shape.nativeHost === 'View' &&
+          (!['div', 'form', 'table'].includes(shape.webHost as string) ||
+            (events.length !== 0 && !interactiveViewEvents))
+        )
+          fail(`${at}.decoration events/host`)
+        if (
+          shape.nativeHost === 'Text' &&
+          (!['label', 'span'].includes(shape.webHost as string) || events.length !== 0)
+        )
+          fail(`${at}.text events/host`)
+        if (
+          shape.nativeHost === 'Pressable' &&
+          !['button', 'select', 'td'].includes(shape.webHost as string)
+        )
+          fail(`${at}.control host`)
+        if (
+          shape.nativeHost === 'TextInput' &&
+          (shape.webHost !== 'textarea' ||
+            !events.every((event) => ['focused', 'focusVisible'].includes(event)))
+        )
+          fail(`${at}.input events/host`)
+      } else if (nativeOnly) {
+        if (shape.nativeHost === 'Text' && events.length !== 0) fail(`${at}.text events/host`)
+        if (
+          shape.nativeHost === 'TextInput' &&
+          !events.every((event) => ['focused', 'focusVisible'].includes(event))
+        )
+          fail(`${at}.input events/host`)
+      } else if (webOnly) {
+        if (
+          ['label', 'span', 'form', 'table'].includes(shape.webHost as string) &&
+          events.length !== 0
+        )
+          fail(`${at}.decoration events/host`)
+        if (shape.webHost === 'div' && events.length !== 0 && !interactiveViewEvents)
+          fail(`${at}.decoration events/host`)
+        if (
+          shape.webHost === 'textarea' &&
+          !events.every((event) => ['focused', 'focusVisible'].includes(event))
+        )
+          fail(`${at}.input events/host`)
+      }
       let inputs: OwnerShape['inputs']
       if (Object.hasOwn(shape, 'inputs')) {
+        if (shape.nativeHost === null) fail(`${at}.shape inputs require native host`)
         const supplied = object(shape.inputs, ['facts', 'splitText'], `${at}.shape inputs`)
         if (
           !Array.isArray(supplied.facts) ||
@@ -268,14 +324,15 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
           fail(`${at}.shape input fact`)
         unique(facts, `${at}.shape input facts`)
         // Stateful consumers require the complete existing host snapshot;
-        // stateless split-text Views carry box+text resting styles only, and
-        // interactive div/View owners (e.g. spinbutton) carry pointer/focus
-        // without a press responder.
+        // stateless split-text Views carry box+text resting styles only,
+        // interactive div/View owners carry pointer/focus without a press
+        // responder, and Native-only hosts declare their exact delivered events.
         const pressableReady =
           shape.nativeHost === 'Pressable' &&
-          ['pressed', 'hovered', 'focused', 'focusVisible'].every((event) =>
+          (['pressed', 'hovered', 'focused', 'focusVisible'].every((event) =>
             events.includes(event as OwnerShape['events'][number]),
-          )
+          ) ||
+            nativeOnlyPressOnly)
         const textInputReady =
           shape.nativeHost === 'TextInput' &&
           !supplied.splitText &&
@@ -288,7 +345,8 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
           facts.length === 0 &&
           events.length === 0
         const interactiveViewReady =
-          shape.nativeHost === 'View' && supplied.splitText && interactiveViewEvents
+          shape.nativeHost === 'View' &&
+          ((supplied.splitText && interactiveViewEvents) || nativeOnlyInteractiveView)
         if (!pressableReady && !textInputReady && !splitTextViewReady && !interactiveViewReady)
           fail(`${at}.shape inputs need the full control snapshot`)
         inputs = { facts, splitText: supplied.splitText }
@@ -325,7 +383,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       bindings,
       abi: {
         nativePreparedProp,
-        webClassProp: abi.webClassProp as string,
+        webClassProp,
         ...(nativePartial && { nativePartial }),
       },
       authoredStyles,
