@@ -97,7 +97,11 @@ async function serve(
     root,
     configFile: false,
     logLevel: 'silent',
-    server: { middlewareMode: true, watch: null },
+    // preTransformRequests off: by default Vite transforms a module's static
+    // imports in the background as soon as the module is served, so a test
+    // that asserts on what one request logged would race the files that
+    // request imports (#2079).
+    server: { middlewareMode: true, watch: null, preTransformRequests: false },
     // The temporary project has no node_modules of its own, so React's JSX
     // runtime and Hozo's generated runtime are resolved from this package's
     // dependencies. Vite's own JSX transform then runs exactly as it would
