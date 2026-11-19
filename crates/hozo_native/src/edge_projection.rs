@@ -472,6 +472,45 @@ const el = <View className=\"{classes}\" style={{{{ paddingRight: 99 }}}} />
     }
 
     #[test]
+    fn a_spread_beside_a_class_start_or_end_composes_through_the_edge_boundary() {
+        // #2050: `<Button style={…} />` reaches `<Pressable className="px-4"
+        // {...rest} />` through the spread, not a named `style`.
+        for (classes, edges) in [
+            ("px-4", true),
+            ("pl-1", true),
+            ("p-4", false),
+            ("pt-2", false),
+        ] {
+            let source = format!(
+                "import {{ View }} from '@hozo/core'
+const C = (rest) => <View className=\"{classes}\" {{...rest}} />
+"
+            );
+            let out = compile_ordered(&source);
+            assert_eq!(
+                out.jsx.contains(
+                    "hozoEdgeSpreadStyles(I18nManager.isRTL, I18nManager.doLeftAndRightSwapInRTL, false)("
+                ),
+                edges,
+                "{classes}: {}",
+                out.jsx
+            );
+            assert_eq!(
+                out.jsx.contains("hozoSpreadStyles("),
+                !edges,
+                "{classes}: {}",
+                out.jsx
+            );
+            assert_eq!(
+                out.native_imports.contains(&"I18nManager"),
+                edges,
+                "{classes}: {:?}",
+                out.native_imports
+            );
+        }
+    }
+
+    #[test]
     fn a_stronger_logical_state_still_follows_the_projected_resting_edge() {
         let source = "import { Pressable } from '@hozo/core'\nconst el = <Pressable className=\"pl-1 hover:ps-8\" />\n";
         let out = compile_ordered(source);

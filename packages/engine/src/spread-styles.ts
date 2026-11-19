@@ -19,20 +19,26 @@ function resolve(value: StyleValue, state: unknown): StyleValue {
   return typeof value === 'function' ? (value as StyleFunction)(state) : value
 }
 
+/** How a class style and the caller's are put together: in that order. */
+export type SpreadCombine = (generated: StyleValue, author: StyleValue) => StyleValue
+
+const inOrder: SpreadCombine = (generated, author) => [generated, author]
+
 /** Class styles first, the caller's after; a pressable's style function stays one. */
 function compose(
   compiled: StyleValue,
   own: StyleValue,
   normalize?: (value: StyleValue) => StyleValue,
+  combine: SpreadCombine = inOrder,
 ): StyleValue {
   if (typeof compiled === 'function' || typeof own === 'function') {
     return (state: unknown) => {
       const generated = resolve(compiled, state)
       const author = resolve(own, state)
-      return [generated, normalize ? normalize(author) : author]
+      return combine(generated, normalize ? normalize(author) : author)
     }
   }
-  return [compiled, normalize ? normalize(own) : own]
+  return combine(compiled, normalize ? normalize(own) : own)
 }
 
 /**
@@ -57,6 +63,7 @@ export function composeSpreadStyles(
   writtenLast: readonly string[],
   sources: readonly unknown[],
   normalize?: (value: StyleValue) => StyleValue,
+  combine?: SpreadCombine,
 ): Record<string, unknown> {
   let props: Record<string, unknown> = {}
   for (const source of sources) {
@@ -67,7 +74,7 @@ export function composeSpreadStyles(
   for (const [name, compiled] of Object.entries(styles)) {
     props[name] =
       !writtenLast.includes(name) && Object.hasOwn(props, name)
-        ? compose(compiled, props[name], normalize)
+        ? compose(compiled, props[name], normalize, combine)
         : compiled
   }
   return props

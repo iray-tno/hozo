@@ -1,6 +1,6 @@
-import { INLINE_EDGES, type InlineFamily } from './authored-edges.ts'
 import type { FilterSlots } from './filter-slots.ts'
 import type { GradientSlots } from './gradient-slots.ts'
+import { INLINE_EDGES, type InlineFamily } from './inline-edges.ts'
 import type { ShadowSlots } from './shadow-slots.ts'
 import type { TransformSlots } from './transform-slots.ts'
 

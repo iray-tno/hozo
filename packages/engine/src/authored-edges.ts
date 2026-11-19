@@ -1,13 +1,6 @@
-/** Each inline family as `[start, end, left, right]`, in React Native's keys. */
-export const INLINE_EDGES = [
-  ['paddingStart', 'paddingEnd', 'paddingLeft', 'paddingRight'],
-  ['marginStart', 'marginEnd', 'marginLeft', 'marginRight'],
-  ['start', 'end', 'left', 'right'],
-  ['borderStartWidth', 'borderEndWidth', 'borderLeftWidth', 'borderRightWidth'],
-  ['borderStartColor', 'borderEndColor', 'borderLeftColor', 'borderRightColor'],
-] as const
-
-export type InlineFamily = (typeof INLINE_EDGES)[number]
+import { hozoAuthoredStyle } from './authored-gap.ts'
+import { INLINE_EDGES, type InlineFamily } from './inline-edges.ts'
+import { composeSpreadStyles } from './spread-styles.ts'
 
 type Flat = Record<string, unknown>
 
@@ -75,4 +68,27 @@ export function hozoAuthoredEdges(
     if (end !== undefined) flat[family[1]] = end
   }
   return flat
+}
+
+/**
+ * `hozoSpreadStyles` for an element whose classes write a start or end edge:
+ * a style the caller passes through a spread (`<Button style={…} />` into
+ * `<Pressable className="px-4" {...rest} />`) wins its inline edges the same
+ * way (#2050). `gap` also projects the caller's `gap`, as
+ * `hozoGapSpreadStyles` does. Curried so the generated call keeps the
+ * ordinary spread arguments.
+ */
+export function hozoEdgeSpreadStyles(rtl: boolean, swap: boolean, gap: boolean) {
+  return (
+    styles: Readonly<Record<string, unknown>>,
+    writtenLast: readonly string[],
+    ...sources: readonly unknown[]
+  ): Record<string, unknown> =>
+    composeSpreadStyles(
+      styles,
+      writtenLast,
+      sources,
+      gap ? hozoAuthoredStyle : undefined,
+      (generated, author) => hozoAuthoredEdges([generated], [author], rtl, swap),
+    )
 }

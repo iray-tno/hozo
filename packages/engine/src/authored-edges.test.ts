@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { hozoAuthoredEdges } from './authored-edges.ts'
+import { hozoAuthoredEdges, hozoEdgeSpreadStyles } from './authored-edges.ts'
 
 type Flat = Record<string, unknown>
 
@@ -106,3 +106,42 @@ test('an author without inline edges keeps the plain composition and nothing is 
   assert.deepEqual(frozen, { paddingRight: 99 })
   assert.deepEqual(frozenClass, { paddingEnd: 32 })
 })
+
+test("a caller's style through a spread wins its edges as a named style does", () => {
+  const classes = { paddingStart: 32, paddingEnd: 32 }
+  for (const { rtl, swap } of directions) {
+    const props = hozoEdgeSpreadStyles(rtl, swap, false)({ style: classes }, [], {
+      testID: 'x',
+      style: { paddingRight: 99 },
+    })
+    assert.equal(props.testID, 'x')
+    const authoredRight = !(rtl && swap)
+    assert.deepEqual(
+      padding(props.style as Flat, rtl, swap),
+      authoredRight ? [32, 99] : [99, 32],
+      `rtl=${rtl} swap=${swap}`,
+    )
+  }
+})
+
+test('the spread boundary keeps a pressable style function, projects gap on request, and leaves a written-last style alone', () => {
+  const compiled = ({ pressed }: { pressed: boolean }) => ({
+    paddingStart: pressed ? 8 : 32,
+    paddingEnd: 32,
+  })
+  const props = hozoEdgeSpreadStyles(false, true, true)({ style: compiled }, [], {
+    style: { paddingRight: 99, gap: 4 },
+  })
+  assert.equal(typeof props.style, 'function')
+  const pressed = (props.style as (s: unknown) => Flat)({ pressed: true })
+  assert.deepEqual(padding(pressed, false, true), [8, 99])
+  assert.equal(pressed.rowGap, 4)
+  assert.equal(pressed.columnGap, 4)
+
+  const kept = hozoEdgeSpreadStyles(false, true, false)({ style: classes2 }, ['style'], {
+    style: { paddingRight: 99 },
+  })
+  assert.equal(kept.style, classes2)
+})
+
+const classes2 = Object.freeze({ paddingEnd: 32 })

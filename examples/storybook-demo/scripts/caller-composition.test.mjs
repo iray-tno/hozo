@@ -27,7 +27,10 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
 import Yoga from 'yoga-layout'
-import { hozoAuthoredEdges } from '../../../packages/engine/src/authored-edges.ts'
+import {
+  hozoAuthoredEdges,
+  hozoEdgeSpreadStyles,
+} from '../../../packages/engine/src/authored-edges.ts'
 import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
 import {
   hozoMixedTextMetricStyles,
@@ -79,6 +82,7 @@ function evaluate(code, context) {
     module,
     nativeDisabledProps,
     hozoAuthoredEdges,
+    hozoEdgeSpreadStyles,
     hozoAuthoredStyle,
     hozoGapSpreadStyles,
     hozoMixedTextMetricStyles,
@@ -5557,7 +5561,7 @@ test('Chromium and Yoga agree on logical and physical inline edges across direct
   }
 })
 
-test("an author's style edge beats a class's edge on the side React Native gives it, static and candidate (#2050)", {
+test("an author's style edge beats a class's edge on the side React Native gives it, named or spread, static and candidate (#2050)", {
   skip: !executablePath,
 }, async () => {
   const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`
@@ -5643,6 +5647,13 @@ test("an author's style edge beats a class's edge on the side React Native gives
       const [opaqueNative] = compiler.compileNative(
         `import { View } from '@hozo/core'; export const C = ({ cls }) => <View className={cls} style={${literal(entry.style)}} />`,
       )
+      // The caller's style handed on through a spread, as a UI wrapper does.
+      const [spreadNative] = compiler.compileNative(
+        `import { View } from '@hozo/core'; export const C = (rest) => <View className="${entry.classes}" {...rest} />`,
+      )
+      const [opaqueSpreadNative] = compiler.compileNative(
+        `import { View } from '@hozo/core'; export const C = ({ cls, ...rest }) => <View {...rest} className={cls} />`,
+      )
       assert.ok(staticNative.jsx.includes('hozoAuthoredEdges(') || entry.classes === 'p-4', id)
       for (const dir of ['ltr', 'rtl']) {
         for (const swap of [false, true]) {
@@ -5668,13 +5679,18 @@ test("an author's style edge beats a class's edge on the side React Native gives
             useHozoEnvironment: (q) => q === dir,
             hozoAuthoredEdges,
             hozoAuthoredStyle,
+            hozoEdgeSpreadStyles,
+            hozoSpreadStyles,
             hozoClasses,
             I18nManager,
             cls: entry.classes,
+            rest: { style: entry.style },
           }
           for (const [route, native] of [
             ['static', staticNative],
             ['candidate', opaqueNative],
+            ['spread', spreadNative],
+            ['candidate spread', opaqueSpreadNative],
           ]) {
             const rendered = evaluate(
               `const hozoStyles=${native.styles};${native.prelude.join('\n')};module.exports=(${native.jsx})`,
