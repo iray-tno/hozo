@@ -64,8 +64,8 @@ on:
       android-gpu:
         description: 'Android emulator graphics mode for a controlled comparison'
         type: choice
-        options: [swiftshader_indirect, swiftshader, swangle]
-        default: swiftshader_indirect
+        options: [swangle, swiftshader_indirect, swiftshader]
+        default: swangle
       android-canvas-rounds:
         description: 'Total Canvas mounts (1-10); extra stress rounds abort on any failure, never retry it'
         type: string
@@ -96,7 +96,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: native-showcase-${{ github.workflow }}-${{ github.ref }}-${{ inputs.release-signing || false }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.android-gpu || 'swiftshader_indirect' }}-${{ inputs.android-scenario || 'full' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
+  group: native-showcase-${{ github.workflow }}-${{ github.ref }}-${{ inputs.release-signing || false }}-${{ inputs.reuse-build-run || 'build' }}-${{ inputs.platform || 'both' }}-${{ inputs.android-target || 'google_apis' }}-${{ inputs.android-gpu || 'swangle' }}-${{ inputs.android-scenario || 'full' }}-${{ inputs.ios-ax-backend || 'ax' }}-${{ inputs.ios-scenario || 'full' }}-${{ inputs.ios-canvas-mode || 'demand' }}
   cancel-in-progress: true
 
 jobs:
@@ -183,6 +183,10 @@ jobs:
           mkdir -p artifacts/native-showcase-audio-settings
           echo 'QEMU_AUDIO_DRV=wav' >> "$GITHUB_ENV"
           echo "QEMU_WAV_PATH=$GITHUB_WORKSPACE/artifacts/${{ inputs.android-scenario == 'audio-settings' && 'native-showcase-audio-settings' || 'native-showcase-audio' }}/qemu-output.wav" >> "$GITHUB_ENV"
+      # `swangle`, not `swiftshader_indirect`: under SwiftShader, React Native's
+      # native `linear-gradient` background (the ColorPicker tracks) kills
+      # QEMU, which cost about one Android run in five at the docs walk
+      # (#2065). ANGLE on SwiftShader draws the same gradients and survives.
       - name: Exercise selected Android showcase scenario
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -192,7 +196,7 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          emulator-options: -no-window -gpu ${{ inputs.android-gpu || 'swiftshader_indirect' }} ${{ (inputs.android-scenario == 'audio-output' || inputs.android-scenario == 'audio-settings') && '-verbose' || '-noaudio' }} -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
+          emulator-options: -no-window -gpu ${{ inputs.android-gpu || 'swangle' }} ${{ (inputs.android-scenario == 'audio-output' || inputs.android-scenario == 'audio-settings') && '-verbose' || '-noaudio' }} -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           script: node examples/native-showcase/scripts/android-scenarios.mjs
         env:
           HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}

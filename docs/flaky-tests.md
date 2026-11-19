@@ -20,7 +20,7 @@ investigation moves.
 | The Native Dialog returning focus to its opener | device a11y checks | [#484](https://github.com/iray-tno/hozo/issues/484) |
 | The `android` job, before any test runs ("Android framework readiness timed out") | `.github/workflows` | [#1525](https://github.com/iray-tno/hozo/issues/1525) |
 | The landing `color-picker` check, after Enter in the hex input ("waiting for getByText('Chosen: #10b981')") | `apps/landing` | [#1603](https://github.com/iray-tno/hozo/issues/1603) |
-| The `android` job's `ui-docs` scenario, the emulator disappearing after `color-picker` times out ("device 'emulator-5554' not found") | `examples/native-showcase` | [#2065](https://github.com/iray-tno/hozo/issues/2065) |
+| The `@hozo/vite` content-walk test (#2048), the missing-class warning already logged after `App.tsx` ("App.tsx is walked") | `packages/vite` | [#2079](https://github.com/iray-tno/hozo/issues/2079) |
 
 ## Not flaky: the Storybook audits on a lowered priority
 
