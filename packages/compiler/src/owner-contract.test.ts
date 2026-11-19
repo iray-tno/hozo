@@ -195,6 +195,33 @@ test('Calendar contracts declare split-text Views, table/td hosts, and data-hozo
     entry.shapes[0]!.inputs!.facts = ['disabled']
   }, /full control snapshot/)
 })
+test('DatePicker, DateRangePicker and DateTimePicker contracts declare aria-expanded triggers and forwarded Calendar slots', () => {
+  for (const [component, rootProp] of [
+    ['DatePicker', 'hozoDatePickerStyle'],
+    ['DateRangePicker', 'hozoDateRangePickerStyle'],
+    ['DateTimePicker', 'hozoDateTimePickerStyle'],
+  ]) {
+    const root = parsed().contracts.find((row) => row.owner === `${component}.root`)!
+    assert.equal(root.audit, 'audited')
+    assert.equal(root.abi.nativePreparedProp, rootProp)
+    assert.deepEqual(root.shapes[0]!.inputs, { facts: [], splitText: true })
+    const trigger = parsed().contracts.find((row) => row.owner === `${component}.trigger`)!
+    assert.equal(trigger.audit, 'audited')
+    assert.deepEqual(trigger.shapes[0]!.inputs, {
+      facts: ['disabled', 'aria-expanded'],
+      splitText: true,
+    })
+    for (const part of ['dialog', 'calendar', 'header', 'grid', 'monthButton', 'day']) {
+      assert.equal(
+        parsed().contracts.find((row) => row.owner === `${component}.${part}`)!.audit,
+        'audited',
+      )
+    }
+  }
+  const done = parsed().contracts.find((row) => row.owner === 'DateTimePicker.done')!
+  assert.equal(done.audit, 'audited')
+  assert.deepEqual(done.shapes[0]!.inputs, { facts: [], splitText: true })
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

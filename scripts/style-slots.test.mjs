@@ -136,6 +136,17 @@ test('the form inventory matches every public Web and Native class prop without 
     'calendar-header',
     'calendar-grid',
     'calendar-month-button',
+    ...['date-picker', 'date-range-picker', 'date-time-picker'].flatMap((prefix) => [
+      `${prefix}-wrapper`,
+      `${prefix}-trigger`,
+      `${prefix}-dialog`,
+      `${prefix}-calendar-wrapper`,
+      `${prefix}-calendar-day-cell`,
+      `${prefix}-calendar-header`,
+      `${prefix}-calendar-grid`,
+      `${prefix}-calendar-month-button`,
+    ]),
+    'date-time-picker-done-button',
   ])
   assert.ok(
     Object.values(formComponents)
@@ -152,7 +163,7 @@ test('the form inventory matches every public Web and Native class prop without 
     Object.values(formComponents)
       .flat()
       .filter((slot) => slot.owner === 'pending-audit').length,
-    35,
+    10,
   )
   assert.ok(!outputs()['crates/hozo_ir/src/class_slots.rs'].includes('Self::Calendar'))
 })
@@ -254,6 +265,12 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
     'Calendar.grid',
     'Calendar.monthButton',
     'Calendar.day',
+    ...['DatePicker', 'DateRangePicker', 'DateTimePicker'].flatMap((component) =>
+      ['root', 'trigger', 'dialog', 'calendar', 'header', 'grid', 'monthButton', 'day'].map(
+        (part) => `${component}.${part}`,
+      ),
+    ),
+    'DateTimePicker.done',
   ])
   for (const contract of ownerShadow.contracts) {
     const [component] = contract.owner.split('.')

@@ -771,6 +771,7 @@ impl NativeCompileOptions {
                 "aria-disabled" => hozo_native::OwnerFact::AriaDisabled,
                 "aria-invalid" => hozo_native::OwnerFact::AriaInvalid,
                 "aria-required" => hozo_native::OwnerFact::AriaRequired,
+                "aria-expanded" => hozo_native::OwnerFact::AriaExpanded,
                 "data-hozo-outside" => hozo_native::OwnerFact::DataHozoOutside,
                 "data-hozo-disabled" => hozo_native::OwnerFact::DataHozoDisabled,
                 "data-hozo-range-start" => hozo_native::OwnerFact::DataHozoRangeStart,

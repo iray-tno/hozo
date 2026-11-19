@@ -21,6 +21,9 @@ import { emitFinalTailwindBatch, TailwindProjectSession } from '@hozo/compiler/p
 import { createClassResolver, cx } from '@hozo/engine'
 import {
   Calendar,
+  DatePicker,
+  DateRangePicker,
+  DateTimePicker,
   Field,
   FileDropzone,
   Form,
@@ -6639,6 +6642,313 @@ export function Screen() {
         }
       })
       const nativeStyle = flat(nativeElements.Calendar.hozoDayStyle(facts))
+      assert.deepEqual(
+        {
+          paddingTop: nativeStyle.paddingTop,
+          backgroundColor: hexToRgb(nativeStyle.backgroundColor),
+          color: hexToRgb(nativeStyle.color),
+        },
+        webStyle,
+        label,
+      )
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('DatePicker, DateRangePicker and DateTimePicker deliver markers and match Chromium vs Native prepared states (#2045)', {
+  skip: !executablePath,
+}, async () => {
+  const compiler = createCompiler()
+  const triggerClasses =
+    'p-2 bg-[#112233] text-[#ffffff] hover:bg-[#223344] active:bg-[#334455] focus-visible:bg-[#445566] aria-expanded:bg-[#556677] disabled:bg-[#667788]'
+  const doneClasses =
+    'p-2 bg-[#212121] text-[#ffffff] hover:bg-[#313131] active:bg-[#414141] focus-visible:bg-[#515151]'
+  const source = `import { DatePicker, DateRangePicker, DateTimePicker } from '@hozo/form'
+export function Screen({ open = false, disabled = false }) {
+  return (
+    <div id="wrap">
+      <DatePicker
+        defaultOpen={open}
+        disabled={disabled}
+        accessibilityLabel="Departure"
+        today={{ year: 2026, month: 9, day: 24 }}
+        defaultMonth={{ year: 2026, month: 9 }}
+        className="pt-2"
+        triggerClassName="${triggerClasses}"
+        dialogClassName="pt-3"
+        calendarClassName="pt-4"
+        headerClassName="pt-5"
+        gridClassName="pt-6"
+        monthButtonClassName="p-1"
+        dayClassName="p-1"
+      />
+      <DateRangePicker
+        defaultOpen={open}
+        disabled={disabled}
+        accessibilityLabel="Stay"
+        today={{ year: 2026, month: 9, day: 24 }}
+        defaultMonth={{ year: 2026, month: 9 }}
+        className="pt-2"
+        triggerClassName="${triggerClasses}"
+        dialogClassName="pt-3"
+      />
+      <DateTimePicker
+        defaultOpen={open}
+        disabled={disabled}
+        accessibilityLabel="Meeting"
+        today={{ year: 2026, month: 9, day: 24 }}
+        defaultMonth={{ year: 2026, month: 9 }}
+        className="pt-2"
+        triggerClassName="${triggerClasses}"
+        dialogClassName="pt-3"
+        doneClassName="${doneClasses}"
+      >
+        {() => null}
+      </DateTimePicker>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webCjs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webCjs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (specifier) => {
+      if (specifier === '@hozo/form') return { DatePicker, DateRangePicker, DateTimePicker }
+      throw new Error(`Unexpected web require: ${specifier}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeCjs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const nativeMod = { exports: {} }
+  const nativeElements = {}
+  runInNewContext(nativeCjs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (typeof type === 'string' && type !== 'div') nativeElements[type] = props
+      return { type, props }
+    },
+    require: (specifier) => {
+      if (specifier === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (specifier === '@hozo/form')
+        return {
+          DatePicker: 'DatePicker',
+          DateRangePicker: 'DateRangePicker',
+          DateTimePicker: 'DateTimePicker',
+        }
+      throw new Error(`Unexpected native require: ${specifier}`)
+    },
+  })
+  nativeMod.exports.Screen({})
+  for (const name of ['DatePicker', 'DateRangePicker', 'DateTimePicker']) {
+    assert.equal(nativeElements[name].className, undefined)
+    assert.equal(nativeElements[name].triggerClassName, undefined)
+    assert.equal(nativeElements[name].dialogClassName, undefined)
+  }
+  assert.equal(nativeElements.DateTimePicker.doneClassName, undefined)
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+    return m ? `rgb(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)})` : hex
+  }
+  assert.equal(flat(nativeElements.DatePicker.hozoDatePickerStyle()).paddingTop, 8)
+  assert.equal(flat(nativeElements.DatePicker.hozoDialogStyle()).paddingTop, 12)
+  assert.equal(flat(nativeElements.DatePicker.hozoCalendarStyle()).paddingTop, 16)
+  assert.equal(flat(nativeElements.DatePicker.hozoHeaderStyle()).paddingTop, 20)
+  assert.equal(flat(nativeElements.DatePicker.hozoGridStyle()).paddingTop, 24)
+
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+
+    const triggerStates = [
+      {
+        name: 'rest',
+        props: { open: false, disabled: false },
+        pseudo: [],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'aria-expanded': false,
+        },
+      },
+      {
+        name: 'hover',
+        props: { open: false, disabled: false },
+        pseudo: ['hover'],
+        facts: {
+          hovered: true,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'aria-expanded': false,
+        },
+      },
+      {
+        name: 'active',
+        props: { open: false, disabled: false },
+        pseudo: ['active'],
+        facts: {
+          hovered: false,
+          pressed: true,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'aria-expanded': false,
+        },
+      },
+      {
+        name: 'focus-visible',
+        props: { open: false, disabled: false },
+        pseudo: ['focus', 'focus-visible'],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: true,
+          focusVisible: true,
+          disabled: false,
+          'aria-expanded': false,
+        },
+      },
+      {
+        name: 'expanded',
+        props: { open: true, disabled: false },
+        pseudo: [],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'aria-expanded': true,
+        },
+      },
+      {
+        name: 'disabled',
+        props: { open: false, disabled: true },
+        pseudo: [],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: true,
+          'aria-expanded': false,
+        },
+      },
+    ]
+
+    for (const [index, name] of ['DatePicker', 'DateRangePicker', 'DateTimePicker'].entries()) {
+      for (const state of triggerStates) {
+        const html = renderToStaticMarkup(createElement(webMod.exports.Screen, state.props))
+        await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+        const selector = `#wrap > div:nth-child(${index + 1}) > button[aria-haspopup="dialog"]`
+        const { root } = await cdp.send('DOM.getDocument')
+        const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })
+        if (state.pseudo.length)
+          await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: state.pseudo })
+        const webStyle = await page.locator(selector).evaluate((el) => {
+          const cs = getComputedStyle(el)
+          return {
+            paddingTop: parseFloat(cs.paddingTop),
+            backgroundColor: cs.backgroundColor,
+            color: cs.color,
+          }
+        })
+        const nativeStyle = flat(nativeElements[name].hozoTriggerStyle(state.facts))
+        assert.deepEqual(
+          {
+            paddingTop: nativeStyle.paddingTop,
+            backgroundColor: hexToRgb(nativeStyle.backgroundColor),
+            color: hexToRgb(nativeStyle.color),
+          },
+          webStyle,
+          `${name}.trigger/${state.name}`,
+        )
+      }
+    }
+
+    // Open dialog & DateTimePicker done button markers/states.
+    const openHtml = renderToStaticMarkup(createElement(webMod.exports.Screen, { open: true }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${openHtml}`)
+    const openMarkers = await page.evaluate(() => {
+      const dialog = document.querySelector('#wrap > div:nth-child(1) [role="dialog"]')
+      const cal = dialog.querySelector('[role="group"]')
+      const header = cal.firstElementChild
+      const grid = cal.querySelector('table[role="grid"]')
+      return {
+        dialogPaddingTop: parseFloat(getComputedStyle(dialog).paddingTop),
+        calPaddingTop: parseFloat(getComputedStyle(cal).paddingTop),
+        headerPaddingTop: parseFloat(getComputedStyle(header).paddingTop),
+        gridPaddingTop: parseFloat(getComputedStyle(grid).paddingTop),
+      }
+    })
+    assert.deepEqual(openMarkers, {
+      dialogPaddingTop: 12,
+      calPaddingTop: 16,
+      headerPaddingTop: 20,
+      gridPaddingTop: 24,
+    })
+
+    for (const [label, pseudo, facts] of [
+      ['done/rest', [], { hovered: false, pressed: false, focused: false, focusVisible: false }],
+      [
+        'done/hover',
+        ['hover'],
+        { hovered: true, pressed: false, focused: false, focusVisible: false },
+      ],
+      [
+        'done/active',
+        ['active'],
+        { hovered: false, pressed: true, focused: false, focusVisible: false },
+      ],
+      [
+        'done/focus-visible',
+        ['focus', 'focus-visible'],
+        { hovered: false, pressed: false, focused: true, focusVisible: true },
+      ],
+    ]) {
+      await page.setContent(`<!doctype html><style>${web.css}</style>${openHtml}`)
+      const selector = '#wrap > div:nth-child(3) [role="dialog"] > button[type="button"]'
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })
+      if (pseudo.length)
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: pseudo })
+      const webStyle = await page.locator(selector).evaluate((el) => {
+        const cs = getComputedStyle(el)
+        return {
+          paddingTop: parseFloat(cs.paddingTop),
+          backgroundColor: cs.backgroundColor,
+          color: cs.color,
+        }
+      })
+      const nativeStyle = flat(nativeElements.DateTimePicker.hozoDoneStyle(facts))
       assert.deepEqual(
         {
           paddingTop: nativeStyle.paddingTop,

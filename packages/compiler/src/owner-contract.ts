@@ -10,6 +10,7 @@ export type OwnerFact =
   | 'aria-disabled'
   | 'aria-invalid'
   | 'aria-required'
+  | 'aria-expanded'
   | 'data-hozo-outside'
   | 'data-hozo-disabled'
   | 'data-hozo-range-start'
@@ -242,6 +243,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
               'aria-disabled',
               'aria-invalid',
               'aria-required',
+              'aria-expanded',
               'data-hozo-outside',
               'data-hozo-disabled',
               'data-hozo-range-start',

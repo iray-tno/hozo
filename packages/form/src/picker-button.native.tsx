@@ -20,6 +20,7 @@ import { type PickerButtonClassFacts, pickerButtonClassConstants } from './owner
 export function PickerButton({
   children,
   className,
+  hozoButtonStyle,
   style,
   textStyle,
   inheritedTextStyle,
@@ -32,6 +33,9 @@ export function PickerButton({
 }: {
   children: string
   className?: string
+  hozoButtonStyle?: (
+    state: PickerButtonClassFacts & Readonly<Record<`data-${string}`, boolean>>,
+  ) => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   textStyle?: StyleProp<TextStyle>
   inheritedTextStyle?: StyleProp<TextStyle>
@@ -50,19 +54,20 @@ export function PickerButton({
       handlers.pressOut()
     }
   }, [disabled, handlers])
+  const facts = {
+    ...pickerButtonClassConstants,
+    ...dataFacts,
+    ...state,
+    disabled,
+    enabled: !disabled,
+    pressed: !disabled && state.pressed,
+    focused: !disabled && state.focused,
+    focusVisible: !disabled && state.focusVisible,
+    'aria-expanded': expanded ?? false,
+  } satisfies PickerButtonClassFacts
   const [box, text] = hozoSplitTextStyle(
     StyleSheet.flatten([
-      hozoClasses(className, {
-        ...pickerButtonClassConstants,
-        ...dataFacts,
-        ...state,
-        disabled,
-        enabled: !disabled,
-        pressed: !disabled && state.pressed,
-        focused: !disabled && state.focused,
-        focusVisible: !disabled && state.focusVisible,
-        'aria-expanded': expanded ?? false,
-      } satisfies PickerButtonClassFacts),
+      hozoButtonStyle ? hozoButtonStyle(facts) : hozoClasses(className, facts),
       hozoAuthoredStyle(style),
     ]) ?? {},
   )

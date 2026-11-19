@@ -72,6 +72,7 @@ pub(super) fn resolve(
             Condition::Aria(state) if state == "disabled" => Some(OwnerFact::AriaDisabled),
             Condition::Aria(state) if state == "invalid" => Some(OwnerFact::AriaInvalid),
             Condition::Aria(state) if state == "required" => Some(OwnerFact::AriaRequired),
+            Condition::Aria(state) if state == "expanded" => Some(OwnerFact::AriaExpanded),
             Condition::Aria(state) => {
                 return Err(format!(
                     "Owner preparation has no declared aria-{state} fact."

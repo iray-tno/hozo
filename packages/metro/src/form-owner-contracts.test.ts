@@ -765,3 +765,157 @@ export function Screen() {
     )
   }
 })
+
+test('Native DatePicker, DateRangePicker and DateTimePicker deliver prepared styles without calling hozoClasses (#2045)', () => {
+  const compiler = createCompiler()
+  const source = `import { DatePicker, DateRangePicker, DateTimePicker } from '@hozo/form'
+export function Screen() {
+  return (
+    <>
+      <DatePicker
+        defaultOpen
+        today={{ year: 2026, month: 9, day: 24 }}
+        defaultMonth={{ year: 2026, month: 9 }}
+        value={{ year: 2026, month: 9, day: 12 }}
+        locale="en-US"
+        firstDayOfWeek={1}
+        className="pt-2 text-[#112233]"
+        triggerClassName="pt-3 bg-[#101010] aria-expanded:bg-[#202020] disabled:bg-[#303030]"
+        dialogClassName="pt-4"
+        calendarClassName="pt-5"
+        headerClassName="pt-6"
+        gridClassName="pt-7"
+        monthButtonClassName="pt-1 bg-[#404040]"
+        dayClassName="pt-1 bg-[#505050] aria-selected:bg-[#606060]"
+      />
+      <DateRangePicker
+        defaultOpen
+        today={{ year: 2026, month: 9, day: 24 }}
+        defaultMonth={{ year: 2026, month: 9 }}
+        value={{ start: { year: 2026, month: 9, day: 12 }, end: { year: 2026, month: 9, day: 14 } }}
+        locale="en-US"
+        firstDayOfWeek={1}
+        className="pt-2"
+        triggerClassName="pt-3 aria-expanded:bg-[#223344]"
+        dialogClassName="pt-4"
+        calendarClassName="pt-5"
+        headerClassName="pt-6"
+        gridClassName="pt-7"
+        monthButtonClassName="pt-1 bg-[#414141]"
+        dayClassName="pt-1 bg-[#515151] data-[hozo-range-start]:bg-[#616161]"
+      />
+      <DateTimePicker
+        defaultOpen
+        today={{ year: 2026, month: 9, day: 24 }}
+        defaultMonth={{ year: 2026, month: 9 }}
+        value={{ year: 2026, month: 9, day: 12, hour: 9, minute: 30 }}
+        locale="en-US"
+        firstDayOfWeek={1}
+        className="pt-2"
+        triggerClassName="pt-3 aria-expanded:bg-[#334455]"
+        dialogClassName="pt-4"
+        calendarClassName="pt-5"
+        headerClassName="pt-6"
+        gridClassName="pt-7"
+        monthButtonClassName="pt-1 bg-[#424242]"
+        dayClassName="pt-1 bg-[#525252] aria-selected:bg-[#626262]"
+        doneClassName="pt-5 bg-[#707070]"
+      >
+        {() => null}
+      </DateTimePicker>
+    </>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoDatePickerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDateRangePickerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDateTimePickerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTriggerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDialogStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoCalendarStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDoneStyle=\{__hozoOwner\d+_Plan\d+\}/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 99 }
+  }
+  const datePickerMod = loadNativeFormModule('date-picker.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const rangePickerMod = loadNativeFormModule('date-range-picker.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const dateTimePickerMod = loadNativeFormModule('date-time-picker.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/form') {
+        return {
+          DatePicker: datePickerMod.exports.DatePicker,
+          DateRangePicker: rangePickerMod.exports.DateRangePicker,
+          DateTimePicker: dateTimePickerMod.exports.DateTimePicker,
+        }
+      }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  assert.equal(classResolverCalls, 0, 'prepared date pickers must never call hozoClasses')
+
+  const dpTrigger = datePickerMod.captured.find((entry) => entry.host === 'Pressable')!
+  assert.equal(flattenStyle(dpTrigger.props.style).paddingTop, 12)
+  assert.equal(flattenStyle(dpTrigger.props.style).backgroundColor, '#202020')
+  const dpViews = datePickerMod.captured.filter((entry) => entry.host === 'View')
+  assert.equal(flattenStyle(dpViews[0]!.props.style).paddingTop, 8)
+  assert.equal(flattenStyle(dpViews[1]!.props.style).paddingTop, 16)
+  assert.equal(flattenStyle(dpViews[2]!.props.style).paddingTop, 20)
+  assert.equal(flattenStyle(dpViews[3]!.props.style).paddingTop, 24)
+  assert.equal(flattenStyle(dpViews[4]!.props.style).paddingTop, 28)
+
+  const dtpPressables = dateTimePickerMod.captured.filter((entry) => entry.host === 'Pressable')
+  const doneButton = dtpPressables[dtpPressables.length - 1]!
+  assert.equal(flattenStyle(doneButton.props.style).paddingTop, 20)
+  assert.equal(flattenStyle(doneButton.props.style).backgroundColor, '#707070')
+
+  for (const [name, Component, classProp, preparedProp] of [
+    ['DatePicker', datePickerMod.exports.DatePicker, 'triggerClassName', 'hozoTriggerStyle'],
+    [
+      'DateRangePicker',
+      rangePickerMod.exports.DateRangePicker,
+      'dialogClassName',
+      'hozoDialogStyle',
+    ],
+    ['DateTimePicker', dateTimePickerMod.exports.DateTimePicker, 'doneClassName', 'hozoDoneStyle'],
+  ] as const) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(Component as React.ComponentType<Record<string, unknown>>, {
+            [classProp]: 'pt-2',
+            [preparedProp]: () => ({}),
+          }),
+        ),
+      new RegExp(`Prepared ${name} styles must consume ${classProp}`),
+    )
+  }
+})

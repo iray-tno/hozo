@@ -227,3 +227,39 @@ export function Screen() {
   assert.match(lowered.css, /\[data-hozo-range-start\]/)
   assert.match(lowered.css, /\[data-hozo-in-range\]/)
 })
+
+test('ordinary Web lowering compiles DatePicker, DateRangePicker and DateTimePicker literals across all slots', () => {
+  const compiler = createCompiler()
+  const source = `import { DatePicker, DateRangePicker, DateTimePicker } from '@hozo/form'
+export function Screen() {
+  return (
+    <>
+      <DatePicker
+        className="p-1 text-[#112233]"
+        triggerClassName="p-2 aria-expanded:bg-[#223344] disabled:opacity-50"
+        dialogClassName="p-3"
+        calendarClassName="p-1"
+        headerClassName="p-1"
+        gridClassName="p-1"
+        monthButtonClassName="p-1 disabled:opacity-50"
+        dayClassName="p-1 aria-selected:bg-[#334455]"
+      />
+      <DateRangePicker className="p-2" triggerClassName="p-2 aria-expanded:bg-[#445566]" />
+      <DateTimePicker
+        className="p-2"
+        triggerClassName="p-2 aria-expanded:bg-[#556677]"
+        doneClassName="p-2 hover:bg-[#667788]"
+      />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /triggerClassName="p-2/)
+  assert.doesNotMatch(lowered.code, /dialogClassName="p-3"/)
+  assert.doesNotMatch(lowered.code, /doneClassName="p-2/)
+  assert.match(lowered.code, /triggerClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /doneClassName=\{"hozo-owner-/)
+  assert.match(lowered.css, /\[aria-expanded="true"\]/)
+})

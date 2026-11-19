@@ -255,6 +255,52 @@ function formSlots(names, paired = 'className', overrides = {}) {
 const pickerClasses =
   'className triggerClassName dialogClassName calendarClassName dayClassName headerClassName gridClassName monthButtonClassName'
 
+function pickerOverrides(prefix, extra = {}) {
+  return {
+    className: {
+      owner: `${prefix}-wrapper`,
+      gate: 'always',
+      composition: 'prepared-owner-contract; split-box-text',
+    },
+    triggerClassName: {
+      owner: `${prefix}-trigger`,
+      gate: 'always',
+      composition: 'prepared-owner-contract; split-box-text',
+    },
+    dialogClassName: {
+      owner: `${prefix}-dialog`,
+      gate: 'open',
+      composition: 'prepared-owner-contract; split-box-text',
+    },
+    calendarClassName: {
+      owner: `${prefix}-calendar-wrapper`,
+      gate: 'open',
+      composition: 'prepared-owner-contract; split-box-text',
+    },
+    dayClassName: {
+      owner: `${prefix}-calendar-day-cell`,
+      gate: 'open; each-day',
+      composition: 'prepared-owner-contract; split-box-text',
+    },
+    headerClassName: {
+      owner: `${prefix}-calendar-header`,
+      gate: 'open',
+      composition: 'prepared-owner-contract; split-box-text',
+    },
+    gridClassName: {
+      owner: `${prefix}-calendar-grid`,
+      gate: 'open',
+      composition: 'prepared-owner-contract; split-box-text',
+    },
+    monthButtonClassName: {
+      owner: `${prefix}-calendar-month-button`,
+      gate: 'open',
+      composition: 'prepared-owner-contract; split-box-text',
+    },
+    ...extra,
+  }
+}
+
 export const formComponents = {
   Calendar: formSlots(
     'className dayClassName headerClassName gridClassName monthButtonClassName',
@@ -287,11 +333,26 @@ export const formComponents = {
       },
     },
   ),
-  DatePicker: formSlots(pickerClasses, 'className triggerClassName dialogClassName'),
-  DateRangePicker: formSlots(pickerClasses, 'className triggerClassName dialogClassName'),
+  DatePicker: formSlots(
+    pickerClasses,
+    'className triggerClassName dialogClassName',
+    pickerOverrides('date-picker'),
+  ),
+  DateRangePicker: formSlots(
+    pickerClasses,
+    'className triggerClassName dialogClassName',
+    pickerOverrides('date-range-picker'),
+  ),
   DateTimePicker: formSlots(
     `${pickerClasses} doneClassName`,
     'className triggerClassName dialogClassName doneClassName',
+    pickerOverrides('date-time-picker', {
+      doneClassName: {
+        owner: 'date-time-picker-done-button',
+        gate: 'open',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    }),
   ),
   Field: formSlots(
     'className labelClassName requiredClassName descriptionClassName errorClassName',
@@ -715,6 +776,202 @@ export const components = {
   Tree: slots('className rowClassName'),
 }
 
+const calendarDayFacts = [
+  'aria-selected',
+  'aria-disabled',
+  'data-hozo-outside',
+  'data-hozo-disabled',
+  'data-hozo-range-start',
+  'data-hozo-range-end',
+  'data-hozo-in-range',
+]
+
+function datePickerContracts(component, rootProp, { includeDone = false } = {}) {
+  const rows = [
+    {
+      owner: `${component}.root`,
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: rootProp, webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: `${component}.trigger`,
+      classProp: 'triggerClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTriggerStyle', webClassProp: 'triggerClassName' },
+      authoredStyles: [
+        { prop: 'triggerStyle', order: 0 },
+        { prop: 'triggerTextStyle', order: 1 },
+      ],
+      shapes: [
+        {
+          id: 'trigger',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['disabled', 'aria-expanded'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: `${component}.dialog`,
+      classProp: 'dialogClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoDialogStyle', webClassProp: 'dialogClassName' },
+      authoredStyles: [{ prop: 'dialogStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'dialog',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: `${component}.calendar`,
+      classProp: 'calendarClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCalendarStyle', webClassProp: 'calendarClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'calendar',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: `${component}.header`,
+      classProp: 'headerClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoHeaderStyle', webClassProp: 'headerClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'header',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: `${component}.grid`,
+      classProp: 'gridClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoGridStyle', webClassProp: 'gridClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'grid',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'table',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: `${component}.monthButton`,
+      classProp: 'monthButtonClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoMonthButtonStyle', webClassProp: 'monthButtonClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'monthButton',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['disabled'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: `${component}.day`,
+      classProp: 'dayClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoDayStyle', webClassProp: 'dayClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'day',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'td',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: [...calendarDayFacts], splitText: true },
+        },
+      ],
+    },
+  ]
+  if (includeDone) {
+    rows.push({
+      owner: `${component}.done`,
+      classProp: 'doneClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoDoneStyle', webClassProp: 'doneClassName' },
+      authoredStyles: [
+        { prop: 'doneStyle', order: 0 },
+        { prop: 'doneTextStyle', order: 1 },
+      ],
+      shapes: [
+        {
+          id: 'done',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    })
+  }
+  return rows
+}
+
+function datePickerPublications(component, { includeDone = false } = {}) {
+  const parts = ['root', 'trigger', 'dialog', 'calendar', 'header', 'grid', 'monthButton', 'day']
+  if (includeDone) parts.push('done')
+  return parts.map((part) => ({
+    owner: `${component}.${part}`,
+    package: '@hozo/form',
+    exports: [component, `Hozo${component}`],
+  }))
+}
+
 // RFC010 shadow only: not a Primitive mapping or audited profile.
 // Replaces the handle spike's hand-written test JSON. A host-audit declaration
 // requires the independent CI proof; it does not authorize adapter rollout.
@@ -1111,6 +1368,9 @@ export const ownerShadow = {
         },
       ],
     },
+    ...datePickerContracts('DatePicker', 'hozoDatePickerStyle'),
+    ...datePickerContracts('DateRangePicker', 'hozoDateRangePickerStyle'),
+    ...datePickerContracts('DateTimePicker', 'hozoDateTimePickerStyle', { includeDone: true }),
   ],
 }
 
@@ -1219,6 +1479,9 @@ export const ownerPublications = [
     package: '@hozo/form',
     exports: ['Calendar', 'HozoCalendar'],
   },
+  ...datePickerPublications('DatePicker'),
+  ...datePickerPublications('DateRangePicker'),
+  ...datePickerPublications('DateTimePicker', { includeDone: true }),
 ]
 
 // Pattern components that render their string children inside a `View`: that

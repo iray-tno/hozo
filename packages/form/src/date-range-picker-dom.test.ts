@@ -104,7 +104,9 @@ test('bounds reach the grid', () => {
 })
 
 test('disabled closes the button rather than the dialog', () => {
-  assert.match(render({ disabled: true }), /<button[^>]*disabled=""/)
+  const html = render({ disabled: true })
+  assert.match(html, /<button[^>]*disabled=""/)
+  assert.match(html, /<button[^>]*data-hozo-disabled=""/)
 })
 
 test('Intl writes the range as one phrase, collapsing what the ends share', () => {

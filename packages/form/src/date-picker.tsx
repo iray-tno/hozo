@@ -168,6 +168,7 @@ export function HozoDatePicker({
         // from its text and its markup unchanged.
         aria-labelledby={accessibilityLabel ? `${base}-name ${base}-value` : undefined}
         disabled={disabled}
+        data-hozo-disabled={disabled ? '' : undefined}
         className={triggerClassName}
         onClick={() => change(!open)}
       >

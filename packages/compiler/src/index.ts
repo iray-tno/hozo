@@ -694,6 +694,7 @@ export interface NativeCompileOptions extends CompileEvidence {
     | 'aria-disabled'
     | 'aria-invalid'
     | 'aria-required'
+    | 'aria-expanded'
     | 'data-hozo-outside'
     | 'data-hozo-disabled'
     | 'data-hozo-range-start'

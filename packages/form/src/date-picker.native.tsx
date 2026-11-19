@@ -13,6 +13,11 @@ import { HozoCalendar, type HozoCalendarDay } from './calendar.native.tsx'
 import { dayLabel } from './calendar-format.ts'
 import type { CalendarDate, CalendarMonth, Weekday } from './calendar-rules.ts'
 import { resolveDatePickerFrame } from './date-picker-frame.native.ts'
+import type {
+  CalendarDayClassFacts,
+  FormButtonClassFacts,
+  PickerButtonClassFacts,
+} from './owner-facts.native.ts'
 import { PickerButton } from './picker-button.native.tsx'
 
 export interface HozoDatePickerProps {
@@ -32,6 +37,22 @@ export interface HozoDatePickerProps {
   headerClassName?: string
   gridClassName?: string
   monthButtonClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoDatePickerStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared trigger class contribution (RFC 010). */
+  hozoTriggerStyle?: (state: PickerButtonClassFacts) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared dialog class contribution (RFC 010). */
+  hozoDialogStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared calendar root class contribution (RFC 010). */
+  hozoCalendarStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared calendar header class contribution (RFC 010). */
+  hozoHeaderStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared calendar grid class contribution (RFC 010). */
+  hozoGridStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared calendar month button class contribution (RFC 010). */
+  hozoMonthButtonStyle?: (state: FormButtonClassFacts) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared calendar day cell class contribution (RFC 010). */
+  hozoDayStyle?: (state: CalendarDayClassFacts) => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   triggerStyle?: StyleProp<ViewStyle>
   triggerTextStyle?: StyleProp<TextStyle>
@@ -109,6 +130,14 @@ export function HozoDatePicker({
   gridClassName,
   monthButtonClassName,
   dayClassName,
+  hozoDatePickerStyle,
+  hozoTriggerStyle,
+  hozoDialogStyle,
+  hozoCalendarStyle,
+  hozoHeaderStyle,
+  hozoGridStyle,
+  hozoMonthButtonStyle,
+  hozoDayStyle,
   value,
   onChange,
   defaultOpen = false,
@@ -132,6 +161,22 @@ export function HozoDatePicker({
   accessibilityLabel,
   renderDay,
 }: HozoDatePickerProps) {
+  if (hozoDatePickerStyle && className !== undefined)
+    throw new Error('Prepared DatePicker styles must consume className')
+  if (hozoTriggerStyle && triggerClassName !== undefined)
+    throw new Error('Prepared DatePicker styles must consume triggerClassName')
+  if (hozoDialogStyle && dialogClassName !== undefined)
+    throw new Error('Prepared DatePicker styles must consume dialogClassName')
+  if (hozoCalendarStyle && calendarClassName !== undefined)
+    throw new Error('Prepared DatePicker styles must consume calendarClassName')
+  if (hozoHeaderStyle && headerClassName !== undefined)
+    throw new Error('Prepared DatePicker styles must consume headerClassName')
+  if (hozoGridStyle && gridClassName !== undefined)
+    throw new Error('Prepared DatePicker styles must consume gridClassName')
+  if (hozoMonthButtonStyle && monthButtonClassName !== undefined)
+    throw new Error('Prepared DatePicker styles must consume monthButtonClassName')
+  if (hozoDayStyle && dayClassName !== undefined)
+    throw new Error('Prepared DatePicker styles must consume dayClassName')
   // A string from the prop, then the project's i18n, then English;
   // `locale` the same way (decision 008).
   const message = useHozoMessage()
@@ -154,7 +199,15 @@ export function HozoDatePicker({
   }
 
   const text = value ? formatValue(value, locale) : placeholder
-  const frame = resolveDatePickerFrame({ className, style, dialogClassName, dialogStyle, open })
+  const frame = resolveDatePickerFrame({
+    className,
+    hozoRootStyle: hozoDatePickerStyle,
+    style,
+    dialogClassName,
+    hozoDialogStyle,
+    dialogStyle,
+    open,
+  })
 
   return (
     <View style={frame.box}>
@@ -187,6 +240,7 @@ export function HozoDatePicker({
         textStyle={triggerTextStyle}
         inheritedTextStyle={frame.text}
         className={triggerClassName}
+        hozoButtonStyle={hozoTriggerStyle}
         onPress={() => change(true)}
       >
         {text}
@@ -216,6 +270,11 @@ export function HozoDatePicker({
             gridClassName={gridClassName}
             monthButtonClassName={monthButtonClassName}
             dayClassName={dayClassName}
+            hozoCalendarStyle={hozoCalendarStyle}
+            hozoHeaderStyle={hozoHeaderStyle}
+            hozoGridStyle={hozoGridStyle}
+            hozoMonthButtonStyle={hozoMonthButtonStyle}
+            hozoDayStyle={hozoDayStyle}
             value={value}
             onChange={choose}
             defaultMonth={defaultMonth}
