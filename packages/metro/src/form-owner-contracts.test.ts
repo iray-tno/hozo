@@ -49,6 +49,10 @@ function loadNativeFormModule(
     Pressable: host('Pressable'),
     Text: host('Text'),
     TextInput: host('TextInput'),
+    Modal: host('Modal'),
+    ScrollView: host('ScrollView'),
+    ActionSheetIOS: { showActionSheetWithOptions: () => {} },
+    Platform: { OS: 'android' },
     StyleSheet: {
       create: <T>(styles: T) => styles,
       flatten: flattenStyle,
@@ -555,4 +559,97 @@ export function Fallback({ dynamic }: { dynamic: string }) {
       new RegExp(`Prepared TextArea styles must consume ${classProp}`),
     )
   }
+})
+
+test('Native NativeSelect delivers prepared root styles to Pressable and label Text without calling hozoClasses (#2045)', () => {
+  const compiler = createCompiler()
+  const source = `import { NativeSelect } from '@hozo/form'
+export function Screen({
+  disabled,
+  invalid,
+  required,
+}: {
+  disabled?: boolean
+  invalid?: boolean
+  required?: boolean
+}) {
+  return (
+    <NativeSelect
+      options={[{ value: 'a', label: 'Alpha' }]}
+      value="a"
+      disabled={disabled}
+      aria-invalid={invalid}
+      aria-required={required}
+      className="pt-4 text-[#112233] bg-[#101010] disabled:bg-[#202020] aria-[invalid=true]:bg-[#303030] aria-required:bg-[#404040]"
+      sheetClassName="p-2"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoSelectStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-4/)
+  // Native-only fallback chrome slots remain untouched.
+  assert.match(transformed, /sheetClassName="p-2"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 88 }
+  }
+  const selectMod = loadNativeFormModule('native-select.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = {
+    exports: {} as {
+      Screen: React.ComponentType<{ disabled?: boolean; invalid?: boolean; required?: boolean }>
+    },
+  }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/form') return { NativeSelect: selectMod.exports.NativeSelect }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { invalid: true }))
+  assert.equal(classResolverCalls, 0, 'prepared NativeSelect root must bypass hozoClasses')
+
+  const triggerHost = selectMod.captured.find((entry) => entry.host === 'Pressable')
+  assert.ok(triggerHost)
+  assert.equal(flattenStyle(triggerHost.props.style).paddingTop, 16)
+  assert.equal(flattenStyle(triggerHost.props.style).backgroundColor, '#303030')
+  const valueText = selectMod.captured.find((entry) => entry.host === 'Text')
+  assert.ok(valueText)
+  assert.equal(flattenStyle(valueText.props.style).color, '#112233')
+
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          selectMod.exports.NativeSelect as React.ComponentType<Record<string, unknown>>,
+          {
+            options: [{ value: 'a', label: 'Alpha' }],
+            className: 'pt-4',
+            hozoSelectStyle: () => ({}),
+          },
+        ),
+      ),
+    /Prepared NativeSelect styles must consume className/,
+  )
 })

@@ -85,4 +85,11 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     shadow:
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TextArea.count","classProp":"countClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCountStyle","webClassProp":"countClassName"},"authoredStyles":[{"prop":"countStyle","order":0}],"shapes":[{"id":"count","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"span","events":[]}]}]}',
   },
+  {
+    owner: 'NativeSelect.root',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"NativeSelect.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSelectStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0},{"prop":"textStyle","order":1}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"select","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-invalid","aria-required"],"splitText":true}}]}]}',
+  },
 ]

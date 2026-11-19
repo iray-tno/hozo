@@ -19,7 +19,7 @@ import {
 import { lowerModule } from '@hozo/compiler/lower'
 import { emitFinalTailwindBatch, TailwindProjectSession } from '@hozo/compiler/project'
 import { createClassResolver, cx } from '@hozo/engine'
-import { Field, FileDropzone, Form, SubmitButton, TextArea } from '@hozo/form'
+import { Field, FileDropzone, Form, NativeSelect, SubmitButton, TextArea } from '@hozo/form'
 import { Chip } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
@@ -6165,6 +6165,217 @@ export function Screen({ disabled = false, readOnly = false, invalid = false, re
         },
         webStyle,
         `TextArea.field/${state.name}`,
+      )
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('NativeSelect delivers markers to select/Pressable hosts and matches Chromium vs Native prepared states (#2045)', {
+  skip: !executablePath,
+}, async () => {
+  const compiler = createCompiler()
+  const selectClasses =
+    'p-3 bg-[#112233] text-[#ffffff] hover:bg-[#223344] active:bg-[#334455] focus-visible:bg-[#445566] disabled:bg-[#556677] aria-[invalid=true]:bg-[#667788] aria-required:bg-[#778899]'
+  const source = `import { NativeSelect } from '@hozo/form'
+export function Screen({ disabled = false, invalid = false, required = false }) {
+  return (
+    <NativeSelect
+      accessibilityLabel="Country"
+      options={[{ value: 'jp', label: 'Japan' }]}
+      value="jp"
+      disabled={disabled}
+      aria-invalid={invalid}
+      aria-required={required}
+      className="${selectClasses}"
+    />
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webCjs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webCjs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (specifier) => {
+      if (specifier === '@hozo/form') return { NativeSelect }
+      throw new Error(`Unexpected web require: ${specifier}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeCjs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const nativeMod = { exports: {} }
+  const nativeElements = {}
+  runInNewContext(nativeCjs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (typeof type === 'string') nativeElements[type] = props
+      return { type, props }
+    },
+    require: (specifier) => {
+      if (specifier === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (specifier === '@hozo/form') return { NativeSelect: 'NativeSelect' }
+      throw new Error(`Unexpected native require: ${specifier}`)
+    },
+  })
+  nativeMod.exports.Screen({})
+  assert.equal(nativeElements.NativeSelect.className, undefined)
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+    return m ? `rgb(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)})` : hex
+  }
+
+  const page = await browser.newPage()
+  const cdp = await page.context().newCDPSession(page)
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    const states = [
+      {
+        name: 'rest',
+        props: {},
+        pseudo: [],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'aria-invalid': false,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'hover',
+        props: {},
+        pseudo: ['hover'],
+        facts: {
+          hovered: true,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'aria-invalid': false,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'active',
+        props: {},
+        pseudo: ['active'],
+        facts: {
+          hovered: false,
+          pressed: true,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'aria-invalid': false,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'focus-visible',
+        props: {},
+        pseudo: ['focus', 'focus-visible'],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: true,
+          focusVisible: true,
+          disabled: false,
+          'aria-invalid': false,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'disabled',
+        props: { disabled: true },
+        pseudo: [],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: true,
+          'aria-invalid': false,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'aria-invalid',
+        props: { invalid: true },
+        pseudo: [],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'aria-invalid': true,
+          'aria-required': false,
+        },
+      },
+      {
+        name: 'aria-required',
+        props: { required: true },
+        pseudo: [],
+        facts: {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'aria-invalid': false,
+          'aria-required': true,
+        },
+      },
+    ]
+    for (const state of states) {
+      const html = renderToStaticMarkup(createElement(webMod.exports.Screen, state.props))
+      await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', {
+        nodeId: root.nodeId,
+        selector: 'select',
+      })
+      if (state.pseudo.length)
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: state.pseudo })
+      const webStyle = await page.locator('select').evaluate((el) => {
+        const cs = getComputedStyle(el)
+        return {
+          paddingTop: parseFloat(cs.paddingTop),
+          backgroundColor: cs.backgroundColor,
+          color: cs.color,
+        }
+      })
+      const nativeStyle = flat(nativeElements.NativeSelect.hozoSelectStyle(state.facts))
+      assert.deepEqual(
+        {
+          paddingTop: nativeStyle.paddingTop,
+          backgroundColor: hexToRgb(nativeStyle.backgroundColor),
+          color: hexToRgb(nativeStyle.color),
+        },
+        webStyle,
+        `NativeSelect.root/${state.name}`,
       )
     }
   } finally {

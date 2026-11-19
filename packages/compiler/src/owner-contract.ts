@@ -15,7 +15,7 @@ export interface OwnerShape {
   id: string
   when: Gate
   nativeHost: 'Pressable' | 'View' | 'Text' | 'TextInput'
-  webHost: 'button' | 'div' | 'form' | 'label' | 'span' | 'textarea'
+  webHost: 'button' | 'div' | 'form' | 'label' | 'span' | 'textarea' | 'select'
   events: ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
   /** Explicit preparation inputs, not inferred from a synthetic host. */
   inputs?: { facts: OwnerFact[]; splitText: boolean }
@@ -184,7 +184,9 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       const id = identifier(shape.id, `${at}.shape.id`)
       if (
         !['Pressable', 'View', 'Text', 'TextInput'].includes(shape.nativeHost as string) ||
-        !['button', 'div', 'form', 'label', 'span', 'textarea'].includes(shape.webHost as string)
+        !['button', 'div', 'form', 'label', 'span', 'textarea', 'select'].includes(
+          shape.webHost as string,
+        )
       )
         fail(`${at}.shape host`)
       if (!Array.isArray(shape.events) || shape.events.length > 4) fail(`${at}.shape events`)
@@ -205,7 +207,11 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
         (!['label', 'span'].includes(shape.webHost as string) || events.length !== 0)
       )
         fail(`${at}.text events/host`)
-      if (shape.nativeHost === 'Pressable' && shape.webHost !== 'button') fail(`${at}.control host`)
+      if (
+        shape.nativeHost === 'Pressable' &&
+        !['button', 'select'].includes(shape.webHost as string)
+      )
+        fail(`${at}.control host`)
       if (
         shape.nativeHost === 'TextInput' &&
         (shape.webHost !== 'textarea' ||

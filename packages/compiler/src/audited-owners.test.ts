@@ -172,3 +172,31 @@ export function Dynamic({ value }: { value: string }) {
   assert.match(lowered.css, /\[aria-invalid="true"\]/)
   assert.match(lowered.css, /\[aria-required="true"\]/)
 })
+
+test('ordinary Web lowering compiles NativeSelect className and leaves Native-only chrome slots untouched', () => {
+  const compiler = createCompiler()
+  const source = `import { NativeSelect } from '@hozo/form'
+export function Screen() {
+  return (
+    <NativeSelect
+      options={[{ value: 'a', label: 'A' }]}
+      className="px-3 py-2 text-[#112233] disabled:opacity-50 aria-[invalid=true]:bg-[#223344] aria-required:bg-[#334455]"
+      indicatorClassName="w-2 h-2"
+      sheetClassName="p-4"
+      scrimClassName="bg-[#000000]"
+      optionClassName="px-2"
+    />
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /className="px-3 py-2/)
+  assert.match(lowered.code, /className=\{"hozo-owner-/)
+  assert.match(lowered.code, /indicatorClassName="w-2 h-2"/)
+  assert.match(lowered.code, /sheetClassName="p-4"/)
+  assert.match(lowered.code, /scrimClassName="bg-\[#000000\]"/)
+  assert.match(lowered.code, /optionClassName="px-2"/)
+  assert.match(lowered.css, /\[aria-invalid="true"\]/)
+  assert.match(lowered.css, /\[aria-required="true"\]/)
+})

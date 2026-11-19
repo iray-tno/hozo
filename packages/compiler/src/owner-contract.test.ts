@@ -132,6 +132,29 @@ test('Field and TextArea contracts declare empty authoredStyles, Text leaves, an
     entry.shapes[0]!.events = ['hovered']
   }, /text events\/host/)
 })
+test('NativeSelect root contract declares select webHost and Pressable form facts', () => {
+  const select = parsed().contracts.find((row) => row.owner === 'NativeSelect.root')!
+  assert.equal(select.audit, 'audited')
+  assert.deepEqual(select.abi, { nativePreparedProp: 'hozoSelectStyle', webClassProp: 'className' })
+  assert.deepEqual(select.authoredStyles, [
+    { prop: 'style', order: 0 },
+    { prop: 'textStyle', order: 1 },
+  ])
+  assert.deepEqual(select.shapes, [
+    {
+      id: 'root',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'select',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['disabled', 'aria-invalid', 'aria-required'], splitText: true },
+    },
+  ])
+  rejects((value) => {
+    const form = value.contracts.find((row) => row.owner === 'Form.root')!
+    form.shapes[0]!.webHost = 'select'
+  }, /decoration events\/host/)
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

@@ -516,6 +516,55 @@
           "events": []
         }
       ]
+    },
+    {
+      "owner": "NativeSelect.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoSelectStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        },
+        {
+          "prop": "textStyle",
+          "order": 1
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "Pressable",
+          "webHost": "select",
+          "events": [
+            "pressed",
+            "hovered",
+            "focused",
+            "focusVisible"
+          ],
+          "inputs": {
+            "facts": [
+              "disabled",
+              "aria-invalid",
+              "aria-required"
+            ],
+            "splitText": true
+          }
+        }
+      ]
     }
   ]
 }

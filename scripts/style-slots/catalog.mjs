@@ -321,6 +321,13 @@ export const formComponents = {
   NativeSelect: formSlots(
     'className indicatorClassName sheetClassName scrimClassName optionClassName',
     'className sheetClassName scrimClassName optionClassName',
+    {
+      className: {
+        owner: 'native-select-control',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
   ),
   TextArea: formSlots(
     'className fieldClassName countClassName',
@@ -949,6 +956,30 @@ export const ownerShadow = {
         },
       ],
     },
+    {
+      owner: 'NativeSelect.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSelectStyle', webClassProp: 'className' },
+      authoredStyles: [
+        { prop: 'style', order: 0 },
+        { prop: 'textStyle', order: 1 },
+      ],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'select',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: {
+            facts: ['disabled', 'aria-invalid', 'aria-required'],
+            splitText: true,
+          },
+        },
+      ],
+    },
   ],
 }
 
@@ -1026,6 +1057,11 @@ export const ownerPublications = [
     owner: 'TextArea.count',
     package: '@hozo/form',
     exports: ['TextArea', 'HozoTextArea'],
+  },
+  {
+    owner: 'NativeSelect.root',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
   },
 ]
 
