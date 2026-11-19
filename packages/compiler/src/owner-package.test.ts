@@ -90,7 +90,20 @@ test('budgets, duplicate tokens and malformed legacy forwarding fail explicitly'
     )
   for (const mutate of [
     (value) => {
-      value.textForwarding.version = 2
+      value.textForwarding.version = 3
+    },
+    (value) => {
+      value.exports[0].primitive = 'not a name'
+    },
+    (value) => {
+      value.textPublish = [{ name: 'Missing', sharesState: true }]
+    },
+    (value) => {
+      value.textPublish = [{ name: value.exports[0].name, sharesState: 'yes' }]
+    },
+    (value) => {
+      const row = { name: value.exports[0].name, sharesState: true }
+      value.textPublish = [row, row]
     },
     (value) => {
       value.textForwarding.textForwarding.Sheet.props[0].default = 'lg'

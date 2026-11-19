@@ -718,3 +718,39 @@ export const ownerPublications = [
     exports: ['Tabs', 'HozoTabs'],
   },
 ]
+
+// Pattern components that render their string children inside a `View`: that
+// string gets the text styles at run time, a Text the caller nests does not.
+// A component built on one of these forwards text the way one built on a
+// `Pressable` or `View` from `@hozo/core` does (`@hozo/ui`'s Alert since #983;
+// its Checkbox and Switch take their label as children the same way, #974).
+//
+// `sharesState` says whether the pattern's pressable shares its state with
+// that Text: Checkbox's and Switch's provide `HozoInteractionContext` from
+// `@hozo/behaviors`, which a `HozoText` reads; Alert has no state.
+export const textHosts = [
+  { package: '@hozo/patterns', export: 'Alert', sharesState: false },
+  { package: '@hozo/patterns', export: 'Checkbox', sharesState: true },
+  { package: '@hozo/patterns', export: 'Switch', sharesState: true },
+]
+
+// Exports the compiler lowers as one of its primitives, by package. The
+// compiler trusts these packages as primitive sources (`sources.ts`) and
+// maps a trusted import by name, so each export here is the Primitive of the
+// same name; the manifest publishes the pairing and CI compares it with the
+// compiler's table. `@hozo/ui` and `@hozo/form` are not primitive sources.
+export const primitiveExports = {
+  '@hozo/patterns': [
+    'Avatar',
+    'Chip',
+    'ColorPicker',
+    'Combobox',
+    'CommandPalette',
+    'Dialog',
+    'Listbox',
+    'Menu',
+    'OtpInput',
+    'Pagination',
+    'Stepper',
+  ],
+}

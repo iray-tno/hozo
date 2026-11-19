@@ -1,12 +1,13 @@
-// Producer for the bounded package-channel experiment. The existing Rust
-// scanner remains the authority for candidate extraction; this does not
-// invent an export resolver, execute package code or infer owner contracts.
+// Producer for manifest v2 (#2044). The existing Rust scanner remains the
+// authority for candidate extraction; this does not invent an export
+// resolver, execute package code or infer owner contracts.
 import { openCandidateCache } from './index.ts'
 import type { HozoManifest } from './manifest.ts'
 import {
   type HozoPackageManifest,
   OWNER_PACKAGE_SCHEMA,
   type OwnerPackageShadow,
+  PACKAGE_MANIFEST_VERSION,
   parseOwnerPackageShadow,
 } from './owner-package.ts'
 
@@ -14,6 +15,8 @@ export interface PackageManifestOptions {
   /** Resolved public VALUE exports, supplied by the package's build tool. */
   exports: OwnerPackageShadow['exports']
   owners: OwnerPackageShadow['owners']
+  /** Authored in the style-slot catalog's `textHosts`; none when absent. */
+  textPublish?: OwnerPackageShadow['textPublish']
   helpers: string[]
   compiledByConsumer: boolean
   /** Exactly the package-owned source set being published, not its tests,
@@ -49,21 +52,30 @@ export function buildPackageManifest(
       throw new Error('Package manifest source budget exceeded')
     cache.scanFile(file, source, 0)
   }
+  const byName = (a: { name: string }, b: { name: string }) =>
+    a.name < b.name ? -1 : a.name > b.name ? 1 : 0
   const validated = parseOwnerPackageShadow(
     JSON.stringify({
       schema: OWNER_PACKAGE_SCHEMA,
       owners: options.owners,
-      exports: [...options.exports].sort((a, b) =>
-        a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
-      ),
+      exports: [...options.exports].sort(byName),
+      textPublish: [...(options.textPublish ?? [])].sort(byName),
       candidates: cache.candidates().sort(),
       helpers: [...options.helpers].sort(),
       compiledByConsumer: options.compiledByConsumer,
       textForwarding: text,
     }),
   )
-  const { textForwarding, ...channels } = validated
-  const manifest = { ...textForwarding, package: channels }
+  const manifest: HozoPackageManifest = {
+    version: PACKAGE_MANIFEST_VERSION,
+    exports: validated.exports,
+    owners: validated.owners,
+    textPublish: validated.textPublish,
+    textForwarding: validated.textForwarding.textForwarding,
+    candidates: validated.candidates,
+    helpers: validated.helpers,
+    compiledByConsumer: validated.compiledByConsumer,
+  }
   // Pretty-printed output is bounded too, not just its compact intermediate.
   parseOwnerPackageShadow(`${JSON.stringify(manifest, null, 2)}\n`)
   return manifest

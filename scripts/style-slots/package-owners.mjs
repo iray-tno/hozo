@@ -3,7 +3,13 @@ import {
   OWNER_PACKAGE_SCHEMA,
   parseOwnerPackageShadow,
 } from '../../packages/compiler/src/owner-package.ts'
-import { components, ownerPublications, ownerShadow } from './catalog.mjs'
+import {
+  components,
+  ownerPublications,
+  ownerShadow,
+  primitiveExports,
+  textHosts,
+} from './catalog.mjs'
 
 /** Produce scoped owner references using public VALUE names from a real
  * entry probe. Facades receive no contracts merely by re-exporting a name.
@@ -12,7 +18,12 @@ import { components, ownerPublications, ownerShadow } from './catalog.mjs'
 export function packageOwnerChannels(
   packageName,
   valueExports,
-  { shadow = ownerShadow, publications = ownerPublications } = {},
+  {
+    shadow = ownerShadow,
+    publications = ownerPublications,
+    primitives = primitiveExports,
+    hosts = textHosts,
+  } = {},
 ) {
   const declared = new Set()
   const contracts = new Map()
@@ -48,6 +59,18 @@ export function packageOwnerChannels(
   }
   if ([...contracts.keys()].some((owner) => !declared.has(owner)))
     throw new Error('Catalog owner has no publication declaration')
+  // Catalog rows naming an export the entry does not have are stale, not
+  // silently dropped: the manifest would then disagree with the compiler.
+  const primitive = new Set(primitives[packageName] ?? [])
+  for (const name of primitive)
+    if (!names.has(name)) throw new Error(`Primitive export is not a public value export: ${name}`)
+  const textPublish = hosts
+    .filter((host) => host.package === packageName)
+    .map((host) => {
+      if (!names.has(host.export))
+        throw new Error(`Text host is not a public value export: ${host.export}`)
+      return { name: host.export, sharesState: host.sharesState }
+    })
   const selected = shadow.contracts.filter((contract) =>
     publications.some((row) => row.owner === contract.owner && row.package === packageName),
   )
@@ -55,14 +78,17 @@ export function packageOwnerChannels(
     JSON.stringify({
       schema: OWNER_PACKAGE_SCHEMA,
       owners: selected.length ? { schema: shadow.schema, contracts: selected } : null,
-      exports: [...valueExports]
-        .sort()
-        .map((name) => ({ name, owners: (refs.get(name) ?? []).sort() })),
+      exports: [...valueExports].sort().map((name) => ({
+        name,
+        owners: (refs.get(name) ?? []).sort(),
+        ...(primitive.has(name) ? { primitive: name } : {}),
+      })),
+      textPublish,
       candidates: [],
       helpers: [],
       compiledByConsumer: false,
       textForwarding: { version: 1, textForwarding: {} },
     }),
   )
-  return { owners: parsed.owners, exports: parsed.exports }
+  return { owners: parsed.owners, exports: parsed.exports, textPublish: parsed.textPublish }
 }

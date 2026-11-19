@@ -843,14 +843,14 @@ test('published handle assessment binds both live matrices to the current manife
   }
 })
 
-test('Tabs proof reads the actual version-1 package envelope through the shared reader', () => {
+test('Tabs proof reads the actual version-2 manifest through the shared reader', () => {
   const text = readFileSync(
     new URL('../packages/patterns/hozo.manifest.json', import.meta.url),
     'utf8',
   )
   assert.equal(tabsDeclaration(text).owner, 'Tabs.Tab')
   const value = JSON.parse(text)
-  value.package.exports.find((row) => row.name === 'HozoTabs').owners = []
+  value.exports.find((row) => row.name === 'HozoTabs').owners = []
   assert.throws(() => tabsDeclaration(JSON.stringify(value)), /aliases/)
   assert.throws(() => tabsDeclaration('{}'), /Invalid owner/)
 })

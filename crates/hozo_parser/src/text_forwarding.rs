@@ -56,19 +56,9 @@ use crate::tailwind;
 /// inheritance already reaches whatever is nested in it.
 const FORWARDING_HOSTS: [&str; 3] = ["Pressable", "Button", "View"];
 const HOST_MODULES: [&str; 2] = ["@hozo/core", "@hozo/primitives"];
-/// Pattern components that render their children inside a `View`: their own
-/// string child gets the text styles at runtime, a Text the caller nests
-/// does not. `@hozo/ui`'s Alert wears the first since #983; its Checkbox
-/// and Switch take their label as children the same way (#974).
-///
-/// The third field says whether the pattern's pressable shares its state
-/// with that Text: Checkbox's and Switch's provide `HozoInteractionContext`
-/// from `@hozo/behaviors`, which a `HozoText` reads; Alert has no state.
-const PATTERN_HOSTS: [(&str, &str, bool); 3] = [
-    ("@hozo/patterns", "Alert", false),
-    ("@hozo/patterns", "Checkbox", true),
-    ("@hozo/patterns", "Switch", true),
-];
+// Pattern components that render their children inside a `View`, generated
+// from the style-slot catalog's `textHosts`.
+use crate::pattern_hosts::PATTERN_HOSTS;
 
 /// The `cx`-shaped helpers whose arguments are read one by one, as
 /// `dynamic_class` reads them. Not `tailwind-merge`, for the reason given
