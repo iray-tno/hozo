@@ -470,8 +470,11 @@ Compare `android-scenario=full` and `android-scenario=ui-docs` with the same
 APK and system image and `diagnostics=false` to test the effect of the
 preceding scenarios.
 For a graphics comparison, keep those inputs and the scenario fixed and
-select `android-gpu=swiftshader_indirect`, `swiftshader`, or `swangle`.
-The default remains `swiftshader_indirect` for PR, scheduled and release runs.
+select `android-gpu=swangle`, `swiftshader_indirect`, or `swiftshader`.
+The default is `swangle` for PR, scheduled and release runs (#2065). Under
+`swiftshader_indirect` and `swiftshader`, React Native's native
+`linear-gradient` background, as drawn by the ColorPicker tracks, makes QEMU
+exit. That was the docs walk's lost device after `code-block`.
 
 `android-canvas-rounds=5` adds four more mount/assemble/disassemble/unmount rounds
 after the normal full sequence. Every mount requires the real completion state,
