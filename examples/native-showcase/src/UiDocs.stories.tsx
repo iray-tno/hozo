@@ -179,14 +179,50 @@ export const CodeBlock: Story = {
   ),
 }
 export const ColorPicker: Story = {
-  render: () => (
-    <Preview
-      page="color-picker"
-      load={() =>
-        require('../../../apps/landing/src/examples/ui/ColorPickerDemo.tsx').ColorPickerDemo
-      }
-    />
-  ),
+  render: () => {
+    ;(globalThis as { __hozo2065Flat?: boolean }).__hozo2065Flat = false
+    return (
+      <Preview
+        page="color-picker"
+        load={() =>
+          require('../../../apps/landing/src/examples/ui/ColorPickerDemo.tsx').ColorPickerDemo
+        }
+      />
+    )
+  },
+}
+// #2065 isolation experiment: the colour picker's four tracks alone, as
+// React Native draws them, and the picker with its tracks left flat.
+function GradientProbeView() {
+  const tracks = [
+    'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
+    'linear-gradient(to right, #808080, #0066ff)',
+    'linear-gradient(to right, #000000, #3b82f6, #ffffff)',
+    'linear-gradient(to right, #3b82f600, #3b82f6ff)',
+  ]
+  return (
+    <View style={{ width: 280, gap: 12 }}>
+      {tracks.map((track) => (
+        <View key={track} style={{ height: 24, borderRadius: 12, backgroundImage: track }} />
+      ))}
+    </View>
+  )
+}
+export const GradientProbe: Story = {
+  render: () => <Preview page="gradient-probe" load={() => GradientProbeView} />,
+}
+export const ColorPickerFlat: Story = {
+  render: () => {
+    ;(globalThis as { __hozo2065Flat?: boolean }).__hozo2065Flat = true
+    return (
+      <Preview
+        page="color-picker-flat"
+        load={() =>
+          require('../../../apps/landing/src/examples/ui/ColorPickerDemo.tsx').ColorPickerDemo
+        }
+      />
+    )
+  },
 }
 export const Combobox: Story = {
   render: () => (

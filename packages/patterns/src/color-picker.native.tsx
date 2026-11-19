@@ -152,7 +152,9 @@ export function HozoColorPicker({
   // the Web half's inline `background` does.
   const slider = (track: string) =>
     [
-      { backgroundImage: track },
+      (globalThis as { __hozo2065Flat?: boolean }).__hozo2065Flat
+        ? { backgroundColor: '#888888' }
+        : { backgroundImage: track },
       hozoClasses(sliderClassName),
       hozoAuthoredStyle(sliderStyle),
     ] as StyleProp<ViewStyle>

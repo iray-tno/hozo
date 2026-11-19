@@ -22,7 +22,11 @@ test('one story per docs page, and one page per docs demo', () => {
   const exported = [...stories.matchAll(/^export const (\w+): Story/gm)].map((m) =>
     m[1].replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase(),
   )
-  assert.deepEqual(exported, UI_DOC_PAGES)
+  // #2065 experiment stories are not docs pages.
+  assert.deepEqual(
+    exported.filter((name) => !['gradient-probe', 'color-picker-flat'].includes(name)),
+    UI_DOC_PAGES,
+  )
   const demos = readdirSync(join(root, '../../apps/landing/src/examples/ui'))
     .filter((file) => file.endsWith('Demo.tsx'))
     .map((file) =>
