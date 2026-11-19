@@ -147,6 +147,11 @@ test('the form inventory matches every public Web and Native class prop without 
       `${prefix}-calendar-month-button`,
     ]),
     'date-time-picker-done-button',
+    'time-picker-wrapper',
+    'time-picker-field-group',
+    'time-picker-value-spinbutton',
+    'time-picker-period-button',
+    'time-picker-step-button',
   ])
   assert.ok(
     Object.values(formComponents)
@@ -163,7 +168,7 @@ test('the form inventory matches every public Web and Native class prop without 
     Object.values(formComponents)
       .flat()
       .filter((slot) => slot.owner === 'pending-audit').length,
-    10,
+    5,
   )
   assert.ok(!outputs()['crates/hozo_ir/src/class_slots.rs'].includes('Self::Calendar'))
 })
@@ -271,6 +276,11 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
       ),
     ),
     'DateTimePicker.done',
+    'TimePicker.root',
+    'TimePicker.field',
+    'TimePicker.value',
+    'TimePicker.period',
+    'TimePicker.step',
   ])
   for (const contract of ownerShadow.contracts) {
     const [component] = contract.owner.split('.')

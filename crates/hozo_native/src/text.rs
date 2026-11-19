@@ -168,6 +168,7 @@ pub(super) fn wrap_in_text(
     let mut pressed_parts = Vec::new();
     let target = crate::conditions::StyleTarget {
         owner_facts: &[],
+        owner_events: &[],
         node,
         position,
         interaction_context,

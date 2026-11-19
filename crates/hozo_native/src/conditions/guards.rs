@@ -85,6 +85,9 @@ pub(super) fn resolve(
                     Some("data-hozo-range-start") => Some(OwnerFact::DataHozoRangeStart),
                     Some("data-hozo-range-end") => Some(OwnerFact::DataHozoRangeEnd),
                     Some("data-hozo-in-range") => Some(OwnerFact::DataHozoInRange),
+                    Some("data-hozo-step") => Some(OwnerFact::DataHozoStep),
+                    Some("data-hozo-step=increase") => Some(OwnerFact::DataHozoStepIncrease),
+                    Some("data-hozo-step=decrease") => Some(OwnerFact::DataHozoStepDecrease),
                     _ => {
                         return Err(format!(
                         "Owner preparation has no declared data attribute fact for `{selector}`."
@@ -145,6 +148,28 @@ pub(super) fn resolve(
                     "`{}:` has no readable events on this decorative class owner on Native. A surrounding control's hover/press/focus does not locate interaction on its child; negation cannot make an unavailable fact true.",
                     condition_suffix(condition).unwrap_or_default(),
                 ));
+            }
+            if node.primitive == Primitive::View && !target.owner_events.is_empty() {
+                let event = match condition {
+                    Condition::Pressed => OwnerEvent::Pressed,
+                    Condition::Hover => OwnerEvent::Hovered,
+                    Condition::Focus => OwnerEvent::Focused,
+                    Condition::FocusVisible => OwnerEvent::FocusVisible,
+                    _ => unreachable!("matched above"),
+                };
+                return if target.owner_events.contains(&event) {
+                    let state = match condition {
+                        Condition::Pressed => "pressed",
+                        Condition::Hover => "hovered",
+                        _ => focus_state(condition).unwrap(),
+                    };
+                    Ok(Guard::Interactive(state.to_string()))
+                } else {
+                    Err(format!(
+                        "`{}:` is not declared in this View owner's delivered events on Native.",
+                        condition_suffix(condition).unwrap_or_default(),
+                    ))
+                };
             }
             if node.primitive == Primitive::TextInput {
                 return match condition {

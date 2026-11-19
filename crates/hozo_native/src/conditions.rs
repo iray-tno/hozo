@@ -252,6 +252,7 @@ fn light_only(condition: &Condition) -> bool {
 
 pub(crate) struct StyleTarget<'a> {
     pub owner_facts: &'a [OwnerFact],
+    pub owner_events: &'a [OwnerEvent],
     pub node: &'a Node,
     pub position: SiblingPosition,
     pub interaction_context: bool,

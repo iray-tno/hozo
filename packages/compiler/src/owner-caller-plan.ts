@@ -62,6 +62,10 @@ function preparationOptions(shape: OwnerShape): NativeCompileOptions {
       ownerFacts: shape.inputs.facts,
       ownerText: shape.inputs.splitText ? ('split' as const) : undefined,
     }),
+    ...(shape.nativeHost === 'View' &&
+      shape.events.length > 0 && {
+        ownerEvents: shape.events,
+      }),
   }
 }
 

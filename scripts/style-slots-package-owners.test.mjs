@@ -79,6 +79,8 @@ test('catalog publication owns the contract once and attaches only actual packag
     'HozoDateRangePicker',
     'DateTimePicker',
     'HozoDateTimePicker',
+    'TimePicker',
+    'HozoTimePicker',
   ])
   assert.deepEqual(
     formResult.owners.contracts.map((row) => [row.owner, row.audit]),
@@ -126,6 +128,11 @@ test('catalog publication owns the contract once and attaches only actual packag
         'DateTimePicker.monthButton',
         'DateTimePicker.day',
         'DateTimePicker.done',
+        'TimePicker.root',
+        'TimePicker.field',
+        'TimePicker.value',
+        'TimePicker.period',
+        'TimePicker.step',
       ].map((owner) => [owner, 'audited']),
     ],
   )

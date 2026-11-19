@@ -441,6 +441,33 @@ export const formComponents = {
   TimePicker: formSlots(
     'className fieldClassName valueClassName periodClassName stepClassName',
     'className fieldClassName stepClassName',
+    {
+      className: {
+        owner: 'time-picker-wrapper',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      fieldClassName: {
+        owner: 'time-picker-field-group',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      valueClassName: {
+        owner: 'time-picker-value-spinbutton',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      periodClassName: {
+        owner: 'time-picker-period-button',
+        gate: 'hour12',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      stepClassName: {
+        owner: 'time-picker-step-button',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
   ),
 }
 
@@ -1371,6 +1398,108 @@ export const ownerShadow = {
     ...datePickerContracts('DatePicker', 'hozoDatePickerStyle'),
     ...datePickerContracts('DateRangePicker', 'hozoDateRangePickerStyle'),
     ...datePickerContracts('DateTimePicker', 'hozoDateTimePickerStyle', { includeDone: true }),
+    {
+      owner: 'TimePicker.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTimePickerStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'TimePicker.field',
+      classProp: 'fieldClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoFieldStyle', webClassProp: 'fieldClassName' },
+      authoredStyles: [{ prop: 'fieldStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'field',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'TimePicker.value',
+      classProp: 'valueClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoValueStyle', webClassProp: 'valueClassName' },
+      authoredStyles: [{ prop: 'fieldTextStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'value',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: ['hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['aria-disabled', 'data-hozo-disabled'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'TimePicker.period',
+      classProp: 'periodClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPeriodStyle', webClassProp: 'periodClassName' },
+      authoredStyles: [
+        { prop: 'fieldStyle', order: 0 },
+        { prop: 'fieldTextStyle', order: 1 },
+      ],
+      shapes: [
+        {
+          id: 'period',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['disabled', 'data-hozo-disabled'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'TimePicker.step',
+      classProp: 'stepClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoStepStyle', webClassProp: 'stepClassName' },
+      authoredStyles: [{ prop: 'stepStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'step',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: {
+            facts: [
+              'disabled',
+              'data-hozo-step',
+              'data-hozo-step=increase',
+              'data-hozo-step=decrease',
+              'data-hozo-disabled',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
   ],
 }
 
@@ -1482,6 +1611,31 @@ export const ownerPublications = [
   ...datePickerPublications('DatePicker'),
   ...datePickerPublications('DateRangePicker'),
   ...datePickerPublications('DateTimePicker', { includeDone: true }),
+  {
+    owner: 'TimePicker.root',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+  },
+  {
+    owner: 'TimePicker.field',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+  },
+  {
+    owner: 'TimePicker.value',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+  },
+  {
+    owner: 'TimePicker.period',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+  },
+  {
+    owner: 'TimePicker.step',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+  },
 ]
 
 // Pattern components that render their string children inside a `View`: that

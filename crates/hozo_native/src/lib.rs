@@ -104,7 +104,8 @@ use hozo_ir::{
     StyleDeclaration, StyleProperty, SvgElement, TextOverflow, Theme, WhiteSpace,
 };
 pub use owner_style::{
-    lower_owner_style, lower_owner_style_with_inputs, OwnerFact, OwnerStyle, OwnerStyleInputs,
+    lower_owner_style, lower_owner_style_with_inputs, OwnerEvent, OwnerFact, OwnerStyle,
+    OwnerStyleInputs,
 };
 use render::render_node;
 pub use runtime_classes::{
@@ -856,6 +857,7 @@ fn spaced_children(
     let mut pressed_parts: Vec<String> = Vec::new();
     let target = conditions::StyleTarget {
         owner_facts: &[],
+        owner_events: &[],
         node,
         position,
         interaction_context: false,

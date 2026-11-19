@@ -16,6 +16,9 @@ export type OwnerFact =
   | 'data-hozo-range-start'
   | 'data-hozo-range-end'
   | 'data-hozo-in-range'
+  | 'data-hozo-step'
+  | 'data-hozo-step=increase'
+  | 'data-hozo-step=decrease'
 
 export interface OwnerShape {
   id: string
@@ -203,9 +206,16 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
         fail(`${at}.shape event`)
       unique(events, `${at}.shape events`)
       // Only verified host pairs have application evidence.
+      const interactiveViewEvents =
+        shape.webHost === 'div' &&
+        events.length === 3 &&
+        ['hovered', 'focused', 'focusVisible'].every((event) =>
+          events.includes(event as OwnerShape['events'][number]),
+        )
       if (
         shape.nativeHost === 'View' &&
-        (!['div', 'form', 'table'].includes(shape.webHost as string) || events.length !== 0)
+        (!['div', 'form', 'table'].includes(shape.webHost as string) ||
+          (events.length !== 0 && !interactiveViewEvents))
       )
         fail(`${at}.decoration events/host`)
       if (
@@ -249,13 +259,18 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
               'data-hozo-range-start',
               'data-hozo-range-end',
               'data-hozo-in-range',
+              'data-hozo-step',
+              'data-hozo-step=increase',
+              'data-hozo-step=decrease',
             ].includes(fact),
           )
         )
           fail(`${at}.shape input fact`)
         unique(facts, `${at}.shape input facts`)
         // Stateful consumers require the complete existing host snapshot;
-        // stateless split-text Views carry box+text resting styles only.
+        // stateless split-text Views carry box+text resting styles only, and
+        // interactive div/View owners (e.g. spinbutton) carry pointer/focus
+        // without a press responder.
         const pressableReady =
           shape.nativeHost === 'Pressable' &&
           ['pressed', 'hovered', 'focused', 'focusVisible'].every((event) =>
@@ -268,8 +283,13 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
             events.includes(event as OwnerShape['events'][number]),
           )
         const splitTextViewReady =
-          shape.nativeHost === 'View' && supplied.splitText && facts.length === 0
-        if (!pressableReady && !textInputReady && !splitTextViewReady)
+          shape.nativeHost === 'View' &&
+          supplied.splitText &&
+          facts.length === 0 &&
+          events.length === 0
+        const interactiveViewReady =
+          shape.nativeHost === 'View' && supplied.splitText && interactiveViewEvents
+        if (!pressableReady && !textInputReady && !splitTextViewReady && !interactiveViewReady)
           fail(`${at}.shape inputs need the full control snapshot`)
         inputs = { facts, splitText: supplied.splitText }
       }

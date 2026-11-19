@@ -14,7 +14,11 @@ import {
 } from 'react-native'
 
 import { nonControlClassFacts } from './class-facts.native.ts'
-import { type TimeValueClassFacts, timeValueClassConstants } from './owner-facts.native.ts'
+import {
+  type PickerButtonClassFacts,
+  type TimeValueClassFacts,
+  timeValueClassConstants,
+} from './owner-facts.native.ts'
 import { PickerButton } from './picker-button.native.tsx'
 import { hourLabel, minuteLabel, timeLabel, usesTwelveHour } from './time-format.ts'
 import {
@@ -49,6 +53,20 @@ export interface HozoTimePickerProps {
   periodClassName?: string
   /** On each step button, including its increase/decrease data predicates. */
   stepClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoTimePickerStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared field group class contribution (RFC 010). */
+  hozoFieldStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared adjustable value class contribution (RFC 010). */
+  hozoValueStyle?: (state: TimeValueClassFacts) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared period button class contribution (RFC 010). */
+  hozoPeriodStyle?: (
+    state: PickerButtonClassFacts & Readonly<Record<`data-${string}`, boolean>>,
+  ) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared step button class contribution (RFC 010). */
+  hozoStepStyle?: (
+    state: PickerButtonClassFacts & Readonly<Record<`data-${string}`, boolean>>,
+  ) => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   /** @internal Resolved picker ancestry, below this control's own text styles. */
   hozoInheritedTextStyle?: StyleProp<TextStyle>
@@ -117,6 +135,7 @@ function TimePickerValue({
   range,
   disabled,
   className,
+  hozoValueStyle,
   inheritedTextStyle,
   textStyle,
   onAdjust,
@@ -127,22 +146,23 @@ function TimePickerValue({
   range: { min: number; max: number; now?: number }
   disabled: boolean
   className?: string
+  hozoValueStyle?: (state: TimeValueClassFacts) => StyleProp<ViewStyle | TextStyle>
   inheritedTextStyle?: StyleProp<TextStyle>
   textStyle?: StyleProp<TextStyle>
   onAdjust: (direction: 1 | -1) => void
 }) {
   const { state, handlers } = usePressableInteraction({ focusVisible: true })
+  const facts = {
+    ...timeValueClassConstants,
+    hovered: state.hovered,
+    focused: state.focused,
+    focusVisible: state.focusVisible,
+    'aria-disabled': disabled,
+    'data-hozo-disabled': disabled,
+  } satisfies TimeValueClassFacts
   const [box, ownText] = hozoSplitTextStyle(
-    StyleSheet.flatten(
-      hozoClasses(className, {
-        ...timeValueClassConstants,
-        hovered: state.hovered,
-        focused: state.focused,
-        focusVisible: state.focusVisible,
-        'aria-disabled': disabled,
-        'data-hozo-disabled': disabled,
-      } satisfies TimeValueClassFacts),
-    ) ?? {},
+    StyleSheet.flatten(hozoValueStyle ? hozoValueStyle(facts) : hozoClasses(className, facts)) ??
+      {},
   )
   return (
     <View
@@ -223,6 +243,11 @@ export function HozoTimePicker({
   valueClassName,
   periodClassName,
   stepClassName,
+  hozoTimePickerStyle,
+  hozoFieldStyle,
+  hozoValueStyle,
+  hozoPeriodStyle,
+  hozoStepStyle,
   hozoInheritedTextStyle,
   style,
   fieldStyle,
@@ -246,6 +271,16 @@ export function HozoTimePicker({
   decreaseLabel: decreaseLabelProp,
   emptyLabel: emptyLabelProp,
 }: HozoTimePickerProps) {
+  if (hozoTimePickerStyle && className !== undefined)
+    throw new Error('Prepared TimePicker styles must consume className')
+  if (hozoFieldStyle && fieldClassName !== undefined)
+    throw new Error('Prepared TimePicker styles must consume fieldClassName')
+  if (hozoValueStyle && valueClassName !== undefined)
+    throw new Error('Prepared TimePicker styles must consume valueClassName')
+  if (hozoPeriodStyle && periodClassName !== undefined)
+    throw new Error('Prepared TimePicker styles must consume periodClassName')
+  if (hozoStepStyle && stepClassName !== undefined)
+    throw new Error('Prepared TimePicker styles must consume stepClassName')
   // A string from the prop, then the project's i18n, then English;
   // `locale` the same way (decision 008).
   const message = useHozoMessage()
@@ -319,12 +354,14 @@ export function HozoTimePicker({
   }
 
   const [rootBox, rootText] = hozoSplitTextStyle(
-    StyleSheet.flatten([hozoClasses(className, nonControlClassFacts), hozoAuthoredStyle(style)]) ??
-      {},
+    StyleSheet.flatten([
+      hozoTimePickerStyle ? hozoTimePickerStyle() : hozoClasses(className, nonControlClassFacts),
+      hozoAuthoredStyle(style),
+    ]) ?? {},
   )
   const [fieldBox, fieldText] = hozoSplitTextStyle(
     StyleSheet.flatten([
-      hozoClasses(fieldClassName, nonControlClassFacts),
+      hozoFieldStyle ? hozoFieldStyle() : hozoClasses(fieldClassName, nonControlClassFacts),
       hozoAuthoredStyle(fieldStyle),
     ]) ?? {},
   )
@@ -340,6 +377,7 @@ export function HozoTimePicker({
       accessibilityLabel={`${direction === 1 ? increaseLabel : decreaseLabel} ${fieldName(field)}`}
       disabled={disabled}
       className={stepClassName}
+      hozoButtonStyle={hozoStepStyle}
       dataFacts={{
         'data-hozo-step': true,
         'data-hozo-step=increase': direction === 1,
@@ -364,6 +402,7 @@ export function HozoTimePicker({
         range={rangeOf(name)}
         disabled={disabled}
         className={valueClassName}
+        hozoValueStyle={hozoValueStyle}
         inheritedTextStyle={fieldLabelStyle}
         textStyle={fieldTextStyle}
         onAdjust={(direction) => stepBy(name, direction)}
@@ -394,6 +433,7 @@ export function HozoTimePicker({
           disabled={disabled}
           dataFacts={{ 'data-hozo-disabled': disabled }}
           className={periodClassName}
+          hozoButtonStyle={hozoPeriodStyle}
           style={periodBox as ViewStyle}
           inheritedTextStyle={rootLabelStyle}
           textStyle={[periodTextStyle as TextStyle, fieldTextStyle]}

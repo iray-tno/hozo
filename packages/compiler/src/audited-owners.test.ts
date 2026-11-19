@@ -263,3 +263,32 @@ export function Screen() {
   assert.match(lowered.code, /doneClassName=\{"hozo-owner-/)
   assert.match(lowered.css, /\[aria-expanded="true"\]/)
 })
+
+test('ordinary Web lowering compiles TimePicker literals across all five slots', () => {
+  const compiler = createCompiler()
+  const source = `import { TimePicker } from '@hozo/form'
+export function Screen() {
+  return (
+    <TimePicker
+      hour12
+      className="p-1 text-[#112233]"
+      fieldClassName="p-2"
+      valueClassName="px-2 hover:bg-[#101010] focus:bg-[#202020] focus-visible:bg-[#303030] aria-disabled:opacity-50 data-[hozo-disabled]:text-[#404040]"
+      periodClassName="p-2 disabled:opacity-50 data-[hozo-disabled]:bg-[#505050]"
+      stepClassName="p-1 data-[hozo-step]:opacity-90 data-[hozo-step=increase]:bg-[#606060] data-[hozo-step=decrease]:bg-[#707070] disabled:opacity-40"
+    />
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /className="p-1 text-\[#112233\]"/)
+  assert.doesNotMatch(lowered.code, /fieldClassName="p-2"/)
+  assert.doesNotMatch(lowered.code, /valueClassName="px-2/)
+  assert.doesNotMatch(lowered.code, /periodClassName="p-2/)
+  assert.doesNotMatch(lowered.code, /stepClassName="p-1/)
+  assert.match(lowered.code, /valueClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /stepClassName=\{"hozo-owner-/)
+  assert.match(lowered.css, /\[data-hozo-step="increase"\]/)
+  assert.match(lowered.css, /\[data-hozo-step="decrease"\]/)
+})

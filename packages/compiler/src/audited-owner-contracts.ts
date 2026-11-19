@@ -302,4 +302,39 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     shadow:
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateTimePicker.done","classProp":"doneClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDoneStyle","webClassProp":"doneClassName"},"authoredStyles":[{"prop":"doneStyle","order":0},{"prop":"doneTextStyle","order":1}],"shapes":[{"id":"done","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":[],"splitText":true}}]}]}',
   },
+  {
+    owner: 'TimePicker.root',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TimePicker.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTimePickerStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'TimePicker.field',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TimePicker.field","classProp":"fieldClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoFieldStyle","webClassProp":"fieldClassName"},"authoredStyles":[{"prop":"fieldStyle","order":0}],"shapes":[{"id":"field","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'TimePicker.value',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TimePicker.value","classProp":"valueClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoValueStyle","webClassProp":"valueClassName"},"authoredStyles":[{"prop":"fieldTextStyle","order":0}],"shapes":[{"id":"value","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":["hovered","focused","focusVisible"],"inputs":{"facts":["aria-disabled","data-hozo-disabled"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'TimePicker.period',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TimePicker.period","classProp":"periodClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPeriodStyle","webClassProp":"periodClassName"},"authoredStyles":[{"prop":"fieldStyle","order":0},{"prop":"fieldTextStyle","order":1}],"shapes":[{"id":"period","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","data-hozo-disabled"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'TimePicker.step',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TimePicker.step","classProp":"stepClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoStepStyle","webClassProp":"stepClassName"},"authoredStyles":[{"prop":"stepStyle","order":0}],"shapes":[{"id":"step","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","data-hozo-step","data-hozo-step=increase","data-hozo-step=decrease","data-hozo-disabled"],"splitText":true}}]}]}',
+  },
 ]

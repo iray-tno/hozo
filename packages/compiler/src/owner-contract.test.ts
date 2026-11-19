@@ -222,6 +222,72 @@ test('DatePicker, DateRangePicker and DateTimePicker contracts declare aria-expa
   assert.equal(done.audit, 'audited')
   assert.deepEqual(done.shapes[0]!.inputs, { facts: [], splitText: true })
 })
+test('TimePicker contracts declare interactive spinbutton View and data-hozo-step buttons', () => {
+  const root = parsed().contracts.find((row) => row.owner === 'TimePicker.root')!
+  assert.equal(root.audit, 'audited')
+  assert.deepEqual(root.abi, {
+    nativePreparedProp: 'hozoTimePickerStyle',
+    webClassProp: 'className',
+  })
+  assert.deepEqual(root.shapes[0]!.inputs, { facts: [], splitText: true })
+  const field = parsed().contracts.find((row) => row.owner === 'TimePicker.field')!
+  assert.equal(field.audit, 'audited')
+  assert.deepEqual(field.abi, {
+    nativePreparedProp: 'hozoFieldStyle',
+    webClassProp: 'fieldClassName',
+  })
+  const value = parsed().contracts.find((row) => row.owner === 'TimePicker.value')!
+  assert.equal(value.audit, 'audited')
+  assert.deepEqual(value.abi, {
+    nativePreparedProp: 'hozoValueStyle',
+    webClassProp: 'valueClassName',
+  })
+  assert.deepEqual(value.authoredStyles, [{ prop: 'fieldTextStyle', order: 0 }])
+  assert.deepEqual(value.shapes, [
+    {
+      id: 'value',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: ['hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['aria-disabled', 'data-hozo-disabled'], splitText: true },
+    },
+  ])
+  const period = parsed().contracts.find((row) => row.owner === 'TimePicker.period')!
+  assert.equal(period.audit, 'audited')
+  assert.deepEqual(period.authoredStyles, [
+    { prop: 'fieldStyle', order: 0 },
+    { prop: 'fieldTextStyle', order: 1 },
+  ])
+  assert.deepEqual(period.shapes[0]!.inputs, {
+    facts: ['disabled', 'data-hozo-disabled'],
+    splitText: true,
+  })
+  const step = parsed().contracts.find((row) => row.owner === 'TimePicker.step')!
+  assert.equal(step.audit, 'audited')
+  assert.deepEqual(step.shapes[0]!.inputs, {
+    facts: [
+      'disabled',
+      'data-hozo-step',
+      'data-hozo-step=increase',
+      'data-hozo-step=decrease',
+      'data-hozo-disabled',
+    ],
+    splitText: true,
+  })
+  rejects((doc) => {
+    const entry = doc.contracts.find((row) => row.owner === 'TimePicker.value')!
+    entry.shapes[0]!.events.push('pressed')
+  }, /decoration events\/host/)
+  rejects((doc) => {
+    const entry = doc.contracts.find((row) => row.owner === 'TimePicker.value')!
+    entry.shapes[0]!.webHost = 'table'
+  }, /decoration events\/host/)
+  rejects((doc) => {
+    const entry = doc.contracts.find((row) => row.owner === 'TimePicker.value')!
+    entry.shapes[0]!.inputs!.splitText = false
+  }, /full control snapshot/)
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

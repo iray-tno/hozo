@@ -30,6 +30,7 @@ import {
   NativeSelect,
   SubmitButton,
   TextArea,
+  TimePicker,
 } from '@hozo/form'
 import { Chip } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
@@ -6949,6 +6950,422 @@ export function Screen({ open = false, disabled = false }) {
         }
       })
       const nativeStyle = flat(nativeElements.DateTimePicker.hozoDoneStyle(facts))
+      assert.deepEqual(
+        {
+          paddingTop: nativeStyle.paddingTop,
+          backgroundColor: hexToRgb(nativeStyle.backgroundColor),
+          color: hexToRgb(nativeStyle.color),
+        },
+        webStyle,
+        label,
+      )
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('TimePicker delivers markers across all five hosts and matches Chromium vs Native prepared states (#2045)', async () => {
+  const compiler = createCompiler()
+  const source = `import { TimePicker } from '@hozo/form'
+export function Screen({ disabled = false }: { disabled?: boolean }) {
+  return (
+    <div id="wrap">
+      <TimePicker
+        hour12
+        locale="en-US"
+        value={{ hour: 9, minute: 30 }}
+        disabled={disabled}
+        className="pt-2 text-[#112233]"
+        fieldClassName="pt-3 text-[#223344]"
+        valueClassName="pt-4 bg-[#101010] text-[#f0f0f0] hover:bg-[#1a1a1a] focus:bg-[#2a2a2a] focus-visible:bg-[#3a3a3a] aria-disabled:bg-[#4a4a4a] data-[hozo-disabled]:text-[#5a5a5a]"
+        periodClassName="pt-5 bg-[#606060] text-[#ffffff] hover:bg-[#6a6a6a] active:bg-[#707070] focus-visible:bg-[#7a7a7a] disabled:bg-[#808080] data-[hozo-disabled]:text-[#8a8a8a]"
+        stepClassName="pt-1 bg-[#202020] text-[#eeeeee] data-[hozo-step=increase]:bg-[#224466] data-[hozo-step=decrease]:bg-[#664422] hover:bg-[#335577] active:bg-[#446688] disabled:bg-[#909090] data-[hozo-disabled]:text-[#9a9a9a]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/form') return { TimePicker }
+      if (id === 'react') return { createElement }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'TimePicker') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/form') return { TimePicker: 'TimePicker' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({})
+  assert.ok(nativeProps?.hozoTimePickerStyle)
+  assert.ok(nativeProps?.hozoFieldStyle)
+  assert.ok(nativeProps?.hozoValueStyle)
+  assert.ok(nativeProps?.hozoPeriodStyle)
+  assert.ok(nativeProps?.hozoStepStyle)
+
+  const flat = (style) =>
+    Object.assign(
+      {},
+      ...(Array.isArray(style) ? style.flat(Infinity) : [style]).filter(
+        (entry) => entry && typeof entry === 'object',
+      ),
+    )
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+
+  const page = await browser.newPage()
+  try {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+
+    const enabledHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { disabled: false }),
+    )
+    const disabledHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { disabled: true }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${enabledHtml}`)
+
+    const containerMarkers = await page.evaluate(() => {
+      const root = document.querySelector('#wrap > [role="group"]')
+      const field = root.querySelector('[data-hozo-field="hour"]')
+      return {
+        rootPaddingTop: parseFloat(getComputedStyle(root).paddingTop),
+        rootColor: getComputedStyle(root).color,
+        fieldPaddingTop: parseFloat(getComputedStyle(field).paddingTop),
+        fieldColor: getComputedStyle(field).color,
+      }
+    })
+    const nativeRoot = flat(nativeProps.hozoTimePickerStyle())
+    const nativeField = flat(nativeProps.hozoFieldStyle())
+    assert.deepEqual(containerMarkers, {
+      rootPaddingTop: nativeRoot.paddingTop,
+      rootColor: hexToRgb(nativeRoot.color),
+      fieldPaddingTop: nativeField.paddingTop,
+      fieldColor: hexToRgb(nativeField.color),
+    })
+
+    // TimePicker.value (interactive div/View spinbutton: hover, focus, focus-visible, aria-disabled, data-hozo-disabled)
+    for (const [label, html, pseudo, facts] of [
+      [
+        'value/rest',
+        enabledHtml,
+        [],
+        {
+          hovered: false,
+          focused: false,
+          focusVisible: false,
+          'aria-disabled': false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'value/hover',
+        enabledHtml,
+        ['hover'],
+        {
+          hovered: true,
+          focused: false,
+          focusVisible: false,
+          'aria-disabled': false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'value/focus',
+        enabledHtml,
+        ['focus'],
+        {
+          hovered: false,
+          focused: true,
+          focusVisible: false,
+          'aria-disabled': false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'value/focus-visible',
+        enabledHtml,
+        ['focus', 'focus-visible'],
+        {
+          hovered: false,
+          focused: true,
+          focusVisible: true,
+          'aria-disabled': false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'value/disabled',
+        disabledHtml,
+        [],
+        {
+          hovered: false,
+          focused: false,
+          focusVisible: false,
+          'aria-disabled': true,
+          'data-hozo-disabled': true,
+        },
+      ],
+    ]) {
+      await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+      const selector = '#wrap [data-hozo-field="hour"] [role="spinbutton"]'
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })
+      if (pseudo.length)
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: pseudo })
+      const webStyle = await page.locator(selector).evaluate((el) => {
+        const cs = getComputedStyle(el)
+        return {
+          paddingTop: parseFloat(cs.paddingTop),
+          backgroundColor: cs.backgroundColor,
+          color: cs.color,
+        }
+      })
+      const nativeStyle = flat(nativeProps.hozoValueStyle(facts))
+      assert.deepEqual(
+        {
+          paddingTop: nativeStyle.paddingTop,
+          backgroundColor: hexToRgb(nativeStyle.backgroundColor),
+          color: hexToRgb(nativeStyle.color),
+        },
+        webStyle,
+        label,
+      )
+    }
+
+    // TimePicker.period
+    for (const [label, html, pseudo, facts] of [
+      [
+        'period/rest',
+        enabledHtml,
+        [],
+        {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'period/hover',
+        enabledHtml,
+        ['hover'],
+        {
+          hovered: true,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'period/active',
+        enabledHtml,
+        ['active'],
+        {
+          hovered: false,
+          pressed: true,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'period/focus-visible',
+        enabledHtml,
+        ['focus', 'focus-visible'],
+        {
+          hovered: false,
+          pressed: false,
+          focused: true,
+          focusVisible: true,
+          disabled: false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'period/disabled',
+        disabledHtml,
+        [],
+        {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: true,
+          'data-hozo-disabled': true,
+        },
+      ],
+    ]) {
+      await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+      const selector = '#wrap > [role="group"] > button[type="button"]'
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })
+      if (pseudo.length)
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: pseudo })
+      const webStyle = await page.locator(selector).evaluate((el) => {
+        const cs = getComputedStyle(el)
+        return {
+          paddingTop: parseFloat(cs.paddingTop),
+          backgroundColor: cs.backgroundColor,
+          color: cs.color,
+        }
+      })
+      const nativeStyle = flat(nativeProps.hozoPeriodStyle(facts))
+      assert.deepEqual(
+        {
+          paddingTop: nativeStyle.paddingTop,
+          backgroundColor: hexToRgb(nativeStyle.backgroundColor),
+          color: hexToRgb(nativeStyle.color),
+        },
+        webStyle,
+        label,
+      )
+    }
+
+    // TimePicker.step (increase, decrease, hover, active, disabled)
+    for (const [label, html, selector, pseudo, facts] of [
+      [
+        'step/increase',
+        enabledHtml,
+        '#wrap [data-hozo-field="hour"] button[data-hozo-step="increase"]',
+        [],
+        {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'data-hozo-step': true,
+          'data-hozo-step=increase': true,
+          'data-hozo-step=decrease': false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'step/decrease',
+        enabledHtml,
+        '#wrap [data-hozo-field="hour"] button[data-hozo-step="decrease"]',
+        [],
+        {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'data-hozo-step': true,
+          'data-hozo-step=increase': false,
+          'data-hozo-step=decrease': true,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'step/hover',
+        enabledHtml,
+        '#wrap [data-hozo-field="hour"] button[data-hozo-step="increase"]',
+        ['hover'],
+        {
+          hovered: true,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'data-hozo-step': true,
+          'data-hozo-step=increase': true,
+          'data-hozo-step=decrease': false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'step/active',
+        enabledHtml,
+        '#wrap [data-hozo-field="hour"] button[data-hozo-step="increase"]',
+        ['active'],
+        {
+          hovered: false,
+          pressed: true,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'data-hozo-step': true,
+          'data-hozo-step=increase': true,
+          'data-hozo-step=decrease': false,
+          'data-hozo-disabled': false,
+        },
+      ],
+      [
+        'step/disabled',
+        disabledHtml,
+        '#wrap [data-hozo-field="hour"] button[data-hozo-step="increase"]',
+        [],
+        {
+          hovered: false,
+          pressed: false,
+          focused: false,
+          focusVisible: false,
+          disabled: true,
+          'data-hozo-step': true,
+          'data-hozo-step=increase': true,
+          'data-hozo-step=decrease': false,
+          'data-hozo-disabled': true,
+        },
+      ],
+    ]) {
+      await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+      const { root } = await cdp.send('DOM.getDocument')
+      const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector })
+      if (pseudo.length)
+        await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: pseudo })
+      const webStyle = await page.locator(selector).evaluate((el) => {
+        const cs = getComputedStyle(el)
+        return {
+          paddingTop: parseFloat(cs.paddingTop),
+          backgroundColor: cs.backgroundColor,
+          color: cs.color,
+        }
+      })
+      const nativeStyle = flat(nativeProps.hozoStepStyle(facts))
       assert.deepEqual(
         {
           paddingTop: nativeStyle.paddingTop,

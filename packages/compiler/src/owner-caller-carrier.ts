@@ -43,6 +43,8 @@ export function nativeOwnerCarrier(
     !!root?.ownerStyle &&
     (root.ownerStyle.splitText ?? false) === (shape.inputs?.splitText ?? false) &&
     JSON.stringify(root.ownerStyle.facts ?? []) === JSON.stringify(shape.inputs?.facts ?? []) &&
+    JSON.stringify(root.ownerStyle.events ?? []) ===
+      JSON.stringify(shape.nativeHost === 'View' && shape.events.length > 0 ? shape.events : []) &&
     (stateful ||
       (root.ownerStyle.literalResting &&
         !root.ownerStyle.callback &&

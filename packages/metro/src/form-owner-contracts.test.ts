@@ -919,3 +919,113 @@ export function Screen() {
     )
   }
 })
+
+test('Native TimePicker delivers prepared styles across all five slots without calling hozoClasses (#2045)', () => {
+  const compiler = createCompiler()
+  const source = `import { TimePicker } from '@hozo/form'
+export function Screen({ disabled = false }: { disabled?: boolean }) {
+  return (
+    <TimePicker
+      hour12
+      locale="en-US"
+      value={{ hour: 9, minute: 30 }}
+      disabled={disabled}
+      className="pt-2 text-[#112233]"
+      fieldClassName="pt-3 text-[#223344]"
+      valueClassName="pt-4 bg-[#101010] hover:bg-[#151515] focus:bg-[#181818] focus-visible:bg-[#1a1a1a] aria-disabled:bg-[#202020] data-[hozo-disabled]:text-[#303030]"
+      periodClassName="pt-5 bg-[#404040] disabled:bg-[#454545] data-[hozo-disabled]:text-[#4a4a4a]"
+      stepClassName="pt-6 bg-[#505050] data-[hozo-step=increase]:bg-[#606060] data-[hozo-step=decrease]:bg-[#707070] data-[hozo-disabled]:bg-[#808080]"
+    />
+  )
+}
+export function ActiveFallback() {
+  return <TimePicker valueClassName="pt-1 active:bg-[#999999]" />
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoTimePickerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoFieldStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoValueStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPeriodStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoStepStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  // `active:` on TimePicker.value has no press responder on Native; it stays retained.
+  assert.match(transformed, /valueClassName="pt-1 active:bg-\[#999999\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 99 }
+  }
+  const timePickerMod = loadNativeFormModule('time-picker.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = {
+    exports: {} as { Screen: React.ComponentType<{ disabled?: boolean }> },
+  }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/form') return { TimePicker: timePickerMod.exports.TimePicker }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { disabled: false }))
+  assert.equal(classResolverCalls, 0, 'prepared TimePicker literals must never call hozoClasses')
+
+  const enabledViews = timePickerMod.captured.filter((entry) => entry.host === 'View')
+  // Root, hour field, hour value, minute field, minute value
+  assert.equal(flattenStyle(enabledViews[0]!.props.style).paddingTop, 8)
+  assert.equal(flattenStyle(enabledViews[1]!.props.style).paddingTop, 12)
+  assert.equal(flattenStyle(enabledViews[2]!.props.style).paddingTop, 16)
+  assert.equal(flattenStyle(enabledViews[2]!.props.style).backgroundColor, '#101010')
+
+  const enabledPressables = timePickerMod.captured.filter((entry) => entry.host === 'Pressable')
+  // 0: increase hour, 1: decrease hour, 2: increase minute, 3: decrease minute, 4: period
+  assert.equal(flattenStyle(enabledPressables[0]!.props.style).backgroundColor, '#606060')
+  assert.equal(flattenStyle(enabledPressables[1]!.props.style).backgroundColor, '#707070')
+  assert.equal(flattenStyle(enabledPressables[4]!.props.style).backgroundColor, '#404040')
+
+  timePickerMod.captured.length = 0
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { disabled: true }))
+  assert.equal(classResolverCalls, 0, 'disabled prepared TimePicker must never call hozoClasses')
+
+  const disabledViews = timePickerMod.captured.filter((entry) => entry.host === 'View')
+  assert.equal(flattenStyle(disabledViews[2]!.props.style).backgroundColor, '#202020')
+  const disabledPressables = timePickerMod.captured.filter((entry) => entry.host === 'Pressable')
+  assert.equal(flattenStyle(disabledPressables[0]!.props.style).backgroundColor, '#808080')
+  assert.equal(flattenStyle(disabledPressables[4]!.props.style).backgroundColor, '#454545')
+
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoTimePickerStyle'],
+    ['fieldClassName', 'hozoFieldStyle'],
+    ['valueClassName', 'hozoValueStyle'],
+    ['periodClassName', 'hozoPeriodStyle'],
+    ['stepClassName', 'hozoStepStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            timePickerMod.exports.TimePicker as React.ComponentType<Record<string, unknown>>,
+            { [classProp]: 'pt-2', [preparedProp]: () => ({}) },
+          ),
+        ),
+      new RegExp(`Prepared TimePicker styles must consume ${classProp}`),
+    )
+  }
+})

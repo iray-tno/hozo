@@ -745,6 +745,7 @@ pub struct NativeCompileOptions {
     pub source_evidence: Option<bool>,
     pub owner_style: Option<bool>,
     pub owner_facts: Option<Vec<String>>,
+    pub owner_events: Option<Vec<String>>,
     pub owner_text: Option<String>,
     pub text_reference: Option<bool>,
     /// Decision 013's route, which Metro selects by default.
@@ -777,6 +778,9 @@ impl NativeCompileOptions {
                 "data-hozo-range-start" => hozo_native::OwnerFact::DataHozoRangeStart,
                 "data-hozo-range-end" => hozo_native::OwnerFact::DataHozoRangeEnd,
                 "data-hozo-in-range" => hozo_native::OwnerFact::DataHozoInRange,
+                "data-hozo-step" => hozo_native::OwnerFact::DataHozoStep,
+                "data-hozo-step=increase" => hozo_native::OwnerFact::DataHozoStepIncrease,
+                "data-hozo-step=decrease" => hozo_native::OwnerFact::DataHozoStepDecrease,
                 _ => {
                     return Err(napi::Error::from_reason(format!(
                         "Unsupported owner fact: {key}"
@@ -793,6 +797,38 @@ impl NativeCompileOptions {
         Ok(facts)
     }
 
+    fn owner_events(&self) -> napi::Result<Vec<hozo_native::OwnerEvent>> {
+        let Some(keys) = &self.owner_events else {
+            return Ok(Vec::new());
+        };
+        if !self.owner_style.unwrap_or(false) {
+            return Err(napi::Error::from_reason(
+                "Internal ownerEvents requires ownerStyle",
+            ));
+        }
+        let mut events = Vec::new();
+        for key in keys {
+            let event = match key.as_str() {
+                "pressed" => hozo_native::OwnerEvent::Pressed,
+                "hovered" => hozo_native::OwnerEvent::Hovered,
+                "focused" => hozo_native::OwnerEvent::Focused,
+                "focusVisible" => hozo_native::OwnerEvent::FocusVisible,
+                _ => {
+                    return Err(napi::Error::from_reason(format!(
+                        "Unsupported owner event: {key}"
+                    )))
+                }
+            };
+            if events.contains(&event) {
+                return Err(napi::Error::from_reason(format!(
+                    "Duplicate owner event: {key}"
+                )));
+            }
+            events.push(event);
+        }
+        Ok(events)
+    }
+
     fn validate_owner_style(&self) -> napi::Result<()> {
         if self.source_evidence.unwrap_or(false)
             && (self.owner_style.unwrap_or(false) || self.text_reference.unwrap_or(false))
@@ -802,6 +838,7 @@ impl NativeCompileOptions {
             ));
         }
         self.owner_facts()?;
+        self.owner_events()?;
         if let Some(target) = &self.owner_text {
             if target != "split" || !self.owner_style.unwrap_or(false) {
                 return Err(napi::Error::from_reason(
@@ -968,6 +1005,7 @@ impl Compiler {
                 source_file: source_file.as_deref(),
                 source_evidence: options.source_evidence.unwrap_or(false),
                 owner_facts: options.owner_facts()?,
+                owner_events: options.owner_events()?,
                 owner_split_text: options.owner_text.is_some(),
                 text_reference: options.text_reference.unwrap_or(false),
                 owner_style: options.owner_style.unwrap_or(false),
@@ -1398,6 +1436,7 @@ pub struct CompiledOwnerStyle {
     pub split_text: Option<bool>,
     /// Declared callback inputs, not owner identity or an audit verdict.
     pub facts: Option<Vec<String>>,
+    pub events: Option<Vec<String>>,
     pub literal_resting: bool,
     pub expression: String,
     pub callback: bool,
@@ -1734,6 +1773,7 @@ struct NativeModuleOptions<'a> {
     source_evidence: bool,
     owner_style: bool,
     owner_facts: Vec<hozo_native::OwnerFact>,
+    owner_events: Vec<hozo_native::OwnerEvent>,
     owner_split_text: bool,
     source_file: Option<&'a str>,
     text_reference: bool,
@@ -1878,6 +1918,7 @@ fn lower_native_components(
                     theme,
                     hozo_native::OwnerStyleInputs {
                         facts: &options.owner_facts,
+                        events: &options.owner_events,
                         split_text: options.owner_split_text,
                     },
                 );
@@ -1888,6 +1929,13 @@ fn lower_native_components(
                             .facts
                             .iter()
                             .map(|fact| fact.key().to_string())
+                            .collect()
+                    }),
+                    events: (!style.events.is_empty()).then(|| {
+                        style
+                            .events
+                            .iter()
+                            .map(|event| event.key().to_string())
                             .collect()
                     }),
                     literal_resting: style.literal_resting,
