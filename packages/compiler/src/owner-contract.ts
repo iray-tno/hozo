@@ -3,13 +3,28 @@
 export const OWNER_SHADOW_VERSION = 'rfc010-owner-shadow-0'
 
 type Gate = { eq: [string, boolean] } | { all: Gate[] } | { any: Gate[] }
-type OwnerFact = 'disabled' | 'aria-selected' | 'aria-disabled'
+export type OwnerFact =
+  | 'disabled'
+  | 'readOnly'
+  | 'aria-selected'
+  | 'aria-disabled'
+  | 'aria-invalid'
+  | 'aria-required'
+  | 'aria-expanded'
+  | 'data-hozo-outside'
+  | 'data-hozo-disabled'
+  | 'data-hozo-range-start'
+  | 'data-hozo-range-end'
+  | 'data-hozo-in-range'
+  | 'data-hozo-step'
+  | 'data-hozo-step=increase'
+  | 'data-hozo-step=decrease'
 
 export interface OwnerShape {
   id: string
   when: Gate
-  nativeHost: 'Pressable' | 'View'
-  webHost: 'button' | 'div' | 'form'
+  nativeHost: 'Pressable' | 'View' | 'Text' | 'TextInput'
+  webHost: 'button' | 'div' | 'form' | 'label' | 'span' | 'textarea' | 'select' | 'table' | 'td'
   events: ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
   /** Explicit preparation inputs, not inferred from a synthetic host. */
   inputs?: { facts: OwnerFact[]; splitText: boolean }
@@ -145,21 +160,21 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
         fail(`${at}.abi native partial carrier collision`)
       nativePartial = { prop, shape }
     }
-    const authoredStyles = list(contract.authoredStyles, 16, `${at}.authoredStyles`).map(
-      (value) => {
-        const author = object(value, ['prop', 'order'], `${at}.author`)
-        const prop = identifier(author.prop, `${at}.author.prop`)
-        if (
-          prop === nativePreparedProp ||
-          prop === contract.classProp ||
-          prop === nativePartial?.prop
-        )
-          fail(`${at}.author carrier collision`)
-        if (!Number.isSafeInteger(author.order) || (author.order as number) < 0)
-          fail(`${at}.author.order`)
-        return { prop, order: author.order as number }
-      },
-    )
+    if (!Array.isArray(contract.authoredStyles) || contract.authoredStyles.length > 16)
+      fail(`${at}.authoredStyles`)
+    const authoredStyles = contract.authoredStyles.map((value) => {
+      const author = object(value, ['prop', 'order'], `${at}.author`)
+      const prop = identifier(author.prop, `${at}.author.prop`)
+      if (
+        prop === nativePreparedProp ||
+        prop === contract.classProp ||
+        prop === nativePartial?.prop
+      )
+        fail(`${at}.author carrier collision`)
+      if (!Number.isSafeInteger(author.order) || (author.order as number) < 0)
+        fail(`${at}.author.order`)
+      return { prop, order: author.order as number }
+    })
     unique(
       authoredStyles.map((author) => author.prop),
       `${at}.authors`,
@@ -177,8 +192,10 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       )
       const id = identifier(shape.id, `${at}.shape.id`)
       if (
-        !['Pressable', 'View'].includes(shape.nativeHost as string) ||
-        !['button', 'div', 'form'].includes(shape.webHost as string)
+        !['Pressable', 'View', 'Text', 'TextInput'].includes(shape.nativeHost as string) ||
+        !['button', 'div', 'form', 'label', 'span', 'textarea', 'select', 'table', 'td'].includes(
+          shape.webHost as string,
+        )
       )
         fail(`${at}.shape host`)
       if (!Array.isArray(shape.events) || shape.events.length > 4) fail(`${at}.shape events`)
@@ -189,34 +206,90 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
         fail(`${at}.shape event`)
       unique(events, `${at}.shape events`)
       // Only verified host pairs have application evidence.
+      const interactiveViewEvents =
+        shape.webHost === 'div' &&
+        events.length === 3 &&
+        ['hovered', 'focused', 'focusVisible'].every((event) =>
+          events.includes(event as OwnerShape['events'][number]),
+        )
       if (
         shape.nativeHost === 'View' &&
-        (!['div', 'form'].includes(shape.webHost as string) || events.length !== 0)
+        (!['div', 'form', 'table'].includes(shape.webHost as string) ||
+          (events.length !== 0 && !interactiveViewEvents))
       )
         fail(`${at}.decoration events/host`)
-      if (shape.nativeHost === 'Pressable' && shape.webHost !== 'button') fail(`${at}.control host`)
+      if (
+        shape.nativeHost === 'Text' &&
+        (!['label', 'span'].includes(shape.webHost as string) || events.length !== 0)
+      )
+        fail(`${at}.text events/host`)
+      if (
+        shape.nativeHost === 'Pressable' &&
+        !['button', 'select', 'td'].includes(shape.webHost as string)
+      )
+        fail(`${at}.control host`)
+      if (
+        shape.nativeHost === 'TextInput' &&
+        (shape.webHost !== 'textarea' ||
+          !events.every((event) => ['focused', 'focusVisible'].includes(event)))
+      )
+        fail(`${at}.input events/host`)
       let inputs: OwnerShape['inputs']
       if (Object.hasOwn(shape, 'inputs')) {
         const supplied = object(shape.inputs, ['facts', 'splitText'], `${at}.shape inputs`)
         if (
           !Array.isArray(supplied.facts) ||
-          supplied.facts.length > 3 ||
+          supplied.facts.length > 12 ||
           typeof supplied.splitText !== 'boolean'
         )
           fail(`${at}.shape inputs values`)
         const facts = supplied.facts as OwnerFact[]
-        if (!facts.every((fact) => ['disabled', 'aria-selected', 'aria-disabled'].includes(fact)))
-          fail(`${at}.shape input fact`)
-        unique(facts, `${at}.shape input facts`)
-        // This first stateful consumer requires the complete existing snapshot.
-        // Partial event owners need backend requirement metadata, not JSX text
-        // inspection or borrowing a surrounding component's event state.
         if (
-          shape.nativeHost !== 'Pressable' ||
-          !['pressed', 'hovered', 'focused', 'focusVisible'].every((event) =>
-            events.includes(event as OwnerShape['events'][number]),
+          !facts.every((fact) =>
+            [
+              'disabled',
+              'readOnly',
+              'aria-selected',
+              'aria-disabled',
+              'aria-invalid',
+              'aria-required',
+              'aria-expanded',
+              'data-hozo-outside',
+              'data-hozo-disabled',
+              'data-hozo-range-start',
+              'data-hozo-range-end',
+              'data-hozo-in-range',
+              'data-hozo-step',
+              'data-hozo-step=increase',
+              'data-hozo-step=decrease',
+            ].includes(fact),
           )
         )
+          fail(`${at}.shape input fact`)
+        unique(facts, `${at}.shape input facts`)
+        // Stateful consumers require the complete existing host snapshot;
+        // stateless split-text Views carry box+text resting styles only, and
+        // interactive div/View owners (e.g. spinbutton) carry pointer/focus
+        // without a press responder.
+        const pressableReady =
+          shape.nativeHost === 'Pressable' &&
+          ['pressed', 'hovered', 'focused', 'focusVisible'].every((event) =>
+            events.includes(event as OwnerShape['events'][number]),
+          )
+        const textInputReady =
+          shape.nativeHost === 'TextInput' &&
+          !supplied.splitText &&
+          ['focused', 'focusVisible'].every((event) =>
+            events.includes(event as OwnerShape['events'][number]),
+          )
+        const splitTextViewReady =
+          shape.nativeHost === 'View' &&
+          supplied.splitText &&
+          facts.length === 0 &&
+          events.length === 0
+        const interactiveViewReady =
+          shape.nativeHost === 'View' && supplied.splitText && interactiveViewEvents
+        if (!pressableReady && !textInputReady && !splitTextViewReady && !interactiveViewReady)
           fail(`${at}.shape inputs need the full control snapshot`)
         inputs = { facts, splitText: supplied.splitText }
       }

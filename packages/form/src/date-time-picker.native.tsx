@@ -28,6 +28,11 @@ import {
   timeOf,
   withTime,
 } from './date-time-rules.ts'
+import type {
+  CalendarDayClassFacts,
+  FormButtonClassFacts,
+  PickerButtonClassFacts,
+} from './owner-facts.native.ts'
 import { PickerButton } from './picker-button.native.tsx'
 import { HozoTimePicker } from './time-picker.native.tsx'
 import type { CalendarTime } from './time-rules.ts'
@@ -69,6 +74,24 @@ export interface HozoDateTimePickerProps {
   gridClassName?: string
   monthButtonClassName?: string
   doneClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoDateTimePickerStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared trigger class contribution (RFC 010). */
+  hozoTriggerStyle?: (state: PickerButtonClassFacts) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared dialog class contribution (RFC 010). */
+  hozoDialogStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared calendar root class contribution (RFC 010). */
+  hozoCalendarStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared calendar header class contribution (RFC 010). */
+  hozoHeaderStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared calendar grid class contribution (RFC 010). */
+  hozoGridStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared calendar month button class contribution (RFC 010). */
+  hozoMonthButtonStyle?: (state: FormButtonClassFacts) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared calendar day cell class contribution (RFC 010). */
+  hozoDayStyle?: (state: CalendarDayClassFacts) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared done button class contribution (RFC 010). */
+  hozoDoneStyle?: (state: PickerButtonClassFacts) => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   triggerStyle?: StyleProp<ViewStyle>
   triggerTextStyle?: StyleProp<TextStyle>
@@ -168,6 +191,15 @@ export function HozoDateTimePicker({
   gridClassName,
   monthButtonClassName,
   dayClassName,
+  hozoDateTimePickerStyle,
+  hozoTriggerStyle,
+  hozoDialogStyle,
+  hozoCalendarStyle,
+  hozoHeaderStyle,
+  hozoGridStyle,
+  hozoMonthButtonStyle,
+  hozoDayStyle,
+  hozoDoneStyle,
   value,
   onChange,
   defaultOpen = false,
@@ -194,6 +226,24 @@ export function HozoDateTimePicker({
   renderDay,
   children,
 }: HozoDateTimePickerProps) {
+  if (hozoDateTimePickerStyle && className !== undefined)
+    throw new Error('Prepared DateTimePicker styles must consume className')
+  if (hozoTriggerStyle && triggerClassName !== undefined)
+    throw new Error('Prepared DateTimePicker styles must consume triggerClassName')
+  if (hozoDialogStyle && dialogClassName !== undefined)
+    throw new Error('Prepared DateTimePicker styles must consume dialogClassName')
+  if (hozoCalendarStyle && calendarClassName !== undefined)
+    throw new Error('Prepared DateTimePicker styles must consume calendarClassName')
+  if (hozoHeaderStyle && headerClassName !== undefined)
+    throw new Error('Prepared DateTimePicker styles must consume headerClassName')
+  if (hozoGridStyle && gridClassName !== undefined)
+    throw new Error('Prepared DateTimePicker styles must consume gridClassName')
+  if (hozoMonthButtonStyle && monthButtonClassName !== undefined)
+    throw new Error('Prepared DateTimePicker styles must consume monthButtonClassName')
+  if (hozoDayStyle && dayClassName !== undefined)
+    throw new Error('Prepared DateTimePicker styles must consume dayClassName')
+  if (hozoDoneStyle && doneClassName !== undefined)
+    throw new Error('Prepared DateTimePicker styles must consume doneClassName')
   // A string from the prop, then the project's i18n, then English;
   // `locale` the same way (decision 008).
   const message = useHozoMessage()
@@ -254,7 +304,15 @@ export function HozoDateTimePicker({
     ? (formatValue?.(value, locale) ?? dateTimeLabel(value, locale, { hour12 }))
     : placeholder
 
-  const frame = resolveDatePickerFrame({ className, style, dialogClassName, dialogStyle, open })
+  const frame = resolveDatePickerFrame({
+    className,
+    hozoRootStyle: hozoDateTimePickerStyle,
+    style,
+    dialogClassName,
+    hozoDialogStyle,
+    dialogStyle,
+    open,
+  })
   return (
     <View style={frame.box}>
       <PickerButton
@@ -286,6 +344,7 @@ export function HozoDateTimePicker({
         textStyle={triggerTextStyle}
         inheritedTextStyle={frame.text}
         className={triggerClassName}
+        hozoButtonStyle={hozoTriggerStyle}
         onPress={() => change(true)}
       >
         {text}
@@ -315,6 +374,11 @@ export function HozoDateTimePicker({
             gridClassName={gridClassName}
             monthButtonClassName={monthButtonClassName}
             dayClassName={dayClassName}
+            hozoCalendarStyle={hozoCalendarStyle}
+            hozoHeaderStyle={hozoHeaderStyle}
+            hozoGridStyle={hozoGridStyle}
+            hozoMonthButtonStyle={hozoMonthButtonStyle}
+            hozoDayStyle={hozoDayStyle}
             value={value ? dateOf(value) : null}
             onChange={chooseDay}
             defaultMonth={defaultMonth}
@@ -337,6 +401,7 @@ export function HozoDateTimePicker({
           )}
           <PickerButton
             className={doneClassName}
+            hozoButtonStyle={hozoDoneStyle}
             style={doneStyle}
             textStyle={doneTextStyle}
             inheritedTextStyle={frame.contentText}

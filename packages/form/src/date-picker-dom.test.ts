@@ -98,6 +98,7 @@ test('an unnamed button is unchanged, down to the markup', () => {
 test('a disabled picker is a disabled button, and opens nothing', () => {
   const html = render({ disabled: true })
   assert.match(html, /<button[^>]*\sdisabled=""/)
+  assert.match(html, /<button[^>]*data-hozo-disabled=""/)
   assert.doesNotMatch(html, /role="dialog"/)
 })
 

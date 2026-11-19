@@ -48,6 +48,11 @@ function loadNativeFormModule(
     View: host('View'),
     Pressable: host('Pressable'),
     Text: host('Text'),
+    TextInput: host('TextInput'),
+    Modal: host('Modal'),
+    ScrollView: host('ScrollView'),
+    ActionSheetIOS: { showActionSheetWithOptions: () => {} },
+    Platform: { OS: 'android' },
     StyleSheet: {
       create: <T>(styles: T) => styles,
       flatten: flattenStyle,
@@ -91,6 +96,7 @@ function loadNativeFormModule(
           typeof children === 'string'
             ? React.createElement(rn.Text as unknown as React.ComponentType, { style }, children)
             : children,
+        useAnnounce: () => () => {},
         useHozoMessage: () => (key: string) => key,
         useHozoI18n: () => ({ locale: 'en-US' }),
       }
@@ -374,4 +380,652 @@ export function Screen({ disabled }: { disabled?: boolean }) {
   )
   assert.equal(classResolverCalls, 1)
   assert.equal(flattenStyle(formMod.captured[0]?.props.style).paddingBottom, 99)
+})
+
+test('Native Field and TextArea deliver prepared styles to every declared host without calling hozoClasses (#2045)', () => {
+  const compiler = createCompiler()
+  const source = `import { Field, TextArea } from '@hozo/form'
+export function Screen({
+  disabled,
+  readOnly,
+  invalid,
+  required,
+}: {
+  disabled?: boolean
+  readOnly?: boolean
+  invalid?: boolean
+  required?: boolean
+}) {
+  return (
+    <Field
+      label="Bio"
+      required={required}
+      description="Keep it short"
+      error={invalid ? 'Invalid bio' : undefined}
+      className="pt-2"
+      labelClassName="text-[#112233] font-bold"
+      requiredClassName="text-[#cc0000]"
+      descriptionClassName="text-[#445566]"
+      errorClassName="text-[#990000]"
+    >
+      {(control) => (
+        <TextArea
+          accessibilityLabel={control.accessibilityLabel}
+          accessibilityLabelledBy={control.accessibilityLabelledBy}
+          maxLength={40}
+          disabled={disabled}
+          readOnly={readOnly}
+          aria-invalid={invalid}
+          aria-required={required}
+          className="pt-3"
+          fieldClassName="pt-4 text-[16px] leading-[24px] bg-[#101010] focus:bg-[#202020] focus-visible:bg-[#303030] disabled:bg-[#404040] read-only:bg-[#505050] aria-[invalid=true]:bg-[#606060] aria-required:bg-[#707070]"
+          countClassName="text-[#778899]"
+        />
+      )}
+    </Field>
+  )
+}
+export function Fallback({ dynamic }: { dynamic: string }) {
+  return <TextArea fieldClassName="placeholder:text-[#888888]" className={dynamic} />
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoFieldStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoLabelStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoRequiredStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDescriptionStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoErrorStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTextAreaStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoCountStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  // Placeholder utility emits an extra host prop, so it stays on the fallback route rather than dropping.
+  assert.match(transformed, /fieldClassName="placeholder:text-\[#888888\]"/)
+  assert.match(transformed, /className=\{dynamic\}/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const fieldMod = loadNativeFormModule('field.native.tsx', { hozoClasses: spyHozoClasses })
+  const textAreaMod = loadNativeFormModule('text-area.native.tsx', { hozoClasses: spyHozoClasses })
+  const screenMod = {
+    exports: {} as {
+      Screen: React.ComponentType<{
+        disabled?: boolean
+        readOnly?: boolean
+        invalid?: boolean
+        required?: boolean
+      }>
+    },
+  }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/form')
+        return { Field: fieldMod.exports.Field, TextArea: textAreaMod.exports.TextArea }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(
+    React.createElement(screenMod.exports.Screen, {
+      required: true,
+      invalid: true,
+      readOnly: true,
+    }),
+  )
+  assert.equal(
+    classResolverCalls,
+    0,
+    'prepared Field and TextArea literals must bypass hozoClasses',
+  )
+
+  const fieldView = fieldMod.captured.find((entry) => entry.host === 'View')
+  assert.ok(fieldView)
+  assert.equal(flattenStyle(fieldView.props.style).paddingTop, 8)
+  const fieldTexts = fieldMod.captured.filter((entry) => entry.host === 'Text')
+  assert.equal(fieldTexts.length, 4)
+  assert.equal(flattenStyle(fieldTexts[0]!.props.style).color, '#112233')
+  assert.equal(flattenStyle(fieldTexts[0]!.props.style).fontWeight, '700')
+  assert.equal(flattenStyle(fieldTexts[1]!.props.style).color, '#cc0000')
+  assert.equal(flattenStyle(fieldTexts[2]!.props.style).color, '#990000')
+  assert.equal(flattenStyle(fieldTexts[3]!.props.style).color, '#445566')
+
+  const areaView = textAreaMod.captured.find((entry) => entry.host === 'View')
+  assert.ok(areaView)
+  assert.equal(flattenStyle(areaView.props.style).paddingTop, 12)
+  const areaInput = textAreaMod.captured.find((entry) => entry.host === 'TextInput')
+  assert.ok(areaInput)
+  const inputStyle = flattenStyle(areaInput.props.style)
+  assert.equal(inputStyle.paddingTop, 16)
+  // Auto-grow reads lineHeight (24) and paddingTop (16) from the prepared style: 2 * 24 + 16 = 64.
+  assert.equal(inputStyle.height, 64)
+  assert.equal(inputStyle.backgroundColor, '#707070')
+  const areaCount = textAreaMod.captured.find((entry) => entry.host === 'Text')
+  assert.ok(areaCount)
+  assert.equal(flattenStyle(areaCount.props.style).color, '#778899')
+
+  // Reject dual carriers on every slot.
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoFieldStyle'],
+    ['labelClassName', 'hozoLabelStyle'],
+    ['requiredClassName', 'hozoRequiredStyle'],
+    ['descriptionClassName', 'hozoDescriptionStyle'],
+    ['errorClassName', 'hozoErrorStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            fieldMod.exports.Field as React.ComponentType<Record<string, unknown>>,
+            {
+              label: 'Name',
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+              children: () => null,
+            },
+          ),
+        ),
+      new RegExp(`Prepared Field styles must consume ${classProp}`),
+    )
+  }
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoTextAreaStyle'],
+    ['fieldClassName', 'hozoFieldStyle'],
+    ['countClassName', 'hozoCountStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            textAreaMod.exports.TextArea as React.ComponentType<Record<string, unknown>>,
+            { [classProp]: 'pt-2', [preparedProp]: () => ({}) },
+          ),
+        ),
+      new RegExp(`Prepared TextArea styles must consume ${classProp}`),
+    )
+  }
+})
+
+test('Native NativeSelect delivers prepared root styles to Pressable and label Text without calling hozoClasses (#2045)', () => {
+  const compiler = createCompiler()
+  const source = `import { NativeSelect } from '@hozo/form'
+export function Screen({
+  disabled,
+  invalid,
+  required,
+}: {
+  disabled?: boolean
+  invalid?: boolean
+  required?: boolean
+}) {
+  return (
+    <NativeSelect
+      options={[{ value: 'a', label: 'Alpha' }]}
+      value="a"
+      disabled={disabled}
+      aria-invalid={invalid}
+      aria-required={required}
+      className="pt-4 text-[#112233] bg-[#101010] disabled:bg-[#202020] aria-[invalid=true]:bg-[#303030] aria-required:bg-[#404040]"
+      sheetClassName="p-2"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoSelectStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-4/)
+  // Native-only fallback chrome slots remain untouched.
+  assert.match(transformed, /sheetClassName="p-2"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 88 }
+  }
+  const selectMod = loadNativeFormModule('native-select.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = {
+    exports: {} as {
+      Screen: React.ComponentType<{ disabled?: boolean; invalid?: boolean; required?: boolean }>
+    },
+  }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/form') return { NativeSelect: selectMod.exports.NativeSelect }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { invalid: true }))
+  assert.equal(classResolverCalls, 0, 'prepared NativeSelect root must bypass hozoClasses')
+
+  const triggerHost = selectMod.captured.find((entry) => entry.host === 'Pressable')
+  assert.ok(triggerHost)
+  assert.equal(flattenStyle(triggerHost.props.style).paddingTop, 16)
+  assert.equal(flattenStyle(triggerHost.props.style).backgroundColor, '#303030')
+  const valueText = selectMod.captured.find((entry) => entry.host === 'Text')
+  assert.ok(valueText)
+  assert.equal(flattenStyle(valueText.props.style).color, '#112233')
+
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          selectMod.exports.NativeSelect as React.ComponentType<Record<string, unknown>>,
+          {
+            options: [{ value: 'a', label: 'Alpha' }],
+            className: 'pt-4',
+            hozoSelectStyle: () => ({}),
+          },
+        ),
+      ),
+    /Prepared NativeSelect styles must consume className/,
+  )
+})
+
+test('Native Calendar delivers prepared styles across all five slots without calling hozoClasses (#2045)', () => {
+  const compiler = createCompiler()
+  const source = `import { Calendar } from '@hozo/form'
+export function Screen() {
+  return (
+    <Calendar
+      range
+      today={{ year: 2026, month: 9, day: 24 }}
+      defaultMonth={{ year: 2026, month: 9 }}
+      min={{ year: 2026, month: 9, day: 10 }}
+      value={{ start: { year: 2026, month: 9, day: 12 }, end: { year: 2026, month: 9, day: 14 } }}
+      locale="en-US"
+      firstDayOfWeek={1}
+      className="pt-2 text-[#112233]"
+      headerClassName="pt-3 text-[#223344]"
+      gridClassName="pt-4 text-[#334455]"
+      monthButtonClassName="pt-5 bg-[#101010] disabled:bg-[#202020]"
+      dayClassName="pt-1 bg-[#010101] data-[hozo-outside]:bg-[#121212] data-[hozo-disabled]:bg-[#232323] data-[hozo-range-start]:bg-[#343434] data-[hozo-range-end]:bg-[#454545] data-[hozo-in-range]:bg-[#565656]"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoCalendarStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoHeaderStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoGridStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoMonthButtonStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDayStyle=\{__hozoOwner\d+_Plan\d+\}/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 99 }
+  }
+  const calendarMod = loadNativeFormModule('calendar.native.tsx', { hozoClasses: spyHozoClasses })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/form') return { Calendar: calendarMod.exports.Calendar }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  assert.equal(classResolverCalls, 0, 'prepared Calendar literals must never call hozoClasses')
+
+  const views = calendarMod.captured.filter((entry) => entry.host === 'View')
+  assert.equal(flattenStyle(views[0]!.props.style).paddingTop, 8)
+  assert.equal(flattenStyle(views[1]!.props.style).paddingTop, 12)
+  assert.equal(flattenStyle(views[2]!.props.style).paddingTop, 16)
+
+  const pressables = calendarMod.captured.filter((entry) => entry.host === 'Pressable')
+  // Previous month button is disabled because min is Sept 10; next month button is enabled.
+  assert.equal(flattenStyle(pressables[0]!.props.style).backgroundColor, '#202020')
+  assert.equal(flattenStyle(pressables[1]!.props.style).backgroundColor, '#101010')
+  // Day cells start at index 2 (42 cells).
+  const dayByLabel = (part: string) =>
+    pressables.find(
+      (entry) =>
+        typeof entry.props.accessibilityLabel === 'string' &&
+        entry.props.accessibilityLabel.includes(part),
+    )!
+  assert.equal(flattenStyle(dayByLabel('August 31, 2026').props.style).backgroundColor, '#232323')
+  assert.equal(flattenStyle(dayByLabel('October 1, 2026').props.style).backgroundColor, '#121212')
+  assert.equal(
+    flattenStyle(dayByLabel('September 12, 2026').props.style).backgroundColor,
+    '#343434',
+  )
+  assert.equal(
+    flattenStyle(dayByLabel('September 13, 2026').props.style).backgroundColor,
+    '#565656',
+  )
+  assert.equal(
+    flattenStyle(dayByLabel('September 14, 2026').props.style).backgroundColor,
+    '#454545',
+  )
+
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoCalendarStyle'],
+    ['headerClassName', 'hozoHeaderStyle'],
+    ['gridClassName', 'hozoGridStyle'],
+    ['monthButtonClassName', 'hozoMonthButtonStyle'],
+    ['dayClassName', 'hozoDayStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            calendarMod.exports.Calendar as React.ComponentType<Record<string, unknown>>,
+            { [classProp]: 'pt-2', [preparedProp]: () => ({}) },
+          ),
+        ),
+      new RegExp(`Prepared Calendar styles must consume ${classProp}`),
+    )
+  }
+})
+
+test('Native DatePicker, DateRangePicker and DateTimePicker deliver prepared styles without calling hozoClasses (#2045)', () => {
+  const compiler = createCompiler()
+  const source = `import { DatePicker, DateRangePicker, DateTimePicker } from '@hozo/form'
+export function Screen() {
+  return (
+    <>
+      <DatePicker
+        defaultOpen
+        today={{ year: 2026, month: 9, day: 24 }}
+        defaultMonth={{ year: 2026, month: 9 }}
+        value={{ year: 2026, month: 9, day: 12 }}
+        locale="en-US"
+        firstDayOfWeek={1}
+        className="pt-2 text-[#112233]"
+        triggerClassName="pt-3 bg-[#101010] aria-expanded:bg-[#202020] disabled:bg-[#303030]"
+        dialogClassName="pt-4"
+        calendarClassName="pt-5"
+        headerClassName="pt-6"
+        gridClassName="pt-7"
+        monthButtonClassName="pt-1 bg-[#404040]"
+        dayClassName="pt-1 bg-[#505050] aria-selected:bg-[#606060]"
+      />
+      <DateRangePicker
+        defaultOpen
+        today={{ year: 2026, month: 9, day: 24 }}
+        defaultMonth={{ year: 2026, month: 9 }}
+        value={{ start: { year: 2026, month: 9, day: 12 }, end: { year: 2026, month: 9, day: 14 } }}
+        locale="en-US"
+        firstDayOfWeek={1}
+        className="pt-2"
+        triggerClassName="pt-3 aria-expanded:bg-[#223344]"
+        dialogClassName="pt-4"
+        calendarClassName="pt-5"
+        headerClassName="pt-6"
+        gridClassName="pt-7"
+        monthButtonClassName="pt-1 bg-[#414141]"
+        dayClassName="pt-1 bg-[#515151] data-[hozo-range-start]:bg-[#616161]"
+      />
+      <DateTimePicker
+        defaultOpen
+        today={{ year: 2026, month: 9, day: 24 }}
+        defaultMonth={{ year: 2026, month: 9 }}
+        value={{ year: 2026, month: 9, day: 12, hour: 9, minute: 30 }}
+        locale="en-US"
+        firstDayOfWeek={1}
+        className="pt-2"
+        triggerClassName="pt-3 aria-expanded:bg-[#334455]"
+        dialogClassName="pt-4"
+        calendarClassName="pt-5"
+        headerClassName="pt-6"
+        gridClassName="pt-7"
+        monthButtonClassName="pt-1 bg-[#424242]"
+        dayClassName="pt-1 bg-[#525252] aria-selected:bg-[#626262]"
+        doneClassName="pt-5 bg-[#707070]"
+      >
+        {() => null}
+      </DateTimePicker>
+    </>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoDatePickerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDateRangePickerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDateTimePickerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTriggerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDialogStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoCalendarStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDoneStyle=\{__hozoOwner\d+_Plan\d+\}/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 99 }
+  }
+  const datePickerMod = loadNativeFormModule('date-picker.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const rangePickerMod = loadNativeFormModule('date-range-picker.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const dateTimePickerMod = loadNativeFormModule('date-time-picker.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/form') {
+        return {
+          DatePicker: datePickerMod.exports.DatePicker,
+          DateRangePicker: rangePickerMod.exports.DateRangePicker,
+          DateTimePicker: dateTimePickerMod.exports.DateTimePicker,
+        }
+      }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  assert.equal(classResolverCalls, 0, 'prepared date pickers must never call hozoClasses')
+
+  const dpTrigger = datePickerMod.captured.find((entry) => entry.host === 'Pressable')!
+  assert.equal(flattenStyle(dpTrigger.props.style).paddingTop, 12)
+  assert.equal(flattenStyle(dpTrigger.props.style).backgroundColor, '#202020')
+  const dpViews = datePickerMod.captured.filter((entry) => entry.host === 'View')
+  assert.equal(flattenStyle(dpViews[0]!.props.style).paddingTop, 8)
+  assert.equal(flattenStyle(dpViews[1]!.props.style).paddingTop, 16)
+  assert.equal(flattenStyle(dpViews[2]!.props.style).paddingTop, 20)
+  assert.equal(flattenStyle(dpViews[3]!.props.style).paddingTop, 24)
+  assert.equal(flattenStyle(dpViews[4]!.props.style).paddingTop, 28)
+
+  const dtpPressables = dateTimePickerMod.captured.filter((entry) => entry.host === 'Pressable')
+  const doneButton = dtpPressables[dtpPressables.length - 1]!
+  assert.equal(flattenStyle(doneButton.props.style).paddingTop, 20)
+  assert.equal(flattenStyle(doneButton.props.style).backgroundColor, '#707070')
+
+  for (const [name, Component, classProp, preparedProp] of [
+    ['DatePicker', datePickerMod.exports.DatePicker, 'triggerClassName', 'hozoTriggerStyle'],
+    [
+      'DateRangePicker',
+      rangePickerMod.exports.DateRangePicker,
+      'dialogClassName',
+      'hozoDialogStyle',
+    ],
+    ['DateTimePicker', dateTimePickerMod.exports.DateTimePicker, 'doneClassName', 'hozoDoneStyle'],
+  ] as const) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(Component as React.ComponentType<Record<string, unknown>>, {
+            [classProp]: 'pt-2',
+            [preparedProp]: () => ({}),
+          }),
+        ),
+      new RegExp(`Prepared ${name} styles must consume ${classProp}`),
+    )
+  }
+})
+
+test('Native TimePicker delivers prepared styles across all five slots without calling hozoClasses (#2045)', () => {
+  const compiler = createCompiler()
+  const source = `import { TimePicker } from '@hozo/form'
+export function Screen({ disabled = false }: { disabled?: boolean }) {
+  return (
+    <TimePicker
+      hour12
+      locale="en-US"
+      value={{ hour: 9, minute: 30 }}
+      disabled={disabled}
+      className="pt-2 text-[#112233]"
+      fieldClassName="pt-3 text-[#223344]"
+      valueClassName="pt-4 bg-[#101010] hover:bg-[#151515] focus:bg-[#181818] focus-visible:bg-[#1a1a1a] aria-disabled:bg-[#202020] data-[hozo-disabled]:text-[#303030]"
+      periodClassName="pt-5 bg-[#404040] disabled:bg-[#454545] data-[hozo-disabled]:text-[#4a4a4a]"
+      stepClassName="pt-6 bg-[#505050] data-[hozo-step=increase]:bg-[#606060] data-[hozo-step=decrease]:bg-[#707070] data-[hozo-disabled]:bg-[#808080]"
+    />
+  )
+}
+export function ActiveFallback() {
+  return <TimePicker valueClassName="pt-1 active:bg-[#999999]" />
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoTimePickerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoFieldStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoValueStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPeriodStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoStepStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  // `active:` on TimePicker.value has no press responder on Native; it stays retained.
+  assert.match(transformed, /valueClassName="pt-1 active:bg-\[#999999\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 99 }
+  }
+  const timePickerMod = loadNativeFormModule('time-picker.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = {
+    exports: {} as { Screen: React.ComponentType<{ disabled?: boolean }> },
+  }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/form') return { TimePicker: timePickerMod.exports.TimePicker }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { disabled: false }))
+  assert.equal(classResolverCalls, 0, 'prepared TimePicker literals must never call hozoClasses')
+
+  const enabledViews = timePickerMod.captured.filter((entry) => entry.host === 'View')
+  // Root, hour field, hour value, minute field, minute value
+  assert.equal(flattenStyle(enabledViews[0]!.props.style).paddingTop, 8)
+  assert.equal(flattenStyle(enabledViews[1]!.props.style).paddingTop, 12)
+  assert.equal(flattenStyle(enabledViews[2]!.props.style).paddingTop, 16)
+  assert.equal(flattenStyle(enabledViews[2]!.props.style).backgroundColor, '#101010')
+
+  const enabledPressables = timePickerMod.captured.filter((entry) => entry.host === 'Pressable')
+  // 0: increase hour, 1: decrease hour, 2: increase minute, 3: decrease minute, 4: period
+  assert.equal(flattenStyle(enabledPressables[0]!.props.style).backgroundColor, '#606060')
+  assert.equal(flattenStyle(enabledPressables[1]!.props.style).backgroundColor, '#707070')
+  assert.equal(flattenStyle(enabledPressables[4]!.props.style).backgroundColor, '#404040')
+
+  timePickerMod.captured.length = 0
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { disabled: true }))
+  assert.equal(classResolverCalls, 0, 'disabled prepared TimePicker must never call hozoClasses')
+
+  const disabledViews = timePickerMod.captured.filter((entry) => entry.host === 'View')
+  assert.equal(flattenStyle(disabledViews[2]!.props.style).backgroundColor, '#202020')
+  const disabledPressables = timePickerMod.captured.filter((entry) => entry.host === 'Pressable')
+  assert.equal(flattenStyle(disabledPressables[0]!.props.style).backgroundColor, '#808080')
+  assert.equal(flattenStyle(disabledPressables[4]!.props.style).backgroundColor, '#454545')
+
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoTimePickerStyle'],
+    ['fieldClassName', 'hozoFieldStyle'],
+    ['valueClassName', 'hozoValueStyle'],
+    ['periodClassName', 'hozoPeriodStyle'],
+    ['stepClassName', 'hozoStepStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            timePickerMod.exports.TimePicker as React.ComponentType<Record<string, unknown>>,
+            { [classProp]: 'pt-2', [preparedProp]: () => ({}) },
+          ),
+        ),
+      new RegExp(`Prepared TimePicker styles must consume ${classProp}`),
+    )
+  }
 })

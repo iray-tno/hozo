@@ -73,6 +73,8 @@ export interface HozoNativeSelectProps {
   cancelLabel?: string
   style?: StyleProp<ViewStyle>
   textStyle?: StyleProp<TextStyle>
+  /** @internal Complete prepared select control class contribution (RFC 010). */
+  hozoSelectStyle?: (state: SelectControlClassFacts) => StyleProp<ViewStyle | TextStyle>
   sheetStyle?: StyleProp<ViewStyle>
   scrimStyle?: StyleProp<ViewStyle>
   optionStyle?: StyleProp<ViewStyle>
@@ -191,10 +193,13 @@ export function HozoNativeSelect({
   optionStyle,
   style,
   textStyle,
+  hozoSelectStyle,
   testID,
   onBlur,
   onFocus,
 }: HozoNativeSelectProps) {
+  if (hozoSelectStyle && className !== undefined)
+    throw new Error('Prepared NativeSelect styles must consume className')
   // A string from the prop, then the project's i18n, then English;
   // `locale` the same way (decision 008).
   const message = useHozoMessage()
@@ -224,7 +229,10 @@ export function HozoNativeSelect({
     'aria-required': Boolean(required),
   } satisfies SelectControlClassFacts
   const [controlBox, controlText] = hozoSplitTextStyle(
-    StyleSheet.flatten([hozoClasses(className, facts), hozoAuthoredStyle(style)]) ?? {},
+    StyleSheet.flatten([
+      hozoSelectStyle ? hozoSelectStyle(facts) : hozoClasses(className, facts),
+      hozoAuthoredStyle(style),
+    ]) ?? {},
   )
   const current = controlled ?? uncontrolled
 

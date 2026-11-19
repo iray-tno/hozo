@@ -10,14 +10,18 @@ import { nonControlClassFacts } from './class-facts.native.ts'
  * No context, element cloning or new layout host is needed for these slots. */
 export function resolveDatePickerFrame({
   className,
+  hozoRootStyle,
   style,
   dialogClassName,
+  hozoDialogStyle,
   dialogStyle,
   open,
 }: {
   className?: string
+  hozoRootStyle?: () => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   dialogClassName?: string
+  hozoDialogStyle?: () => StyleProp<ViewStyle | TextStyle>
   dialogStyle?: StyleProp<ViewStyle>
   open: boolean
 }): {
@@ -27,15 +31,17 @@ export function resolveDatePickerFrame({
   contentText: StyleProp<TextStyle>
 } {
   const [box, text] = hozoSplitTextStyle(
-    StyleSheet.flatten([hozoClasses(className, nonControlClassFacts), hozoAuthoredStyle(style)]) ??
-      {},
+    StyleSheet.flatten([
+      hozoRootStyle ? hozoRootStyle() : hozoClasses(className, nonControlClassFacts),
+      hozoAuthoredStyle(style),
+    ]) ?? {},
   )
   // A closed Native Modal does not render its children. Do not resolve (or
   // diagnose missing facts for) an owner that does not exist on either side.
   const [dialogBox, dialogText] = hozoSplitTextStyle(
     open
       ? (StyleSheet.flatten([
-          hozoClasses(dialogClassName, nonControlClassFacts),
+          hozoDialogStyle ? hozoDialogStyle() : hozoClasses(dialogClassName, nonControlClassFacts),
           hozoAuthoredStyle(dialogStyle),
         ]) ?? {})
       : {},

@@ -26,7 +26,14 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useEffect, useId } from 'react'
-import { AccessibilityInfo, Text, View } from 'react-native'
+import {
+  AccessibilityInfo,
+  type StyleProp,
+  Text,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native'
 import { nonControlClassFacts } from './class-facts.native.ts'
 
 /** What a control needs to be part of a field, on React Native. */
@@ -52,6 +59,16 @@ export interface HozoFieldProps {
   requiredClassName?: string
   descriptionClassName?: string
   errorClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoFieldStyle?: () => StyleProp<ViewStyle>
+  /** @internal Complete prepared label class contribution (RFC 010). */
+  hozoLabelStyle?: () => StyleProp<TextStyle>
+  /** @internal Complete prepared required mark class contribution (RFC 010). */
+  hozoRequiredStyle?: () => StyleProp<TextStyle>
+  /** @internal Complete prepared description class contribution (RFC 010). */
+  hozoDescriptionStyle?: () => StyleProp<TextStyle>
+  /** @internal Complete prepared error class contribution (RFC 010). */
+  hozoErrorStyle?: () => StyleProp<TextStyle>
 }
 
 function spoken(node: ReactNode): string | undefined {
@@ -72,7 +89,22 @@ export function HozoField({
   requiredClassName,
   descriptionClassName,
   errorClassName,
+  hozoFieldStyle,
+  hozoLabelStyle,
+  hozoRequiredStyle,
+  hozoDescriptionStyle,
+  hozoErrorStyle,
 }: HozoFieldProps) {
+  if (hozoFieldStyle && className !== undefined)
+    throw new Error('Prepared Field styles must consume className')
+  if (hozoLabelStyle && labelClassName !== undefined)
+    throw new Error('Prepared Field styles must consume labelClassName')
+  if (hozoRequiredStyle && requiredClassName !== undefined)
+    throw new Error('Prepared Field styles must consume requiredClassName')
+  if (hozoDescriptionStyle && descriptionClassName !== undefined)
+    throw new Error('Prepared Field styles must consume descriptionClassName')
+  if (hozoErrorStyle && errorClassName !== undefined)
+    throw new Error('Prepared Field styles must consume errorClassName')
   const message = useHozoMessage()
   const labelId = `${useId()}-label`
   const name = accessibilityLabel ?? spoken(label)
@@ -99,11 +131,23 @@ export function HozoField({
   }, [errorText])
 
   return (
-    <View style={hozoClasses(className, nonControlClassFacts)}>
-      <Text nativeID={labelId} style={hozoClasses(labelClassName, nonControlClassFacts)}>
+    <View style={hozoFieldStyle ? hozoFieldStyle() : hozoClasses(className, nonControlClassFacts)}>
+      <Text
+        nativeID={labelId}
+        style={
+          hozoLabelStyle ? hozoLabelStyle() : hozoClasses(labelClassName, nonControlClassFacts)
+        }
+      >
         {label}
         {required ? (
-          <Text aria-hidden style={hozoClasses(requiredClassName, nonControlClassFacts)}>
+          <Text
+            aria-hidden
+            style={
+              hozoRequiredStyle
+                ? hozoRequiredStyle()
+                : hozoClasses(requiredClassName, nonControlClassFacts)
+            }
+          >
             {' *'}
           </Text>
         ) : null}
@@ -114,10 +158,24 @@ export function HozoField({
         accessibilityHint: hint,
       })}
       {error === undefined ? null : (
-        <Text style={hozoClasses(errorClassName, nonControlClassFacts)}>{error}</Text>
+        <Text
+          style={
+            hozoErrorStyle ? hozoErrorStyle() : hozoClasses(errorClassName, nonControlClassFacts)
+          }
+        >
+          {error}
+        </Text>
       )}
       {description === undefined ? null : (
-        <Text style={hozoClasses(descriptionClassName, nonControlClassFacts)}>{description}</Text>
+        <Text
+          style={
+            hozoDescriptionStyle
+              ? hozoDescriptionStyle()
+              : hozoClasses(descriptionClassName, nonControlClassFacts)
+          }
+        >
+          {description}
+        </Text>
       )}
     </View>
   )

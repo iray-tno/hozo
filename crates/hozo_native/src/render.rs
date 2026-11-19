@@ -1058,6 +1058,7 @@ pub(super) fn render_node(
     let own_entry_start = cx.style_entries.len();
     let target = crate::conditions::StyleTarget {
         owner_facts: cx.owner_inputs.facts,
+        owner_events: cx.owner_inputs.events,
         node,
         position,
         interaction_context: interaction_context
@@ -1108,6 +1109,7 @@ pub(super) fn render_node(
         let mut pressed = Vec::new();
         let target = crate::conditions::StyleTarget {
             owner_facts: &[],
+            owner_events: &[],
             node,
             position,
             interaction_context: true,
@@ -1465,10 +1467,13 @@ pub(super) fn render_node(
                 node.primitive,
                 Primitive::Pressable | Primitive::Button | Primitive::Link
             ));
+    let owner_view_callback = node.primitive == Primitive::View
+        && (!cx.owner_inputs.events.is_empty() || !cx.owner_inputs.facts.is_empty());
     let needs_pressed_fn = (matches!(
         rendered_component,
         "Pressable" | "HozoPressable" | "HozoText" | "HozoLink"
-    ) || pattern_style_prop.is_some())
+    ) || pattern_style_prop.is_some()
+        || owner_view_callback)
         && (!pressed_parts.is_empty() || runtime_states);
     if needs_pressed_fn {
         style_array_parts.extend(pressed_parts);
@@ -1766,30 +1771,31 @@ pub(super) fn render_node(
             });
             crate::class_route::static_callback(node.primitive, "className", &style_array_parts)
         } else {
-            let fields = if needs_focus_visible {
-                "pressed, hovered, focused, focusVisible"
-            } else if needs_hover_or_focus || rendered_component == "HozoText" {
-                "pressed, hovered, focused"
+            let mut params: Vec<String> = if owner_view_callback {
+                cx.owner_inputs
+                    .events
+                    .iter()
+                    .map(|event| event.key().to_string())
+                    .collect()
             } else {
-                "pressed"
+                let fields = if needs_focus_visible {
+                    "pressed, hovered, focused, focusVisible"
+                } else if needs_hover_or_focus || rendered_component == "HozoText" {
+                    "pressed, hovered, focused"
+                } else {
+                    "pressed"
+                };
+                vec![fields.to_string()]
             };
-            let state = if cx.owner_inputs.facts.is_empty() {
-                format!("{{ {fields} }}")
-            } else {
-                format!(
-                    "{{ {fields}, {} }}",
-                    cx.owner_inputs
-                        .facts
-                        .iter()
-                        .map(|fact| fact.parameter())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
-            };
+            params.extend(cx.owner_inputs.facts.iter().map(|fact| fact.parameter()));
+            let state = format!("{{ {} }}", params.join(", "));
             format!("({state}) => [{}]", style_array_parts.join(", "))
         };
         let attribute = format!(" {}={{{callback}}}", pattern_style_prop.unwrap_or("style"));
         crate::owner_style::record(cx, &base_name, &attribute, true);
+        if owner_view_callback && needs_focus_visible {
+            crate::owner_style::mark_focus_visible(cx, &base_name);
+        }
         held.emit(&mut props_text, &attribute);
     } else if style_array_parts.len() == 1 && !style_array_parts[0].contains("&&") {
         let attribute = format!(" style={{{}}}", style_array_parts[0]);
@@ -2424,6 +2430,7 @@ pub(super) fn render_node(
             }
             let target = crate::conditions::StyleTarget {
                 owner_facts: &[],
+                owner_events: &[],
                 node,
                 position,
                 interaction_context: false,
@@ -2968,6 +2975,7 @@ pub(super) fn render_node(
         // children as their direct children. The scope renders no host.
         let target = crate::conditions::StyleTarget {
             owner_facts: &[],
+            owner_events: &[],
             node,
             position,
             interaction_context,

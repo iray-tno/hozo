@@ -2,30 +2,89 @@
 //! carrier; never parse generated JSX or reconstruct its declaration ordering.
 use super::*;
 
+/// Bounded interaction events supplied by an existing owner when the host is
+/// not itself a Pressable or TextInput (for example a focusable/hoverable
+/// `View` spinbutton with no press responder).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[doc(hidden)]
+pub enum OwnerEvent {
+    Pressed,
+    Hovered,
+    Focused,
+    FocusVisible,
+}
+
+impl OwnerEvent {
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Pressed => "pressed",
+            Self::Hovered => "hovered",
+            Self::Focused => "focused",
+            Self::FocusVisible => "focusVisible",
+        }
+    }
+}
+
 /// Bounded inputs supplied by an existing owner, never inferred from a
 /// synthetic primitive's missing props or loaded as executable manifest text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[doc(hidden)]
 pub enum OwnerFact {
     Disabled,
+    ReadOnly,
     AriaSelected,
     AriaDisabled,
+    AriaInvalid,
+    AriaRequired,
+    AriaExpanded,
+    DataHozoOutside,
+    DataHozoDisabled,
+    DataHozoRangeStart,
+    DataHozoRangeEnd,
+    DataHozoInRange,
+    DataHozoStep,
+    DataHozoStepIncrease,
+    DataHozoStepDecrease,
 }
 
 impl OwnerFact {
     pub fn key(self) -> &'static str {
         match self {
             Self::Disabled => "disabled",
+            Self::ReadOnly => "readOnly",
             Self::AriaSelected => "aria-selected",
             Self::AriaDisabled => "aria-disabled",
+            Self::AriaInvalid => "aria-invalid",
+            Self::AriaRequired => "aria-required",
+            Self::AriaExpanded => "aria-expanded",
+            Self::DataHozoOutside => "data-hozo-outside",
+            Self::DataHozoDisabled => "data-hozo-disabled",
+            Self::DataHozoRangeStart => "data-hozo-range-start",
+            Self::DataHozoRangeEnd => "data-hozo-range-end",
+            Self::DataHozoInRange => "data-hozo-in-range",
+            Self::DataHozoStep => "data-hozo-step",
+            Self::DataHozoStepIncrease => "data-hozo-step=increase",
+            Self::DataHozoStepDecrease => "data-hozo-step=decrease",
         }
     }
 
     pub(crate) fn alias(self) -> &'static str {
         match self {
             Self::Disabled => "__hozoOwnerDisabled",
+            Self::ReadOnly => "__hozoOwnerReadOnly",
             Self::AriaSelected => "__hozoOwnerAriaSelected",
             Self::AriaDisabled => "__hozoOwnerAriaDisabled",
+            Self::AriaInvalid => "__hozoOwnerAriaInvalid",
+            Self::AriaRequired => "__hozoOwnerAriaRequired",
+            Self::AriaExpanded => "__hozoOwnerAriaExpanded",
+            Self::DataHozoOutside => "__hozoOwnerDataHozoOutside",
+            Self::DataHozoDisabled => "__hozoOwnerDataHozoDisabled",
+            Self::DataHozoRangeStart => "__hozoOwnerDataHozoRangeStart",
+            Self::DataHozoRangeEnd => "__hozoOwnerDataHozoRangeEnd",
+            Self::DataHozoInRange => "__hozoOwnerDataHozoInRange",
+            Self::DataHozoStep => "__hozoOwnerDataHozoStep",
+            Self::DataHozoStepIncrease => "__hozoOwnerDataHozoStepIncrease",
+            Self::DataHozoStepDecrease => "__hozoOwnerDataHozoStepDecrease",
         }
     }
 
@@ -36,6 +95,7 @@ impl OwnerFact {
 
 pub struct OwnerStyle {
     pub facts: Vec<OwnerFact>,
+    pub events: Vec<OwnerEvent>,
     /// Requires an existing destination that splits box and owned label styles.
     pub split_text: bool,
     /// Original IR has only unconditional declarations and no residuals.
@@ -61,9 +121,11 @@ pub(super) fn record(
     if let Some(target) = cx.owner_style.as_deref_mut() {
         *target = attribute
             .strip_prefix(" style={")
+            .or_else(|| attribute.strip_prefix(" hozoStyle={"))
             .and_then(|value| value.strip_suffix('}'))
             .map(|expression| OwnerStyle {
                 facts: cx.owner_inputs.facts.to_vec(),
+                events: cx.owner_inputs.events.to_vec(),
                 split_text: cx.owner_inputs.split_text,
                 literal_resting: false,
                 expression: expression.to_string(),
@@ -71,6 +133,14 @@ pub(super) fn record(
                 focus_visible: false,
                 attribute: attribute.to_string(),
             });
+    }
+}
+
+pub(super) fn mark_focus_visible(cx: &mut NativeRenderContext<'_>, base: &str) {
+    if base == "hozo0" {
+        if let Some(Some(style)) = cx.owner_style.as_deref_mut() {
+            style.focus_visible = true;
+        }
     }
 }
 
@@ -105,6 +175,7 @@ pub fn lower_owner_style(
 #[doc(hidden)]
 pub struct OwnerStyleInputs<'a> {
     pub facts: &'a [OwnerFact],
+    pub events: &'a [OwnerEvent],
     pub split_text: bool,
 }
 
@@ -165,11 +236,38 @@ pub fn lower_owner_style_with_inputs(
             _ => false,
         }
     }
-    let eligible = matches!(root.primitive, Primitive::View | Primitive::Pressable)
+    let interactive_view = root.primitive == Primitive::View
+        && inputs.split_text
+        && !inputs.events.is_empty()
+        && inputs.events.iter().all(|event| {
+            matches!(
+                event,
+                OwnerEvent::Hovered | OwnerEvent::Focused | OwnerEvent::FocusVisible
+            )
+        });
+    let eligible = matches!(
+        root.primitive,
+        Primitive::View | Primitive::Pressable | Primitive::Text | Primitive::TextInput
+    )
         && facts.iter().enumerate().all(|(at, fact)| !facts[..at].contains(fact))
-        && ((facts.is_empty() && !inputs.split_text) || root.primitive == Primitive::Pressable)
+        && inputs
+            .events
+            .iter()
+            .enumerate()
+            .all(|(at, event)| !inputs.events[..at].contains(event))
+        && ((facts.is_empty() && inputs.events.is_empty() && !inputs.split_text)
+            || (root.primitive == Primitive::View
+                && facts.is_empty()
+                && inputs.events.is_empty()
+                && inputs.split_text)
+            || interactive_view
+            || (root.primitive == Primitive::Pressable && inputs.events.is_empty())
+            || (root.primitive == Primitive::TextInput
+                && inputs.events.is_empty()
+                && !inputs.split_text))
         // The residual resolver's semantic inputs need their own delivery proof.
-        && ((facts.is_empty() && !inputs.split_text) || root.class_name_fallback.is_empty())
+        && ((facts.is_empty() && inputs.events.is_empty() && !inputs.split_text)
+            || root.class_name_fallback.is_empty())
         && (!inputs.split_text || root.style.iter().all(|d| split_text_supported(&d.property, theme) && d.condition.split_subtree().is_none()))
         && root.children.is_empty()
         && root.props.passthrough.is_empty()
@@ -198,13 +296,20 @@ pub fn lower_owner_style_with_inputs(
         RenderOptions::default(),
         eligible.then_some((&mut carrier, inputs)),
     );
+    // A synthetic leaf TextInput prepares styles only; the real owner
+    // component owns its accessible name.
+    if eligible && root.primitive == Primitive::TextInput {
+        output
+            .diagnostics
+            .retain(|d| d.code != DiagnosticCode::A11yMissingAccessibleName);
+    }
     // These are the existing owner's supplied state and residual resolver,
     // not wrappers to install. Every other helper/hook needs separate evidence.
     let style_only = output.prelude.is_empty()
         && output
             .runtime_imports
             .iter()
-            .all(|name| matches!(*name, "HozoPressable" | "hozoClasses"));
+            .all(|name| matches!(*name, "HozoPressable" | "HozoTextInput" | "hozoClasses"));
     if !style_only {
         carrier = None;
     }
@@ -225,7 +330,7 @@ pub fn lower_owner_style_with_inputs(
         output.diagnostics.push(Diagnostic {
             code: DiagnosticCode::NotWiredOnNative,
             severity: Severity::Error,
-            message: "Internal ownerStyle currently requires a leaf View/Pressable with only class input, no inherited context, expression capture, extra host props, wrappers or hooks. Ordinary output is retained; no partial style plan is certified.".into(),
+            message: "Internal ownerStyle currently requires a leaf View/Pressable/Text/TextInput with only class input, no inherited context, expression capture, extra host props, wrappers or hooks. Ordinary output is retained; no partial style plan is certified.".into(),
             span: root.span,
         });
     }
@@ -270,7 +375,8 @@ mod tests {
     #[test]
     fn refuses_non_style_effects_and_unavailable_owner_state() {
         for source in [
-            "const el=<Text className=\"text-red-500\"/>",
+            "const el=<ScrollView className=\"p-2\"/>",
+            "const el=<Text className=\"hover:text-red-500\"/>",
             "const el=<View className=\"p-2\"><View/></View>",
             "const el=<View style={{opacity:0.5}} className=\"p-2\"/>",
             "const el=<Pressable className={`p-2 ${input.value}`}/>",
@@ -291,6 +397,73 @@ mod tests {
                     .any(|d| d.severity == Severity::Error),
                 "{source}"
             );
+        }
+    }
+
+    #[test]
+    fn text_and_text_input_leaf_hosts_compile_explicit_owner_carriers() {
+        let (text_output, text_carrier) =
+            compile("const el=<Text className=\"text-sm font-bold text-red-500\"/>");
+        let text_carrier = text_carrier.expect("leaf Text compiles resting carrier");
+        assert!(
+            text_output.diagnostics.is_empty(),
+            "{:?}",
+            text_output.diagnostics
+        );
+        assert!(text_carrier.literal_resting && !text_carrier.callback);
+        assert!(text_output.styles.contains("fontSize: 14"));
+
+        let source = "const el=<TextInput className=\"border p-2 focus:border-blue-500 focus-visible:border-purple-500 disabled:opacity-50 read-only:bg-gray-100 aria-[invalid=true]:border-red-500 aria-required:border-amber-500\"/>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let facts = [
+            OwnerFact::Disabled,
+            OwnerFact::ReadOnly,
+            OwnerFact::AriaInvalid,
+            OwnerFact::AriaRequired,
+        ];
+        let (output, carrier) = lower_owner_style_with_inputs(
+            &parsed.roots[0].node,
+            &[],
+            source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &facts,
+                split_text: false,
+                ..Default::default()
+            },
+        );
+        let carrier =
+            carrier.expect("leaf TextInput compiles stateful carrier with declared facts");
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(carrier.callback && !carrier.literal_resting);
+        for fact in facts {
+            assert!(
+                carrier.expression.contains(&fact.parameter()),
+                "{}",
+                carrier.expression
+            );
+        }
+        assert!(carrier.expression.contains("focused"));
+        assert!(carrier.expression.contains("focusVisible"));
+
+        for rejected in [
+            "const el=<TextInput className=\"hover:border-blue-500\"/>",
+            "const el=<TextInput className=\"active:border-blue-500\"/>",
+            "const el=<TextInput className=\"placeholder:text-gray-400\"/>",
+        ] {
+            let parsed = hozo_parser::parse_tsx(rejected);
+            let (_, carrier) = lower_owner_style_with_inputs(
+                &parsed.roots[0].node,
+                &[],
+                rejected,
+                &Theme::default(),
+                OwnerStyleInputs {
+                    facts: &facts,
+                    split_text: false,
+                    ..Default::default()
+                },
+            );
+            assert!(carrier.is_none(), "{rejected}");
         }
     }
 
@@ -415,6 +588,7 @@ mod tests {
             OwnerStyleInputs {
                 facts: &facts,
                 split_text: true,
+                ..Default::default()
             },
         );
         let carrier = carrier.unwrap_or_else(|| {
@@ -453,7 +627,8 @@ mod tests {
             "<Pressable className=\"p-2 *:text-red-500\"/>",
             "<Pressable className={`p-2 ${extra}`}/>",
             "<Pressable className=\"text-red-500\"><Text/></Pressable>",
-            "<View className=\"text-red-500\"/>",
+            "<View className=\"text-[2em]\"/>",
+            "<View className=\"hover:text-red-500\"/>",
         ] {
             let source = format!("const el={element}");
             let parsed = hozo_parser::parse_tsx(&source);
@@ -475,6 +650,155 @@ mod tests {
                     .any(|d| d.severity == Severity::Error),
                 "{element}"
             );
+        }
+
+        // Stateless split-text Views compile box + text declarations into a resting carrier.
+        let view_source = "const el=<View className=\"p-2 text-[#112233] font-bold\"/>";
+        let view_parsed = hozo_parser::parse_tsx(view_source);
+        let (view_output, view_carrier) = lower_owner_style_with_inputs(
+            &view_parsed.roots[0].node,
+            &[],
+            view_source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                split_text: true,
+                ..Default::default()
+            },
+        );
+        let view_carrier =
+            view_carrier.expect("stateless split-text View compiles resting carrier");
+        assert!(view_output.diagnostics.is_empty());
+        assert!(view_carrier.split_text && view_carrier.literal_resting && !view_carrier.callback);
+        assert!(view_output.styles.contains("color: '#112233'"));
+        assert!(
+            !compile(view_source).0.styles.contains("#112233"),
+            "View without split_text must not emit text styles"
+        );
+        assert!(
+            compile("const el=<View className=\"text-[#112233]\"/>")
+                .1
+                .is_none(),
+            "text-only View without split_text has no carrier"
+        );
+
+        // Data-attribute owner facts compile standalone, negated, and stacked guards.
+        let day_source = "const el=<Pressable className=\"p-1 data-[hozo-outside]:opacity-50 data-[hozo-range-start]:bg-[#112233] not-data-[hozo-disabled]:text-[#ffffff] hover:data-[hozo-in-range]:bg-[#223344]\"/>";
+        let day_parsed = hozo_parser::parse_tsx(day_source);
+        let day_facts = [
+            OwnerFact::DataHozoOutside,
+            OwnerFact::DataHozoDisabled,
+            OwnerFact::DataHozoRangeStart,
+            OwnerFact::DataHozoRangeEnd,
+            OwnerFact::DataHozoInRange,
+        ];
+        let (day_output, day_carrier) = lower_owner_style_with_inputs(
+            &day_parsed.roots[0].node,
+            &[],
+            day_source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &day_facts,
+                split_text: true,
+                ..Default::default()
+            },
+        );
+        let day_carrier = day_carrier.expect("Calendar day data-hozo-* facts compile");
+        assert!(
+            day_output.diagnostics.is_empty(),
+            "{:?}",
+            day_output.diagnostics
+        );
+        assert!(day_carrier.callback && day_carrier.split_text);
+        for fact in day_facts {
+            assert!(day_carrier.expression.contains(&fact.parameter()));
+        }
+
+        // Interactive split-text View (e.g. TimePicker.value spinbutton) delivers
+        // hovered/focused/focusVisible and declared facts, while refusing pressed.
+        let value_source = "const el=<View className=\"px-2 text-[#112233] hover:bg-[#101010] focus:bg-[#202020] focus-visible:bg-[#303030] aria-disabled:opacity-50 data-[hozo-disabled]:text-[#404040]\"/>";
+        let value_parsed = hozo_parser::parse_tsx(value_source);
+        let value_events = [
+            OwnerEvent::Hovered,
+            OwnerEvent::Focused,
+            OwnerEvent::FocusVisible,
+        ];
+        let value_facts = [OwnerFact::AriaDisabled, OwnerFact::DataHozoDisabled];
+        let (value_output, value_carrier) = lower_owner_style_with_inputs(
+            &value_parsed.roots[0].node,
+            &[],
+            value_source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &value_facts,
+                events: &value_events,
+                split_text: true,
+            },
+        );
+        let value_carrier = value_carrier.expect("interactive split-text View compiles");
+        assert!(
+            value_output.diagnostics.is_empty(),
+            "{:?}",
+            value_output.diagnostics
+        );
+        assert!(value_carrier.callback && value_carrier.split_text && value_carrier.focus_visible);
+        assert_eq!(value_carrier.events, value_events);
+        assert!(value_carrier
+            .expression
+            .contains("hovered, focused, focusVisible"));
+        assert!(!value_carrier.expression.contains("pressed"));
+        for fact in value_facts {
+            assert!(value_carrier.expression.contains(&fact.parameter()));
+        }
+        for rejected in [
+            "const el=<View className=\"active:bg-[#505050]\"/>",
+            "const el=<View className=\"not-active:bg-[#505050]\"/>",
+        ] {
+            let parsed = hozo_parser::parse_tsx(rejected);
+            let (_, carrier) = lower_owner_style_with_inputs(
+                &parsed.roots[0].node,
+                &[],
+                rejected,
+                &Theme::default(),
+                OwnerStyleInputs {
+                    facts: &value_facts,
+                    events: &value_events,
+                    split_text: true,
+                },
+            );
+            assert!(carrier.is_none(), "{rejected}");
+        }
+
+        // TimePicker.step data-hozo-step presence and equality facts compile with distinct keys.
+        let step_source = "const el=<Pressable className=\"p-1 data-[hozo-step]:opacity-90 data-[hozo-step=increase]:bg-[#111111] data-[hozo-step=decrease]:bg-[#222222] data-[hozo-disabled]:opacity-40\"/>";
+        let step_parsed = hozo_parser::parse_tsx(step_source);
+        let step_facts = [
+            OwnerFact::Disabled,
+            OwnerFact::DataHozoStep,
+            OwnerFact::DataHozoStepIncrease,
+            OwnerFact::DataHozoStepDecrease,
+            OwnerFact::DataHozoDisabled,
+        ];
+        let (step_output, step_carrier) = lower_owner_style_with_inputs(
+            &step_parsed.roots[0].node,
+            &[],
+            step_source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &step_facts,
+                split_text: true,
+                ..Default::default()
+            },
+        );
+        let step_carrier = step_carrier.expect("TimePicker.step data-hozo-step facts compile");
+        assert!(
+            step_output.diagnostics.is_empty(),
+            "{:?}",
+            step_output.diagnostics
+        );
+        assert!(step_output.styles.contains("data_hozo_step_eq_increase"));
+        assert!(step_output.styles.contains("data_hozo_step_eq_decrease"));
+        for fact in step_facts {
+            assert!(step_carrier.expression.contains(&fact.parameter()));
         }
     }
 }

@@ -139,7 +139,8 @@ export interface CompiledNativeComponent {
     /** Requires the destination's existing box/owned-label split, not a host style. */
     splitText?: true
     /** Declared callback inputs; not an owner/audit certification. */
-    facts?: ('disabled' | 'aria-selected' | 'aria-disabled')[]
+    facts?: string[]
+    events?: ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
     expression: string
     callback: boolean
     focusVisible: boolean
@@ -686,8 +687,26 @@ export interface NativeCompileOptions extends CompileEvidence {
   sourceEvidence?: boolean
   /** @internal RFC010 leaf-owner preparation; not a project/bundler mode. */
   ownerStyle?: boolean
-  /** @internal Explicit existing-owner booleans, requires ownerStyle. Literal Pressable only. */
-  ownerFacts?: readonly ('disabled' | 'aria-selected' | 'aria-disabled')[]
+  /** @internal Explicit existing-owner booleans, requires ownerStyle. Literal Pressable/TextInput only. */
+  ownerFacts?: readonly (
+    | 'disabled'
+    | 'readOnly'
+    | 'aria-selected'
+    | 'aria-disabled'
+    | 'aria-invalid'
+    | 'aria-required'
+    | 'aria-expanded'
+    | 'data-hozo-outside'
+    | 'data-hozo-disabled'
+    | 'data-hozo-range-start'
+    | 'data-hozo-range-end'
+    | 'data-hozo-in-range'
+    | 'data-hozo-step'
+    | 'data-hozo-step=increase'
+    | 'data-hozo-step=decrease'
+  )[]
+  /** @internal Explicit interaction events for interactive View owners (e.g. spinbutton). */
+  ownerEvents?: readonly ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
   /** @internal Existing box/owned-label split; no parent/opaque text inheritance. */
   ownerText?: 'split'
   /** @internal RFC 006's reference model, which decision 013's route is compared against. */

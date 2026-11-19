@@ -29,4 +29,312 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     shadow:
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"FileDropzone.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoFileDropzoneStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled"],"splitText":true}}]}]}',
   },
+  {
+    owner: 'Field.root',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Field.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoFieldStyle","webClassProp":"className"},"authoredStyles":[],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Field.label',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Field.label","classProp":"labelClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoLabelStyle","webClassProp":"labelClassName"},"authoredStyles":[],"shapes":[{"id":"label","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"label","events":[]}]}]}',
+  },
+  {
+    owner: 'Field.required',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Field.required","classProp":"requiredClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoRequiredStyle","webClassProp":"requiredClassName"},"authoredStyles":[],"shapes":[{"id":"required","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"span","events":[]}]}]}',
+  },
+  {
+    owner: 'Field.description',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Field.description","classProp":"descriptionClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDescriptionStyle","webClassProp":"descriptionClassName"},"authoredStyles":[],"shapes":[{"id":"description","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"span","events":[]}]}]}',
+  },
+  {
+    owner: 'Field.error',
+    package: '@hozo/form',
+    exports: ['Field', 'HozoField'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Field.error","classProp":"errorClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoErrorStyle","webClassProp":"errorClassName"},"authoredStyles":[],"shapes":[{"id":"error","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"span","events":[]}]}]}',
+  },
+  {
+    owner: 'TextArea.root',
+    package: '@hozo/form',
+    exports: ['TextArea', 'HozoTextArea'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TextArea.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTextAreaStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'TextArea.field',
+    package: '@hozo/form',
+    exports: ['TextArea', 'HozoTextArea'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TextArea.field","classProp":"fieldClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoFieldStyle","webClassProp":"fieldClassName"},"authoredStyles":[{"prop":"fieldStyle","order":0}],"shapes":[{"id":"field","when":{"eq":["present",true]},"nativeHost":"TextInput","webHost":"textarea","events":["focused","focusVisible"],"inputs":{"facts":["disabled","readOnly","aria-invalid","aria-required"],"splitText":false}}]}]}',
+  },
+  {
+    owner: 'TextArea.count',
+    package: '@hozo/form',
+    exports: ['TextArea', 'HozoTextArea'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TextArea.count","classProp":"countClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCountStyle","webClassProp":"countClassName"},"authoredStyles":[{"prop":"countStyle","order":0}],"shapes":[{"id":"count","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"span","events":[]}]}]}',
+  },
+  {
+    owner: 'NativeSelect.root',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"NativeSelect.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSelectStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0},{"prop":"textStyle","order":1}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"select","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-invalid","aria-required"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Calendar.root',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Calendar.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCalendarStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Calendar.header',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Calendar.header","classProp":"headerClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoHeaderStyle","webClassProp":"headerClassName"},"authoredStyles":[{"prop":"headerStyle","order":0}],"shapes":[{"id":"header","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Calendar.grid',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Calendar.grid","classProp":"gridClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoGridStyle","webClassProp":"gridClassName"},"authoredStyles":[],"shapes":[{"id":"grid","when":{"eq":["present",true]},"nativeHost":"View","webHost":"table","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Calendar.monthButton',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Calendar.monthButton","classProp":"monthButtonClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoMonthButtonStyle","webClassProp":"monthButtonClassName"},"authoredStyles":[{"prop":"monthButtonStyle","order":0}],"shapes":[{"id":"monthButton","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Calendar.day',
+    package: '@hozo/form',
+    exports: ['Calendar', 'HozoCalendar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Calendar.day","classProp":"dayClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDayStyle","webClassProp":"dayClassName"},"authoredStyles":[{"prop":"dayStyle","order":0},{"prop":"dayTextStyle","order":1}],"shapes":[{"id":"day","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"td","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["aria-selected","aria-disabled","data-hozo-outside","data-hozo-disabled","data-hozo-range-start","data-hozo-range-end","data-hozo-in-range"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DatePicker.root',
+    package: '@hozo/form',
+    exports: ['DatePicker', 'HozoDatePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DatePicker.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDatePickerStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DatePicker.trigger',
+    package: '@hozo/form',
+    exports: ['DatePicker', 'HozoDatePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DatePicker.trigger","classProp":"triggerClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTriggerStyle","webClassProp":"triggerClassName"},"authoredStyles":[{"prop":"triggerStyle","order":0},{"prop":"triggerTextStyle","order":1}],"shapes":[{"id":"trigger","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-expanded"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DatePicker.dialog',
+    package: '@hozo/form',
+    exports: ['DatePicker', 'HozoDatePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DatePicker.dialog","classProp":"dialogClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDialogStyle","webClassProp":"dialogClassName"},"authoredStyles":[{"prop":"dialogStyle","order":0}],"shapes":[{"id":"dialog","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DatePicker.calendar',
+    package: '@hozo/form',
+    exports: ['DatePicker', 'HozoDatePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DatePicker.calendar","classProp":"calendarClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCalendarStyle","webClassProp":"calendarClassName"},"authoredStyles":[],"shapes":[{"id":"calendar","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DatePicker.header',
+    package: '@hozo/form',
+    exports: ['DatePicker', 'HozoDatePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DatePicker.header","classProp":"headerClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoHeaderStyle","webClassProp":"headerClassName"},"authoredStyles":[],"shapes":[{"id":"header","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DatePicker.grid',
+    package: '@hozo/form',
+    exports: ['DatePicker', 'HozoDatePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DatePicker.grid","classProp":"gridClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoGridStyle","webClassProp":"gridClassName"},"authoredStyles":[],"shapes":[{"id":"grid","when":{"eq":["present",true]},"nativeHost":"View","webHost":"table","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DatePicker.monthButton',
+    package: '@hozo/form',
+    exports: ['DatePicker', 'HozoDatePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DatePicker.monthButton","classProp":"monthButtonClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoMonthButtonStyle","webClassProp":"monthButtonClassName"},"authoredStyles":[],"shapes":[{"id":"monthButton","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DatePicker.day',
+    package: '@hozo/form',
+    exports: ['DatePicker', 'HozoDatePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DatePicker.day","classProp":"dayClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDayStyle","webClassProp":"dayClassName"},"authoredStyles":[],"shapes":[{"id":"day","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"td","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["aria-selected","aria-disabled","data-hozo-outside","data-hozo-disabled","data-hozo-range-start","data-hozo-range-end","data-hozo-in-range"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateRangePicker.root',
+    package: '@hozo/form',
+    exports: ['DateRangePicker', 'HozoDateRangePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateRangePicker.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDateRangePickerStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateRangePicker.trigger',
+    package: '@hozo/form',
+    exports: ['DateRangePicker', 'HozoDateRangePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateRangePicker.trigger","classProp":"triggerClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTriggerStyle","webClassProp":"triggerClassName"},"authoredStyles":[{"prop":"triggerStyle","order":0},{"prop":"triggerTextStyle","order":1}],"shapes":[{"id":"trigger","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-expanded"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateRangePicker.dialog',
+    package: '@hozo/form',
+    exports: ['DateRangePicker', 'HozoDateRangePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateRangePicker.dialog","classProp":"dialogClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDialogStyle","webClassProp":"dialogClassName"},"authoredStyles":[{"prop":"dialogStyle","order":0}],"shapes":[{"id":"dialog","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateRangePicker.calendar',
+    package: '@hozo/form',
+    exports: ['DateRangePicker', 'HozoDateRangePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateRangePicker.calendar","classProp":"calendarClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCalendarStyle","webClassProp":"calendarClassName"},"authoredStyles":[],"shapes":[{"id":"calendar","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateRangePicker.header',
+    package: '@hozo/form',
+    exports: ['DateRangePicker', 'HozoDateRangePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateRangePicker.header","classProp":"headerClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoHeaderStyle","webClassProp":"headerClassName"},"authoredStyles":[],"shapes":[{"id":"header","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateRangePicker.grid',
+    package: '@hozo/form',
+    exports: ['DateRangePicker', 'HozoDateRangePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateRangePicker.grid","classProp":"gridClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoGridStyle","webClassProp":"gridClassName"},"authoredStyles":[],"shapes":[{"id":"grid","when":{"eq":["present",true]},"nativeHost":"View","webHost":"table","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateRangePicker.monthButton',
+    package: '@hozo/form',
+    exports: ['DateRangePicker', 'HozoDateRangePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateRangePicker.monthButton","classProp":"monthButtonClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoMonthButtonStyle","webClassProp":"monthButtonClassName"},"authoredStyles":[],"shapes":[{"id":"monthButton","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateRangePicker.day',
+    package: '@hozo/form',
+    exports: ['DateRangePicker', 'HozoDateRangePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateRangePicker.day","classProp":"dayClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDayStyle","webClassProp":"dayClassName"},"authoredStyles":[],"shapes":[{"id":"day","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"td","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["aria-selected","aria-disabled","data-hozo-outside","data-hozo-disabled","data-hozo-range-start","data-hozo-range-end","data-hozo-in-range"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateTimePicker.root',
+    package: '@hozo/form',
+    exports: ['DateTimePicker', 'HozoDateTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateTimePicker.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDateTimePickerStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateTimePicker.trigger',
+    package: '@hozo/form',
+    exports: ['DateTimePicker', 'HozoDateTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateTimePicker.trigger","classProp":"triggerClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTriggerStyle","webClassProp":"triggerClassName"},"authoredStyles":[{"prop":"triggerStyle","order":0},{"prop":"triggerTextStyle","order":1}],"shapes":[{"id":"trigger","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-expanded"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateTimePicker.dialog',
+    package: '@hozo/form',
+    exports: ['DateTimePicker', 'HozoDateTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateTimePicker.dialog","classProp":"dialogClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDialogStyle","webClassProp":"dialogClassName"},"authoredStyles":[{"prop":"dialogStyle","order":0}],"shapes":[{"id":"dialog","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateTimePicker.calendar',
+    package: '@hozo/form',
+    exports: ['DateTimePicker', 'HozoDateTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateTimePicker.calendar","classProp":"calendarClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCalendarStyle","webClassProp":"calendarClassName"},"authoredStyles":[],"shapes":[{"id":"calendar","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateTimePicker.header',
+    package: '@hozo/form',
+    exports: ['DateTimePicker', 'HozoDateTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateTimePicker.header","classProp":"headerClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoHeaderStyle","webClassProp":"headerClassName"},"authoredStyles":[],"shapes":[{"id":"header","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateTimePicker.grid',
+    package: '@hozo/form',
+    exports: ['DateTimePicker', 'HozoDateTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateTimePicker.grid","classProp":"gridClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoGridStyle","webClassProp":"gridClassName"},"authoredStyles":[],"shapes":[{"id":"grid","when":{"eq":["present",true]},"nativeHost":"View","webHost":"table","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateTimePicker.monthButton',
+    package: '@hozo/form',
+    exports: ['DateTimePicker', 'HozoDateTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateTimePicker.monthButton","classProp":"monthButtonClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoMonthButtonStyle","webClassProp":"monthButtonClassName"},"authoredStyles":[],"shapes":[{"id":"monthButton","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateTimePicker.day',
+    package: '@hozo/form',
+    exports: ['DateTimePicker', 'HozoDateTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateTimePicker.day","classProp":"dayClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDayStyle","webClassProp":"dayClassName"},"authoredStyles":[],"shapes":[{"id":"day","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"td","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["aria-selected","aria-disabled","data-hozo-outside","data-hozo-disabled","data-hozo-range-start","data-hozo-range-end","data-hozo-in-range"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'DateTimePicker.done',
+    package: '@hozo/form',
+    exports: ['DateTimePicker', 'HozoDateTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"DateTimePicker.done","classProp":"doneClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDoneStyle","webClassProp":"doneClassName"},"authoredStyles":[{"prop":"doneStyle","order":0},{"prop":"doneTextStyle","order":1}],"shapes":[{"id":"done","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'TimePicker.root',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TimePicker.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTimePickerStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'TimePicker.field',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TimePicker.field","classProp":"fieldClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoFieldStyle","webClassProp":"fieldClassName"},"authoredStyles":[{"prop":"fieldStyle","order":0}],"shapes":[{"id":"field","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'TimePicker.value',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TimePicker.value","classProp":"valueClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoValueStyle","webClassProp":"valueClassName"},"authoredStyles":[{"prop":"fieldTextStyle","order":0}],"shapes":[{"id":"value","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":["hovered","focused","focusVisible"],"inputs":{"facts":["aria-disabled","data-hozo-disabled"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'TimePicker.period',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TimePicker.period","classProp":"periodClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPeriodStyle","webClassProp":"periodClassName"},"authoredStyles":[{"prop":"fieldStyle","order":0},{"prop":"fieldTextStyle","order":1}],"shapes":[{"id":"period","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","data-hozo-disabled"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'TimePicker.step',
+    package: '@hozo/form',
+    exports: ['TimePicker', 'HozoTimePicker'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"TimePicker.step","classProp":"stepClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoStepStyle","webClassProp":"stepClassName"},"authoredStyles":[{"prop":"stepStyle","order":0}],"shapes":[{"id":"step","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","data-hozo-step","data-hozo-step=increase","data-hozo-step=decrease","data-hozo-disabled"],"splitText":true}}]}]}',
+  },
 ]

@@ -149,5 +149,6 @@ test('disabled reaches the trigger and the half behind it', () => {
     children: (time) => createElement('p', { 'data-disabled': String(time.disabled) }),
   })
   assert.match(html, /<button[^>]*disabled=""/)
+  assert.match(html, /<button[^>]*data-hozo-disabled=""/)
   assert.match(html, /data-disabled="true"/)
 })
