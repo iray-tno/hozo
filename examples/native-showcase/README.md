@@ -85,6 +85,13 @@ mode gets a 100-row warm-up, excluded from the report, followed by three
 fresh mounts at each size. Mode order alternates by round. Inputs are sent
 once; missing, incomplete or timed-out samples fail the run.
 
+A collector-only correction can explicitly reuse an APK with `diagnostics=true`
+and its producer's `reuse-build-run`. Signing/run/hash identity must match;
+a Git comparison allows only this collector, its tests and documentation to
+differ. Application, Table, observer, generator, dependency and workflow
+changes require a fresh build. Both revisions and every differing path are
+retained; reused-binary diagnostics do not become release evidence.
+
 The baseline is generated from the current Native Table source at Metro
 startup and before typechecking. Assertions require unique instrumentation
 anchors; the generator fails if they drift. The generated file is ignored,

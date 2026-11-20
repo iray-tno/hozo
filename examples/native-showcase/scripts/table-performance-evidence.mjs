@@ -4,11 +4,30 @@ export const TABLE_COUNTS = [100, 500, 1000]
 
 export function tableTimingRecords(log) {
   return log.split(/\r?\n/).flatMap((line) => {
-    const at = line.indexOf('[Hozo Table timing] ')
+    const at = line.indexOf('[Hozo Table timing]')
     if (at < 0) return []
     // A truncated record must fail, rather than disappear into an empty sample.
-    return [JSON.parse(line.slice(at + '[Hozo Table timing] '.length))]
+    // Release RN quotes console arguments and separates them with a comma.
+    const start = line.indexOf('{', at)
+    const end = line.lastIndexOf('}')
+    assert.ok(start >= at, 'timing record has no JSON payload')
+    return [JSON.parse(line.slice(start, end >= start ? end + 1 : undefined))]
   })
+}
+
+export function assertReusableTableInputs(changed) {
+  const collectors = new Set([
+    'examples/native-showcase/scripts/table-performance.mjs',
+    'examples/native-showcase/scripts/table-performance-evidence.mjs',
+    'examples/native-showcase/scripts/table-performance.test.mjs',
+    'examples/native-showcase/README.md',
+  ])
+  for (const path of changed) {
+    assert.ok(
+      collectors.has(path) || path.startsWith('docs/'),
+      `Table binary input changed: ${path}`,
+    )
+  }
 }
 
 export function verifyTableSample(sample, { mode, count, sourceHash }) {

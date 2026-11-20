@@ -10,6 +10,7 @@ import { prepareAndroid } from './android-startup.mjs'
 import { waitForAndroidControl } from './android-ui-wait.mjs'
 import { centre, matchLabel, parseNodes } from './device-evidence.mjs'
 import {
+  assertReusableTableInputs,
   TABLE_COUNTS,
   tableSummary,
   tableTimingRecords,
@@ -64,11 +65,25 @@ try {
   evidence.apkSha256 = hash(apk)
   assert.equal(evidence.apkSha256, signing.apkSha256)
   assert.equal(evidence.binaryRun, signing.run)
-  assert.equal(
-    signing.commit,
-    evidence.source,
-    'Table measurement requires a fresh build of current source',
-  )
+  assert.match(signing.commit ?? '', /^[a-f0-9]{40}$/)
+  evidence.binarySource = signing.commit
+  evidence.reusedBinary = evidence.binaryRun !== process.env.GITHUB_RUN_ID
+  if (evidence.reusedBinary) {
+    assert.equal(process.env.HOZO_DIAGNOSTICS, '1', 'binary reuse must be an explicit diagnostic')
+    execFileSync('git', ['fetch', '--no-tags', '--depth=1', 'origin', signing.commit], {
+      cwd: root,
+      timeout: 60_000,
+    })
+    evidence.changedFromBinary = execFileSync(
+      'git',
+      ['diff', '--name-only', signing.commit, evidence.source, '--'],
+      { cwd: root, encoding: 'utf8' },
+    )
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+    assertReusableTableInputs(evidence.changedFromBinary)
+  } else assert.equal(signing.commit, evidence.source, 'fresh build source differs from driver')
   evidence.sources = Object.fromEntries(
     [
       'src/TablePerformance.stories.tsx',

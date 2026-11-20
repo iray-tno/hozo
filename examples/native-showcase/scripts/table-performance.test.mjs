@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
+  assertReusableTableInputs,
   tableSummary,
   tableTimingRecords,
   verifyTableSample,
@@ -48,6 +49,14 @@ test('baseline instrumentation retains the current Table algorithm and fails on 
 
 test('missing, truncated, zero-work and unfinished observations cannot pass as cheap mounts', () => {
   assert.deepEqual(tableTimingRecords('unrelated log'), [])
+  const payload = { name: 'normal-100-1', mode: 'normal', count: 100 }
+  assert.deepEqual(
+    tableTimingRecords(
+      `I/ReactNativeJS(2897): '[Hozo Table timing]', '${JSON.stringify(payload)}'`,
+    ),
+    [payload],
+  )
+  assert.deepEqual(tableTimingRecords(`[Hozo Table timing] ${JSON.stringify(payload)}`), [payload])
   assert.throws(() => tableTimingRecords('[Hozo Table timing] {"passed":'), SyntaxError)
   const expected = { mode: 'normal', count: 100, sourceHash: 'actual-source' }
   const sample = {
@@ -95,4 +104,23 @@ test('missing, truncated, zero-work and unfinished observations cannot pass as c
     assert.throws(() => verifyTableSample({ ...windowed, ...changed }, windowExpected))
   }
   assert.throws(() => tableSummary([sample]), /incomplete/)
+})
+
+test('collector-only diagnostic reuse rejects all application, generator, dependency and workflow changes', () => {
+  assertReusableTableInputs([
+    'examples/native-showcase/scripts/table-performance-evidence.mjs',
+    'docs/rfcs/014-windowed-table.md',
+  ])
+  for (const path of [
+    'examples/native-showcase/src/TablePerformance.stories.tsx',
+    'examples/native-showcase/src/table-performance-observer.ts',
+    'examples/native-showcase/scripts/table-performance-source.cjs',
+    'packages/semantics/src/table.native.tsx',
+    'packages/compiler/src/index.ts',
+    'examples/native-showcase/metro.config.js',
+    'pnpm-lock.yaml',
+    '.github/workflows/native-showcase.yml',
+  ]) {
+    assert.throws(() => assertReusableTableInputs([path]), /binary input changed/)
+  }
 })
