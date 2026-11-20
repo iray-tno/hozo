@@ -12,8 +12,12 @@ const exports = [
   'Other',
   'Accordion',
   'HozoAccordion',
+  'Alert',
+  'HozoAlert',
   'HozoBottomSheet',
   'BottomSheet',
+  'Checkbox',
+  'HozoCheckbox',
   'CodeBlock',
   'Drawer',
   'HozoDrawer',
@@ -25,10 +29,13 @@ const exports = [
   'Slider',
   'HozoSlider',
   'Splitter',
+  'Switch',
+  'HozoSwitch',
   'Tabs',
   'HozoTabs',
   'Toolbar',
   'HozoToolbar',
+  'Tooltip',
   'Tree',
   'HozoTree',
 ]
@@ -50,19 +57,23 @@ test('catalog publication owns the contract once and attaches only actual packag
         'Accordion.heading',
         'Accordion.panel',
         'Accordion.panelContent',
+        'Accordion.root',
         'Accordion.section',
         'Accordion.trigger',
       ],
     },
+    { name: 'Alert', owners: ['Alert.root'] },
     {
       name: 'BottomSheet',
       owners: [
         'BottomSheet.handle',
         'BottomSheet.handleBar',
+        'BottomSheet.root',
         'BottomSheet.scrim',
         'BottomSheet.sheet',
       ],
     },
+    { name: 'Checkbox', owners: ['Checkbox.root'] },
     {
       name: 'CodeBlock',
       owners: [
@@ -76,53 +87,60 @@ test('catalog publication owns the contract once and attaches only actual packag
         'CodeBlock.root',
       ],
     },
-    { name: 'Drawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
+    { name: 'Drawer', owners: ['Drawer.panel', 'Drawer.root', 'Drawer.scrim'] },
     {
       name: 'HozoAccordion',
       owners: [
         'Accordion.heading',
         'Accordion.panel',
         'Accordion.panelContent',
+        'Accordion.root',
         'Accordion.section',
         'Accordion.trigger',
       ],
     },
+    { name: 'HozoAlert', owners: ['Alert.root'] },
     {
       name: 'HozoBottomSheet',
       owners: [
         'BottomSheet.handle',
         'BottomSheet.handleBar',
+        'BottomSheet.root',
         'BottomSheet.scrim',
         'BottomSheet.sheet',
       ],
     },
-    { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
-    { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.trigger'] },
-    { name: 'HozoRadioGroup', owners: ['RadioGroup.option'] },
-    { name: 'HozoSlider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
-    { name: 'HozoTabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.tabList'] },
+    { name: 'HozoCheckbox', owners: ['Checkbox.root'] },
+    { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.root', 'Drawer.scrim'] },
+    { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.root', 'Popover.trigger'] },
+    { name: 'HozoRadioGroup', owners: ['RadioGroup.option', 'RadioGroup.root'] },
+    { name: 'HozoSlider', owners: ['Slider.fill', 'Slider.rail', 'Slider.root', 'Slider.thumb'] },
+    { name: 'HozoSwitch', owners: ['Switch.root'] },
+    { name: 'HozoTabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.root', 'Tabs.tabList'] },
     { name: 'HozoToolbar', owners: ['Toolbar.root'] },
-    { name: 'HozoTree', owners: ['Tree.row'] },
+    { name: 'HozoTree', owners: ['Tree.root', 'Tree.row'] },
     { name: 'Other', owners: [] },
-    { name: 'Popover', owners: ['Popover.panel', 'Popover.trigger'] },
-    { name: 'RadioGroup', owners: ['RadioGroup.option'] },
+    { name: 'Popover', owners: ['Popover.panel', 'Popover.root', 'Popover.trigger'] },
+    { name: 'RadioGroup', owners: ['RadioGroup.option', 'RadioGroup.root'] },
     {
       name: 'ResizablePane',
       owners: ['ResizablePane.handle', 'ResizablePane.pane', 'ResizablePane.root'],
     },
-    { name: 'Slider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
+    { name: 'Slider', owners: ['Slider.fill', 'Slider.rail', 'Slider.root', 'Slider.thumb'] },
     { name: 'Splitter', owners: ['Splitter.root'] },
-    { name: 'Tabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.tabList'] },
+    { name: 'Switch', owners: ['Switch.root'] },
+    { name: 'Tabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.root', 'Tabs.tabList'] },
     { name: 'Toolbar', owners: ['Toolbar.root'] },
-    { name: 'Tree', owners: ['Tree.row'] },
+    { name: 'Tooltip', owners: ['Tooltip.root'] },
+    { name: 'Tree', owners: ['Tree.root', 'Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 34)
+  assert.equal(result.owners.contracts.length, 46)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
       ['BottomSheet.handle', 'audited'],
       ['Tabs.Tab', 'audited'],
-      ['Toolbar.root', 'unknown'],
+      ['Toolbar.root', 'audited'],
       ['Drawer.scrim', 'audited'],
       ['Drawer.panel', 'audited'],
       ['Popover.trigger', 'audited'],
@@ -154,6 +172,18 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['CodeBlock.mark', 'audited'],
       ['CodeBlock.copy', 'audited'],
       ['CodeBlock.caption', 'audited'],
+      ['Checkbox.root', 'audited'],
+      ['Switch.root', 'audited'],
+      ['Alert.root', 'audited'],
+      ['Tooltip.root', 'audited'],
+      ['Accordion.root', 'audited'],
+      ['BottomSheet.root', 'audited'],
+      ['Drawer.root', 'audited'],
+      ['Popover.root', 'audited'],
+      ['RadioGroup.root', 'audited'],
+      ['Slider.root', 'audited'],
+      ['Tabs.root', 'audited'],
+      ['Tree.root', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
@@ -305,7 +335,7 @@ test('publication preserves recognized audit declarations without publishing a p
 })
 
 test('the catalog publishes primitive exports and text hosts only on their own package', () => {
-  const names = [...exports, 'Chip', 'Checkbox']
+  const names = [...exports, 'Chip']
   const options = {
     primitives: { '@hozo/patterns': ['Chip'] },
     hosts: [{ package: '@hozo/patterns', export: 'Checkbox', sharesState: true }],
@@ -324,7 +354,11 @@ test('the catalog publishes primitive exports and text hosts only on their own p
     /Primitive export is not a public value export: Chip/,
   )
   assert.throws(
-    () => packageOwnerChannels('@hozo/patterns', [...exports, 'Chip'], options),
-    /Text host is not a public value export: Checkbox/,
+    () =>
+      packageOwnerChannels('@hozo/patterns', [...exports, 'Chip'], {
+        ...options,
+        hosts: [{ package: '@hozo/patterns', export: 'MissingHost', sharesState: true }],
+      }),
+    /Text host is not a public value export: MissingHost/,
   )
 })

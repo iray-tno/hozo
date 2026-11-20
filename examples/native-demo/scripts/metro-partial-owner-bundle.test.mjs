@@ -601,8 +601,7 @@ async function checkBundles(t, evidence, manifest) {
         )
         assert.equal(
           control.carrierSupplied,
-          mode === 'toolbar-opt-in' &&
-            ['literal', 'alias', 'nested', 'renderItem', 'groupedRenderItem'].includes(route),
+          route !== 'opaque' && (mode !== 'opt-in' || route === 'uncaptured'),
         )
         assert.equal(control.role, 'toolbar')
         assert.equal(control.label, 'Tools')
@@ -612,7 +611,7 @@ async function checkBundles(t, evidence, manifest) {
         assert.equal(control.runtimeReads, route === 'opaque' ? 1 : 0)
         assert.equal(control.actions, 1)
       }
-      assert.equal(globals.sharedToolbarPlan, mode === 'toolbar-opt-in')
+      assert.equal(globals.sharedToolbarPlan, mode !== 'opt-in')
       assert.equal(inputPlatform, platform)
       assert.equal(carrierSupplied, partial)
       assert.equal(literal.decorativeCarrierSupplied, partial)

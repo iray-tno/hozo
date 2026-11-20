@@ -581,6 +581,12 @@ export const components = {
     'className sectionClassName headingClassName triggerClassName panelClassName panelContentClassName',
     {
       overrides: {
+        className: {
+          lowering: 'component-managed',
+          owner: 'accordion-root',
+          gate: 'always',
+          composition: 'prepared-owner-contract',
+        },
         sectionClassName: {
           owner: 'accordion-section',
           gate: 'each-section',
@@ -612,7 +618,16 @@ export const components = {
       },
     },
   ),
-  Alert: slots('className'),
+  Alert: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'alert-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Avatar: slots('className imageClassName fallbackClassName statusClassName', {
     secondary: true,
     overrides: {
@@ -641,6 +656,12 @@ export const components = {
   }),
   BottomSheet: slots('className scrimClassName sheetClassName handleClassName handleBarClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'bottom-sheet-root',
+        gate: 'when-mounted',
+        composition: 'prepared-owner-contract',
+      },
       scrimClassName: {
         owner: 'bottom-sheet-scrim',
         gate: 'when-mounted',
@@ -663,7 +684,16 @@ export const components = {
       },
     },
   }),
-  Checkbox: slots('className'),
+  Checkbox: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'checkbox-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Chip: slots('className removeClassName', {
     secondary: true,
     overrides: {
@@ -783,6 +813,12 @@ export const components = {
   }),
   Drawer: slots('className scrimClassName panelClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'drawer-root',
+        gate: 'open',
+        composition: 'prepared-owner-contract',
+      },
       scrimClassName: {
         owner: 'drawer-scrim',
         gate: 'open',
@@ -898,6 +934,12 @@ export const components = {
   ),
   Popover: slots('className triggerClassName panelClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'popover-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
       triggerClassName: {
         owner: 'popover-trigger',
         gate: 'always',
@@ -912,6 +954,12 @@ export const components = {
   }),
   RadioGroup: slots('className optionClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'radio-group-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
       optionClassName: {
         owner: 'radio-group-option',
         gate: 'each-option',
@@ -921,6 +969,12 @@ export const components = {
   }),
   Slider: slots('className thumbClassName fillClassName railClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'slider-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
       thumbClassName: {
         owner: 'slider-thumb',
         gate: 'always',
@@ -987,9 +1041,24 @@ export const components = {
       },
     },
   ),
-  Switch: slots('className'),
+  Switch: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'switch-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Tabs: slots('className tabListClassName tabClassName panelClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'tabs-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
       tabListClassName: {
         owner: 'tabs-tab-list',
         gate: 'always',
@@ -1007,10 +1076,34 @@ export const components = {
       },
     },
   }),
-  Toolbar: slots('className'),
-  Tooltip: slots('className'),
+  Toolbar: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'toolbar-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+    },
+  }),
+  Tooltip: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'tooltip-root',
+        gate: 'when-open',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Tree: slots('className rowClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'tree-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
       rowClassName: {
         owner: 'tree-row',
         gate: 'each-visible-row',
@@ -1277,7 +1370,7 @@ export const ownerShadow = {
     {
       owner: 'Toolbar.root',
       classProp: 'className',
-      audit: 'unknown',
+      audit: 'audited',
       bindings: ['present'],
       abi: { nativePreparedProp: 'hozoToolbarStyle', webClassProp: 'className' },
       authoredStyles: [{ prop: 'style', order: 0 }],
@@ -1891,6 +1984,233 @@ export const ownerShadow = {
           when: { eq: ['present', true] },
           nativeHost: 'Text',
           webHost: 'figcaption',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Checkbox.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCheckboxStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: {
+            facts: [
+              'disabled',
+              'aria-checked',
+              'data-hozo-disabled',
+              'data-hozo-state=checked',
+              'data-hozo-state=unchecked',
+              'data-hozo-state=mixed',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'Switch.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSwitchStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: {
+            facts: [
+              'disabled',
+              'aria-checked',
+              'data-hozo-disabled',
+              'data-hozo-state=checked',
+              'data-hozo-state=unchecked',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'Alert.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoAlertStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Tooltip.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTooltipStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Accordion.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoAccordionStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'BottomSheet.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoBottomSheetStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Drawer.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoDrawerStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Popover.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPopoverStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'RadioGroup.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoRadioGroupStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Slider.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSliderStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Tabs.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTabsStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Tree.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTreeStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
           events: [],
         },
       ],
@@ -2595,6 +2915,66 @@ export const ownerPublications = [
     owner: 'CodeBlock.caption',
     package: '@hozo/patterns',
     exports: ['CodeBlock'],
+  },
+  {
+    owner: 'Checkbox.root',
+    package: '@hozo/patterns',
+    exports: ['Checkbox', 'HozoCheckbox'],
+  },
+  {
+    owner: 'Switch.root',
+    package: '@hozo/patterns',
+    exports: ['Switch', 'HozoSwitch'],
+  },
+  {
+    owner: 'Alert.root',
+    package: '@hozo/patterns',
+    exports: ['Alert', 'HozoAlert'],
+  },
+  {
+    owner: 'Tooltip.root',
+    package: '@hozo/patterns',
+    exports: ['Tooltip'],
+  },
+  {
+    owner: 'Accordion.root',
+    package: '@hozo/patterns',
+    exports: ['Accordion', 'HozoAccordion'],
+  },
+  {
+    owner: 'BottomSheet.root',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+  },
+  {
+    owner: 'Drawer.root',
+    package: '@hozo/patterns',
+    exports: ['Drawer', 'HozoDrawer'],
+  },
+  {
+    owner: 'Popover.root',
+    package: '@hozo/patterns',
+    exports: ['Popover', 'HozoPopover'],
+  },
+  {
+    owner: 'RadioGroup.root',
+    package: '@hozo/patterns',
+    exports: ['RadioGroup', 'HozoRadioGroup'],
+  },
+  {
+    owner: 'Slider.root',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+  },
+  {
+    owner: 'Tabs.root',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+  },
+  {
+    owner: 'Tree.root',
+    package: '@hozo/patterns',
+    exports: ['Tree', 'HozoTree'],
   },
   {
     owner: 'Form.root',

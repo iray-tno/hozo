@@ -129,6 +129,8 @@ export function HozoCheckbox({
       aria-checked={state === 'mixed' ? 'mixed' : state}
       aria-label={accessibilityLabel}
       disabled={disabled}
+      // Hozo's `disabled:` variant compiles to `[data-hozo-disabled]` (decision 001).
+      data-hozo-disabled={disabled ? '' : undefined}
       className={className}
       data-hozo-state={attribute(state)}
       onClick={press}
@@ -160,6 +162,7 @@ export function HozoSwitch({
       aria-checked={state === true}
       aria-label={accessibilityLabel}
       disabled={disabled}
+      data-hozo-disabled={disabled ? '' : undefined}
       className={className}
       data-hozo-state={attribute(state)}
       onClick={press}

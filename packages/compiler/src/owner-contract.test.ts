@@ -14,10 +14,10 @@ const text = readFileSync(
 )
 const parsed = () => parseOwnerContractShadow(text)
 const contract = () => parsed().contracts[0]!
-test('Toolbar root is one unknown-audit non-interactive shape, not an item event owner', () => {
+test('Toolbar root is one audited non-interactive shape, not an item event owner', () => {
   const toolbar = parsed().contracts.find((row) => row.owner === 'Toolbar.root')!
   assert.ok(toolbar)
-  assert.equal(toolbar.audit, 'unknown')
+  assert.equal(toolbar.audit, 'audited')
   assert.deepEqual(toolbar.abi, {
     nativePreparedProp: 'hozoToolbarStyle',
     webClassProp: 'className',
@@ -724,6 +724,92 @@ test('CodeBlock contracts declare figure root, figcaption text, copy button, and
           ],
           splitText: true,
         },
+      },
+    ])
+  }
+  const checkbox = parsed().contracts.find((entry) => entry.owner === 'Checkbox.root')!
+  assert.equal(checkbox.audit, 'audited')
+  assert.deepEqual(checkbox.shapes, [
+    {
+      id: 'root',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'button',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: {
+        facts: [
+          'disabled',
+          'aria-checked',
+          'data-hozo-disabled',
+          'data-hozo-state=checked',
+          'data-hozo-state=unchecked',
+          'data-hozo-state=mixed',
+        ],
+        splitText: true,
+      },
+    },
+  ])
+  const toggleSwitch = parsed().contracts.find((entry) => entry.owner === 'Switch.root')!
+  assert.equal(toggleSwitch.audit, 'audited')
+  assert.deepEqual(toggleSwitch.shapes, [
+    {
+      id: 'root',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'button',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: {
+        facts: [
+          'disabled',
+          'aria-checked',
+          'data-hozo-disabled',
+          'data-hozo-state=checked',
+          'data-hozo-state=unchecked',
+        ],
+        splitText: true,
+      },
+    },
+  ])
+  for (const [owner, prop] of [
+    ['Alert.root', 'hozoAlertStyle'],
+    ['Tooltip.root', 'hozoTooltipStyle'],
+  ]) {
+    const entry = parsed().contracts.find((row) => row.owner === owner)!
+    assert.equal(entry.audit, 'audited')
+    assert.equal(entry.abi.nativePreparedProp, prop)
+    assert.deepEqual(entry.shapes, [
+      {
+        id: 'root',
+        when: { eq: ['present', true] },
+        nativeHost: 'View',
+        webHost: 'div',
+        events: [],
+        inputs: { facts: [], splitText: true },
+      },
+    ])
+  }
+  for (const [owner, prop] of [
+    ['Accordion.root', 'hozoAccordionStyle'],
+    ['BottomSheet.root', 'hozoBottomSheetStyle'],
+    ['Drawer.root', 'hozoDrawerStyle'],
+    ['Popover.root', 'hozoPopoverStyle'],
+    ['RadioGroup.root', 'hozoRadioGroupStyle'],
+    ['Slider.root', 'hozoSliderStyle'],
+    ['Tabs.root', 'hozoTabsStyle'],
+    ['Tree.root', 'hozoTreeStyle'],
+  ]) {
+    const entry = parsed().contracts.find((row) => row.owner === owner)!
+    assert.equal(entry.audit, 'audited')
+    assert.equal(entry.abi.nativePreparedProp, prop)
+    assert.equal(entry.abi.webClassProp, 'className')
+    assert.deepEqual(entry.authoredStyles, [{ prop: 'style', order: 0 }])
+    assert.deepEqual(entry.shapes, [
+      {
+        id: 'root',
+        when: { eq: ['present', true] },
+        nativeHost: 'View',
+        webHost: 'div',
+        events: [],
       },
     ])
   }

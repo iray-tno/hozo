@@ -63,6 +63,8 @@ export interface HozoSliderProps extends Partial<SliderRange> {
   railClassName?: string
   style?: StyleProp<ViewStyle>
   thumbStyle?: StyleProp<ViewStyle>
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoSliderStyle?: () => StyleProp<ViewStyle>
   /** @internal Compiled classes, evaluated by the actual adjustable thumb. */
   hozoThumbStyle?: (state: SliderThumbState) => StyleProp<ViewStyle>
   /** @internal Complete prepared thumb class contribution (RFC 010). */
@@ -95,6 +97,7 @@ export function HozoSlider({
   railClassName,
   style,
   thumbStyle,
+  hozoSliderStyle,
   hozoThumbStyle,
   hozoSliderThumbStyle,
   hozoFillStyle,
@@ -102,6 +105,8 @@ export function HozoSlider({
   fillStyle,
   railStyle,
 }: HozoSliderProps) {
+  if (hozoSliderStyle && className !== undefined)
+    throw new Error('Prepared Slider styles must consume className')
   if (hozoSliderThumbStyle && thumbClassName !== undefined)
     throw new Error('Prepared Slider styles must consume thumbClassName')
   if (hozoFillStyle && fillClassName !== undefined)
@@ -181,7 +186,10 @@ export function HozoSlider({
     <View
       accessible={false}
       pointerEvents="box-only"
-      style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}
+      style={[
+        hozoSliderStyle ? hozoSliderStyle() : className ? hozoClasses(className) : undefined,
+        hozoAuthoredStyle(style),
+      ]}
       onLayout={onLayout}
       {...drag.handlers}
       onResponderGrant={(event) => {

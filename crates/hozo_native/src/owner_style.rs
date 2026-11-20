@@ -50,6 +50,9 @@ pub enum OwnerFact {
     DataCollapsed,
     DataHozoStateOpen,
     DataHozoStateClosed,
+    DataHozoStateChecked,
+    DataHozoStateUnchecked,
+    DataHozoStateMixed,
     DataCodeMark,
     DataCodeMarkIns,
     DataCodeMarkDel,
@@ -79,6 +82,9 @@ impl OwnerFact {
             Self::DataCollapsed => "data-collapsed",
             Self::DataHozoStateOpen => "data-hozo-state=open",
             Self::DataHozoStateClosed => "data-hozo-state=closed",
+            Self::DataHozoStateChecked => "data-hozo-state=checked",
+            Self::DataHozoStateUnchecked => "data-hozo-state=unchecked",
+            Self::DataHozoStateMixed => "data-hozo-state=mixed",
             Self::DataCodeMark => "data-code-mark",
             Self::DataCodeMarkIns => "data-code-mark=ins",
             Self::DataCodeMarkDel => "data-code-mark=del",
@@ -108,6 +114,9 @@ impl OwnerFact {
             Self::DataCollapsed => "__hozoOwnerDataCollapsed",
             Self::DataHozoStateOpen => "__hozoOwnerDataHozoStateOpen",
             Self::DataHozoStateClosed => "__hozoOwnerDataHozoStateClosed",
+            Self::DataHozoStateChecked => "__hozoOwnerDataHozoStateChecked",
+            Self::DataHozoStateUnchecked => "__hozoOwnerDataHozoStateUnchecked",
+            Self::DataHozoStateMixed => "__hozoOwnerDataHozoStateMixed",
             Self::DataCodeMark => "__hozoOwnerDataCodeMark",
             Self::DataCodeMarkIns => "__hozoOwnerDataCodeMarkIns",
             Self::DataCodeMarkDel => "__hozoOwnerDataCodeMarkDel",
@@ -133,6 +142,9 @@ impl OwnerFact {
             "data-collapsed" => Some(Self::DataCollapsed),
             "data-hozo-state=open" => Some(Self::DataHozoStateOpen),
             "data-hozo-state=closed" => Some(Self::DataHozoStateClosed),
+            "data-hozo-state=checked" => Some(Self::DataHozoStateChecked),
+            "data-hozo-state=unchecked" => Some(Self::DataHozoStateUnchecked),
+            "data-hozo-state=mixed" => Some(Self::DataHozoStateMixed),
             "data-code-mark" => Some(Self::DataCodeMark),
             "data-code-mark=ins" => Some(Self::DataCodeMarkIns),
             "data-code-mark=del" => Some(Self::DataCodeMarkDel),
@@ -156,6 +168,9 @@ impl OwnerFact {
                 | Self::DataCollapsed
                 | Self::DataHozoStateOpen
                 | Self::DataHozoStateClosed
+                | Self::DataHozoStateChecked
+                | Self::DataHozoStateUnchecked
+                | Self::DataHozoStateMixed
                 | Self::DataCodeMark
                 | Self::DataCodeMarkIns
                 | Self::DataCodeMarkDel
@@ -1095,5 +1110,37 @@ mod tests {
         assert!(output.styles.contains("hozo0_data_code_mark_eq_del:"));
         assert!(output.styles.contains("hozo0_data_code_mark_eq_mark:"));
         assert!(!carrier.expression.contains("pressed"));
+    }
+
+    #[test]
+    fn pressable_owner_compiles_toggle_hozo_state_facts_with_distinct_keys() {
+        let source = "const el=<Pressable className=\"bg-[#111111] data-[hozo-state=checked]:bg-[#222222] data-[hozo-state=unchecked]:bg-[#333333] data-[hozo-state=mixed]:bg-[#444444] aria-checked:border-[#555555] disabled:opacity-50\"/>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let facts = [
+            OwnerFact::Disabled,
+            OwnerFact::AriaChecked,
+            OwnerFact::DataHozoStateChecked,
+            OwnerFact::DataHozoStateUnchecked,
+            OwnerFact::DataHozoStateMixed,
+        ];
+        let (output, carrier) = lower_owner_style_with_inputs(
+            &parsed.roots[0].node,
+            &[],
+            source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &facts,
+                events: &[],
+                split_text: true,
+            },
+        );
+        let carrier = carrier.expect("toggle Pressable owner compiles");
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(carrier.callback && carrier.split_text);
+        assert!(output.styles.contains("hozo0_data_hozo_state_eq_checked:"));
+        assert!(output
+            .styles
+            .contains("hozo0_data_hozo_state_eq_unchecked:"));
+        assert!(output.styles.contains("hozo0_data_hozo_state_eq_mixed:"));
     }
 }

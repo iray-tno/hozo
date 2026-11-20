@@ -179,12 +179,28 @@ test('ordinary, legacy-only and ambiguous bindings stay unassessed in automatic 
   assert.deepEqual(found.unassessed, [{ specifier: a.specifier, reason: 'ambiguous-owner' }])
 })
 
-test('caller discovery enforces a finite target budget instead of returning a usable partial set', () => {
+function overBudgetData() {
   const input = data()
+  const base = input.owners.contracts[0]
+  input.owners.contracts = Array.from({ length: 4 }, (_, index) => ({
+    ...structuredClone(base),
+    owner: `BottomSheet.slot${index}`,
+    classProp: `slot${index}ClassName`,
+    abi: {
+      nativePreparedProp: `hozoSlot${index}Style`,
+      webClassProp: `slot${index}ClassName`,
+    },
+  }))
+  const owners = input.owners.contracts.map((contract) => contract.owner)
   input.exports = Array.from({ length: 65 }, (_, index) => ({
     name: `Alias${index}`,
-    owners: ['BottomSheet.handle'],
+    owners,
   }))
+  return input
+}
+
+test('caller discovery enforces a finite target budget instead of returning a usable partial set', () => {
+  const input = overBudgetData()
   assert.throws(
     () => discoverOwnerPackageCallers(fixture([observe(a, '/one', input)]).lease, a.importer),
     /DISCOVERY_BUDGET/,
@@ -192,15 +208,11 @@ test('caller discovery enforces a finite target budget instead of returning a us
 })
 
 test('observed value imports select only actual export names without expanding a whole barrel', () => {
-  const input = data()
-  input.exports = Array.from({ length: 65 }, (_, index) => ({
-    name: `Alias${index}`,
-    owners: ['BottomSheet.handle'],
-  }))
+  const input = overBudgetData()
   const { lease } = fixture([observe(a, '/one', input)])
   const imports = [{ source: 'kit', imported: 'Alias64' }]
   const found = discoverOwnerPackageCallers(lease, a.importer, imports)
-  assert.equal(found.requests.length, 1)
+  assert.equal(found.requests.length, 4)
   assert.equal(found.requests[0]!.imported, 'Alias64')
   assert.deepEqual(discoverOwnerPackageCallers(lease, a.importer, []).requests, [])
   const namespace = discoverOwnerPackageCallers(lease, a.importer, [

@@ -23,6 +23,13 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.Tab","classProp":"tabClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTabStyle","webClassProp":"tabClassName"},"authoredStyles":[{"prop":"tabStyle","order":0}],"shapes":[{"id":"tab","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-selected","aria-disabled"],"splitText":true}}]}]}',
   },
   {
+    owner: 'Toolbar.root',
+    package: '@hozo/patterns',
+    exports: ['Toolbar', 'HozoToolbar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Toolbar.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoToolbarStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
     owner: 'Drawer.scrim',
     package: '@hozo/patterns',
     exports: ['Drawer', 'HozoDrawer'],
@@ -238,6 +245,90 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     exports: ['CodeBlock'],
     shadow:
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"CodeBlock.caption","classProp":"captionClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCaptionStyle","webClassProp":"captionClassName"},"authoredStyles":[{"prop":"captionStyle","order":0}],"shapes":[{"id":"caption","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"figcaption","events":[]}]}]}',
+  },
+  {
+    owner: 'Checkbox.root',
+    package: '@hozo/patterns',
+    exports: ['Checkbox', 'HozoCheckbox'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Checkbox.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCheckboxStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-checked","data-hozo-disabled","data-hozo-state=checked","data-hozo-state=unchecked","data-hozo-state=mixed"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Switch.root',
+    package: '@hozo/patterns',
+    exports: ['Switch', 'HozoSwitch'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Switch.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSwitchStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-checked","data-hozo-disabled","data-hozo-state=checked","data-hozo-state=unchecked"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Alert.root',
+    package: '@hozo/patterns',
+    exports: ['Alert', 'HozoAlert'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Alert.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoAlertStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Tooltip.root',
+    package: '@hozo/patterns',
+    exports: ['Tooltip'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tooltip.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTooltipStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Accordion.root',
+    package: '@hozo/patterns',
+    exports: ['Accordion', 'HozoAccordion'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Accordion.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoAccordionStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'BottomSheet.root',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoBottomSheetStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Drawer.root',
+    package: '@hozo/patterns',
+    exports: ['Drawer', 'HozoDrawer'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Drawer.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDrawerStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Popover.root',
+    package: '@hozo/patterns',
+    exports: ['Popover', 'HozoPopover'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Popover.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPopoverStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'RadioGroup.root',
+    package: '@hozo/patterns',
+    exports: ['RadioGroup', 'HozoRadioGroup'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"RadioGroup.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoRadioGroupStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Slider.root',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Slider.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSliderStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Tabs.root',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTabsStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Tree.root',
+    package: '@hozo/patterns',
+    exports: ['Tree', 'HozoTree'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tree.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTreeStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
   },
   {
     owner: 'Form.root',

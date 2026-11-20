@@ -112,9 +112,12 @@ export function transformHozoSource(
   stylexModules?: StylexModuleCache,
   observe?: NativeRewriteObserver,
   textInheritance: NativeTextInheritance = 'unified',
+  skipAuditedOwners = false,
 ): string | null {
   const hasOwners =
-    semanticModuleEligible(filename, 'native') && matchingAuditedOwners(code).length > 0
+    !skipAuditedOwners &&
+    semanticModuleEligible(filename, 'native') &&
+    matchingAuditedOwners(code).length > 0
   const provenance = hasOwners ? new SourceProvenance(code) : undefined
   const track: NativeRewriteObserver | undefined = provenance
     ? (input, edits) => {
@@ -135,7 +138,7 @@ export function transformHozoSource(
   )
   if (!provenance) return ordinary
   const previews = previewAuditedOwnerBatch(code, compiler, 'native', filename)
-  return composeNativeOwnerPreviews(code, ordinary, provenance, previews)
+  return composeNativeOwnerPreviews(code, ordinary, provenance, previews, observe)
 }
 
 /** @internal Stage at the real post-Canvas boundary, not an inspection parse
@@ -212,7 +215,7 @@ export function transformHozoSourceOrPrepare(
           try {
             const base = ordinary.module.emit(finalContext)
             const previews = activeOwners.emit(finalContext)
-            return composeNativeOwnerPreviews(code, base, provenance, previews)
+            return composeNativeOwnerPreviews(code, base, provenance, previews, observe)
           } finally {
             ordinary.module.dispose()
             activeOwners.dispose()
@@ -241,6 +244,7 @@ export function transformHozoSourceOrPrepare(
             ordinary.output,
             provenance,
             activeOwners.emit(finalContext),
+            observe,
           )
         } finally {
           activeOwners.dispose()

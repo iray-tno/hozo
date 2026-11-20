@@ -39,6 +39,8 @@ export interface HozoDrawerProps {
   className?: string
   scrimClassName?: string
   panelClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoDrawerStyle?: () => StyleProp<ViewStyle>
   /** @internal Complete prepared scrim class contribution (RFC 010). */
   hozoScrimStyle?: () => StyleProp<ViewStyle>
   /** @internal Complete prepared panel class contribution (RFC 010). */
@@ -94,6 +96,7 @@ export function HozoDrawer({
   className,
   scrimClassName,
   panelClassName,
+  hozoDrawerStyle,
   hozoScrimStyle,
   hozoPanelStyle,
   style,
@@ -102,6 +105,8 @@ export function HozoDrawer({
   testID,
   children,
 }: HozoDrawerProps) {
+  if (hozoDrawerStyle && className !== undefined)
+    throw new Error('Prepared Drawer styles must consume className')
   if (hozoScrimStyle && scrimClassName !== undefined)
     throw new Error('Prepared Drawer styles must consume scrimClassName')
   if (hozoPanelStyle && panelClassName !== undefined)
@@ -173,7 +178,11 @@ export function HozoDrawer({
     setWidth(event.nativeEvent.layout.width)
   }, [])
 
-  const panelClassStyle = hozoPanelStyle ? hozoPanelStyle() : hozoClasses(panelClassName)
+  const panelClassStyle = hozoPanelStyle
+    ? hozoPanelStyle()
+    : panelClassName
+      ? hozoClasses(panelClassName)
+      : undefined
   const [panelBox, panelText] = splitTextStyle([panelClassStyle, hozoAuthoredStyle(panelStyle)])
 
   // The Web root is a `fixed inset-0` layer, and React Native drops `fixed`:
@@ -185,7 +194,7 @@ export function HozoDrawer({
       <View
         style={[
           { flex: 1 },
-          className ? hozoClasses(className) : undefined,
+          hozoDrawerStyle ? hozoDrawerStyle() : className ? hozoClasses(className) : undefined,
           hozoAuthoredStyle(style),
         ]}
       >
@@ -199,7 +208,11 @@ export function HozoDrawer({
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           style={(interaction) => [
-            hozoScrimStyle ? hozoScrimStyle() : hozoClasses(scrimClassName, { ...interaction }),
+            hozoScrimStyle
+              ? hozoScrimStyle()
+              : scrimClassName
+                ? hozoClasses(scrimClassName, { ...interaction })
+                : undefined,
             hozoAuthoredStyle(scrimStyle),
           ]}
           onPress={onClose}

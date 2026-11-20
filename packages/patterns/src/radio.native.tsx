@@ -38,6 +38,8 @@ export interface HozoRadioGroupProps<T> {
   className?: string
   /** The class list for each option, resolved like `className`. */
   optionClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoRadioGroupStyle?: () => StyleProp<ViewStyle>
   /** @internal Complete prepared option class contribution (RFC 010). */
   hozoOptionStyle?: (
     state: InteractionState & {
@@ -59,6 +61,7 @@ export interface HozoRadioGroupProps<T> {
 export function HozoRadioGroup<T>({
   className,
   optionClassName,
+  hozoRadioGroupStyle,
   hozoOptionStyle,
   options,
   defaultValue,
@@ -69,6 +72,8 @@ export function HozoRadioGroup<T>({
   optionStyle,
   indicator,
 }: HozoRadioGroupProps<T>) {
+  if (hozoRadioGroupStyle && className !== undefined)
+    throw new Error('Prepared RadioGroup styles must consume className')
   if (hozoOptionStyle && optionClassName !== undefined)
     throw new Error('Prepared RadioGroup styles must consume optionClassName')
   const [uncontrolled, setUncontrolled] = useState<T | undefined>(defaultValue)
@@ -88,7 +93,14 @@ export function HozoRadioGroup<T>({
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={accessibilityLabel}
-      style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}
+      style={[
+        hozoRadioGroupStyle
+          ? hozoRadioGroupStyle()
+          : className
+            ? hozoClasses(className)
+            : undefined,
+        hozoAuthoredStyle(style),
+      ]}
     >
       {options.map((option, at) => {
         const checked = option.value === current

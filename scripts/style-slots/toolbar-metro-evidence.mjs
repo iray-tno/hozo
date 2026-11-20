@@ -29,7 +29,8 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       assert.equal(row.inputPlatform, row.platform)
       assert.match(row.bundleSha256, hash)
       assert.ok(Number.isSafeInteger(row.bundleBytes) && row.bundleBytes > 0)
-      assert.equal(row.sharedAliasPlan, row.mode === 'toolbar-opt-in')
+      const toolbarDefaultMode = row.mode !== 'opt-in'
+      assert.equal(row.sharedAliasPlan, toolbarDefaultMode)
       assert.equal(row.nestedCaptured, true)
       assert.equal(row.listCaptured, true)
       assert.deepEqual(row.listControl, {
@@ -81,9 +82,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
         assert.deepEqual(
           observed,
           {
-            carrierSupplied:
-              row.mode === 'toolbar-opt-in' &&
-              ['literal', 'alias', 'nested', 'renderItem', 'groupedRenderItem'].includes(route),
+            carrierSupplied: route !== 'opaque' && (toolbarDefaultMode || route === 'uncaptured'),
             style: {
               paddingTop: 21,
               paddingRight: 14,
@@ -110,8 +109,8 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       passed: true,
       builds: 8,
       observations: 56,
-      prepared: 10,
-      ordinary: 46,
+      prepared: 38,
+      ordinary: 18,
       primitiveControls: 8,
       listControls: 8,
       groupedControls: 8,

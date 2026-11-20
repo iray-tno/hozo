@@ -61,7 +61,7 @@ test('published Toolbar callers preserve the real wrapper, item actions and auth
     ...evidenceSource(),
     scope: 'native-toolbar-root-host-delivery',
     passed: false,
-    audit: 'unknown',
+    audit: 'audited',
     identity: null as unknown,
     fingerprint: '',
     observations: [] as unknown[],

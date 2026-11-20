@@ -19,7 +19,7 @@ import {
   type RefObject,
   useRef,
 } from 'react'
-import type { StyleProp, View, ViewStyle } from 'react-native'
+import type { StyleProp, TextStyle, View, ViewStyle } from 'react-native'
 import { splitTextStyle } from './text-style.native.ts'
 
 /**
@@ -58,6 +58,8 @@ export interface TooltipProps extends Omit<UseHoverTriggerOptions, 'anchorRef' |
   shift?: boolean
   portal?: boolean
   style?: StyleProp<ViewStyle>
+  /** @internal Prepared root class contribution compiled by the owner contract. */
+  hozoTooltipStyle?: () => StyleProp<ViewStyle | TextStyle>
 }
 
 /**
@@ -81,7 +83,10 @@ export function Tooltip({
   onOpenChange,
   className,
   style,
+  hozoTooltipStyle,
 }: TooltipProps) {
+  if (hozoTooltipStyle && className !== undefined)
+    throw new Error('Prepared Tooltip styles must consume className')
   const anchorRef = useRef<NativeMeasurable | null>(null)
 
   const { isOpen, triggerProps } = useHoverTrigger({
@@ -129,6 +134,19 @@ export function Tooltip({
     triggerNode = children
   }
 
+  const tooltipClassStyle = isOpen
+    ? hozoTooltipStyle
+      ? hozoTooltipStyle()
+      : className
+        ? hozoClasses(className)
+        : undefined
+    : undefined
+  const tooltipBox = tooltipClassStyle ? splitTextStyle(tooltipClassStyle)[0] : undefined
+  const tooltipText =
+    isOpen && (tooltipClassStyle || style)
+      ? splitTextStyle([tooltipClassStyle, style])[1]
+      : undefined
+
   const floatingContent = isOpen ? (
     <FloatingPositioner
       anchorRef={anchorRef}
@@ -137,11 +155,11 @@ export function Tooltip({
       crossAxisOffset={crossAxisOffset}
       flip={flip}
       shift={shift}
-      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
+      style={[tooltipBox, hozoAuthoredStyle(style)]}
     >
       {/* Usually a string (the docs demo passes one), which a bare View
           would reject on a device (#1205). */}
-      {hozoTextChildren(content, splitTextStyle([hozoClasses(className), style])[1])}
+      {hozoTextChildren(content, tooltipText)}
     </FloatingPositioner>
   ) : null
 

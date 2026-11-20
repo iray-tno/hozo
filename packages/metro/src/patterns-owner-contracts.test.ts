@@ -77,6 +77,8 @@ function loadNativePatternModule(
     Easing: { out: (fn: unknown) => fn, quad: (n: number) => n },
     PanResponder: { create: () => ({ panHandlers: {} }) },
     I18nManager: { isRTL: false },
+    Platform: { OS: 'android' },
+    AccessibilityInfo: { announceForAccessibility: () => {} },
     StyleSheet: {
       create: <T>(styles: T) => styles,
       flatten: flattenStyle,
@@ -135,7 +137,11 @@ function loadNativePatternModule(
           done: () => {},
         }),
         Portal: ({ children }: { children?: React.ReactNode }) => children ?? null,
-        FloatingPositioner: ({ children }: { children?: React.ReactNode }) => children ?? null,
+        FloatingPositioner: host('FloatingPositioner'),
+        useHoverTrigger: ({ open }: { open?: boolean }) => ({
+          isOpen: Boolean(open),
+          triggerProps: { onHoverIn: () => {}, onHoverOut: () => {}, onLongPress: () => {} },
+        }),
         useDrag1D: () => ({ dragging: draggingState, handlers: {} }),
       }
     }
@@ -1640,6 +1646,606 @@ export function UnsupportedCodeBlock() {
           ),
         ),
       new RegExp(`Prepared CodeBlock styles must consume ${classProp}`),
+    )
+  }
+})
+
+test('Native Checkbox and Switch deliver prepared box and label styles without calling hozoClasses (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Checkbox, Switch } from '@hozo/patterns'
+export function Screen({
+  checked,
+  switchChecked,
+  disabled,
+}: {
+  checked?: boolean | 'mixed'
+  switchChecked?: boolean
+  disabled?: boolean
+}) {
+  return (
+    <>
+      <Checkbox
+        checked={checked}
+        disabled={disabled}
+        className="pt-2 bg-[#111111] data-[hozo-state=checked]:bg-[#666666] data-[hozo-state=unchecked]:bg-[#777777] data-[hozo-state=mixed]:bg-[#888888] aria-checked:border-[#555555] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] disabled:bg-[#999999] text-[#eeeeee] disabled:text-[#aaaaaa]"
+      >
+        Agree
+      </Checkbox>
+      <Switch
+        checked={switchChecked}
+        disabled={disabled}
+        className="pt-3 bg-[#101010] data-[hozo-state=checked]:bg-[#606060] data-[hozo-state=unchecked]:bg-[#707070] aria-checked:border-[#505050] hover:bg-[#202020] active:bg-[#303030] focus-visible:border-[#404040] disabled:bg-[#909090] text-[#f0f0f0] disabled:text-[#a0a0a0]"
+      >
+        Alerts
+      </Switch>
+    </>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoCheckboxStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoSwitchStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-2/)
+  assert.doesNotMatch(transformed, /className="pt-3/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const toggleMod = loadNativePatternModule('toggle.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = {
+    exports: {} as {
+      Screen: React.ComponentType<{
+        checked?: boolean | 'mixed'
+        switchChecked?: boolean
+        disabled?: boolean
+      }>
+    },
+  }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return { Checkbox: toggleMod.exports.Checkbox, Switch: toggleMod.exports.Switch }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    props: { checked?: boolean | 'mixed'; switchChecked?: boolean; disabled?: boolean } = {},
+    interaction: Partial<{
+      hovered: boolean
+      pressed: boolean
+      focused: boolean
+      focusVisible: boolean
+    }> = {},
+  ) => {
+    toggleMod.captured.length = 0
+    toggleMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: false,
+      focusVisible: false,
+      ...interaction,
+    })
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen, props))
+    const pressables = toggleMod.captured.filter((e) => e.host === 'Pressable')
+    const texts = toggleMod.captured.filter((e) => e.host === 'Text')
+    return {
+      checkboxBox: flattenStyle(pressables[0]!.props.style),
+      switchBox: flattenStyle(pressables[1]!.props.style),
+      checkboxText: flattenStyle(texts[0]!.props.style),
+      switchText: flattenStyle(texts[1]!.props.style),
+    }
+  }
+
+  const unchecked = renderCase({ checked: false, switchChecked: false })
+  assert.equal(unchecked.checkboxBox.backgroundColor, '#777777')
+  assert.equal(unchecked.checkboxBox.paddingTop, 8)
+  assert.equal(unchecked.checkboxText.color, '#eeeeee')
+  assert.equal(unchecked.switchBox.backgroundColor, '#707070')
+  assert.equal(unchecked.switchBox.paddingTop, 12)
+  assert.equal(unchecked.switchText.color, '#f0f0f0')
+
+  const checked = renderCase({ checked: true, switchChecked: true })
+  assert.equal(checked.checkboxBox.backgroundColor, '#666666')
+  assert.equal(checked.checkboxBox.borderColor, '#555555')
+  assert.equal(checked.switchBox.backgroundColor, '#606060')
+  assert.equal(checked.switchBox.borderColor, '#505050')
+
+  const mixed = renderCase({ checked: 'mixed', switchChecked: false })
+  assert.equal(mixed.checkboxBox.backgroundColor, '#888888')
+  assert.equal(mixed.checkboxBox.borderColor, undefined)
+
+  const disabled = renderCase({ checked: false, switchChecked: false, disabled: true })
+  assert.equal(disabled.checkboxBox.backgroundColor, '#999999')
+  assert.equal(disabled.checkboxText.color, '#aaaaaa')
+  assert.equal(disabled.switchBox.backgroundColor, '#909090')
+  assert.equal(disabled.switchText.color, '#a0a0a0')
+
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { hovered: true }).checkboxBox
+      .backgroundColor,
+    '#222222',
+  )
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { pressed: true }).checkboxBox
+      .backgroundColor,
+    '#333333',
+  )
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { focused: true, focusVisible: true })
+      .checkboxBox.borderColor,
+    '#444444',
+  )
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { hovered: true }).switchBox
+      .backgroundColor,
+    '#202020',
+  )
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { pressed: true }).switchBox
+      .backgroundColor,
+    '#303030',
+  )
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { focused: true, focusVisible: true })
+      .switchBox.borderColor,
+    '#404040',
+  )
+  assert.equal(
+    classResolverCalls,
+    0,
+    'prepared Checkbox and Switch literals must never call hozoClasses',
+  )
+
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          toggleMod.exports.Checkbox as React.ComponentType<Record<string, unknown>>,
+          { className: 'pt-2', hozoCheckboxStyle: () => ({}) },
+        ),
+      ),
+    /Prepared Checkbox styles must consume className/,
+  )
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          toggleMod.exports.Switch as React.ComponentType<Record<string, unknown>>,
+          { className: 'pt-2', hozoSwitchStyle: () => ({}) },
+        ),
+      ),
+    /Prepared Switch styles must consume className/,
+  )
+})
+
+test('Native Alert and Tooltip deliver prepared box and label styles without calling hozoClasses (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Alert, Tooltip } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <>
+      <Alert live="polite" className="pt-3 bg-[#112233] text-[#ffffff]">
+        Saved
+      </Alert>
+      <Tooltip open portal={false} content="Hint" className="pt-2 bg-[#223344] text-[#eeeeee]">
+        Trigger
+      </Tooltip>
+    </>
+  )
+}
+export function Unsupported() {
+  return <Alert className="hover:bg-[#333333]">No hover</Alert>
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoAlertStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTooltipStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-3/)
+  assert.doesNotMatch(transformed, /className="pt-2/)
+  assert.match(transformed, /className="hover:bg-\[#333333\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const alertMod = loadNativePatternModule('alert.native.tsx', { hozoClasses: spyHozoClasses })
+  const tooltipMod = loadNativePatternModule('tooltip.native.tsx', { hozoClasses: spyHozoClasses })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return { Alert: alertMod.exports.Alert, Tooltip: tooltipMod.exports.Tooltip }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  alertMod.captured.length = 0
+  tooltipMod.captured.length = 0
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  const alertView = flattenStyle(alertMod.captured.find((e) => e.host === 'View')!.props.style)
+  const alertText = flattenStyle(alertMod.captured.find((e) => e.host === 'Text')!.props.style)
+  assert.equal(alertView.backgroundColor, '#112233')
+  assert.equal(alertView.paddingTop, 12)
+  assert.equal(alertText.color, '#ffffff')
+
+  const tooltipBox = flattenStyle(
+    tooltipMod.captured.find((e) => e.host === 'FloatingPositioner')!.props.style,
+  )
+  const tooltipText = flattenStyle(tooltipMod.captured.find((e) => e.host === 'Text')!.props.style)
+  assert.equal(tooltipBox.backgroundColor, '#223344')
+  assert.equal(tooltipBox.paddingTop, 8)
+  assert.equal(tooltipText.color, '#eeeeee')
+  assert.equal(
+    classResolverCalls,
+    0,
+    'prepared Alert and Tooltip literals must never call hozoClasses',
+  )
+
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          alertMod.exports.Alert as React.ComponentType<Record<string, unknown>>,
+          { className: 'pt-2', hozoAlertStyle: () => ({}) },
+        ),
+      ),
+    /Prepared Alert styles must consume className/,
+  )
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          tooltipMod.exports.Tooltip as React.ComponentType<Record<string, unknown>>,
+          {
+            open: true,
+            portal: false,
+            content: 'x',
+            className: 'pt-2',
+            hozoTooltipStyle: () => ({}),
+          },
+        ),
+      ),
+    /Prepared Tooltip styles must consume className/,
+  )
+})
+
+test('Native Toolbar delivers prepared root styles by default without calling hozoClasses (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Toolbar } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <Toolbar
+      accessibilityLabel="Tools"
+      items={[{ render: () => null }]}
+      className="pt-2 gap-x-2 bg-[#112233]"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoToolbarStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-2/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const toolbarMod = loadNativePatternModule('toolbar.native.tsx', {
+    hozoClasses: () => {
+      classResolverCalls++
+      return { paddingBottom: 77 }
+    },
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Toolbar: toolbarMod.exports.Toolbar }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  toolbarMod.captured.length = 0
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  const toolbarView = flattenStyle(
+    toolbarMod.captured.find((e) => e.host === 'View' && e.props.accessibilityRole === 'toolbar')!
+      .props.style,
+  )
+  assert.equal(toolbarView.backgroundColor, '#112233')
+  assert.equal(toolbarView.paddingTop, 8)
+  assert.equal(toolbarView.columnGap, 8)
+  assert.equal(classResolverCalls, 0, 'prepared Toolbar literals must never call hozoClasses')
+})
+
+test('Native Accordion, BottomSheet, Drawer and Popover deliver prepared root styles without calling hozoClasses (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Accordion, BottomSheet, Drawer, Popover } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <>
+      <Accordion items={[{ header: 'H', content: 'C' }]} className="pt-2 bg-[#112233]" />
+      <BottomSheet open className="pt-3 bg-[#223344]">Body</BottomSheet>
+      <Drawer open className="pt-4 bg-[#334455]">Nav</Drawer>
+      <Popover trigger="Open" className="pt-1 bg-[#445566]">Panel</Popover>
+    </>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoAccordionStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoBottomSheetStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDrawerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPopoverStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-[1234]/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const countClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const accordionMod = loadNativePatternModule('accordion.native.tsx', {
+    hozoClasses: countClasses,
+  })
+  const sheetMod = loadNativePatternModule('bottom-sheet.native.tsx', {
+    hozoClasses: countClasses,
+  })
+  const drawerMod = loadNativePatternModule('drawer.native.tsx', {
+    hozoClasses: countClasses,
+  })
+  const popoverMod = loadNativePatternModule('popover.native.tsx', {
+    hozoClasses: countClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return {
+          Accordion: accordionMod.exports.HozoAccordion,
+          BottomSheet: sheetMod.exports.HozoBottomSheet,
+          Drawer: drawerMod.exports.HozoDrawer,
+          Popover: popoverMod.exports.HozoPopover,
+        }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  assert.equal(classResolverCalls, 0, 'prepared root literals must never call hozoClasses')
+
+  const accRoot = flattenStyle(
+    accordionMod.captured.find((e) => e.host === 'View' && e.props.accessibilityRole === 'none')!
+      .props.style,
+  )
+  assert.equal(accRoot.backgroundColor, '#112233')
+  assert.equal(accRoot.paddingTop, 8)
+
+  const sheetRoot = flattenStyle(
+    sheetMod.captured.find((e) => e.host === 'View' && flattenStyle(e.props.style).flex === 1)!
+      .props.style,
+  )
+  assert.equal(sheetRoot.backgroundColor, '#223344')
+  assert.equal(sheetRoot.paddingTop, 12)
+
+  const drawerRoot = flattenStyle(
+    drawerMod.captured.find((e) => e.host === 'View' && flattenStyle(e.props.style).flex === 1)!
+      .props.style,
+  )
+  assert.equal(drawerRoot.backgroundColor, '#334455')
+  assert.equal(drawerRoot.paddingTop, 16)
+
+  const popoverRoot = flattenStyle(popoverMod.captured.find((e) => e.host === 'View')!.props.style)
+  assert.equal(popoverRoot.backgroundColor, '#445566')
+  assert.equal(popoverRoot.paddingTop, 4)
+
+  for (const [Comp, props, pattern] of [
+    [
+      accordionMod.exports.HozoAccordion,
+      { items: [], className: 'pt-2', hozoAccordionStyle: () => ({}) },
+      /Prepared Accordion styles must consume className/,
+    ],
+    [
+      sheetMod.exports.HozoBottomSheet,
+      { open: true, className: 'pt-2', hozoBottomSheetStyle: () => ({}) },
+      /Prepared BottomSheet root styles must consume className/,
+    ],
+    [
+      drawerMod.exports.HozoDrawer,
+      { open: true, className: 'pt-2', hozoDrawerStyle: () => ({}) },
+      /Prepared Drawer styles must consume className/,
+    ],
+    [
+      popoverMod.exports.HozoPopover,
+      { trigger: 'Open', className: 'pt-2', hozoPopoverStyle: () => ({}) },
+      /Prepared Popover styles must consume className/,
+    ],
+  ] as const) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(Comp as React.ComponentType<Record<string, unknown>>, props),
+        ),
+      pattern,
+    )
+  }
+})
+
+test('Native RadioGroup, Slider, Tabs and Tree deliver prepared root styles without calling hozoClasses (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { RadioGroup, Slider, Tabs, Tree } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <>
+      <RadioGroup options={[{ value: 'a', label: 'A' }]} className="pt-2 bg-[#112233]" />
+      <Slider defaultValue={50} className="pt-3 bg-[#223344]" />
+      <Tabs tabs={[{ label: 'One', content: 'Body' }]} className="pt-4 bg-[#334455]" />
+      <Tree nodes={[{ id: '1', label: 'Root' }]} className="pt-1 bg-[#445566]" />
+    </>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoRadioGroupStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoSliderStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTabsStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTreeStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-[1234]/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const countClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const radioMod = loadNativePatternModule('radio.native.tsx', { hozoClasses: countClasses })
+  const sliderMod = loadNativePatternModule('slider.native.tsx', { hozoClasses: countClasses })
+  const tabsMod = loadNativePatternModule('tabs.native.tsx', { hozoClasses: countClasses })
+  const treeMod = loadNativePatternModule('tree.native.tsx', { hozoClasses: countClasses })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return {
+          RadioGroup: radioMod.exports.HozoRadioGroup,
+          Slider: sliderMod.exports.HozoSlider,
+          Tabs: tabsMod.exports.HozoTabs,
+          Tree: treeMod.exports.HozoTree,
+        }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  assert.equal(classResolverCalls, 0, 'prepared root literals must never call hozoClasses')
+
+  const radioRoot = flattenStyle(
+    radioMod.captured.find((e) => e.host === 'View' && e.props.accessibilityRole === 'radiogroup')!
+      .props.style,
+  )
+  assert.equal(radioRoot.backgroundColor, '#112233')
+  assert.equal(radioRoot.paddingTop, 8)
+
+  const sliderRoot = flattenStyle(
+    sliderMod.captured.find((e) => e.host === 'View' && e.props.pointerEvents === 'box-only')!.props
+      .style,
+  )
+  assert.equal(sliderRoot.backgroundColor, '#223344')
+  assert.equal(sliderRoot.paddingTop, 12)
+
+  const tabsRoot = flattenStyle(tabsMod.captured.find((e) => e.host === 'View')!.props.style)
+  assert.equal(tabsRoot.backgroundColor, '#334455')
+  assert.equal(tabsRoot.paddingTop, 16)
+
+  const treeRoot = flattenStyle(
+    treeMod.captured.find((e) => e.host === 'View' && e.props.accessibilityRole === 'list')!.props
+      .style,
+  )
+  assert.equal(treeRoot.backgroundColor, '#445566')
+  assert.equal(treeRoot.paddingTop, 4)
+
+  for (const [Comp, props, pattern] of [
+    [
+      radioMod.exports.HozoRadioGroup,
+      { options: [], className: 'pt-2', hozoRadioGroupStyle: () => ({}) },
+      /Prepared RadioGroup styles must consume className/,
+    ],
+    [
+      sliderMod.exports.HozoSlider,
+      { className: 'pt-2', hozoSliderStyle: () => ({}) },
+      /Prepared Slider styles must consume className/,
+    ],
+    [
+      tabsMod.exports.HozoTabs,
+      { tabs: [], className: 'pt-2', hozoTabsStyle: () => ({}) },
+      /Prepared Tabs root styles must consume className/,
+    ],
+    [
+      treeMod.exports.HozoTree,
+      { nodes: [], className: 'pt-2', hozoTreeStyle: () => ({}) },
+      /Prepared Tree styles must consume className/,
+    ],
+  ] as const) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(Comp as React.ComponentType<Record<string, unknown>>, props),
+        ),
+      pattern,
     )
   }
 })

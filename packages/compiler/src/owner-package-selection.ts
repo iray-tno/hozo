@@ -89,7 +89,7 @@ export function discoverOwnerPackageCallers(
         if (selected.status !== 'selected')
           unassessed.push({ specifier: binding.specifier, reason: selected.reason })
         else requests.push(Object.freeze(request))
-        if (requests.length + unassessed.length > 64)
+        if (requests.length + unassessed.length > 256)
           throw new Error('OWNER_CALLER_DISCOVERY_BUDGET')
       }
     }

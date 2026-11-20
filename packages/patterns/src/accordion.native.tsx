@@ -83,6 +83,8 @@ interface Shared {
   panelClassName?: string
   /** On the view inside the panel that holds the content; see the Web half. */
   panelContentClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoAccordionStyle?: () => StyleProp<ViewStyle>
   /** @internal Complete prepared section class contribution (RFC 010). */
   hozoSectionStyle?: () => StyleProp<ViewStyle>
   /** @internal Complete prepared heading class contribution (RFC 010). */
@@ -140,6 +142,7 @@ export function HozoAccordion(props: HozoAccordionProps) {
     indicator,
     panelClassName,
     panelContentClassName,
+    hozoAccordionStyle,
     hozoSectionStyle,
     hozoHeadingStyle,
     hozoTriggerStyle,
@@ -152,6 +155,8 @@ export function HozoAccordion(props: HozoAccordionProps) {
     panelStyle,
     panelContentStyle,
   } = props
+  if (hozoAccordionStyle && className !== undefined)
+    throw new Error('Prepared Accordion styles must consume className')
   if (hozoSectionStyle && sectionClassName !== undefined)
     throw new Error('Prepared Accordion styles must consume sectionClassName')
   if (hozoHeadingStyle && headingClassName !== undefined)
@@ -201,7 +206,10 @@ export function HozoAccordion(props: HozoAccordionProps) {
     <View
       accessibilityRole="none"
       accessibilityLabel={accessibilityLabel}
-      style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}
+      style={[
+        hozoAccordionStyle ? hozoAccordionStyle() : className ? hozoClasses(className) : undefined,
+        hozoAuthoredStyle(style),
+      ]}
     >
       {items.map((item, at) => {
         const key = keyOf(item, at)

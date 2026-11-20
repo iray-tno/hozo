@@ -76,13 +76,14 @@ function fixture(t: TestContext, platform: string) {
   }
 }
 
-test('one explicitly selected captured Toolbar alias gets a full carrier, not an ordinary default', async (t) => {
+test('one explicitly selected captured Toolbar alias gets a full carrier alongside default audited routing', async (t) => {
   for (const platform of ['android', 'ios']) {
     const f = fixture(t, platform)
     await withHozo(f.config, f.options)
     const ordinary = await transform(f.params)
     const ordinaryKey = getCacheKey({ projectRoot: f.root })
-    assert.doesNotMatch(String(ordinary), /hozoToolbarStyle=/)
+    assert.match(String(ordinary), /hozoToolbarStyle=/)
+    assert.match(String(ordinary), /paddingTop:\s*14/)
     await withHozoOwnerCallers(f.config, f.preflight, 'Toolbar.root', f.options)
     assert.equal(readMetroState(f.root)?.ownerShadow?.target, 'Toolbar.root')
     assert.notEqual(getCacheKey({ projectRoot: f.root }), ordinaryKey)
@@ -150,7 +151,8 @@ test('captured aliases share one plan while opaque recipes, foreign names, unpro
     )
   const filename = path.join(f.root, 'src', 'Uncaptured.tsx')
   writeFileSync(filename, source())
-  assert.doesNotMatch(String(await transform({ ...f.params, filename })), /hozoToolbarStyle=/)
+  // Audited Toolbar.root now routes by default via ordinary lowering even outside explicit preflight.
+  assert.match(String(await transform({ ...f.params, filename })), /hozoToolbarStyle=/)
   const input = `import {Toolbar as Tools,HozoToolbar as Alias} from '@hozo/patterns';
     export const A=()=> <><Tools items={[]} className="p-2" style={first.value}/>
     <Alias items={[]} className="p-2" style={second.value}/><Alias items={[]} className={opaque.value}/></>;
@@ -196,7 +198,7 @@ test('mixed Native files prepare siblings and copied children but retain unprove
       export const Box=()=> <View className="p-2"/>;`
     await withHozo(f.config, f.options)
     const ordinary = String(await transform({ ...f.params, src: input }))
-    assert.doesNotMatch(ordinary, /hozoToolbarStyle=/)
+    assert.match(ordinary, /hozoToolbarStyle=/)
     await withHozoOwnerCallers(f.config, f.preflight, 'Toolbar.root', f.options)
     const output = String(await transform({ ...f.params, src: input }))
     assert.match(output, /hozoToolbarStyle=/)

@@ -46,6 +46,8 @@ export interface HozoTabsProps {
   style?: StyleProp<ViewStyle>
   tabListStyle?: StyleProp<ViewStyle>
   tabStyle?: StyleProp<ViewStyle>
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoTabsStyle?: () => StyleProp<ViewStyle>
   /** @internal Complete prepared tab list class contribution (RFC 010). */
   hozoTabListStyle?: () => StyleProp<ViewStyle>
   /**
@@ -72,11 +74,14 @@ export function HozoTabs({
   style,
   tabListStyle,
   tabStyle,
+  hozoTabsStyle,
   hozoTabListStyle,
   hozoTabStyle,
   hozoPanelStyle,
   panelStyle,
 }: HozoTabsProps) {
+  if (hozoTabsStyle && className !== undefined)
+    throw new Error('Prepared Tabs root styles must consume className')
   if (hozoTabListStyle && tabListClassName !== undefined)
     throw new Error('Prepared Tabs tabList styles must consume tabListClassName')
   if (hozoTabStyle && tabClassName !== undefined)
@@ -128,7 +133,12 @@ export function HozoTabs({
       : [undefined, undefined]
 
   return (
-    <View style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}>
+    <View
+      style={[
+        hozoTabsStyle ? hozoTabsStyle() : className ? hozoClasses(className) : undefined,
+        hozoAuthoredStyle(style),
+      ]}
+    >
       <View
         accessibilityRole="tablist"
         accessibilityLabel={accessibilityLabel}
