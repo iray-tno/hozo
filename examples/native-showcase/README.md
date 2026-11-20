@@ -75,6 +75,67 @@ with `deviceError`. Captured images and each unreached entry remain in
 emulator into a passing walk. This detects the loss, without establishing why
 the emulator stopped.
 
+## Table mount measurement
+
+For #1373, dispatch `native-showcase` at the branch being measured with
+`platform=android`, `android-scenario=table-performance`, and a fresh build
+(`reuse-build-run` empty). `Diagnostics/Table performance/Matrix` compares
+100, 500 and 1000 data rows with four text columns in a 240dp viewport. Each
+mode gets a 100-row warm-up, excluded from the report, followed by three
+fresh mounts at each size. Mode order alternates by round. Inputs are sent
+once; missing, incomplete or timed-out samples fail the run.
+
+A collector-only correction can explicitly reuse an APK with `diagnostics=true`
+and its producer's `reuse-build-run`. Signing/run/hash identity must match;
+a Git comparison allows only this collector, its tests and documentation to
+differ. Application, Table, observer, generator, dependency and workflow
+changes require a fresh build. Both revisions and every differing path are
+retained; reused-binary diagnostics do not become release evidence.
+
+The baseline is generated from the current Native Table source at Metro
+startup and before typechecking. Assertions require unique instrumentation
+anchors; the generator fails if they drift. The generated file is ignored,
+and tests verify that removing the observers restores the original source
+byte for byte. Counters observe the actual natural-width report callback and
+row mount effects. The source SHA256 accompanies every timing record and
+must match the driver checkout. No public Table API is changed.
+
+The measurement-only control uses React Native's existing FlatList with
+declared widths `[64, 96, 96, 96]`, 32dp rows, eight initial rows, batches of
+eight and `windowSize=3`. Its cell layout callbacks are counted separately
+from natural-width probes, of which it has none. This control does not yet
+provide accessible table semantics or estimated/growing column widths.
+Each control cell is a retained Native View, as in the baseline, with clipped
+subview removal disabled. Header and first-row node bounds are matched with
+text pixels after the timing window, and the accessibility tree is saved
+alongside each screenshot. Missing/blank text fails the observation. Both
+controls are memoized so updating the diagnostic status does not re-render
+the measured table after the quiet boundary.
+
+Retained frames can also be checked without repeating the experiment:
+
+```sh
+node examples/native-showcase/scripts/verify-table-captures.mjs <downloaded-table-artifact>
+```
+
+This verifies the original successful matrix and all four headers/first-row
+values against their nodes and screenshot pixels. `pixel-verification.json`
+binds each result to its screenshot/tree hashes and the verifier's hashes;
+it is supplementary frame evidence with no new timing samples.
+
+`hozo-native-showcase-android-table-evidence` retains the APK/source hashes,
+release build identity, emulator/display properties, every timing record,
+screenshots and the complete/partial matrix. The first observation boundary
+is the input handler through resolved columns and observed cell layouts;
+the second waits for unchanged counters and 30 consecutive rAF gaps at most
+34ms. These are JS/layout observations with counter overhead, not GPU
+presentation fences or JS execution time. Later FlatList batches are included
+in the second boundary. The same text and padding are used in both modes;
+the baseline retains its natural column sizing, and the control fixes widths.
+Results therefore compare these two complete mounting strategies; they do
+not attribute the difference to windowing alone. Timing describes this
+release emulator fixture and does not establish physical-device performance.
+
 ## CodeBlock frame measurement
 
 Dispatch `native-showcase` with `platform=android` and

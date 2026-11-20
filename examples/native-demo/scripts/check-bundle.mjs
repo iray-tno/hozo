@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { nativeThemeFailures } from './theme-evidence.mjs'
 
 const bundle = readFileSync(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'index.bundle.js'),
@@ -180,6 +181,13 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // (`text-inheritance`, 2.7 KB; its protocol leaf 1.1 KB) and the scope provider
 // (`inherited-text-scope`, 1.3 KB). Splitting them from RFC 006's whole-route
 // reader had already taken the increase down from 14,014.
+//
+// Refreshed to 550 KB on main 1b655da6: the unchanged census screen now
+// measures 547,285, compared with the recorded 537,711 default above. The
+// runtime has gained inline-edge handling and owner-contract changes since
+// that baseline. No facade barrel returned; the production increment gate
+// stays at 8,000 raw / 3,000 gzip. The package census and production result
+// are recorded in docs/measurements/native-development-budget.md.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -193,8 +201,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 545_000,
-  `Hozo's modules stay below 545 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 550_000,
+  `Hozo's modules stay below 550 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // The cause behind the six raises above, watched directly rather than
@@ -239,19 +247,12 @@ console.log(`bundle check passed (${bundle.length} bytes; Hozo modules ${hozoByt
 // `--color-brand` resolves to a real hex rather than the marker the
 // compiler emits for a token it can't resolve.
 //
-// Asked of the whole bundle rather than the window around the App, and
-// that is a correction rather than a loosening. The window is 6000
-// characters either side of a string in the source; adding a safe-area
-// inset to the root element pushed this number out of it, and the check
-// then reported that the project's spacing scale had not reached the
-// styles when the styles were right there in the same file. The number is
-// what makes it specific -- 19.2 is `p-6` against this project's 0.2rem
-// spacing, where Tailwind's default would be 24 -- so it does not need a
-// position as well.
-const themed = []
-if (!/paddingTop: 19\.2/.test(bundle)) themed.push('the project spacing scale reached the styles')
-if (!bundle.includes('#3581f6')) themed.push('the project colour resolved')
-if (/hozo-unresolved/.test(bundle)) themed.push('no colour was left unresolved')
+// Check the complete App module. A fixed window once missed styles pushed
+// away by safe-area output; checking every module then confused an unused
+// candidate's unresolved marker with an unresolved colour in the App.
+// Positive token checks belong here too: another module cannot prove the
+// App received this project's 0.2rem spacing and brand colour.
+const themed = nativeThemeFailures(bundle)
 
 if (themed.length > 0) {
   console.error('theme check failed:')

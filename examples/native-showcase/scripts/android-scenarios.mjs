@@ -12,7 +12,9 @@ const execute = (scenario, output) =>
       [
         scenario.startsWith('code-block-')
           ? fileURLToPath(new URL('./code-block-performance.mjs', import.meta.url))
-          : driver,
+          : scenario === 'table-performance'
+            ? fileURLToPath(new URL('./table-performance.mjs', import.meta.url))
+            : driver,
         output,
       ],
       {
@@ -30,6 +32,9 @@ const execute = (scenario, output) =>
 // fresh shell. Keep branching here so one failed driver aborts the sequence.
 export async function runAndroidScenarios(value, run = execute) {
   const scenario = readAndroidScenario(value)
+  if (scenario === 'table-performance') {
+    return run(scenario, 'artifacts/native-showcase-table')
+  }
   // The same collector and artifact; the windowed variant opens the
   // `maxHeight` story instead (#1289).
   if (scenario === 'code-block-performance' || scenario === 'code-block-windowed') {

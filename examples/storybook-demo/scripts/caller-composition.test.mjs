@@ -99,6 +99,12 @@ cache.scanFile('all.ts', JSON.stringify(`${own} ${caller}`), 1)
 const candidates = cache.renderCss(undefined, `${caller} ${own}`.split(' '))
 let browser, oracleCss
 
+// CSS Align now serializes the flex-start/end aliases as flow-start/end;
+// Native keeps its legacy API spellings. Logical start/end stay distinct.
+// https://drafts.csswg.org/css-align/#changes
+const canonicalAlignment = (value) =>
+  value === 'flex-start' ? 'flow-start' : value === 'flex-end' ? 'flow-end' : value
+
 function evaluate(code, context) {
   const module = { exports: {} }
   runInNewContext(transformSync(code, { loader: 'tsx', jsxFactory: 'h', format: 'cjs' }).code, {
@@ -417,12 +423,14 @@ for (const { file, name, slots, source, variants, classes } of uiCases) {
                 await page.setContent(
                   `${sheets.map((css) => `<style>${css}</style>`).join('')}<div class="${webProps.className}">Label</div>`,
                 )
+                const layout = await page.locator('div').evaluate((element) => {
+                  const style = getComputedStyle(element)
+                  return [style.display, style.flexDirection, style.gap, style.alignItems]
+                })
+                layout[3] = canonicalAlignment(layout[3])
                 assert.deepEqual(
-                  await page.locator('div').evaluate((element) => {
-                    const style = getComputedStyle(element)
-                    return [style.display, style.flexDirection, style.gap, style.alignItems]
-                  }),
-                  ['flex', direction, `${gap}px`, align],
+                  layout,
+                  ['flex', direction, `${gap}px`, canonicalAlignment(align)],
                   `Stack ${JSON.stringify(variant)} preserves its layout choices and caller overrides`,
                 )
               }
@@ -1015,6 +1023,50 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
   }
 })
 
+test('CSSOM alignment aliases preserve geometry and keep logical start distinct', {
+  skip: !executablePath,
+}, async () => {
+  const page = await browser.newPage()
+  try {
+    for (const direction of ['ltr', 'rtl']) {
+      const measure = async (value) => {
+        await page.setContent(
+          `<div id="owner" style="display:flex;flex-direction:row-reverse;direction:${direction};width:120px;height:60px;justify-content:${value}"><i style="width:20px;height:10px;flex:none"></i></div>`,
+        )
+        return page.locator('#owner').evaluate((element) => {
+          const parent = element.getBoundingClientRect()
+          const child = element.firstElementChild.getBoundingClientRect()
+          return {
+            value: getComputedStyle(element).justifyContent,
+            offset: [child.x - parent.x, child.y - parent.y, child.width, child.height],
+          }
+        })
+      }
+      for (const [legacy, alias] of [
+        ['flex-start', 'flow-start'],
+        ['flex-end', 'flow-end'],
+      ]) {
+        const previous = await measure(legacy)
+        assert.equal(canonicalAlignment(previous.value), alias)
+        if (await page.evaluate((value) => CSS.supports('justify-content', value), alias)) {
+          const current = await measure(alias)
+          assert.equal(canonicalAlignment(current.value), alias)
+          assert.deepEqual(current.offset, previous.offset)
+        }
+      }
+      const flex = await measure('flex-start')
+      const logical = await measure('start')
+      assert.notDeepEqual(flex.offset, logical.offset)
+      assert.notEqual(canonicalAlignment(flex.value), canonicalAlignment(logical.value))
+    }
+    for (const value of ['start', 'end', 'self-start', 'self-end', 'safe flex-start', 'center']) {
+      assert.equal(canonicalAlignment(value), value)
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('simple projected properties use upstream winners in actual static and generated Native output', {
   skip: !executablePath,
 }, async () => {
@@ -1141,8 +1193,24 @@ test('simple projected properties use upstream winners in actual static and gene
                     : numeric
                       ? Number(actual.value)
                       : actual.value
-              assert.equal(staticStyle[nativeKey], expected, `${id}/${classes}/${stage}/static`)
-              assert.equal(dynamic[nativeKey], expected, `${id}/${classes}/${stage}/dynamic`)
+              const comparable = [
+                'alignItems',
+                'alignSelf',
+                'alignContent',
+                'justifyContent',
+              ].includes(nativeKey)
+                ? canonicalAlignment
+                : (value) => value
+              assert.equal(
+                comparable(staticStyle[nativeKey]),
+                comparable(expected),
+                `${id}/${classes}/${stage}/static`,
+              )
+              assert.equal(
+                comparable(dynamic[nativeKey]),
+                comparable(expected),
+                `${id}/${classes}/${stage}/dynamic`,
+              )
               assert.equal(actual.padding, '16px')
               assert.equal(hostStyle.paddingTop, 16)
               assert.equal(dynamic.paddingTop, 16)

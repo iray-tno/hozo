@@ -31,6 +31,7 @@ While `docs/proposal.md` describes the foundational vision and `docs/decisions/`
 | [011](011-hozo-cli.md) | One `hozo` command | New `@hozo/cli`; migration audit, compiler and navigation | **Implemented (steps 1–4)** | Not assigned |
 | [012](012-hozo-add.md) | `hozo add`: an `@hozo/ui` component as project source | `@hozo/cli`, `@hozo/ui` | **Implemented** | Not assigned |
 | [013](013-hozo-init.md) | `hozo init`: Hozo added to an existing project | `@hozo/cli`, `@hozo/compiler` | **Implemented** | Not assigned |
+| [014](014-windowed-table.md) | Windowed Table | Patterns, core, semantics and primitives | **Draft (measurement complete)** | [#1373](https://github.com/iray-tno/hozo/issues/1373) |
 
 ---
 

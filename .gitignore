@@ -1,4 +1,5 @@
 temp/
+examples/native-showcase/src/.table-performance/
 
 # JS / pnpm
 node_modules/

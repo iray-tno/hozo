@@ -14,6 +14,7 @@ export function readAndroidScenario(value = 'full') {
       'ui-docs',
       'code-block-performance',
       'code-block-windowed',
+      'table-performance',
     ].includes(value),
     `Unknown Android scenario: ${value}`,
   )
