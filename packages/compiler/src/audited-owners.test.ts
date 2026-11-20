@@ -820,3 +820,32 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.css, /#334455|rgb\(51,\s*68,\s*85\)/)
   assert.match(lowered.css, /#445566|rgb\(68,\s*85,\s*102\)/)
 })
+
+test('ordinary Web lowering compiles RadioGroup, Slider, Tabs and Tree root className by default (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { RadioGroup, Slider, Tabs, Tree } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <RadioGroup options={[{ value: 'a', label: 'A' }]} className="pt-2 bg-[#112233]" />
+      <Slider defaultValue={50} className="pt-3 bg-[#223344]" />
+      <Tabs tabs={[{ label: 'One', content: 'Body' }]} className="pt-4 bg-[#334455]" />
+      <Tree nodes={[{ id: '1', label: 'Root' }]} className="pt-1 bg-[#445566]" />
+      <RadioGroup {...spread} options={[{ value: 'a', label: 'A' }]} className="bg-[#777777]" />
+      <Tree nodes={[{ id: '1', label: 'Root' }]} className={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.equal(lowered.needsClientBoundary, false)
+  assert.doesNotMatch(lowered.code, /className="pt-[1234]/)
+  assert.equal(lowered.code.match(/className=\{"hozo-owner-/g)?.length, 4)
+  assert.match(lowered.code, /className="bg-\[#777777\]"/)
+  assert.match(lowered.code, /className=\{dynamic\}/)
+  assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
+  assert.match(lowered.css, /#223344|rgb\(34,\s*51,\s*68\)/)
+  assert.match(lowered.css, /#334455|rgb\(51,\s*68,\s*85\)/)
+  assert.match(lowered.css, /#445566|rgb\(68,\s*85,\s*102\)/)
+})

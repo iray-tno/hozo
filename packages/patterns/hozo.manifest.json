@@ -181,7 +181,8 @@
     {
       "name": "HozoRadioGroup",
       "owners": [
-        "RadioGroup.option"
+        "RadioGroup.option",
+        "RadioGroup.root"
       ]
     },
     {
@@ -189,6 +190,7 @@
       "owners": [
         "Slider.fill",
         "Slider.rail",
+        "Slider.root",
         "Slider.thumb"
       ]
     },
@@ -207,6 +209,7 @@
       "owners": [
         "Tabs.Tab",
         "Tabs.panel",
+        "Tabs.root",
         "Tabs.tabList"
       ]
     },
@@ -219,6 +222,7 @@
     {
       "name": "HozoTree",
       "owners": [
+        "Tree.root",
         "Tree.row"
       ]
     },
@@ -257,7 +261,8 @@
     {
       "name": "RadioGroup",
       "owners": [
-        "RadioGroup.option"
+        "RadioGroup.option",
+        "RadioGroup.root"
       ]
     },
     {
@@ -273,6 +278,7 @@
       "owners": [
         "Slider.fill",
         "Slider.rail",
+        "Slider.root",
         "Slider.thumb"
       ]
     },
@@ -298,6 +304,7 @@
       "owners": [
         "Tabs.Tab",
         "Tabs.panel",
+        "Tabs.root",
         "Tabs.tabList"
       ]
     },
@@ -316,6 +323,7 @@
     {
       "name": "Tree",
       "owners": [
+        "Tree.root",
         "Tree.row"
       ]
     },
@@ -2002,6 +2010,134 @@
         ],
         "abi": {
           "nativePreparedProp": "hozoPopoverStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "RadioGroup.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoRadioGroupStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "Slider.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoSliderStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "Tabs.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoTabsStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "Tree.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoTreeStyle",
           "webClassProp": "className"
         },
         "authoredStyles": [

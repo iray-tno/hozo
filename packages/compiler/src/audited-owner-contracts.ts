@@ -303,6 +303,34 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Popover.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPopoverStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
   },
   {
+    owner: 'RadioGroup.root',
+    package: '@hozo/patterns',
+    exports: ['RadioGroup', 'HozoRadioGroup'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"RadioGroup.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoRadioGroupStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Slider.root',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Slider.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSliderStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Tabs.root',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTabsStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Tree.root',
+    package: '@hozo/patterns',
+    exports: ['Tree', 'HozoTree'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tree.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTreeStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
     owner: 'Form.root',
     package: '@hozo/form',
     exports: ['Form', 'HozoForm'],

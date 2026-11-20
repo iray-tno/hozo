@@ -793,6 +793,10 @@ test('CodeBlock contracts declare figure root, figcaption text, copy button, and
     ['BottomSheet.root', 'hozoBottomSheetStyle'],
     ['Drawer.root', 'hozoDrawerStyle'],
     ['Popover.root', 'hozoPopoverStyle'],
+    ['RadioGroup.root', 'hozoRadioGroupStyle'],
+    ['Slider.root', 'hozoSliderStyle'],
+    ['Tabs.root', 'hozoTabsStyle'],
+    ['Tree.root', 'hozoTreeStyle'],
   ]) {
     const entry = parsed().contracts.find((row) => row.owner === owner)!
     assert.equal(entry.audit, 'audited')

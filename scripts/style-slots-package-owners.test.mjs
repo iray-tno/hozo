@@ -113,28 +113,28 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'HozoCheckbox', owners: ['Checkbox.root'] },
     { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.root', 'Drawer.scrim'] },
     { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.root', 'Popover.trigger'] },
-    { name: 'HozoRadioGroup', owners: ['RadioGroup.option'] },
-    { name: 'HozoSlider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
+    { name: 'HozoRadioGroup', owners: ['RadioGroup.option', 'RadioGroup.root'] },
+    { name: 'HozoSlider', owners: ['Slider.fill', 'Slider.rail', 'Slider.root', 'Slider.thumb'] },
     { name: 'HozoSwitch', owners: ['Switch.root'] },
-    { name: 'HozoTabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.tabList'] },
+    { name: 'HozoTabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.root', 'Tabs.tabList'] },
     { name: 'HozoToolbar', owners: ['Toolbar.root'] },
-    { name: 'HozoTree', owners: ['Tree.row'] },
+    { name: 'HozoTree', owners: ['Tree.root', 'Tree.row'] },
     { name: 'Other', owners: [] },
     { name: 'Popover', owners: ['Popover.panel', 'Popover.root', 'Popover.trigger'] },
-    { name: 'RadioGroup', owners: ['RadioGroup.option'] },
+    { name: 'RadioGroup', owners: ['RadioGroup.option', 'RadioGroup.root'] },
     {
       name: 'ResizablePane',
       owners: ['ResizablePane.handle', 'ResizablePane.pane', 'ResizablePane.root'],
     },
-    { name: 'Slider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
+    { name: 'Slider', owners: ['Slider.fill', 'Slider.rail', 'Slider.root', 'Slider.thumb'] },
     { name: 'Splitter', owners: ['Splitter.root'] },
     { name: 'Switch', owners: ['Switch.root'] },
-    { name: 'Tabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.tabList'] },
+    { name: 'Tabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.root', 'Tabs.tabList'] },
     { name: 'Toolbar', owners: ['Toolbar.root'] },
     { name: 'Tooltip', owners: ['Tooltip.root'] },
-    { name: 'Tree', owners: ['Tree.row'] },
+    { name: 'Tree', owners: ['Tree.root', 'Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 42)
+  assert.equal(result.owners.contracts.length, 46)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
@@ -180,6 +180,10 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['BottomSheet.root', 'audited'],
       ['Drawer.root', 'audited'],
       ['Popover.root', 'audited'],
+      ['RadioGroup.root', 'audited'],
+      ['Slider.root', 'audited'],
+      ['Tabs.root', 'audited'],
+      ['Tree.root', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')

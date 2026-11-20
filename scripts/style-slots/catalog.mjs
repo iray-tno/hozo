@@ -954,6 +954,12 @@ export const components = {
   }),
   RadioGroup: slots('className optionClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'radio-group-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
       optionClassName: {
         owner: 'radio-group-option',
         gate: 'each-option',
@@ -963,6 +969,12 @@ export const components = {
   }),
   Slider: slots('className thumbClassName fillClassName railClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'slider-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
       thumbClassName: {
         owner: 'slider-thumb',
         gate: 'always',
@@ -1041,6 +1053,12 @@ export const components = {
   }),
   Tabs: slots('className tabListClassName tabClassName panelClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'tabs-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
       tabListClassName: {
         owner: 'tabs-tab-list',
         gate: 'always',
@@ -1080,6 +1098,12 @@ export const components = {
   }),
   Tree: slots('className rowClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'tree-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
       rowClassName: {
         owner: 'tree-row',
         gate: 'each-visible-row',
@@ -2124,6 +2148,74 @@ export const ownerShadow = {
       ],
     },
     {
+      owner: 'RadioGroup.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoRadioGroupStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Slider.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSliderStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Tabs.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTabsStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Tree.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTreeStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
       owner: 'Form.root',
       classProp: 'className',
       audit: 'audited',
@@ -2863,6 +2955,26 @@ export const ownerPublications = [
     owner: 'Popover.root',
     package: '@hozo/patterns',
     exports: ['Popover', 'HozoPopover'],
+  },
+  {
+    owner: 'RadioGroup.root',
+    package: '@hozo/patterns',
+    exports: ['RadioGroup', 'HozoRadioGroup'],
+  },
+  {
+    owner: 'Slider.root',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+  },
+  {
+    owner: 'Tabs.root',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+  },
+  {
+    owner: 'Tree.root',
+    package: '@hozo/patterns',
+    exports: ['Tree', 'HozoTree'],
   },
   {
     owner: 'Form.root',

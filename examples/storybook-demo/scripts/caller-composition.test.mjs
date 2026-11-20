@@ -9829,3 +9829,114 @@ export function Screen() {
     await page.close()
   }
 })
+
+test('RadioGroup, Slider, Tabs and Tree deliver prepared root styles on Web Chromium and Native (#2137)', async () => {
+  const compiler = createCompiler()
+  const source = `import { RadioGroup, Slider, Tabs, Tree } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <div id="radio"><RadioGroup options={[{ value: 'a', label: 'A' }]} className="pt-2 bg-[#112233]" /></div>
+      <div id="slider"><Slider defaultValue={50} className="pt-3 bg-[#223344]" /></div>
+      <div id="tabs"><Tabs tabs={[{ label: 'One', content: 'Body' }]} className="pt-4 bg-[#334455]" /></div>
+      <div id="tree"><Tree nodes={[{ id: '1', label: 'Root' }]} className="pt-1 bg-[#445566]" /></div>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  assert.equal(web.code.match(/className=\{"hozo-owner-/g)?.length, 4)
+
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { RadioGroup, Slider, Tabs, Tree }
+      throw new Error(`Unexpected web require: ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const nativeProps = {}
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props, ...children) => {
+      if (['RadioGroup', 'Slider', 'Tabs', 'Tree'].includes(type)) nativeProps[type] = props
+      return { type, props, children }
+    },
+    require: (id) => {
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (id === '@hozo/patterns')
+        return {
+          RadioGroup: 'RadioGroup',
+          Slider: 'Slider',
+          Tabs: 'Tabs',
+          Tree: 'Tree',
+        }
+      throw new Error(`Unexpected native require: ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeStyles = {
+    radio: flat(nativeProps.RadioGroup.hozoRadioGroupStyle()),
+    slider: flat(nativeProps.Slider.hozoSliderStyle()),
+    tabs: flat(nativeProps.Tabs.hozoTabsStyle()),
+    tree: flat(nativeProps.Tree.hozoTreeStyle()),
+  }
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const read = (sel) => {
+        const el = document.querySelector(sel)
+        const cs = getComputedStyle(el)
+        return {
+          tag: el.tagName,
+          bg: cs.backgroundColor,
+          paddingTop: parseFloat(cs.paddingTop),
+        }
+      }
+      return {
+        radio: read('#radio > div'),
+        slider: read('#slider > div'),
+        tabs: read('#tabs > div'),
+        tree: read('#tree > div'),
+      }
+    })
+    for (const key of ['radio', 'slider', 'tabs', 'tree']) {
+      assert.deepEqual(markers[key], {
+        tag: 'DIV',
+        bg: hexToRgb(nativeStyles[key].backgroundColor),
+        paddingTop: nativeStyles[key].paddingTop,
+      })
+    }
+  } finally {
+    await page.close()
+  }
+})

@@ -35,6 +35,8 @@ export interface HozoTreeProps {
   className?: string
   /** The class list for each row, resolved like `className`. */
   rowClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoTreeStyle?: () => StyleProp<ViewStyle>
   /** @internal Complete prepared row class contribution (RFC 010). */
   hozoRowStyle?: (
     state: InteractionState & {
@@ -103,6 +105,7 @@ export interface HozoTreeProps {
 export function HozoTree({
   className,
   rowClassName,
+  hozoTreeStyle,
   hozoRowStyle,
   nodes,
   defaultExpanded = [],
@@ -115,6 +118,8 @@ export function HozoTree({
   rowLook,
   toggleOn = 'row',
 }: HozoTreeProps) {
+  if (hozoTreeStyle && className !== undefined)
+    throw new Error('Prepared Tree styles must consume className')
   if (hozoRowStyle && rowClassName !== undefined)
     throw new Error('Prepared Tree styles must consume rowClassName')
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set(defaultExpanded))
@@ -133,7 +138,10 @@ export function HozoTree({
     <View
       accessibilityRole="list"
       accessibilityLabel={accessibilityLabel}
-      style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}
+      style={[
+        hozoTreeStyle ? hozoTreeStyle() : className ? hozoClasses(className) : undefined,
+        hozoAuthoredStyle(style),
+      ]}
     >
       {rows.map((row) => {
         const look = (interaction: InteractionState) =>

@@ -124,6 +124,7 @@ test('patterns publishes its catalog-owned contract without cloning it onto the 
     assert.deepEqual(manifest.exports.find((row) => row.name === name).owners, [
       'Tabs.Tab',
       'Tabs.panel',
+      'Tabs.root',
       'Tabs.tabList',
     ])
   assert.equal(manifest.compiledByConsumer, false)

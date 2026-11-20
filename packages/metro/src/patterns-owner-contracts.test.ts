@@ -2130,3 +2130,122 @@ export function Screen() {
     )
   }
 })
+
+test('Native RadioGroup, Slider, Tabs and Tree deliver prepared root styles without calling hozoClasses (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { RadioGroup, Slider, Tabs, Tree } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <>
+      <RadioGroup options={[{ value: 'a', label: 'A' }]} className="pt-2 bg-[#112233]" />
+      <Slider defaultValue={50} className="pt-3 bg-[#223344]" />
+      <Tabs tabs={[{ label: 'One', content: 'Body' }]} className="pt-4 bg-[#334455]" />
+      <Tree nodes={[{ id: '1', label: 'Root' }]} className="pt-1 bg-[#445566]" />
+    </>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoRadioGroupStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoSliderStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTabsStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTreeStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-[1234]/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const countClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const radioMod = loadNativePatternModule('radio.native.tsx', { hozoClasses: countClasses })
+  const sliderMod = loadNativePatternModule('slider.native.tsx', { hozoClasses: countClasses })
+  const tabsMod = loadNativePatternModule('tabs.native.tsx', { hozoClasses: countClasses })
+  const treeMod = loadNativePatternModule('tree.native.tsx', { hozoClasses: countClasses })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return {
+          RadioGroup: radioMod.exports.HozoRadioGroup,
+          Slider: sliderMod.exports.HozoSlider,
+          Tabs: tabsMod.exports.HozoTabs,
+          Tree: treeMod.exports.HozoTree,
+        }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  assert.equal(classResolverCalls, 0, 'prepared root literals must never call hozoClasses')
+
+  const radioRoot = flattenStyle(
+    radioMod.captured.find((e) => e.host === 'View' && e.props.accessibilityRole === 'radiogroup')!
+      .props.style,
+  )
+  assert.equal(radioRoot.backgroundColor, '#112233')
+  assert.equal(radioRoot.paddingTop, 8)
+
+  const sliderRoot = flattenStyle(
+    sliderMod.captured.find((e) => e.host === 'View' && e.props.pointerEvents === 'box-only')!.props
+      .style,
+  )
+  assert.equal(sliderRoot.backgroundColor, '#223344')
+  assert.equal(sliderRoot.paddingTop, 12)
+
+  const tabsRoot = flattenStyle(tabsMod.captured.find((e) => e.host === 'View')!.props.style)
+  assert.equal(tabsRoot.backgroundColor, '#334455')
+  assert.equal(tabsRoot.paddingTop, 16)
+
+  const treeRoot = flattenStyle(
+    treeMod.captured.find((e) => e.host === 'View' && e.props.accessibilityRole === 'list')!.props
+      .style,
+  )
+  assert.equal(treeRoot.backgroundColor, '#445566')
+  assert.equal(treeRoot.paddingTop, 4)
+
+  for (const [Comp, props, pattern] of [
+    [
+      radioMod.exports.HozoRadioGroup,
+      { options: [], className: 'pt-2', hozoRadioGroupStyle: () => ({}) },
+      /Prepared RadioGroup styles must consume className/,
+    ],
+    [
+      sliderMod.exports.HozoSlider,
+      { className: 'pt-2', hozoSliderStyle: () => ({}) },
+      /Prepared Slider styles must consume className/,
+    ],
+    [
+      tabsMod.exports.HozoTabs,
+      { tabs: [], className: 'pt-2', hozoTabsStyle: () => ({}) },
+      /Prepared Tabs root styles must consume className/,
+    ],
+    [
+      treeMod.exports.HozoTree,
+      { nodes: [], className: 'pt-2', hozoTreeStyle: () => ({}) },
+      /Prepared Tree styles must consume className/,
+    ],
+  ] as const) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(Comp as React.ComponentType<Record<string, unknown>>, props),
+        ),
+      pattern,
+    )
+  }
+})

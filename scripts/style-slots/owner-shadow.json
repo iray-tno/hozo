@@ -1620,6 +1620,134 @@
       ]
     },
     {
+      "owner": "RadioGroup.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoRadioGroupStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
+      "owner": "Slider.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoSliderStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
+      "owner": "Tabs.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoTabsStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
+      "owner": "Tree.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoTreeStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
       "owner": "Form.root",
       "classProp": "className",
       "audit": "audited",
