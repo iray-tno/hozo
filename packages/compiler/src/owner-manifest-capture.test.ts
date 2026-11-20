@@ -149,7 +149,7 @@ test('bounded observations and code-unit ordering cannot silently certify empty/
   )
   assert.equal(sharedCapture.status, 'complete')
   if (sharedCapture.status === 'complete') assert.equal(sharedCapture.bindings.length, 64)
-  const audited = text.replace('"audit": "unknown"', '"audit": "certified"')
+  const audited = text.replace('"audit": "audited"', '"audit": "certified"')
   assert.notEqual(audited, text)
   assert.equal(
     captureOwnerManifests([a], [row(a, undefined, audited)], options).status,
@@ -170,21 +170,16 @@ test('bounded observations and code-unit ordering cannot silently certify empty/
 })
 
 test('changing a recognized audit declaration changes capture identity, not its scope', () => {
-  const declared = text.replace('"audit": "unknown"', '"audit": "audited"')
-  const unknown = captureOwnerManifests([a], [row()], options)
-  const audited = captureOwnerManifests([a], [row(a, undefined, declared)], options)
+  const unknownText = text.replace('"audit": "audited"', '"audit": "unknown"')
+  const audited = captureOwnerManifests([a], [row()], options)
+  const unknown = captureOwnerManifests([a], [row(a, undefined, unknownText)], options)
   assert.equal(audited.status, 'complete')
+  assert.equal(unknown.status, 'complete')
   assert.equal(audited.scope, unknown.scope)
   if (audited.status === 'complete' && unknown.status === 'complete') {
     assert.notEqual(audited.fingerprint, unknown.fingerprint)
-    const auditedToolbar = audited.bindings[0]!.manifest!.shadow.contracts.find(
-      (contract) => contract.owner === 'Toolbar.root',
-    )!
-    const unknownToolbar = unknown.bindings[0]!.manifest!.shadow.contracts.find(
-      (contract) => contract.owner === 'Toolbar.root',
-    )!
-    assert.equal(auditedToolbar.audit, 'audited')
-    assert.equal(unknownToolbar.audit, 'unknown')
-    assert.ok(Object.isFrozen(auditedToolbar))
+    assert.equal(audited.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'audited')
+    assert.equal(unknown.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'unknown')
+    assert.ok(Object.isFrozen(audited.bindings[0]!.manifest!.shadow.contracts[0]!))
   }
 })

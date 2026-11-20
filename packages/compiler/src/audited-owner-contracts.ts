@@ -23,6 +23,13 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.Tab","classProp":"tabClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTabStyle","webClassProp":"tabClassName"},"authoredStyles":[{"prop":"tabStyle","order":0}],"shapes":[{"id":"tab","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-selected","aria-disabled"],"splitText":true}}]}]}',
   },
   {
+    owner: 'Toolbar.root',
+    package: '@hozo/patterns',
+    exports: ['Toolbar', 'HozoToolbar'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Toolbar.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoToolbarStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
     owner: 'Drawer.scrim',
     package: '@hozo/patterns',
     exports: ['Drawer', 'HozoDrawer'],

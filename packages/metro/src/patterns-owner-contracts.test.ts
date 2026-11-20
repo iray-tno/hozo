@@ -1944,3 +1944,62 @@ export function Unsupported() {
     /Prepared Tooltip styles must consume className/,
   )
 })
+
+test('Native Toolbar delivers prepared root styles by default without calling hozoClasses (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Toolbar } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <Toolbar
+      accessibilityLabel="Tools"
+      items={[{ render: () => null }]}
+      className="pt-2 gap-x-2 bg-[#112233]"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoToolbarStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-2/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const toolbarMod = loadNativePatternModule('toolbar.native.tsx', {
+    hozoClasses: () => {
+      classResolverCalls++
+      return { paddingBottom: 77 }
+    },
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Toolbar: toolbarMod.exports.Toolbar }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  toolbarMod.captured.length = 0
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  const toolbarView = flattenStyle(
+    toolbarMod.captured.find((e) => e.host === 'View' && e.props.accessibilityRole === 'toolbar')!
+      .props.style,
+  )
+  assert.equal(toolbarView.backgroundColor, '#112233')
+  assert.equal(toolbarView.paddingTop, 8)
+  assert.equal(toolbarView.columnGap, 8)
+  assert.equal(classResolverCalls, 0, 'prepared Toolbar literals must never call hozoClasses')
+})

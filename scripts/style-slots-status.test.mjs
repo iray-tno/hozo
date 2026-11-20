@@ -55,7 +55,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
         inputPlatform: platform,
         bundleSha256: hash,
         bundleBytes: 100,
-        sharedAliasPlan: mode === 'toolbar-opt-in',
+        sharedAliasPlan: mode !== 'opt-in',
         nestedCaptured: true,
         listCaptured: true,
         listControl: {
@@ -96,9 +96,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
           ].map((route) => [
             route,
             {
-              carrierSupplied:
-                mode === 'toolbar-opt-in' &&
-                ['literal', 'alias', 'nested', 'renderItem', 'groupedRenderItem'].includes(route),
+              carrierSupplied: route !== 'opaque' && (mode !== 'opt-in' || route === 'uncaptured'),
               style: {
                 paddingTop: 21,
                 paddingRight: 14,
@@ -127,8 +125,8 @@ test('Toolbar Metro receipts require current source, all routes and negative con
     passed: true,
     builds: 8,
     observations: 56,
-    prepared: 10,
-    ordinary: 46,
+    prepared: 38,
+    ordinary: 18,
     primitiveControls: 8,
     listControls: 8,
     groupedControls: 8,
@@ -141,7 +139,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
       r.builds[3].routes.groupedRenderItem.carrierSupplied = false
     },
     (r) => {
-      r.builds[0].routes.groupedRenderItem.carrierSupplied = true
+      r.builds[1].routes.groupedRenderItem.carrierSupplied = true
     },
     (r) => {
       r.builds[3].groupedControl.evaluationOrder = ['callback', 'before', 'after']
@@ -174,7 +172,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
       r.builds[3].routes.renderItem.carrierSupplied = false
     },
     (r) => {
-      r.builds[0].routes.renderItem.carrierSupplied = true
+      r.builds[1].routes.renderItem.carrierSupplied = true
     },
     (r) => {
       r.builds[3].nestedCaptured = false
@@ -201,7 +199,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
       r.builds[3].sharedAliasPlan = false
     },
     (r) => {
-      r.builds[0].sharedAliasPlan = true
+      r.builds[1].sharedAliasPlan = true
     },
     (r) => {
       r.builds[3].routes.alias.carrierSupplied = false
@@ -255,7 +253,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
       r.builds[3].routes.opaque.carrierSupplied = true
     },
     (r) => {
-      r.builds[3].routes.uncaptured.carrierSupplied = true
+      r.builds[3].routes.uncaptured.carrierSupplied = false
     },
     (r) => {
       delete r.builds[3].routes.uncaptured
@@ -1495,15 +1493,15 @@ test('inventory stays separate from scoped evidence and missing global measures 
   assert.deepEqual(report.inventory, {
     components: 27,
     slots: 100,
-    pendingOwners: 19,
-    componentManaged: 37,
+    pendingOwners: 18,
+    componentManaged: 38,
     componentManagedPending: 0,
     formComponents: 11,
     formSlots: 52,
     formPendingOwners: 0,
     shadowContributions: 90,
-    shadowAuditUnknown: 1,
-    shadowAuditDeclared: 89,
+    shadowAuditUnknown: 0,
+    shadowAuditDeclared: 90,
   })
   assert.equal(report.observations[0].status, 'measured')
   assert.equal(report.observations[0].matchedPairs, 5)

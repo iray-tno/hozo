@@ -18,6 +18,8 @@ function fixture(source: string, partial = false) {
     compiler,
     undefined,
     (input, edits) => map.apply(input, edits),
+    undefined,
+    true,
   )
   assert.ok(ordinary)
   assert.ok(map.matches(ordinary))

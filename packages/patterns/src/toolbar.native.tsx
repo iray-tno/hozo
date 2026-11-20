@@ -55,7 +55,7 @@ export function HozoToolbar({
       accessibilityRole="toolbar"
       accessibilityLabel={accessibilityLabel}
       style={[
-        hozoToolbarStyle ? hozoToolbarStyle() : hozoClasses(className),
+        hozoToolbarStyle ? hozoToolbarStyle() : className ? hozoClasses(className) : undefined,
         hozoAuthoredStyle(style),
       ]}
     >

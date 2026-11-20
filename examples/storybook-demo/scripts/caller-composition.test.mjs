@@ -48,6 +48,7 @@ import {
   Splitter,
   Switch,
   Tabs,
+  Toolbar,
   Tooltip,
   Tree,
 } from '@hozo/patterns'
@@ -9616,6 +9617,101 @@ export function Screen() {
       tooltipBg: hexToRgb(tooltipNative.backgroundColor),
       tooltipColor: hexToRgb(tooltipNative.color),
       tooltipPaddingTop: tooltipNative.paddingTop,
+    })
+  } finally {
+    await page.close()
+  }
+})
+
+test('Toolbar delivers prepared root styles by default on Web Chromium and Native (#2137)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Toolbar } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <Toolbar
+        accessibilityLabel="Tools"
+        items={[{ render: (props) => <button type="button" {...props}>Action</button> }]}
+        className="pt-2 gap-x-2 bg-[#112233]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  assert.match(web.code, /className=\{"hozo-owner-/)
+
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Toolbar }
+      throw new Error(`Unexpected web require: ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props, ...children) => {
+      if (type === 'Toolbar') nativeProps = props
+      return { type, props, children }
+    },
+    require: (id) => {
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (id === '@hozo/patterns') return { Toolbar: 'Toolbar' }
+      throw new Error(`Unexpected native require: ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+  assert.equal(typeof nativeProps.hozoToolbarStyle, 'function')
+  assert.equal(nativeProps.className, undefined)
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeStyle = flat(nativeProps.hozoToolbarStyle())
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const el = document.querySelector('#wrap [role="toolbar"]')
+      const cs = getComputedStyle(el)
+      return {
+        tag: el.tagName,
+        bg: cs.backgroundColor,
+        paddingTop: parseFloat(cs.paddingTop),
+        columnGap: parseFloat(cs.columnGap),
+      }
+    })
+    assert.deepEqual(markers, {
+      tag: 'DIV',
+      bg: hexToRgb(nativeStyle.backgroundColor),
+      paddingTop: nativeStyle.paddingTop,
+      columnGap: nativeStyle.columnGap,
     })
   } finally {
     await page.close()

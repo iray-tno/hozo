@@ -14,10 +14,10 @@ const text = readFileSync(
 )
 const parsed = () => parseOwnerContractShadow(text)
 const contract = () => parsed().contracts[0]!
-test('Toolbar root is one unknown-audit non-interactive shape, not an item event owner', () => {
+test('Toolbar root is one audited non-interactive shape, not an item event owner', () => {
   const toolbar = parsed().contracts.find((row) => row.owner === 'Toolbar.root')!
   assert.ok(toolbar)
-  assert.equal(toolbar.audit, 'unknown')
+  assert.equal(toolbar.audit, 'audited')
   assert.deepEqual(toolbar.abi, {
     nativePreparedProp: 'hozoToolbarStyle',
     webClassProp: 'className',

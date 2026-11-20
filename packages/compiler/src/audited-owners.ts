@@ -161,6 +161,7 @@ export function composeNativeOwnerPreviews(
   ordinary: string | null,
   provenance: SourceProvenance,
   previews: readonly OwnerCallerPreview[],
+  observe?: (source: string, edits: readonly SourceEdit[]) => void,
 ): string | null {
   const active = previews.filter((preview) => preview.edits.length > 0)
   if (!active.length) return ordinary
@@ -201,6 +202,7 @@ export function composeNativeOwnerPreviews(
     )
   )
     return ordinary
+  observe?.(output, edits)
   let code = output
   for (const edit of edits.reverse())
     code = code.slice(0, edit.spanStart) + edit.replacement + code.slice(edit.spanEnd)

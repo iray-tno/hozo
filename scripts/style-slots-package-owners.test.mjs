@@ -136,7 +136,7 @@ test('catalog publication owns the contract once and attaches only actual packag
     [
       ['BottomSheet.handle', 'audited'],
       ['Tabs.Tab', 'audited'],
-      ['Toolbar.root', 'unknown'],
+      ['Toolbar.root', 'audited'],
       ['Drawer.scrim', 'audited'],
       ['Drawer.panel', 'audited'],
       ['Popover.trigger', 'audited'],

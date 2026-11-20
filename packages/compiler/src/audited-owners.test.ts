@@ -768,3 +768,26 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
   assert.match(lowered.css, /#223344|rgb\(34,\s*51,\s*68\)/)
 })
+
+test('ordinary Web lowering compiles Toolbar root className by default (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Toolbar } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  const items = [{ render: (props: Record<string, unknown>) => <button type="button" {...props}>A</button> }]
+  return (
+    <>
+      <Toolbar accessibilityLabel="Tools" items={items} className="p-2 gap-x-2 bg-[#112233]" />
+      <Toolbar {...spread} items={items} className="bg-[#444444]" />
+      <Toolbar items={items} className={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /className="p-2 gap-x-2/)
+  assert.match(lowered.code, /className=\{"hozo-owner-/)
+  assert.match(lowered.code, /className="bg-\[#444444\]"/)
+  assert.match(lowered.code, /className=\{dynamic\}/)
+  assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
+})

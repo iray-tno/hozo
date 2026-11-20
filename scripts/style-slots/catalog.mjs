@@ -1034,7 +1034,16 @@ export const components = {
       },
     },
   }),
-  Toolbar: slots('className'),
+  Toolbar: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'toolbar-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+    },
+  }),
   Tooltip: slots('className', {
     overrides: {
       className: {
@@ -1313,7 +1322,7 @@ export const ownerShadow = {
     {
       owner: 'Toolbar.root',
       classProp: 'className',
-      audit: 'unknown',
+      audit: 'audited',
       bindings: ['present'],
       abi: { nativePreparedProp: 'hozoToolbarStyle', webClassProp: 'className' },
       authoredStyles: [{ prop: 'style', order: 0 }],

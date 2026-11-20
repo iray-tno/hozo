@@ -39,7 +39,7 @@ function observe(source: string) {
 
 test('Native edits preserve UTF-16 coordinates for untouched siblings, not rewritten JSX', () => {
   const source = `// 🌱 source offsets are UTF-16
-import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
+import {View} from '@hozo/core';import {Toolbar} from './toolbar';
 export const A=()=> <><View className="p-2"/><Toolbar items={[]} className="p-4"/></>`
   const { map, output } = observe(source)
   const start = source.indexOf('className="p-4"'),
@@ -63,7 +63,7 @@ test('Native provenance accounts for Canvas edits, generated hooks and runtime/c
 })
 
 test('Native rewriting carries exact backend source evidence inside a lowered parent', () => {
-  const source = `import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
+  const source = `import {View} from '@hozo/core';import {Toolbar} from './toolbar';
     export const A=()=> <View className="p-2"><Toolbar items={[]} className="p-4"/></View>`
   const { map, output } = observe(source)
   const start = source.indexOf('className="p-4"')
@@ -74,7 +74,7 @@ test('Native rewriting carries exact backend source evidence inside a lowered pa
 })
 
 test('Native lexical wrappers and absent backend evidence do not grant nested rewrite permission', () => {
-  const source = `import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
+  const source = `import {View} from '@hozo/core';import {Toolbar} from './toolbar';
     export const A=()=> <View className="@sm:p-2"><Toolbar items={[]} className="p-4"/></View>`
   const { map, output } = observe(source)
   const start = source.indexOf('className="p-4"')

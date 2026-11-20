@@ -127,7 +127,7 @@
     {
       "owner": "Toolbar.root",
       "classProp": "className",
-      "audit": "unknown",
+      "audit": "audited",
       "bindings": [
         "present"
       ],
