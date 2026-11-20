@@ -2,10 +2,12 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { PNG } from 'pngjs'
 import {
   assertReusableTableInputs,
   tableSummary,
   tableTimingRecords,
+  verifyTablePixels,
   verifyTableSample,
 } from './table-performance-evidence.mjs'
 import generator from './table-performance-source.cjs'
@@ -123,4 +125,30 @@ test('collector-only diagnostic reuse rejects all application, generator, depend
   ]) {
     assert.throws(() => assertReusableTableInputs([path]), /binary input changed/)
   }
+})
+
+test('populated accessibility nodes cannot conceal blank header or first-row pixels', () => {
+  const image = new PNG({ width: 80, height: 40 })
+  image.data.fill(255)
+  const labels = ['ID', 'Name', 'Region', 'Total']
+  const values = ['0', 'Item 0', 'East', '0']
+  const nodes = labels.flatMap((label, column) => [
+    { text: label, rect: [column * 20, 0, column * 20 + 18, 10] },
+    { text: values[column], rect: [column * 20, 20, column * 20 + 18, 30] },
+  ])
+  const fill = (rect, value) => {
+    for (let y = rect[1] + 1; y < rect[1] + 4; y++) {
+      for (let x = rect[0] + 1; x < rect[0] + 5; x++) {
+        const at = (y * image.width + x) * 4
+        image.data[at] = image.data[at + 1] = image.data[at + 2] = value
+      }
+    }
+  }
+  for (const node of nodes) fill(node.rect, 0)
+  assert.equal(verifyTablePixels(PNG.sync.write(image), nodes).length, 8)
+  fill(nodes[0].rect, 255)
+  assert.throws(() => verifyTablePixels(PNG.sync.write(image), nodes), /empty pixels: ID/)
+  fill(nodes[0].rect, 0)
+  fill(nodes[1].rect, 255)
+  assert.throws(() => verifyTablePixels(PNG.sync.write(image), nodes), /empty pixels: ID, 0/)
 })

@@ -1,6 +1,60 @@
 import assert from 'node:assert/strict'
+import { PNG } from 'pngjs'
 
 export const TABLE_COUNTS = [100, 500, 1000]
+
+// Accessibility bounds can survive text disappearing after Native sizing.
+// Observe the actual header/value pixels after the timing window as well.
+export function verifyTablePixels(buffer, nodes) {
+  const image = PNG.sync.read(buffer)
+  const labels = ['ID', 'Name', 'Region', 'Total']
+  const values = ['0', 'Item 0', 'East', '0']
+  const matches = (node, label) => node.text === label || node['content-desc'] === label
+  const read = (node, label) => {
+    assert.ok(node?.rect, `missing Table node: ${label}`)
+    const [left, top, right, bottom] = node.rect
+    assert.ok(
+      left >= 0 &&
+        top >= 0 &&
+        right <= image.width &&
+        bottom <= image.height &&
+        right > left &&
+        bottom > top,
+      `invalid Table bounds: ${label}`,
+    )
+    let inkPixels = 0
+    for (let y = top; y < bottom; y++) {
+      for (let x = left; x < right; x++) {
+        const at = (y * image.width + x) * 4
+        if (
+          image.data[at] < 128 &&
+          image.data[at + 1] < 128 &&
+          image.data[at + 2] < 128 &&
+          image.data[at + 3] > 0
+        )
+          inkPixels++
+      }
+    }
+    assert.ok(inkPixels >= 10, `Table text has empty pixels: ${label}`)
+    return { label, rect: node.rect, inkPixels }
+  }
+  const headers = labels.map((label) => nodes.find((node) => matches(node, label)))
+  const evidence = headers.map((node, index) => read(node, labels[index]))
+  for (let column = 0; column < labels.length; column++) {
+    const [left, , right, bottom] = headers[column].rect
+    const label = `${labels[column]}, ${values[column]}`
+    const node = nodes.find(
+      (node) =>
+        node.rect &&
+        node.rect[1] >= bottom &&
+        (node.rect[0] + node.rect[2]) / 2 >= left &&
+        (node.rect[0] + node.rect[2]) / 2 <= right &&
+        (matches(node, label) || matches(node, values[column])),
+    )
+    evidence.push(read(node, label))
+  }
+  return evidence
+}
 
 export function tableTimingRecords(log) {
   return log.split(/\r?\n/).flatMap((line) => {

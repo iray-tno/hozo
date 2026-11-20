@@ -14,6 +14,7 @@ import {
   TABLE_COUNTS,
   tableSummary,
   tableTimingRecords,
+  verifyTablePixels,
   verifyTableSample,
 } from './table-performance-evidence.mjs'
 
@@ -155,17 +156,20 @@ try {
     Object.assign(entry, { observation: record })
     persist()
     verifyTableSample(record, { mode, count, sourceHash: evidence.sourceHash })
-    Object.assign(entry, record, { name, warmup, round })
+    Object.assign(entry, record, { name, warmup, round, passed: false })
     adb('shell', 'uiautomator', 'dump', '/sdcard/table-probe.xml')
     const xml = read('exec-out', 'cat', '/sdcard/table-probe.xml')
     save(`${name}-uiautomator.xml`, xml)
     const nodes = parseNodes(xml)
     for (const header of ['ID', 'Name', 'Region', 'Total']) {
       const node = nodes.find((node) => matchLabel(node, header))
-      assert.ok(node, `missing visible header ${header}: ${name}`)
+      assert.ok(node, `missing header node ${header}: ${name}`)
       centre(node)
     }
-    save(`${name}.png`, adb('exec-out', 'screencap', '-p'))
+    const screenshot = adb('exec-out', 'screencap', '-p')
+    save(`${name}.png`, screenshot)
+    entry.pixels = verifyTablePixels(screenshot, nodes)
+    entry.passed = true
     persist()
     console.log(
       `${name}: boundary ${record.boundaryMs.toFixed(1)}ms; settled ${record.settledMs.toFixed(1)}ms; natural measurements ${record.naturalMeasurements}; peak rows ${record.peakRows}`,
