@@ -43,7 +43,9 @@ Native formats and decorates only rows requested by the list, while key
 validation scans the data without formatting it. Optional
 `renderCell(text, row)` supports noninteractive decoration and must return
 elements appropriate for the platform. It does not replace the accessible
-text. There is no natural-width measurement in this component.
+text. Native normalizes direct text, arrays and Fragments through the shared
+text-child behavior; custom components must still produce Native-valid hosts.
+There is no natural-width measurement in this component.
 
 Rows unmounted by FlatList are absent from the accessibility tree. Overscan
 and the initial render batch can remain mounted outside the viewport; Android

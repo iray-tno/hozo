@@ -138,6 +138,11 @@ Retained frames can also be checked without repeating the experiment:
 node examples/native-showcase/scripts/verify-table-captures.mjs <downloaded-table-artifact>
 ```
 
+If a fresh run completed all 20 mount cases and then stopped during a window
+check, add `--matrix-only` to verify only that complete matrix. Its separate
+`matrix-verification.json` records the original failed verdict and excluded
+window scope. It cannot accept a partial matrix or a reused-APK readiness run.
+
 This verifies the original successful matrix, all four headers/first-row
 values and any production window checkpoints against their nodes and screenshot pixels. `pixel-verification.json`
 binds each result to its screenshot/tree hashes and the verifier's hashes;

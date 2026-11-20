@@ -1,0 +1,6 @@
+"run","phase","passed","live_rows","peak_rows","cumulative_mounts","row_height","font_scale","natural_width_reports","driver_commit","binary_commit","apk_sha256","reused_binary"
+"44767582409","initial-window","True","15","15","15","32","1","0","9cb72067f5ee39aea718744a548e4c7cf2c18785","fc3c2a5ec36c923f07910d2b96d2297efce37cb1","aee19e5b3bba545d5c73d4ca709bf110abfb2aa41ba1997b7317af521fc73216","True"
+"44767582409","last-window","True","25","25","31","32","1","0","9cb72067f5ee39aea718744a548e4c7cf2c18785","fc3c2a5ec36c923f07910d2b96d2297efce37cb1","aee19e5b3bba545d5c73d4ca709bf110abfb2aa41ba1997b7317af521fc73216","True"
+"44767582409","returned-window","True","15","25","37","32","1","0","9cb72067f5ee39aea718744a548e4c7cf2c18785","fc3c2a5ec36c923f07910d2b96d2297efce37cb1","aee19e5b3bba545d5c73d4ca709bf110abfb2aa41ba1997b7317af521fc73216","True"
+"44767582409","horizontal-window","True","15","25","37","32","1","0","9cb72067f5ee39aea718744a548e4c7cf2c18785","fc3c2a5ec36c923f07910d2b96d2297efce37cb1","aee19e5b3bba545d5c73d4ca709bf110abfb2aa41ba1997b7317af521fc73216","True"
+"44767582409","font-scale-window","True","12","12","12","41.599998474121094","1.2999999523162842","0","9cb72067f5ee39aea718744a548e4c7cf2c18785","fc3c2a5ec36c923f07910d2b96d2297efce37cb1","aee19e5b3bba545d5c73d4ca709bf110abfb2aa41ba1997b7317af521fc73216","True"

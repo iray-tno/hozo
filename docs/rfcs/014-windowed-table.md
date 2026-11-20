@@ -1,6 +1,6 @@
 # RFC 014: Windowed Table
 
-- **Status**: Declared-width implementation in progress; release-emulator proof pending
+- **Status**: Declared-width/fixed-height slice implemented; Native reader speech remains unverified
 - **Authors**: codex-2
 - **Tracking issue**: [#1373](https://github.com/iray-tno/hozo/issues/1373)
 - **Implementation**: [#2130](https://github.com/iray-tno/hozo/issues/2130) (at most two merged PRs)
@@ -135,11 +135,11 @@ Use the existing safe FlatList wrapper and retain the upstream restriction.
 | Surface | Required proof before production completion | Present evidence |
 | --- | --- | --- |
 | Web markup | Header associations, total rows/columns, unchanged full-row rendering | WindowedTable SSR test: all 1,000 rows, column widths and header associations |
-| Native structure | Absolute indices, full header/value labels, row-key recycling | WindowedTable host test: lazy callbacks, absolute indices across row 0/999/return, stable keys after reorder; device recycling pending |
+| Native structure | Absolute indices, full header/value labels, row-key recycling | Host tests cover metadata, lazy callbacks, append/reorder and compiled core routing; Android release-APK jump/return retains full labels and pixel alignment |
 | Android TalkBack | First/last visible row, jump past one window, return to a focused control | Not measured by this performance probe |
 | iOS VoiceOver | Header/value naming and navigation across recycled rows | Not measured |
-| Window bounds | Initial mount stays bounded as data grows; later scroll/jump/return also stays bounded | Initial mount diagnostic below; later recycling pending |
-| Sizing | Fixed columns cause zero natural-width reports; later widths grow once per epoch and reset deliberately | Public source: Chromium and Yoga agree at widths 1/8/64 and row heights 1/4/32/64, without natural-width probes; release window bounds pending; later sizing deferred |
+| Window bounds | Initial mount stays bounded as data grows; later scroll/jump/return also stays bounded | Production source: initial 15 rows at 100/500/1,000 data rows; 25 after the 1,000-row jump, 15 after return; details below |
+| Sizing | Declared widths stay exact and cause zero natural-width reports; estimation/growth belongs to later work | Chromium/Yoga agree at widths 1/8/64 and row heights 1/4/32/64; Android checks fixed columns, horizontal overflow and caller-recomputed height at font scale 1.3 |
 
 No screen-reader or physical-device approval is inferred from release-emulator
 mount measurements. Unmounted Native rows are absent from the accessibility
@@ -212,9 +212,80 @@ documented in [the showcase README](../../examples/native-showcase/README.md#tab
 
 ## 6. Completion boundary
 
-This RFC and its diagnostic close the design/measurement task #1373 when
-reviewed and merged. They do not ship WindowedTable. Production work starts
-in [#2130](https://github.com/iray-tno/hozo/issues/2130), with declared
-widths/fixed heights and the accessibility checks above. Any text
-estimation/growth implementation is separate work with its own measurement
-and recycling tests; it is not required to close #2130.
+The design/measurement task #1373 is closed. The declared-width/fixed-height
+production slice in [#2130](https://github.com/iray-tno/hozo/issues/2130)
+finishes with [#2134](https://github.com/iray-tno/hozo/pull/2134) followed by
+[#2135](https://github.com/iray-tno/hozo/pull/2135), within its two-merged-PR
+budget. Its stop condition is the public API, full semantic Web rows, bounded
+Native mounts through jump/return, stable keys/labels/indices, fixed geometry
+and a source-bound production comparison. The evidence below meets that bar;
+the Native AT and physical-device gaps above remain explicitly unverified.
+Any text estimation/growth implementation is separate work with its own
+measurement and recycling tests; it is not required to close #2130.
+
+## 7. Production slice evidence (2026-11-21)
+
+The [fresh release/Hermes producer](https://github.com/iray-tno/hozo/actions/runs/44757999733)
+built source `fc3c2a5ec36c923f07910d2b96d2297efce37cb1`. It completed
+all 20 mount cases: two excluded 100-row warmups and three samples of each
+mode/size. Both controls use 16px text, 24px line height and 4px cell padding;
+the windowed table uses widths `[64, 96, 96, 96]`, 32dp rows and a 240dp viewport.
+This matches the production component's text fixture, rather than mixing it
+with the earlier 14px prototype. Host: four AMD EPYC 9V74 vCPUs; Android API 36,
+x86_64, Google APIs image, swangle, React Native 0.88.1 and React 19.3.
+
+| Data rows | Table first boundary / quiet began (median ms) | WindowedTable first boundary / quiet began (median ms) | Natural-width reports, Table / windowed | Peak mounted rows, Table / windowed |
+| ---: | ---: | ---: | ---: | ---: |
+| 100 | 363.9 / 363.9 | 35.9 / 188.0 | 404 / 0 | 101 / 15 |
+| 500 | 1239.9 / 1492.6 | 35.2 / 132.9 | 2004 / 0 | 501 / 15 |
+| 1,000 | 1442.8 / 2861.9 | 33.1 / 171.4 | 4004 / 0 | 1001 / 15 |
+
+The [raw 20-case CSV](../measurements/windowed-table-production-2026-11-21.csv)
+keeps every sample and warmup. No outlier was removed. These boundaries retain
+the JS/layout definition in section 5; quiet confirmation adds 30 stable rAFs.
+They compare complete fixed-width/windowed and automatic-width/full-mount
+strategies, without attributing the difference to windowing alone or claiming
+GPU presentation or physical-device memory performance.
+
+The producer's overall job subsequently failed in a window-check collector:
+`Region, West` repeats across rows, and the selector chose a clipped overscan
+node instead of the target row. The corrected collector associates cells with
+a unique ID/Name/Total in the same row. Replaying the retained frames with
+`verify-table-captures.mjs <artifact> --matrix-only` verifies all 20 complete
+mount cases while retaining the original failed verdict and excluding windows.
+The default verifier continues to require a successful whole recorded run.
+
+The [successful window-only diagnostic](https://github.com/iray-tno/hozo/actions/runs/44767582409)
+uses that exact APK, SHA256
+`aee19e5b3bba545d5c73d4ca709bf110abfb2aa41ba1997b7317af521fc73216`.
+Its driver is `9cb72067f5ee39aea718744a548e4c7cf2c18785`; a Git comparison
+accepts only the named collector/verifier/test files and documentation. It
+does not claim a fresh build of the driver revision. Native source SHA256 is
+`464a0dc212416a9c3c6d88383a84252d428e6f3a761139b7d427d2cc67f598e4`;
+the unchanged key/size model is
+`d53aaf9fd216e8f09e757abeb70573b0a5eed8c0d0bd6fb98876c52430c14cd0`.
+
+| Window checkpoint | Live rows | Peak rows in that mount | Cumulative row mounts |
+| --- | ---: | ---: | ---: |
+| Initial 1,000-row window | 15 | 15 | 15 |
+| Jump to data row 999 | 25 | 25 | 31 |
+| Return to the first row | 15 | 25 | 37 |
+| Horizontal overflow in a 220dp viewport | 15 | 25 | 37 |
+| Fresh mount at system font scale 1.3, caller row height 41.6dp | 12 | 12 | 12 |
+
+The [window CSV](../measurements/windowed-table-windows-2026-11-21.csv)
+records this separate cohort (four Intel Xeon Platinum 8573C vCPUs). Its one
+excluded readiness mount supplies no new timing medians. All five checkpoints
+pass full header/value naming, visible text pixels, fixed dimensions and
+bounded mounts; the last row leaves the window on return. The retained-frame
+verifier rechecks the readiness frame and all five checkpoints. The original
+system font setting is restored. Diagnostic scroll commands use an observed
+backing-list ref, with no new public imperative API.
+
+The header and initial eight data rows stay mounted after the jump, along with
+the current overscan window. Android's tree includes some offscreen nodes with
+clipped/inverted bounds; they are not evidence that a row is visible. This is
+why the Native reader-navigation/total-count limitations remain explicit.
+Native interactive cells, variable heights, automatic widths, Web windowing,
+physical-device performance and TalkBack/VoiceOver approval are outside this
+completed slice. No further implementation is implied by closing #2130.
