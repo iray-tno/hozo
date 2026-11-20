@@ -16,6 +16,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { globSync } from 'tinyglobby'
 import { buildPackageManifest, type PackageManifestOptions } from './package-manifest.ts'
 
 export type { HozoPackageManifest } from './owner-package.ts'
@@ -213,6 +214,52 @@ function packageEntry(json: PackageJson): string | undefined {
   return json.main
 }
 
+/** What a package author states for a version 2 manifest from `hozo manifest`. */
+export interface ManifestCandidateOptions {
+  /** Globs, relative to the package, naming the files its candidates come from. */
+  sources: readonly string[]
+  /** Whether the consumer compiles those files, rather than built output. */
+  compiledByConsumer: boolean
+}
+
+// Not the package's own classes, and a test can list ones no consumer uses.
+const NOT_PACKAGE_SOURCE = /\.(?:test|spec|stories|bench)\.[^./]+$|\.d\.[cm]?ts$/
+
+/**
+ * The package channels a third-party package can state without Hozo's
+ * style-slot catalog: candidates from the named sources, and nothing that
+ * needs an audit. No owner contracts, no class joiners and no text
+ * publication, so `exports` only has to name what `textForwarding` keys on;
+ * the reader uses the rest of `exports` for owner contracts alone.
+ */
+export function authoredPackageChannels(
+  packageDir: string,
+  text: HozoManifest,
+  options: ManifestCandidateOptions,
+): PackageManifestOptions {
+  if (!options.sources.length) throw new Error('hozo manifest: --sources names no files')
+  const files = globSync([...options.sources], {
+    cwd: packageDir,
+    ignore: ['**/node_modules/**'],
+    onlyFiles: true,
+  })
+    .filter((file) => !NOT_PACKAGE_SOURCE.test(file))
+    .map((file) => file.replaceAll('\\', '/'))
+    .sort()
+  if (!files.length)
+    throw new Error(`hozo manifest: --sources ${options.sources.join(' ')} matched no files`)
+  return {
+    exports: Object.keys(text.textForwarding).map((name) => ({ name, owners: [] })),
+    owners: null,
+    helpers: [],
+    compiledByConsumer: options.compiledByConsumer,
+    sources: files.map((file) => ({
+      file,
+      source: readFileSync(path.join(packageDir, file), 'utf8'),
+    })),
+  }
+}
+
 export interface PackageManifestResult {
   file: string
   text: string
@@ -235,6 +282,8 @@ export function writeManifest(
     entry?: string
     /** Opt-in bounded RFC010 package channels; legacy callers are unchanged. */
     package?: PackageManifestOptions
+    /** Version 2 from the author's own statement, as `hozo manifest --sources`. */
+    candidates?: ManifestCandidateOptions
   } = {},
 ): PackageManifestResult {
   const json = JSON.parse(
@@ -244,9 +293,12 @@ export function writeManifest(
   if (!entry) throw new Error(`hozo manifest: ${packageDir}/package.json names no entry`)
   const file = path.join(packageDir, json.hozo?.manifest ?? DEFAULT_MANIFEST_FILE)
   const legacy = buildManifest({ entry: path.join(packageDir, entry) })
-  const text = serializeManifest(
-    options.package ? buildPackageManifest(legacy, options.package) : legacy,
-  )
+  if (options.package && options.candidates)
+    throw new Error('hozo manifest: package channels are given twice')
+  const channels =
+    options.package ??
+    (options.candidates && authoredPackageChannels(packageDir, legacy, options.candidates))
+  const text = serializeManifest(channels ? buildPackageManifest(legacy, channels) : legacy)
   if (options.check) return { file, text, current: readFromDisk(file) === text }
   writeFileSync(file, text)
   return { file, text, current: true }

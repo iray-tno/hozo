@@ -1,4 +1,5 @@
-// `hozo manifest [package-dir] [--entry <file>] [--check]` (RFC 011), and
+// `hozo manifest [package-dir] [--entry <file>] [--check] [--sources <glob>]...
+// [--compiled-by-consumer]` (RFC 011), and
 // the deprecated `hozo-manifest` binary, which runs the same function.
 //
 // Writes the package's manifest where its package.json's `hozo.manifest`
@@ -23,25 +24,41 @@ class ManifestInputError extends Error {
   }
 }
 
-const help = (command: string) => `Usage: ${command} [package-dir] [--entry <file>] [--check]
+const help = (
+  command: string,
+) => `Usage: ${command} [package-dir] [--entry <file>] [--check] [--sources <glob>]... [--compiled-by-consumer]
 
 Builds a package's hozo.manifest.json from its source entry.
-  --entry <file>  Source entry relative to package-dir, when the published entry is built output
-  --check         Write nothing; exit 1 when the manifest on disk is stale`
+  --entry <file>          Source entry relative to package-dir, when the published entry is built output
+  --check                 Write nothing; exit 1 when the manifest on disk is stale
+  --sources <glob>        Files whose classes the package contributes; writes version 2. Repeatable
+  --compiled-by-consumer  The consumer's build compiles the package's source (it ships no built output)
+
+Without --sources the manifest is version 1: text forwarding only, and an app
+gets no classes from the package.`
 
 function parseArguments(args: readonly string[]) {
   let check = false
+  let compiledByConsumer = false
   let entry: string | undefined
   let packageDir: string | undefined
+  const sources: string[] = []
+  const value = (index: number, option: string, what: string) => {
+    const next = args[index + 1]
+    if (next === undefined || next.startsWith('-'))
+      throw new ManifestInputError(`${option} requires ${what}`, 'missing-value')
+    return next
+  }
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]!
     if (argument === '--help' || argument === '-h') return { help: true as const }
     if (argument === '--check') check = true
+    else if (argument === '--compiled-by-consumer') compiledByConsumer = true
     else if (argument === '--entry') {
-      const value = args[index + 1]
-      if (value === undefined || value.startsWith('-'))
-        throw new ManifestInputError('--entry requires a file', 'missing-value')
-      entry = value
+      entry = value(index, '--entry', 'a file')
+      index += 1
+    } else if (argument === '--sources') {
+      sources.push(value(index, '--sources', 'a glob'))
       index += 1
     } else if (argument.startsWith('-'))
       throw new ManifestInputError(`Unknown option ${argument}`, 'unknown-option')
@@ -49,7 +66,12 @@ function parseArguments(args: readonly string[]) {
       throw new ManifestInputError(`Unexpected argument ${argument}`, 'unexpected-argument')
     else packageDir = argument
   }
-  return { help: false as const, check, entry, packageDir: packageDir ?? '.' }
+  // Said of the sources, so it means nothing without them; a silent version 1
+  // would read as the author's answer when it was not.
+  if (compiledByConsumer && !sources.length)
+    throw new ManifestInputError('--compiled-by-consumer needs --sources', 'missing-sources')
+  const candidates = sources.length ? { sources, compiledByConsumer } : undefined
+  return { help: false as const, check, entry, candidates, packageDir: packageDir ?? '.' }
 }
 
 /**
@@ -71,7 +93,11 @@ export function runManifestCli(
     const packageDir = path.resolve(cwd, parsed.packageDir)
     let result: ReturnType<typeof writeManifest>
     try {
-      result = writeManifest(packageDir, { check: parsed.check, entry: parsed.entry })
+      result = writeManifest(packageDir, {
+        check: parsed.check,
+        entry: parsed.entry,
+        candidates: parsed.candidates,
+      })
     } catch (error) {
       // No package.json, no entry, an entry that does not parse: the
       // package, not its manifest, needs fixing.

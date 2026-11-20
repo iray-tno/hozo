@@ -11,6 +11,9 @@ import {
   parseOwnerPackageShadow,
 } from './owner-package.ts'
 
+/** `parseOwnerPackageShadow`'s bound on `candidates`. */
+const MAX_CANDIDATES = 512
+
 export interface PackageManifestOptions {
   /** Resolved public VALUE exports, supplied by the package's build tool. */
   exports: OwnerPackageShadow['exports']
@@ -52,6 +55,12 @@ export function buildPackageManifest(
       throw new Error('Package manifest source budget exceeded')
     cache.scanFile(file, source, 0)
   }
+  // The reader's own bound, said here in words an author can act on.
+  const found = cache.candidates().length
+  if (found > MAX_CANDIDATES)
+    throw new Error(
+      `Package manifest candidate budget exceeded: ${found} classes, at most ${MAX_CANDIDATES}`,
+    )
   const byName = (a: { name: string }, b: { name: string }) =>
     a.name < b.name ? -1 : a.name > b.name ? 1 : 0
   const validated = parseOwnerPackageShadow(
