@@ -295,6 +295,7 @@ const reads = {
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [
+    'packages/semantics/src/table.native.tsx',
     'crates/hozo_parser/src/owner_slots.rs',
     'crates/hozo_napi/src/owner_slots.rs',
     'crates/hozo_native/src/owner_style.rs',

@@ -1,4 +1,5 @@
 const path = require('node:path')
+require('./scripts/table-performance-source.cjs')()
 const { withHozo } = require('@hozo/metro/config')
 const { withStorybook } = require('@storybook/react-native/metro/withStorybook')
 const { getDefaultConfig } = require('expo/metro-config')

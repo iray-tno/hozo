@@ -30,6 +30,7 @@ test('normal Android evidence runs SVG, full, then the docs previews; explicit i
       [['code-block-performance', 'artifacts/native-showcase-code-block']],
     ],
     ['code-block-windowed', [['code-block-windowed', 'artifacts/native-showcase-code-block']]],
+    ['table-performance', [['table-performance', 'artifacts/native-showcase-table']]],
   ]) {
     const calls = []
     await runAndroidScenarios(scenario, async (...args) => {
@@ -49,6 +50,7 @@ test('a failed driver aborts without retrying or running the next scenario; unkn
     'ui-docs',
     'code-block-performance',
     'code-block-windowed',
+    'table-performance',
   ]) {
     const calls = []
     const failure = new Error('driver failed')
