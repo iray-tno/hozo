@@ -493,6 +493,52 @@ test('Splitter root contract declares interactive View div host and drag/collaps
     },
   ])
 })
+test('ResizablePane contracts declare div root, section split-text pane, and handle View (#2046)', () => {
+  const root = parsed().contracts.find((entry) => entry.owner === 'ResizablePane.root')!
+  assert.equal(root.audit, 'audited')
+  assert.deepEqual(root.abi, {
+    nativePreparedProp: 'hozoResizablePaneStyle',
+    webClassProp: 'className',
+  })
+  assert.deepEqual(root.authoredStyles, [{ prop: 'style', order: 0 }])
+  assert.deepEqual(root.shapes, [
+    { id: 'root', when: { eq: ['present', true] }, nativeHost: 'View', webHost: 'div', events: [] },
+  ])
+  const pane = parsed().contracts.find((entry) => entry.owner === 'ResizablePane.pane')!
+  assert.equal(pane.audit, 'audited')
+  assert.deepEqual(pane.abi, {
+    nativePreparedProp: 'hozoPaneStyle',
+    webClassProp: 'paneClassName',
+  })
+  assert.deepEqual(pane.authoredStyles, [{ prop: 'paneStyle', order: 0 }])
+  assert.deepEqual(pane.shapes, [
+    {
+      id: 'pane',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'section',
+      events: [],
+      inputs: { facts: [], splitText: true },
+    },
+  ])
+  const handle = parsed().contracts.find((entry) => entry.owner === 'ResizablePane.handle')!
+  assert.equal(handle.audit, 'audited')
+  assert.deepEqual(handle.abi, {
+    nativePreparedProp: 'hozoHandleStyle',
+    webClassProp: 'handleClassName',
+  })
+  assert.deepEqual(handle.authoredStyles, [{ prop: 'handleStyle', order: 0 }])
+  assert.deepEqual(handle.shapes, [
+    {
+      id: 'handle',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: ['hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['data-dragging', 'data-collapsed'], splitText: false },
+    },
+  ])
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

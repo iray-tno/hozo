@@ -211,7 +211,11 @@
     },
     {
       "name": "ResizablePane",
-      "owners": []
+      "owners": [
+        "ResizablePane.handle",
+        "ResizablePane.pane",
+        "ResizablePane.root"
+      ]
     },
     {
       "name": "Slider",
@@ -745,6 +749,117 @@
         "authoredStyles": [
           {
             "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "handle",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": [
+              "hovered",
+              "focused",
+              "focusVisible"
+            ],
+            "inputs": {
+              "facts": [
+                "data-dragging",
+                "data-collapsed"
+              ],
+              "splitText": false
+            }
+          }
+        ]
+      },
+      {
+        "owner": "ResizablePane.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoResizablePaneStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "ResizablePane.pane",
+        "classProp": "paneClassName",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoPaneStyle",
+          "webClassProp": "paneClassName"
+        },
+        "authoredStyles": [
+          {
+            "prop": "paneStyle",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "pane",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "section",
+            "events": [],
+            "inputs": {
+              "facts": [],
+              "splitText": true
+            }
+          }
+        ]
+      },
+      {
+        "owner": "ResizablePane.handle",
+        "classProp": "handleClassName",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoHandleStyle",
+          "webClassProp": "handleClassName"
+        },
+        "authoredStyles": [
+          {
+            "prop": "handleStyle",
             "order": 0
           }
         ],

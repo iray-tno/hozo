@@ -18,6 +18,7 @@ const exports = [
   'HozoPopover',
   'RadioGroup',
   'HozoRadioGroup',
+  'ResizablePane',
   'Splitter',
   'Tabs',
   'HozoTabs',
@@ -50,12 +51,16 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'Other', owners: [] },
     { name: 'Popover', owners: ['Popover.panel', 'Popover.trigger'] },
     { name: 'RadioGroup', owners: ['RadioGroup.option'] },
+    {
+      name: 'ResizablePane',
+      owners: ['ResizablePane.handle', 'ResizablePane.pane', 'ResizablePane.root'],
+    },
     { name: 'Splitter', owners: ['Splitter.root'] },
     { name: 'Tabs', owners: ['Tabs.Tab'] },
     { name: 'Toolbar', owners: ['Toolbar.root'] },
     { name: 'Tree', owners: ['Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 10)
+  assert.equal(result.owners.contracts.length, 13)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
@@ -69,6 +74,9 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['RadioGroup.option', 'audited'],
       ['Tree.row', 'audited'],
       ['Splitter.root', 'audited'],
+      ['ResizablePane.root', 'audited'],
+      ['ResizablePane.pane', 'audited'],
+      ['ResizablePane.handle', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')

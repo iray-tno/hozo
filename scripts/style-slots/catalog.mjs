@@ -516,7 +516,24 @@ export const components = {
     },
   }),
   ResizablePane: slots('className paneClassName handleClassName', {
-    overrides: { className: { lowering: 'component-managed' } },
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'resizable-pane-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+      paneClassName: {
+        owner: 'resizable-pane-pane',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      handleClassName: {
+        owner: 'resizable-pane-handle',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+    },
   }),
   Accordion: slots(
     'className sectionClassName headingClassName triggerClassName panelClassName panelContentClassName',
@@ -1276,6 +1293,59 @@ export const ownerShadow = {
       ],
     },
     {
+      owner: 'ResizablePane.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoResizablePaneStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'ResizablePane.pane',
+      classProp: 'paneClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPaneStyle', webClassProp: 'paneClassName' },
+      authoredStyles: [{ prop: 'paneStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'pane',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'section',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'ResizablePane.handle',
+      classProp: 'handleClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoHandleStyle', webClassProp: 'handleClassName' },
+      authoredStyles: [{ prop: 'handleStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'handle',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: ['hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['data-dragging', 'data-collapsed'], splitText: false },
+        },
+      ],
+    },
+    {
       owner: 'Form.root',
       classProp: 'className',
       audit: 'audited',
@@ -1855,6 +1925,21 @@ export const ownerPublications = [
     owner: 'Splitter.root',
     package: '@hozo/patterns',
     exports: ['Splitter'],
+  },
+  {
+    owner: 'ResizablePane.root',
+    package: '@hozo/patterns',
+    exports: ['ResizablePane'],
+  },
+  {
+    owner: 'ResizablePane.pane',
+    package: '@hozo/patterns',
+    exports: ['ResizablePane'],
+  },
+  {
+    owner: 'ResizablePane.handle',
+    package: '@hozo/patterns',
+    exports: ['ResizablePane'],
   },
   {
     owner: 'Form.root',

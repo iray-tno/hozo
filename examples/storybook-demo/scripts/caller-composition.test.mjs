@@ -32,7 +32,7 @@ import {
   TextArea,
   TimePicker,
 } from '@hozo/form'
-import { Chip, Drawer, Popover, RadioGroup, Splitter, Tree } from '@hozo/patterns'
+import { Chip, Drawer, Popover, RadioGroup, ResizablePane, Splitter, Tree } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -8194,6 +8194,157 @@ export function Screen({ collapsed }: { collapsed?: boolean }) {
     await page.setContent(`<!doctype html><style>${web.css}</style>${collapsedHtml}`)
     assert.equal(
       (await readSep()).bg,
+      hexToRgb(handleNative({ 'data-collapsed': true }).backgroundColor),
+    )
+  } finally {
+    await page.close()
+  }
+})
+
+test('ResizablePane delivers prepared root, section pane and handle markers on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { ResizablePane } from '@hozo/patterns'
+export function Screen({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <div id="wrap">
+      <ResizablePane
+        side="start"
+        label="Nav"
+        min={100}
+        max={400}
+        collapsible
+        collapsed={collapsed}
+        className="bg-[#010101]"
+        paneClassName="pt-4 bg-[#fafafa] text-[#112233]"
+        handleClassName="w-4 h-12 bg-[#111111] hover:bg-[#222222] border border-[#aaaaaa] focus-visible:border-[#333333] data-[dragging]:bg-[#444444] data-[collapsed]:bg-[#555555]"
+      >
+        Sidebar
+      </ResizablePane>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { ResizablePane }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'ResizablePane') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { ResizablePane: 'ResizablePane' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ collapsed: false })
+  assert.equal(nativeProps.className, undefined)
+  assert.equal(nativeProps.paneClassName, undefined)
+  assert.equal(nativeProps.handleClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeRoot = flat(nativeProps.hozoResizablePaneStyle())
+  const nativePane = flat(nativeProps.hozoPaneStyle())
+  const handleNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoHandleStyle({
+        hovered: false,
+        focused: false,
+        focusVisible: false,
+        'data-dragging': false,
+        'data-collapsed': false,
+        ...overrides,
+      }),
+    )
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen, { collapsed: false }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const root = document.querySelector('#wrap > div')
+      const pane = document.querySelector('#wrap section')
+      const handle = document.querySelector('#wrap [role="separator"]')
+      return {
+        rootBg: getComputedStyle(root).backgroundColor,
+        panePaddingTop: parseFloat(getComputedStyle(pane).paddingTop),
+        paneBg: getComputedStyle(pane).backgroundColor,
+        paneColor: getComputedStyle(pane).color,
+        handleBg: getComputedStyle(handle).backgroundColor,
+      }
+    })
+    assert.deepEqual(markers, {
+      rootBg: hexToRgb(nativeRoot.backgroundColor),
+      panePaddingTop: nativePane.paddingTop,
+      paneBg: hexToRgb(nativePane.backgroundColor),
+      paneColor: hexToRgb(nativePane.color),
+      handleBg: hexToRgb(handleNative().backgroundColor),
+    })
+
+    const sep = page.locator('#wrap [role="separator"]')
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap [role="separator"]').matches(':focus-visible'),
+    )
+    assert.equal(
+      await sep.evaluate((el) => getComputedStyle(el).borderTopColor),
+      hexToRgb(handleNative({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    await page.evaluate(() => document.activeElement?.blur())
+    await sep.hover()
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap [role="separator"]').matches(':hover'),
+    )
+    assert.equal(
+      await sep.evaluate((el) => getComputedStyle(el).backgroundColor),
+      hexToRgb(handleNative({ hovered: true }).backgroundColor),
+    )
+
+    await sep.evaluate((el) => el.setAttribute('data-dragging', ''))
+    assert.equal(
+      await sep.evaluate((el) => getComputedStyle(el).backgroundColor),
+      hexToRgb(handleNative({ hovered: true, 'data-dragging': true }).backgroundColor),
+    )
+
+    const collapsedHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { collapsed: true }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${collapsedHtml}`)
+    assert.equal(
+      await sep.evaluate((el) => getComputedStyle(el).backgroundColor),
       hexToRgb(handleNative({ 'data-collapsed': true }).backgroundColor),
     )
   } finally {

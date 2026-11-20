@@ -58,6 +58,27 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Splitter.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSplitterStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"handle","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":["hovered","focused","focusVisible"],"inputs":{"facts":["data-dragging","data-collapsed"],"splitText":false}}]}]}',
   },
   {
+    owner: 'ResizablePane.root',
+    package: '@hozo/patterns',
+    exports: ['ResizablePane'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"ResizablePane.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoResizablePaneStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'ResizablePane.pane',
+    package: '@hozo/patterns',
+    exports: ['ResizablePane'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"ResizablePane.pane","classProp":"paneClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPaneStyle","webClassProp":"paneClassName"},"authoredStyles":[{"prop":"paneStyle","order":0}],"shapes":[{"id":"pane","when":{"eq":["present",true]},"nativeHost":"View","webHost":"section","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'ResizablePane.handle',
+    package: '@hozo/patterns',
+    exports: ['ResizablePane'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"ResizablePane.handle","classProp":"handleClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoHandleStyle","webClassProp":"handleClassName"},"authoredStyles":[{"prop":"handleStyle","order":0}],"shapes":[{"id":"handle","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":["hovered","focused","focusVisible"],"inputs":{"facts":["data-dragging","data-collapsed"],"splitText":false}}]}]}',
+  },
+  {
     owner: 'Form.root',
     package: '@hozo/form',
     exports: ['Form', 'HozoForm'],

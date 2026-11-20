@@ -768,3 +768,140 @@ export function Fallback() {
     /Prepared Splitter styles must consume className/,
   )
 })
+
+test('Native ResizablePane delivers prepared root, pane and handle styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { ResizablePane } from '@hozo/patterns'
+export function Screen({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <ResizablePane
+      side="start"
+      label="Nav"
+      min={100}
+      max={400}
+      collapsible
+      collapsed={collapsed}
+      className="bg-[#010101]"
+      paneClassName="pt-4 bg-[#fafafa] text-[#112233]"
+      handleClassName="w-1 bg-[#111111] hover:bg-[#222222] focus-visible:border-[#333333] data-[dragging]:bg-[#444444] data-[collapsed]:bg-[#555555]"
+    >
+      Sidebar
+    </ResizablePane>
+  )
+}
+export function Fallback() {
+  return (
+    <ResizablePane side="start" label="Keep" min={100} max={400} paneClassName="hover:opacity-50">
+      Keep
+    </ResizablePane>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoResizablePaneStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPaneStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoHandleStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="bg-\[#010101\]"/)
+  assert.doesNotMatch(transformed, /paneClassName="pt-4/)
+  assert.doesNotMatch(transformed, /handleClassName="w-1/)
+  // Stateless pane refuses hover: and keeps the runtime path.
+  assert.match(transformed, /paneClassName="hover:opacity-50"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const splitterMod = loadNativePatternModule('splitter.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ collapsed?: boolean }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return { ResizablePane: splitterMod.exports.ResizablePane }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    options: {
+      collapsed?: boolean
+      dragging?: boolean
+      hovered?: boolean
+      focused?: boolean
+      focusVisible?: boolean
+    } = {},
+  ) => {
+    splitterMod.captured.length = 0
+    splitterMod.setDragging(Boolean(options.dragging))
+    splitterMod.setInteraction({
+      hovered: Boolean(options.hovered),
+      pressed: false,
+      focused: Boolean(options.focused),
+      focusVisible: Boolean(options.focusVisible),
+    })
+    renderToStaticMarkup(
+      React.createElement(screenMod.exports.Screen, { collapsed: options.collapsed }),
+    )
+    const views = splitterMod.captured.filter((entry) => entry.host === 'View')
+    return {
+      root: flattenStyle(views[0]!.props.style),
+      pane: flattenStyle(views[1]!.props.style),
+      handle: flattenStyle(views[2]!.props.style),
+      text: flattenStyle(splitterMod.captured.find((entry) => entry.host === 'Text')!.props.style),
+    }
+  }
+
+  const rest = renderCase()
+  assert.equal(rest.root.backgroundColor, '#010101')
+  assert.equal(rest.pane.paddingTop, 16)
+  assert.equal(rest.pane.backgroundColor, '#fafafa')
+  assert.equal(rest.text.color, '#112233')
+  assert.equal(rest.handle.backgroundColor, '#111111')
+  assert.equal(renderCase({ hovered: true }).handle.backgroundColor, '#222222')
+  assert.equal(renderCase({ focused: true, focusVisible: true }).handle.borderColor, '#333333')
+  assert.equal(renderCase({ dragging: true }).handle.backgroundColor, '#444444')
+  assert.equal(renderCase({ collapsed: true }).handle.backgroundColor, '#555555')
+  assert.equal(classResolverCalls, 0, 'prepared ResizablePane literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoResizablePaneStyle'],
+    ['paneClassName', 'hozoPaneStyle'],
+    ['handleClassName', 'hozoHandleStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            splitterMod.exports.ResizablePane as React.ComponentType<Record<string, unknown>>,
+            {
+              side: 'start',
+              label: 'Nav',
+              min: 100,
+              max: 400,
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+            },
+            'Body',
+          ),
+        ),
+      new RegExp(`Prepared ResizablePane styles must consume ${classProp}`),
+    )
+  }
+})

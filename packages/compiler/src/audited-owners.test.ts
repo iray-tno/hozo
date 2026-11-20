@@ -442,3 +442,44 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.css, /\[data-dragging\]/)
   assert.match(lowered.css, /\[data-collapsed\]/)
 })
+
+test('ordinary Web lowering compiles ResizablePane root, pane and handle slots by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { ResizablePane } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <ResizablePane
+        side="start"
+        label="Nav"
+        min={100}
+        max={400}
+        className="bg-[#010101]"
+        paneClassName="p-4 bg-[#fafafa] text-[#112233]"
+        handleClassName="w-1 bg-[#111111] hover:bg-[#222222] data-[dragging]:bg-[#333333]"
+      >
+        Sidebar
+      </ResizablePane>
+      <ResizablePane {...spread} side="start" label="Keep" min={100} max={400} paneClassName="bg-[#444444]">
+        Keep
+      </ResizablePane>
+      <ResizablePane side="start" label="Dyn" min={100} max={400} handleClassName={dynamic}>
+        Dyn
+      </ResizablePane>
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /className="bg-\[#010101\]"/)
+  assert.doesNotMatch(lowered.code, /paneClassName="p-4 bg-\[#fafafa\]/)
+  assert.doesNotMatch(lowered.code, /handleClassName="w-1 bg-\[#111111\]/)
+  assert.match(lowered.code, /className=\{"hozo-owner-/)
+  assert.match(lowered.code, /paneClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /handleClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /paneClassName="bg-\[#444444\]"/)
+  assert.match(lowered.code, /handleClassName=\{dynamic\}/)
+  assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
+  assert.match(lowered.css, /\[data-dragging\]/)
+})

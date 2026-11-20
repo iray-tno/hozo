@@ -37,6 +37,7 @@ export interface OwnerShape {
     | 'select'
     | 'table'
     | 'td'
+    | 'section'
     | null
   events: ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
   /** Explicit preparation inputs, not inferred from a synthetic host. */
@@ -206,7 +207,18 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       `${at}.author order`,
     )
     const nativeHosts = ['Pressable', 'View', 'Text', 'TextInput']
-    const webHosts = ['button', 'div', 'form', 'label', 'span', 'textarea', 'select', 'table', 'td']
+    const webHosts = [
+      'button',
+      'div',
+      'form',
+      'label',
+      'span',
+      'textarea',
+      'select',
+      'table',
+      'td',
+      'section',
+    ]
     const shapes = list(contract.shapes, 16, `${at}.shapes`).map((value): OwnerShape => {
       const shape = object(
         value,
@@ -251,7 +263,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       if (dualPlatform) {
         if (
           shape.nativeHost === 'View' &&
-          (!['div', 'form', 'table'].includes(shape.webHost as string) ||
+          (!['div', 'form', 'table', 'section'].includes(shape.webHost as string) ||
             (events.length !== 0 && !interactiveViewEvents))
         )
           fail(`${at}.decoration events/host`)
@@ -280,7 +292,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
           fail(`${at}.input events/host`)
       } else if (webOnly) {
         if (
-          ['label', 'span', 'form', 'table'].includes(shape.webHost as string) &&
+          ['label', 'span', 'form', 'table', 'section'].includes(shape.webHost as string) &&
           events.length !== 0
         )
           fail(`${at}.decoration events/host`)
