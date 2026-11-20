@@ -57,6 +57,7 @@ test('catalog publication owns the contract once and attaches only actual packag
         'Accordion.heading',
         'Accordion.panel',
         'Accordion.panelContent',
+        'Accordion.root',
         'Accordion.section',
         'Accordion.trigger',
       ],
@@ -67,6 +68,7 @@ test('catalog publication owns the contract once and attaches only actual packag
       owners: [
         'BottomSheet.handle',
         'BottomSheet.handleBar',
+        'BottomSheet.root',
         'BottomSheet.scrim',
         'BottomSheet.sheet',
       ],
@@ -85,13 +87,14 @@ test('catalog publication owns the contract once and attaches only actual packag
         'CodeBlock.root',
       ],
     },
-    { name: 'Drawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
+    { name: 'Drawer', owners: ['Drawer.panel', 'Drawer.root', 'Drawer.scrim'] },
     {
       name: 'HozoAccordion',
       owners: [
         'Accordion.heading',
         'Accordion.panel',
         'Accordion.panelContent',
+        'Accordion.root',
         'Accordion.section',
         'Accordion.trigger',
       ],
@@ -102,13 +105,14 @@ test('catalog publication owns the contract once and attaches only actual packag
       owners: [
         'BottomSheet.handle',
         'BottomSheet.handleBar',
+        'BottomSheet.root',
         'BottomSheet.scrim',
         'BottomSheet.sheet',
       ],
     },
     { name: 'HozoCheckbox', owners: ['Checkbox.root'] },
-    { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
-    { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.trigger'] },
+    { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.root', 'Drawer.scrim'] },
+    { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.root', 'Popover.trigger'] },
     { name: 'HozoRadioGroup', owners: ['RadioGroup.option'] },
     { name: 'HozoSlider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
     { name: 'HozoSwitch', owners: ['Switch.root'] },
@@ -116,7 +120,7 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'HozoToolbar', owners: ['Toolbar.root'] },
     { name: 'HozoTree', owners: ['Tree.row'] },
     { name: 'Other', owners: [] },
-    { name: 'Popover', owners: ['Popover.panel', 'Popover.trigger'] },
+    { name: 'Popover', owners: ['Popover.panel', 'Popover.root', 'Popover.trigger'] },
     { name: 'RadioGroup', owners: ['RadioGroup.option'] },
     {
       name: 'ResizablePane',
@@ -130,7 +134,7 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'Tooltip', owners: ['Tooltip.root'] },
     { name: 'Tree', owners: ['Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 38)
+  assert.equal(result.owners.contracts.length, 42)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
@@ -172,6 +176,10 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['Switch.root', 'audited'],
       ['Alert.root', 'audited'],
       ['Tooltip.root', 'audited'],
+      ['Accordion.root', 'audited'],
+      ['BottomSheet.root', 'audited'],
+      ['Drawer.root', 'audited'],
+      ['Popover.root', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')

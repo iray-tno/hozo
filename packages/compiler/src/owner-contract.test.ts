@@ -788,6 +788,27 @@ test('CodeBlock contracts declare figure root, figcaption text, copy button, and
       },
     ])
   }
+  for (const [owner, prop] of [
+    ['Accordion.root', 'hozoAccordionStyle'],
+    ['BottomSheet.root', 'hozoBottomSheetStyle'],
+    ['Drawer.root', 'hozoDrawerStyle'],
+    ['Popover.root', 'hozoPopoverStyle'],
+  ]) {
+    const entry = parsed().contracts.find((row) => row.owner === owner)!
+    assert.equal(entry.audit, 'audited')
+    assert.equal(entry.abi.nativePreparedProp, prop)
+    assert.equal(entry.abi.webClassProp, 'className')
+    assert.deepEqual(entry.authoredStyles, [{ prop: 'style', order: 0 }])
+    assert.deepEqual(entry.shapes, [
+      {
+        id: 'root',
+        when: { eq: ['present', true] },
+        nativeHost: 'View',
+        webHost: 'div',
+        events: [],
+      },
+    ])
+  }
 })
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()

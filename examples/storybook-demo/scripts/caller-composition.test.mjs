@@ -9717,3 +9717,115 @@ export function Screen() {
     await page.close()
   }
 })
+
+test('Accordion, BottomSheet, Drawer and Popover deliver prepared root styles on Web Chromium and Native (#2137)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Accordion, BottomSheet, Drawer, Popover } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <div id="acc"><Accordion items={[{ header: 'H', content: 'C' }]} className="pt-2 bg-[#112233]" /></div>
+      <div id="sheet"><BottomSheet open portal={false} className="pt-3 bg-[#223344]">Body</BottomSheet></div>
+      <div id="drawer"><Drawer open portal={false} className="pt-4 bg-[#334455]">Nav</Drawer></div>
+      <div id="pop"><Popover trigger="Open" className="pt-1 bg-[#445566]">Panel</Popover></div>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  assert.equal(web.code.match(/className=\{"hozo-owner-/g)?.length, 4)
+
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Accordion, BottomSheet, Drawer, Popover }
+      throw new Error(`Unexpected web require: ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const nativeProps = {}
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props, ...children) => {
+      if (['Accordion', 'BottomSheet', 'Drawer', 'Popover'].includes(type))
+        nativeProps[type] = props
+      return { type, props, children }
+    },
+    require: (id) => {
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (id === '@hozo/patterns')
+        return {
+          Accordion: 'Accordion',
+          BottomSheet: 'BottomSheet',
+          Drawer: 'Drawer',
+          Popover: 'Popover',
+        }
+      throw new Error(`Unexpected native require: ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeStyles = {
+    acc: flat(nativeProps.Accordion.hozoAccordionStyle()),
+    sheet: flat(nativeProps.BottomSheet.hozoBottomSheetStyle()),
+    drawer: flat(nativeProps.Drawer.hozoDrawerStyle()),
+    pop: flat(nativeProps.Popover.hozoPopoverStyle()),
+  }
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const read = (sel) => {
+        const el = document.querySelector(sel)
+        const cs = getComputedStyle(el)
+        return {
+          tag: el.tagName,
+          bg: cs.backgroundColor,
+          paddingTop: parseFloat(cs.paddingTop),
+        }
+      }
+      return {
+        acc: read('#acc > div'),
+        sheet: read('#sheet > div'),
+        drawer: read('#drawer > div'),
+        pop: read('#pop > div'),
+      }
+    })
+    for (const key of ['acc', 'sheet', 'drawer', 'pop']) {
+      assert.deepEqual(markers[key], {
+        tag: 'DIV',
+        bg: hexToRgb(nativeStyles[key].backgroundColor),
+        paddingTop: nativeStyles[key].paddingTop,
+      })
+    }
+  } finally {
+    await page.close()
+  }
+})

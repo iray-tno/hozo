@@ -53,6 +53,8 @@ export interface HozoBottomSheetProps {
   sheetStyle?: StyleProp<ViewStyle>
   handleStyle?: StyleProp<ViewStyle>
   handleBarStyle?: StyleProp<ViewStyle>
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoBottomSheetStyle?: () => StyleProp<ViewStyle>
   /** @internal Complete prepared scrim class contribution (RFC 010). */
   hozoScrimStyle?: () => StyleProp<ViewStyle>
   /** @internal Complete prepared sheet class contribution (RFC 010). */
@@ -126,6 +128,7 @@ export function HozoBottomSheet({
   sheetStyle,
   handleStyle,
   handleBarStyle,
+  hozoBottomSheetStyle,
   hozoScrimStyle,
   hozoSheetStyle,
   hozoHandleStyle,
@@ -134,6 +137,8 @@ export function HozoBottomSheet({
   testID,
   children,
 }: HozoBottomSheetProps) {
+  if (hozoBottomSheetStyle && className !== undefined)
+    throw new Error('Prepared BottomSheet root styles must consume className')
   if (hozoScrimStyle && scrimClassName !== undefined)
     throw new Error('Prepared BottomSheet scrim styles must consume scrimClassName')
   if (hozoSheetStyle && sheetClassName !== undefined)
@@ -217,7 +222,11 @@ export function HozoBottomSheet({
         ]}
       />
     ) : null
-  const rootClassStyle = className ? hozoClasses(className) : undefined
+  const rootClassStyle = hozoBottomSheetStyle
+    ? hozoBottomSheetStyle()
+    : className
+      ? hozoClasses(className)
+      : undefined
   const sheetClassStyle = hozoSheetStyle
     ? hozoSheetStyle()
     : sheetClassName

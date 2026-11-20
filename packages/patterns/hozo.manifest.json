@@ -7,6 +7,7 @@
         "Accordion.heading",
         "Accordion.panel",
         "Accordion.panelContent",
+        "Accordion.root",
         "Accordion.section",
         "Accordion.trigger"
       ]
@@ -27,6 +28,7 @@
       "owners": [
         "BottomSheet.handle",
         "BottomSheet.handleBar",
+        "BottomSheet.root",
         "BottomSheet.scrim",
         "BottomSheet.sheet"
       ]
@@ -83,6 +85,7 @@
       "name": "Drawer",
       "owners": [
         "Drawer.panel",
+        "Drawer.root",
         "Drawer.scrim"
       ]
     },
@@ -92,6 +95,7 @@
         "Accordion.heading",
         "Accordion.panel",
         "Accordion.panelContent",
+        "Accordion.root",
         "Accordion.section",
         "Accordion.trigger"
       ]
@@ -111,6 +115,7 @@
       "owners": [
         "BottomSheet.handle",
         "BottomSheet.handleBar",
+        "BottomSheet.root",
         "BottomSheet.scrim",
         "BottomSheet.sheet"
       ]
@@ -145,6 +150,7 @@
       "name": "HozoDrawer",
       "owners": [
         "Drawer.panel",
+        "Drawer.root",
         "Drawer.scrim"
       ]
     },
@@ -168,6 +174,7 @@
       "name": "HozoPopover",
       "owners": [
         "Popover.panel",
+        "Popover.root",
         "Popover.trigger"
       ]
     },
@@ -243,6 +250,7 @@
       "name": "Popover",
       "owners": [
         "Popover.panel",
+        "Popover.root",
         "Popover.trigger"
       ]
     },
@@ -1886,6 +1894,134 @@
               "facts": [],
               "splitText": true
             }
+          }
+        ]
+      },
+      {
+        "owner": "Accordion.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoAccordionStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "BottomSheet.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoBottomSheetStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "Drawer.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoDrawerStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "Popover.root",
+        "classProp": "className",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoPopoverStyle",
+          "webClassProp": "className"
+        },
+        "authoredStyles": [
+          {
+            "prop": "style",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "root",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
           }
         ]
       }

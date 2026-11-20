@@ -791,3 +791,32 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.code, /className=\{dynamic\}/)
   assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
 })
+
+test('ordinary Web lowering compiles Accordion, BottomSheet, Drawer and Popover root className by default (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Accordion, BottomSheet, Drawer, Popover } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <Accordion items={[{ header: 'H', content: 'C' }]} className="pt-2 bg-[#112233]" />
+      <BottomSheet open portal={false} className="pt-3 bg-[#223344]">Body</BottomSheet>
+      <Drawer open portal={false} className="pt-4 bg-[#334455]">Nav</Drawer>
+      <Popover trigger="Open" className="pt-1 bg-[#445566]">Panel</Popover>
+      <Accordion {...spread} items={[{ header: 'H', content: 'C' }]} className="bg-[#777777]" />
+      <Popover trigger="Dyn" className={dynamic}>Panel</Popover>
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.equal(lowered.needsClientBoundary, false)
+  assert.doesNotMatch(lowered.code, /className="pt-[1234]/)
+  assert.equal(lowered.code.match(/className=\{"hozo-owner-/g)?.length, 4)
+  assert.match(lowered.code, /className="bg-\[#777777\]"/)
+  assert.match(lowered.code, /className=\{dynamic\}/)
+  assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
+  assert.match(lowered.css, /#223344|rgb\(34,\s*51,\s*68\)/)
+  assert.match(lowered.css, /#334455|rgb\(51,\s*68,\s*85\)/)
+  assert.match(lowered.css, /#445566|rgb\(68,\s*85,\s*102\)/)
+})

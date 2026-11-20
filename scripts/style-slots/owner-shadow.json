@@ -1492,6 +1492,134 @@
       ]
     },
     {
+      "owner": "Accordion.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoAccordionStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
+      "owner": "BottomSheet.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoBottomSheetStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
+      "owner": "Drawer.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoDrawerStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
+      "owner": "Popover.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoPopoverStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
       "owner": "Form.root",
       "classProp": "className",
       "audit": "audited",

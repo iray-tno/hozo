@@ -62,6 +62,8 @@ export interface HozoPopoverProps {
   className?: string
   triggerClassName?: string
   panelClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoPopoverStyle?: () => StyleProp<ViewStyle>
   /** @internal Complete prepared trigger class contribution (RFC 010). */
   hozoTriggerStyle?: (
     state: InteractionState & {
@@ -117,6 +119,7 @@ export function HozoPopover({
   className,
   triggerClassName,
   panelClassName,
+  hozoPopoverStyle,
   hozoTriggerStyle,
   hozoPanelStyle,
   style,
@@ -126,6 +129,8 @@ export function HozoPopover({
   triggerAccessibilityHint,
   triggerTestID,
 }: HozoPopoverProps) {
+  if (hozoPopoverStyle && className !== undefined)
+    throw new Error('Prepared Popover styles must consume className')
   if (hozoTriggerStyle && triggerClassName !== undefined)
     throw new Error('Prepared Popover styles must consume triggerClassName')
   if (hozoPanelStyle && panelClassName !== undefined)
@@ -193,7 +198,12 @@ export function HozoPopover({
     : [undefined, undefined]
 
   return (
-    <View style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}>
+    <View
+      style={[
+        hozoPopoverStyle ? hozoPopoverStyle() : className ? hozoClasses(className) : undefined,
+        hozoAuthoredStyle(style),
+      ]}
+    >
       <Pressable
         ref={anchorRef}
         accessibilityRole="button"

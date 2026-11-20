@@ -481,6 +481,7 @@ export const App=()=> <BottomSheet open handleClassName="p-[8px]"><Text classNam
     assert.deepEqual(manifest.exports.find((row) => row.name === imported).owners, [
       'BottomSheet.handle',
       'BottomSheet.handleBar',
+      'BottomSheet.root',
       'BottomSheet.scrim',
       'BottomSheet.sheet',
     ])

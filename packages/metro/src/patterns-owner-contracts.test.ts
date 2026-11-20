@@ -2003,3 +2003,130 @@ export function Screen() {
   assert.equal(toolbarView.columnGap, 8)
   assert.equal(classResolverCalls, 0, 'prepared Toolbar literals must never call hozoClasses')
 })
+
+test('Native Accordion, BottomSheet, Drawer and Popover deliver prepared root styles without calling hozoClasses (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Accordion, BottomSheet, Drawer, Popover } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <>
+      <Accordion items={[{ header: 'H', content: 'C' }]} className="pt-2 bg-[#112233]" />
+      <BottomSheet open className="pt-3 bg-[#223344]">Body</BottomSheet>
+      <Drawer open className="pt-4 bg-[#334455]">Nav</Drawer>
+      <Popover trigger="Open" className="pt-1 bg-[#445566]">Panel</Popover>
+    </>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoAccordionStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoBottomSheetStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoDrawerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPopoverStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-[1234]/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const countClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const accordionMod = loadNativePatternModule('accordion.native.tsx', {
+    hozoClasses: countClasses,
+  })
+  const sheetMod = loadNativePatternModule('bottom-sheet.native.tsx', {
+    hozoClasses: countClasses,
+  })
+  const drawerMod = loadNativePatternModule('drawer.native.tsx', {
+    hozoClasses: countClasses,
+  })
+  const popoverMod = loadNativePatternModule('popover.native.tsx', {
+    hozoClasses: countClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return {
+          Accordion: accordionMod.exports.HozoAccordion,
+          BottomSheet: sheetMod.exports.HozoBottomSheet,
+          Drawer: drawerMod.exports.HozoDrawer,
+          Popover: popoverMod.exports.HozoPopover,
+        }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  assert.equal(classResolverCalls, 0, 'prepared root literals must never call hozoClasses')
+
+  const accRoot = flattenStyle(
+    accordionMod.captured.find((e) => e.host === 'View' && e.props.accessibilityRole === 'none')!
+      .props.style,
+  )
+  assert.equal(accRoot.backgroundColor, '#112233')
+  assert.equal(accRoot.paddingTop, 8)
+
+  const sheetRoot = flattenStyle(
+    sheetMod.captured.find((e) => e.host === 'View' && flattenStyle(e.props.style).flex === 1)!
+      .props.style,
+  )
+  assert.equal(sheetRoot.backgroundColor, '#223344')
+  assert.equal(sheetRoot.paddingTop, 12)
+
+  const drawerRoot = flattenStyle(
+    drawerMod.captured.find((e) => e.host === 'View' && flattenStyle(e.props.style).flex === 1)!
+      .props.style,
+  )
+  assert.equal(drawerRoot.backgroundColor, '#334455')
+  assert.equal(drawerRoot.paddingTop, 16)
+
+  const popoverRoot = flattenStyle(popoverMod.captured.find((e) => e.host === 'View')!.props.style)
+  assert.equal(popoverRoot.backgroundColor, '#445566')
+  assert.equal(popoverRoot.paddingTop, 4)
+
+  for (const [Comp, props, pattern] of [
+    [
+      accordionMod.exports.HozoAccordion,
+      { items: [], className: 'pt-2', hozoAccordionStyle: () => ({}) },
+      /Prepared Accordion styles must consume className/,
+    ],
+    [
+      sheetMod.exports.HozoBottomSheet,
+      { open: true, className: 'pt-2', hozoBottomSheetStyle: () => ({}) },
+      /Prepared BottomSheet root styles must consume className/,
+    ],
+    [
+      drawerMod.exports.HozoDrawer,
+      { open: true, className: 'pt-2', hozoDrawerStyle: () => ({}) },
+      /Prepared Drawer styles must consume className/,
+    ],
+    [
+      popoverMod.exports.HozoPopover,
+      { trigger: 'Open', className: 'pt-2', hozoPopoverStyle: () => ({}) },
+      /Prepared Popover styles must consume className/,
+    ],
+  ] as const) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(Comp as React.ComponentType<Record<string, unknown>>, props),
+        ),
+      pattern,
+    )
+  }
+})

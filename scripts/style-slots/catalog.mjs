@@ -581,6 +581,12 @@ export const components = {
     'className sectionClassName headingClassName triggerClassName panelClassName panelContentClassName',
     {
       overrides: {
+        className: {
+          lowering: 'component-managed',
+          owner: 'accordion-root',
+          gate: 'always',
+          composition: 'prepared-owner-contract',
+        },
         sectionClassName: {
           owner: 'accordion-section',
           gate: 'each-section',
@@ -650,6 +656,12 @@ export const components = {
   }),
   BottomSheet: slots('className scrimClassName sheetClassName handleClassName handleBarClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'bottom-sheet-root',
+        gate: 'when-mounted',
+        composition: 'prepared-owner-contract',
+      },
       scrimClassName: {
         owner: 'bottom-sheet-scrim',
         gate: 'when-mounted',
@@ -801,6 +813,12 @@ export const components = {
   }),
   Drawer: slots('className scrimClassName panelClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'drawer-root',
+        gate: 'open',
+        composition: 'prepared-owner-contract',
+      },
       scrimClassName: {
         owner: 'drawer-scrim',
         gate: 'open',
@@ -916,6 +934,12 @@ export const components = {
   ),
   Popover: slots('className triggerClassName panelClassName', {
     overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'popover-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
       triggerClassName: {
         owner: 'popover-trigger',
         gate: 'always',
@@ -2032,6 +2056,74 @@ export const ownerShadow = {
       ],
     },
     {
+      owner: 'Accordion.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoAccordionStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'BottomSheet.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoBottomSheetStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Drawer.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoDrawerStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Popover.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPopoverStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
       owner: 'Form.root',
       classProp: 'className',
       audit: 'audited',
@@ -2751,6 +2843,26 @@ export const ownerPublications = [
     owner: 'Tooltip.root',
     package: '@hozo/patterns',
     exports: ['Tooltip'],
+  },
+  {
+    owner: 'Accordion.root',
+    package: '@hozo/patterns',
+    exports: ['Accordion', 'HozoAccordion'],
+  },
+  {
+    owner: 'BottomSheet.root',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+  },
+  {
+    owner: 'Drawer.root',
+    package: '@hozo/patterns',
+    exports: ['Drawer', 'HozoDrawer'],
+  },
+  {
+    owner: 'Popover.root',
+    package: '@hozo/patterns',
+    exports: ['Popover', 'HozoPopover'],
   },
   {
     owner: 'Form.root',
