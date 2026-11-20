@@ -106,6 +106,7 @@ export function captureOwnerManifests(
   )
   if (wanted.size !== expected.length) throw new Error('Duplicate expected owner import edge')
   const seen = new Map<string, Map<string, OwnerManifestObservation>>()
+  const countedContent = new Set<string>()
   let bytes = 0
   for (const observation of observations) {
     const value = edge(observation)
@@ -120,8 +121,16 @@ export function captureOwnerManifests(
       if (manifest.kind === 'present') {
         if (typeof manifest.text !== 'string')
           throw new Error('Owner manifest input must be text, not executable config')
-        bytes += Buffer.byteLength(manifest.text)
-        if (bytes > 2_097_152) throw new Error('Owner capture content budget exceeded')
+        const contentBytes = Buffer.byteLength(manifest.text)
+        if (contentBytes > 2_097_152) throw new Error('Owner capture content budget exceeded')
+        // Charge each distinct (file, content) once so a multi-edge package graph
+        // does not multiply the same manifest against the capture content budget.
+        const contentKey = `${manifest.file}\0${hash(manifest.text)}`
+        if (!countedContent.has(contentKey)) {
+          bytes += contentBytes
+          if (bytes > 2_097_152) throw new Error('Owner capture content budget exceeded')
+          countedContent.add(contentKey)
+        }
       }
       copy = {
         ...value,

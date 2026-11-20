@@ -121,6 +121,34 @@ test('bounded observations and code-unit ordering cannot silently certify empty/
     () => captureOwnerManifests([a], [row(a, undefined, ' '.repeat(2_097_153))], options),
     /budget/,
   )
+  assert.throws(
+    () =>
+      captureOwnerManifests(
+        [
+          { importer: 'a.tsx', specifier: 'p1' },
+          { importer: 'b.tsx', specifier: 'p2' },
+          { importer: 'c.tsx', specifier: 'p3' },
+        ],
+        [
+          row({ importer: 'a.tsx', specifier: 'p1' }, 'p1', ' '.repeat(750_000)),
+          row({ importer: 'b.tsx', specifier: 'p2' }, 'p2', ' '.repeat(750_000)),
+          row({ importer: 'c.tsx', specifier: 'p3' }, 'p3', ' '.repeat(750_000)),
+        ],
+        options,
+      ),
+    /budget/,
+  )
+  const sharedEdges = Array.from({ length: 64 }, (_, index) => ({
+    importer: `pkg/file-${index}.tsx`,
+    specifier: './shared',
+  }))
+  const sharedCapture = captureOwnerManifests(
+    sharedEdges,
+    sharedEdges.map((input) => row(input, 'ui-kit@shared', text)),
+    options,
+  )
+  assert.equal(sharedCapture.status, 'complete')
+  if (sharedCapture.status === 'complete') assert.equal(sharedCapture.bindings.length, 64)
   const audited = text.replace('"audit": "unknown"', '"audit": "certified"')
   assert.notEqual(audited, text)
   assert.equal(
