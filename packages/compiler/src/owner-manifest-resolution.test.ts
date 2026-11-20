@@ -5,16 +5,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import {
   assertOwnerManifestCaptureCurrent,
   captureOwnerManifests,
 } from './owner-manifest-capture.ts'
 import { readResolvedOwnerManifest } from './owner-manifest-read.ts'
 
-const text = readFileSync(
-  new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url),
-  'utf8',
-)
+const text = ownerFixtureShadow('BottomSheet.handle')
 function json(file, data) {
   writeFileSync(file, `${JSON.stringify(data)}\n`)
 }
