@@ -14,6 +14,10 @@ import { expectedTabRows, tabLabelClasses, tabPhases } from './tabs-probe.mjs'
 const routes = ['opaque', 'prepared', 'caller', 'instance']
 const kinds = ['candidate', 'tailwind', 'prepared']
 const facts = ['disabled', 'aria-selected', 'aria-disabled']
+// Pre-Decision-012 bounded spikes covered by the owner-evidence receipt pipeline.
+// Owners migrated under Decision 012 point 6 earn `audited` via their host/state
+// tests and literal-route deletion rather than a second spike receipt reader.
+const spikeOwners = new Set(['BottomSheet.handle', 'Tabs.Tab', 'Toolbar.root'])
 
 export function tabsDeclaration(text) {
   const data = parseOwnerPackageShadow(text)
@@ -262,7 +266,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       webTabs: read('artifacts/style-fact-model/tabs-browser.json'),
     })
     report.declarationGate = assessDeclaredAudits({
-      contracts: published.contracts,
+      contracts: published.contracts.filter((row) => spikeOwners.has(row.owner)),
       proofs: [report],
       sourceCommit: source.sourceCommit,
       manifestSha256: createHash('sha256').update(manifestText).digest('hex'),
