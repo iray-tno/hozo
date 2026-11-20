@@ -15,16 +15,12 @@
 // `node_modules/.hozo/`, so a restart with a cleared cache regenerates it.
 
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-import {
-  prepareFinalTailwindContext,
-  scanTailwindOrderCandidates,
-  TAILWIND_SCALAR_ORDER_POLICY,
-} from '@hozo/compiler'
+import { prepareFinalTailwindContext, TAILWIND_SCALAR_ORDER_POLICY } from '@hozo/compiler'
 
 import {
+  type FileFactStore,
   type HozoProjectOptions,
   type OwnerPackageContributions,
   preflightEnabled,
@@ -97,7 +93,11 @@ export async function generateCandidateModule(
     platform: 'native',
     epoch: 'metro-carriers-0',
   })
-  const { publish, ...result } = await prepareCandidateModule(
+  const {
+    publish,
+    facts: _facts,
+    ...result
+  } = await prepareCandidateModule(
     projectRoot,
     options,
     undefined,
@@ -118,7 +118,7 @@ export async function prepareCandidateModule(
   /** Complete carrier-closure contributions: candidates only, none of the
    * experimental owner inventory `ownerContributions` brings with it. */
   carrierContributions?: OwnerPackageContributions,
-): Promise<GeneratedCandidateModule & { publish(): void }> {
+): Promise<GeneratedCandidateModule & { publish(): void; facts: FileFactStore }> {
   let snapshot: Awaited<ReturnType<typeof loadProjectTailwindSnapshot>> | undefined
   let theme: Theme | undefined
   try {
@@ -140,7 +140,7 @@ export async function prepareCandidateModule(
       warn: (message) => console.warn(message),
     })
   }
-  const { cache, stats, files } = scanProject(
+  const { cache, stats, files, facts } = scanProject(
     projectRoot,
     options.content,
     options.sources,
@@ -172,9 +172,8 @@ export async function prepareCandidateModule(
     // Runtime candidates deliberately subtract static classes. The ordering
     // seed must include them, without putting them back into runtime CSS.
     const names = new Set(cache.candidates())
-    for (const file of files) {
-      for (const name of scanTailwindOrderCandidates(readFileSync(file, 'utf8'))) names.add(name)
-    }
+    // From the scan's own records, not a second read (decision 014).
+    for (const file of files) for (const name of facts.get(file)?.order ?? []) names.add(name)
     const content = JSON.stringify({
       schema: 1,
       orderingPolicy: TAILWIND_SCALAR_ORDER_POLICY,
@@ -216,6 +215,7 @@ export async function prepareCandidateModule(
     usesTailwind: cache.usesTailwind,
     preflight,
     files,
+    facts,
     tailwind,
     publish() {
       if (tailwind && tailwindContent) writeFileIfChanged(tailwind.file, tailwindContent)

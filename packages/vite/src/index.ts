@@ -892,17 +892,19 @@ function configureHozo(
           : project.cache
         stylexModules = project.stylexModules
         orderingSources.clear()
+        // Ordering names from the scan's own records, not a second read
+        // (decision 014). Only the experimental inventory still wants source.
         for (const file of project.files) {
-          const source = readFileSync(file, 'utf8')
-          inventory?.observeAuthored(
-            JSON.stringify(['authored', file]),
-            source,
-            cache.exportFile(file),
-          )
+          if (inventory)
+            inventory.observeAuthored(
+              JSON.stringify(['authored', file]),
+              readFileSync(file, 'utf8'),
+              cache.exportFile(file),
+            )
           rememberCandidates(
             JSON.stringify(['lexical', file]),
             file,
-            scanTailwindOrderCandidates(source),
+            project.facts.get(file)?.order ?? [],
           )
         }
         // The captured carriers' source, which this build compiles: in the
@@ -912,8 +914,9 @@ function configureHozo(
             rememberCandidates(
               JSON.stringify(['lexical', file]),
               file,
-              scanTailwindOrderCandidates(readFileSync(file, 'utf8')),
+              project.facts.get(file)?.order ?? [],
             )
+        project.facts.persist()
         updateUniverse()
         await resolveStylexRequests(
           stylexModules,

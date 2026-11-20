@@ -8,6 +8,7 @@ import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { readAnalysisAliases } from './analysis-config.ts'
 import type { CarrierClosure } from './carrier-closure.ts'
+import { FileFactStore } from './file-facts.ts'
 import {
   type CandidateCache,
   type ClassHelper,
@@ -15,7 +16,6 @@ import {
   type Compiler,
   classHelperCandidates,
   type FontAvailability,
-  inspectStaticModuleImports,
   openCandidateCache,
   type StylexExternalBinding,
   summarizeClassHelperMerges,
@@ -49,6 +49,7 @@ export {
   locateDeclaredPackage,
   requireCarrierClosure,
 } from './carrier-closure.ts'
+export { FILE_FACTS_SCHEMA, FileFactStore, type FileFacts, fileFacts } from './file-facts.ts'
 export { prepareInstanceOwnerCallers } from './owner-caller-participant.ts'
 export {
   type InstanceOwnerCallerPreview,
@@ -149,6 +150,8 @@ const DEFAULT_EXCLUDE = [
 ]
 
 export const CACHE_DIR = path.join('node_modules', '.hozo')
+/** Decision 014's per-file records, beside the candidate cache. */
+export const FILE_FACTS_FILE = 'file-facts.json'
 
 export interface ContentOptions {
   /**
@@ -478,6 +481,8 @@ export interface ProjectCache {
   cache: CandidateCache
   /** Exported StyleX facts for cross-file resolution, content-hash keyed. */
   stylexModules: StylexModuleCache
+  /** One record per file, from the same read (decision 014). */
+  facts: FileFactStore
   /** Absolute path of node_modules/.hozo, already created. */
   dir: string
   /** Whether the project-wide candidate set or StyleX module graph changed. */
@@ -819,6 +824,7 @@ export function scanProject(
   mkdirSync(dir, { recursive: true })
   const cache = openCandidateCache(path.join(dir, 'candidates.json'), sources)
   const stylexModules = new StylexModuleCache(path.join(dir, 'stylex-modules.json'))
+  const facts = new FileFactStore(path.join(dir, FILE_FACTS_FILE))
   const { files, candidateFiles } = discoverSourcePlan(root, options, manifestInstances)
   const candidateSet = candidateFiles === files ? undefined : new Set(candidateFiles)
   let scannedFiles = 0
@@ -829,31 +835,36 @@ export function scanProject(
   for (const file of files) {
     const stat = statSync(file)
     const candidate = candidateSet === undefined || candidateSet.has(file)
-    if (
-      (!candidate || cache.isCurrent(file, stat.mtimeMs)) &&
-      stylexModules.isCurrent(file, stat.mtimeMs)
-    ) {
+    const candidateCurrent = !candidate || cache.isCurrent(file, stat.mtimeMs)
+    const stylexCurrent = stylexModules.isCurrent(file, stat.mtimeMs)
+    const factsCurrent = facts.isCurrent(file, stat.mtimeMs)
+    if (candidateCurrent && stylexCurrent && factsCurrent) {
       skippedFiles++
       continue
     }
+    // The one read of this file: every per-file fact comes from it (decision 014).
     const source = readFileSync(file, 'utf8')
     sourceBytes += Buffer.byteLength(source)
     scannedFiles++
-    if (candidate) changed = cache.scanFile(file, source, stat.mtimeMs) || changed
-    changed = stylexModules.scanFile(file, source, stat.mtimeMs) || changed
+    if (!candidateCurrent) changed = cache.scanFile(file, source, stat.mtimeMs) || changed
+    if (!stylexCurrent) changed = stylexModules.scanFile(file, source, stat.mtimeMs) || changed
+    if (!factsCurrent) facts.record(file, source, stat.mtimeMs)
   }
 
   const deletedFiles = cache.retainFiles(candidateFiles)
   const deletedStylexFiles = stylexModules.retainFiles(files)
+  facts.retainFiles(files)
   changed = deletedFiles > 0 || deletedStylexFiles > 0 || changed
   cache.persist()
   stylexModules.persist()
+  facts.persist()
 
   return {
     cache: manifestContributions
       ? withOwnerPackageCandidates({ cache, files: candidateFiles }, manifestContributions, sources)
       : cache,
     stylexModules,
+    facts,
     dir,
     // Manifest revisions are external to the persistent authored cache. Do not
     // let its warm hit suppress publication of a fresh manifest-backed union.
@@ -1029,29 +1040,26 @@ export function staticResolver(
 export function projectClassHelpers(
   root: string,
   files: readonly string[],
+  /** The records `scanProject` produced; without them, each file is read here. */
+  facts: FileFactStore = new FileFactStore(),
 ): Record<string, ClassHelper[]> {
   const resolve = staticResolver(root)
   const out: Record<string, ClassHelper[]> = {}
   for (const file of files) {
     const importer = path.resolve(file)
-    let source: string
-    try {
-      source = readFileSync(importer, 'utf8')
-    } catch {
-      continue
-    }
-    if (!source.includes('className')) continue
+    const record = facts.get(importer)
+    if (!record?.mentionsClassName) continue
     const found: ClassHelper[] = []
-    for (const { specifier, imported } of classHelperCandidates(source)) {
+    for (const { specifier, imported } of record.helperImports) {
       if (specifier === TW_MERGE_MODULE && imported === 'twMerge') continue
       const target = resolve(specifier, importer)
       if (target && SCRIPT.test(target)) {
-        const summary = helperExports(target)
-        if (summary.exports.includes(imported)) {
+        const summary = facts.get(target)
+        if (summary?.helperExports.includes(imported)) {
           const helper: ClassHelper = { module: specifier, name: imported }
           // Metro's startup scan has no resolved package edge for the merger.
           // Record the contract so a declaration cannot turn it into a joiner.
-          if (summary.merges.has(imported)) helper.merge = true
+          if (summary.helperMerges.includes(imported)) helper.merge = true
           found.push(helper)
         }
       }
@@ -1082,6 +1090,8 @@ export function projectClassHelpers(
 export function projectTextForwarding(
   root: string,
   files: readonly string[],
+  /** The records `scanProject` produced; without them, each file is read here. */
+  facts: FileFactStore = new FileFactStore(),
 ): { importers: Record<string, TextForwardingModule[]>; sources: string[] } {
   const resolve = staticResolver(root)
   const summaries = new Map<string, TextForwardingModule['components']>()
@@ -1095,11 +1105,12 @@ export function projectTextForwarding(
           '',
           buildManifest({
             entry: target,
-            readSource: (file) => {
-              // A re-export of a directory probes its bare path first.
-              if (!existsSync(file) || !statSync(file).isFile()) return undefined
-              read.push(path.resolve(file))
-              return readFileSync(file, 'utf8')
+            // A re-export of a directory probes its bare path first, which
+            // has no record.
+            summarize: (file) => {
+              const record = facts.get(file)
+              if (record) read.push(path.resolve(file))
+              return record?.textForwarding
             },
           }),
         ).components
@@ -1118,20 +1129,8 @@ export function projectTextForwarding(
     // The scan's walk includes dependencies' sources; they are not callers
     // of project components.
     if (!SCRIPT.test(importer) || outside(importer)) continue
-    let source: string
-    try {
-      source = readFileSync(importer, 'utf8')
-    } catch {
-      continue
-    }
-    let specifiers: Set<string>
-    try {
-      specifiers = new Set(
-        inspectStaticModuleImports(source, importer).bindings.map((binding) => binding.source),
-      )
-    } catch {
-      continue
-    }
+    const specifiers = facts.get(importer)?.imports
+    if (!specifiers) continue
     const found: TextForwardingModule[] = []
     for (const specifier of specifiers) {
       const resolved = resolve(specifier, importer)

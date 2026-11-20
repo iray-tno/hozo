@@ -376,16 +376,19 @@ async function configureHozo<T extends MetroConfigShape>(
     initialOwners,
     carriers?.carriers.length ? carriers.contributions : undefined,
   )
-  const { preflight, files, tailwind } = prepared
+  const { preflight, files, tailwind, facts } = prepared
   const fontFaceCss = options.fontFaceCss?.trim()
   const fontFaceCssPath = fontFaceCss
     ? path.join(projectRoot, CACHE_DIR, 'font-faces.css')
     : undefined
   // Read once, now: a helper edited while Metro runs needs a restart, as
   // the candidate module does.
-  // The candidate scan's own walk, rather than a second one.
-  const foundClassHelpers = projectClassHelpers(projectRoot, files)
-  const forwarding = projectTextForwarding(projectRoot, files)
+  // The candidate scan's own walk and its per-file records, rather than a
+  // second walk and a read per channel (decision 014).
+  const foundClassHelpers = projectClassHelpers(projectRoot, files, facts)
+  const forwarding = projectTextForwarding(projectRoot, files, facts)
+  // Records made on demand, for a helper or component outside the walk.
+  facts.persist()
   const state: HozoMetroState = {
     upstreamTransformer,
     css: options.css,
