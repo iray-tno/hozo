@@ -170,6 +170,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/patterns':
+        specifier: workspace:*
+        version: link:../../packages/patterns
       astro:
         specifier: ^7.2.10
         version: 7.2.10(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(@types/node@26.2.0)(db0@0.3.4)(jiti@2.7.0)(terser@5.50.0)(yaml@2.9.0)
@@ -253,6 +256,9 @@ importers:
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hozo/patterns':
+        specifier: workspace:*
+        version: link:../../packages/patterns
       '@hozo/rn-compat':
         specifier: workspace:*
         version: link:../../packages/rn-compat
@@ -697,6 +703,9 @@ importers:
       '@hozo/navigation':
         specifier: workspace:*
         version: link:../../packages/navigation
+      '@hozo/patterns':
+        specifier: workspace:*
+        version: link:../../packages/patterns
       '@tanstack/react-router':
         specifier: ^1.170.41
         version: 1.170.41(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
