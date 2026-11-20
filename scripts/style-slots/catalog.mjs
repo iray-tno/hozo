@@ -782,7 +782,20 @@ export const components = {
       },
     },
   ),
-  Popover: slots('className triggerClassName panelClassName'),
+  Popover: slots('className triggerClassName panelClassName', {
+    overrides: {
+      triggerClassName: {
+        owner: 'popover-trigger',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      panelClassName: {
+        owner: 'popover-panel',
+        gate: 'open',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   RadioGroup: slots('className optionClassName'),
   Slider: slots('className thumbClassName fillClassName railClassName'),
   Stepper: slots(
@@ -1131,6 +1144,42 @@ export const ownerShadow = {
     },
     {
       owner: 'Drawer.panel',
+      classProp: 'panelClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPanelStyle', webClassProp: 'panelClassName' },
+      authoredStyles: [{ prop: 'panelStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'panel',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Popover.trigger',
+      classProp: 'triggerClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTriggerStyle', webClassProp: 'triggerClassName' },
+      authoredStyles: [{ prop: 'triggerStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'trigger',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['disabled', 'aria-expanded', 'data-hozo-disabled'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Popover.panel',
       classProp: 'panelClassName',
       audit: 'audited',
       bindings: ['present'],
@@ -1702,6 +1751,16 @@ export const ownerPublications = [
     owner: 'Drawer.panel',
     package: '@hozo/patterns',
     exports: ['Drawer', 'HozoDrawer'],
+  },
+  {
+    owner: 'Popover.trigger',
+    package: '@hozo/patterns',
+    exports: ['Popover', 'HozoPopover'],
+  },
+  {
+    owner: 'Popover.panel',
+    package: '@hozo/patterns',
+    exports: ['Popover', 'HozoPopover'],
   },
   {
     owner: 'Form.root',

@@ -400,6 +400,42 @@ test('Drawer scrim and panel contracts declare stateless box and split-text View
     },
   ])
 })
+test('Popover trigger and panel contracts declare Pressable facts and split-text View (#2046)', () => {
+  const trigger = parsed().contracts.find((row) => row.owner === 'Popover.trigger')!
+  assert.equal(trigger.audit, 'audited')
+  assert.deepEqual(trigger.abi, {
+    nativePreparedProp: 'hozoTriggerStyle',
+    webClassProp: 'triggerClassName',
+  })
+  assert.deepEqual(trigger.authoredStyles, [{ prop: 'triggerStyle', order: 0 }])
+  assert.deepEqual(trigger.shapes, [
+    {
+      id: 'trigger',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'button',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['disabled', 'aria-expanded', 'data-hozo-disabled'], splitText: true },
+    },
+  ])
+  const panel = parsed().contracts.find((row) => row.owner === 'Popover.panel')!
+  assert.equal(panel.audit, 'audited')
+  assert.deepEqual(panel.abi, {
+    nativePreparedProp: 'hozoPanelStyle',
+    webClassProp: 'panelClassName',
+  })
+  assert.deepEqual(panel.authoredStyles, [{ prop: 'panelStyle', order: 0 }])
+  assert.deepEqual(panel.shapes, [
+    {
+      id: 'panel',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: [],
+      inputs: { facts: [], splitText: true },
+    },
+  ])
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

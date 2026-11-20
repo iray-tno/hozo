@@ -3,7 +3,15 @@ import { FloatingPositioner, type Placement, Portal, usePresence } from '@hozo/b
 import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ComponentRef, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { Animated, Easing, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import {
+  Animated,
+  Easing,
+  type StyleProp,
+  Text,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -54,6 +62,16 @@ export interface HozoPopoverProps {
   className?: string
   triggerClassName?: string
   panelClassName?: string
+  /** @internal Complete prepared trigger class contribution (RFC 010). */
+  hozoTriggerStyle?: (
+    state: InteractionState & {
+      disabled: boolean
+      'aria-expanded': boolean
+      'data-hozo-disabled': boolean
+    },
+  ) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared panel class contribution (RFC 010). */
+  hozoPanelStyle?: () => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   triggerStyle?: StyleProp<ViewStyle>
   panelStyle?: StyleProp<ViewStyle>
@@ -99,6 +117,8 @@ export function HozoPopover({
   className,
   triggerClassName,
   panelClassName,
+  hozoTriggerStyle,
+  hozoPanelStyle,
   style,
   triggerStyle,
   panelStyle,
@@ -106,6 +126,10 @@ export function HozoPopover({
   triggerAccessibilityHint,
   triggerTestID,
 }: HozoPopoverProps) {
+  if (hozoTriggerStyle && triggerClassName !== undefined)
+    throw new Error('Prepared Popover styles must consume triggerClassName')
+  if (hozoPanelStyle && panelClassName !== undefined)
+    throw new Error('Prepared Popover styles must consume panelClassName')
   const anchorRef = useRef<NativeMeasurable | null>(null)
   const [uncontrolled, setUncontrolled] = useState(defaultOpen)
   const open = controlled ?? uncontrolled
@@ -139,16 +163,37 @@ export function HozoPopover({
 
   const triggerLook = (interaction: InteractionState) =>
     splitTextStyle(
-      hozoClasses(triggerClassName, {
-        ...interaction,
-        disabled: Boolean(disabled),
-        'aria-expanded': open,
-        'aria-disabled': Boolean(disabled),
-      }),
+      hozoTriggerStyle
+        ? hozoTriggerStyle({
+            ...interaction,
+            disabled: Boolean(disabled),
+            'aria-expanded': open,
+            'data-hozo-disabled': Boolean(disabled),
+          })
+        : triggerClassName
+          ? hozoClasses(triggerClassName, {
+              ...interaction,
+              disabled: Boolean(disabled),
+              'aria-expanded': open,
+              'aria-disabled': Boolean(disabled),
+              'data-hozo-disabled': Boolean(disabled),
+            })
+          : undefined,
     )
 
+  const panelClassStyle = presence.mounted
+    ? hozoPanelStyle
+      ? hozoPanelStyle()
+      : panelClassName
+        ? hozoClasses(panelClassName)
+        : undefined
+    : undefined
+  const [panelBox, panelText] = presence.mounted
+    ? splitTextStyle([panelClassStyle, hozoAuthoredStyle(panelStyle)])
+    : [undefined, undefined]
+
   return (
-    <View style={[hozoClasses(className), hozoAuthoredStyle(style)]}>
+    <View style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}>
       <Pressable
         ref={anchorRef}
         accessibilityRole="button"
@@ -189,12 +234,9 @@ export function HozoPopover({
               pointerEvents={leaving ? 'none' : 'auto'}
               accessibilityElementsHidden={leaving}
               importantForAccessibility={leaving ? 'no-hide-descendants' : 'auto'}
-              style={[hozoClasses(panelClassName), hozoAuthoredStyle(panelStyle), { opacity }]}
+              style={[panelBox, { opacity }]}
             >
-              {hozoTextChildren(
-                children,
-                splitTextStyle([hozoClasses(panelClassName), panelStyle])[1],
-              )}
+              {hozoTextChildren(children, panelText)}
             </Animated.View>
           </FloatingPositioner>
         </Portal>

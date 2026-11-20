@@ -14,6 +14,8 @@ const exports = [
   'BottomSheet',
   'Drawer',
   'HozoDrawer',
+  'Popover',
+  'HozoPopover',
   'Tabs',
   'HozoTabs',
   'Toolbar',
@@ -35,13 +37,15 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'Drawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
     { name: 'HozoBottomSheet', owners: ['BottomSheet.handle'] },
     { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
+    { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.trigger'] },
     { name: 'HozoTabs', owners: ['Tabs.Tab'] },
     { name: 'HozoToolbar', owners: ['Toolbar.root'] },
     { name: 'Other', owners: [] },
+    { name: 'Popover', owners: ['Popover.panel', 'Popover.trigger'] },
     { name: 'Tabs', owners: ['Tabs.Tab'] },
     { name: 'Toolbar', owners: ['Toolbar.root'] },
   ])
-  assert.equal(result.owners.contracts.length, 5)
+  assert.equal(result.owners.contracts.length, 7)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
@@ -50,6 +54,8 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['Toolbar.root', 'unknown'],
       ['Drawer.scrim', 'audited'],
       ['Drawer.panel', 'audited'],
+      ['Popover.trigger', 'audited'],
+      ['Popover.panel', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')

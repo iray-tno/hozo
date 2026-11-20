@@ -327,3 +327,34 @@ export function Screen({ extra, dynamic }: { extra: Record<string, unknown>; dyn
   assert.match(lowered.css, /padding-top:\s*24px/)
   assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
 })
+
+test('ordinary Web lowering compiles Popover triggerClassName and panelClassName by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Popover } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <Popover
+        open
+        trigger="Open"
+        triggerClassName="px-4 bg-[#111111] hover:bg-[#222222] aria-expanded:bg-[#333333] disabled:opacity-50 text-[#eeeeee]"
+        panelClassName="p-4 bg-[#fafafa] text-[#112233]"
+      >
+        Details
+      </Popover>
+      <Popover {...spread} trigger="Keep" triggerClassName="bg-[#444444]" panelClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /triggerClassName="px-4 bg-\[#111111\]/)
+  assert.doesNotMatch(lowered.code, /panelClassName="p-4 bg-\[#fafafa\]/)
+  assert.match(lowered.code, /triggerClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /panelClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /triggerClassName="bg-\[#444444\]"/)
+  assert.match(lowered.code, /panelClassName=\{dynamic\}/)
+  assert.match(lowered.css, /aria-expanded="true"/)
+  assert.match(lowered.css, /#fafafa|rgb\(250,\s*250,\s*250\)/)
+})

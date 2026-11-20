@@ -261,6 +261,8 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
     'Tabs.Tab',
     'Drawer.scrim',
     'Drawer.panel',
+    'Popover.trigger',
+    'Popover.panel',
     'Form.root',
     'SubmitButton.root',
     'FileDropzone.root',

@@ -32,7 +32,7 @@ import {
   TextArea,
   TimePicker,
 } from '@hozo/form'
-import { Chip, Drawer } from '@hozo/patterns'
+import { Chip, Drawer, Popover } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -7587,6 +7587,177 @@ export function Screen() {
       panelPaddingTop: nativePanel.paddingTop,
       panelBg: hexToRgb(nativePanel.backgroundColor),
       panelColor: hexToRgb(nativePanel.color),
+    })
+  } finally {
+    await page.close()
+  }
+})
+
+test('Popover delivers prepared trigger and panel markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Popover } from '@hozo/patterns'
+export function Screen({ open, disabled }: { open?: boolean; disabled?: boolean }) {
+  return (
+    <div id="wrap">
+      <Popover
+        open={open}
+        disabled={disabled}
+        accessibilityLabel="Options"
+        trigger="Open"
+        triggerClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] border aria-expanded:bg-[#555555] disabled:bg-[#666666] text-[#eeeeee] disabled:text-[#999999]"
+        panelClassName="pt-4 bg-[#fafafa] text-[#112233]"
+      >
+        Details
+      </Popover>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Popover }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Popover') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Popover: 'Popover' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ open: true, disabled: false })
+  assert.equal(nativeProps.triggerClassName, undefined)
+  assert.equal(nativeProps.panelClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const triggerNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoTriggerStyle({
+        hovered: false,
+        pressed: false,
+        focused: false,
+        focusVisible: false,
+        disabled: false,
+        'aria-expanded': false,
+        'data-hozo-disabled': false,
+        ...overrides,
+      }),
+    )
+  const nativePanel = flat(nativeProps.hozoPanelStyle())
+
+  const page = await browser.newPage()
+  try {
+    // Closed interactive states: rest, hover, active, focus-visible
+    const closedHtml = renderToStaticMarkup(createElement(webMod.exports.Screen, { open: false }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${closedHtml}`)
+    const trigger = page.locator('#wrap button')
+    const readTrigger = () =>
+      trigger.evaluate((el) => ({
+        bg: getComputedStyle(el).backgroundColor,
+        color: getComputedStyle(el).color,
+        borderColor: getComputedStyle(el).borderTopColor,
+      }))
+
+    assert.equal((await readTrigger()).bg, hexToRgb(triggerNative().backgroundColor))
+    assert.equal((await readTrigger()).color, hexToRgb(triggerNative().color))
+
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap button').matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readTrigger()).borderColor,
+      hexToRgb(triggerNative({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    await page.evaluate(() => document.activeElement?.blur())
+    await trigger.hover()
+    await page.waitForFunction(() => document.querySelector('#wrap button').matches(':hover'))
+    assert.equal(
+      (await readTrigger()).bg,
+      hexToRgb(triggerNative({ hovered: true }).backgroundColor),
+    )
+
+    await page.mouse.down()
+    try {
+      await page.waitForFunction(() => document.querySelector('#wrap button').matches(':active'))
+      assert.equal(
+        (await readTrigger()).bg,
+        hexToRgb(triggerNative({ hovered: true, pressed: true }).backgroundColor),
+      )
+    } finally {
+      await page.mouse.up()
+    }
+
+    // Open state: aria-expanded on trigger + panel markers
+    const openHtml = renderToStaticMarkup(createElement(webMod.exports.Screen, { open: true }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${openHtml}`)
+    const openMarkers = await page.evaluate(() => {
+      const btn = document.querySelector('#wrap button')
+      const panel = document.querySelector('#wrap [role="dialog"]')
+      return {
+        triggerBg: getComputedStyle(btn).backgroundColor,
+        panelPaddingTop: parseFloat(getComputedStyle(panel).paddingTop),
+        panelBg: getComputedStyle(panel).backgroundColor,
+        panelColor: getComputedStyle(panel).color,
+      }
+    })
+    assert.deepEqual(openMarkers, {
+      triggerBg: hexToRgb(triggerNative({ 'aria-expanded': true }).backgroundColor),
+      panelPaddingTop: nativePanel.paddingTop,
+      panelBg: hexToRgb(nativePanel.backgroundColor),
+      panelColor: hexToRgb(nativePanel.color),
+    })
+
+    // Disabled state: disabled: and data-[hozo-disabled]: on trigger
+    const disabledHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { open: false, disabled: true }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${disabledHtml}`)
+    const disabledMarkers = await page.evaluate(() => {
+      const btn = document.querySelector('#wrap button')
+      return {
+        bg: getComputedStyle(btn).backgroundColor,
+        color: getComputedStyle(btn).color,
+      }
+    })
+    const nativeDisabled = triggerNative({ disabled: true, 'data-hozo-disabled': true })
+    assert.deepEqual(disabledMarkers, {
+      bg: hexToRgb(nativeDisabled.backgroundColor),
+      color: hexToRgb(nativeDisabled.color),
     })
   } finally {
     await page.close()
