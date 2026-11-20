@@ -7,6 +7,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { readAnalysisAliases } from './analysis-config.ts'
+import type { CarrierClosure } from './carrier-closure.ts'
 import {
   type CandidateCache,
   type ClassHelper,
@@ -42,8 +43,11 @@ export {
   type CarrierTrip,
   captureCarrierClosure,
   carrierGuard,
+  carrierIncompleteMessage,
+  carrierSources,
   carrierTripMessage,
   locateDeclaredPackage,
+  requireCarrierClosure,
 } from './carrier-closure.ts'
 export { prepareInstanceOwnerCallers } from './owner-caller-participant.ts'
 export {
@@ -165,17 +169,15 @@ export interface ContentOptions {
    */
   respectGitignore?: boolean
   /**
-   * Installed packages whose own source is scanned as well as the project's.
+   * Installed packages whose own source is scanned as well as the project's,
+   * as Tailwind's `@source` can name a path in `node_modules`.
    *
-   * For a library that ships TSX for this build to compile -- `@hozo/ui` is
-   * the first -- which otherwise contributes nothing, because both routes
-   * into the candidate set reject `node_modules` and `DEFAULT_EXCLUDE` wins
-   * however broad an `include` is (#649).
-   *
-   * Defaults to every `@hozo/` package the project's own manifest declares.
-   * Naming any package replaces that default rather than adding to it, so a
-   * project that wants a third-party library *and* the Hozo ones lists both
-   * -- which is the reading that makes "none of them" expressible as `[]`.
+   * Unset, no package source is walked. A package that declares
+   * `hozo.manifest` contributes its candidates from that manifest, captured
+   * at startup (#2047, decision 012 point 4). This option is for a library
+   * without a manifest that still has classes in its source. Naming any
+   * package also turns that capture off, so a project that sets it lists
+   * every package it wants read, and `[]` means none.
    */
   packages?: string[]
 }
@@ -605,18 +607,14 @@ function discoverSourcePlan(
  * path inside `node_modules`. `discoverSources` above already cites `@source`
  * as the precedent it matches for gitignore; this is the rest of it.
  *
- * Every `@hozo/` dependency by default, because a package a person installed
- * from this project is one this project can say is safe to read, and
- * `npm i @hozo/ui` wanting a configuration line to produce any CSS at all is
- * not a thing to ask. The cost was measured rather than assumed: scanning all
- * 27 source files of `@hozo/patterns`, which ships no CSS, yields five
- * candidates -- `collapse`, `hidden`, `inline-block`, `visible`, `z-50` -- of
- * which two resolve. Comments are not scanned, which is what keeps it that
- * small in a repository whose comments are full of class names.
- *
- * Only what the project depends on, read from its own manifest. A walk of
- * `node_modules` looking for Hozo packages would find the ones a dependency
- * pulled in, which the project never asked for and cannot see.
+ * Only the packages `content.packages` names. Until #2047 it defaulted to
+ * every `@hozo/` dependency. Now a package with a manifest contributes its
+ * candidates from that manifest, captured at startup (decision 012 point 4).
+ * Measured against the walk on `native-showcase` and `apps/landing`, the
+ * walk's extra candidates were all strings that are not class names: 12 on
+ * Native and 31 on the Web. They were event names, type unions, style
+ * values, `@hozo/metro`'s test fixtures and `@hozo/tailwind`'s sample-order
+ * list.
  */
 function packageSources(
   root: string,
@@ -624,7 +622,7 @@ function packageSources(
   manifestInstances: ReadonlySet<string> | undefined,
   replaced: Set<string>,
 ): string[] {
-  const names = options.packages ?? hozoDependencies(root)
+  const names = options.packages ?? []
   const files: string[] = []
   for (const name of names) {
     const dir = packageDirectory(name, root)
@@ -663,23 +661,28 @@ function packageSources(
   return files
 }
 
-/** The `@hozo/` packages this project declares a dependency on. */
-function hozoDependencies(root: string): string[] {
-  try {
-    const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as {
-      dependencies?: Record<string, string>
-      devDependencies?: Record<string, string>
-    }
-    return [
-      ...Object.keys(manifest.dependencies ?? {}),
-      ...Object.keys(manifest.devDependencies ?? {}),
-    ].filter((name) => name.startsWith('@hozo/'))
-  } catch {
-    // No manifest, or an unreadable one. A project without a `package.json`
-    // has no dependencies to scan, and one with a broken manifest has a
-    // louder problem than this.
-    return []
+/**
+ * The source files the captured carriers ship for this build to compile
+ * (`compiledByConsumer`), without their tests.
+ *
+ * Their candidates come from their manifests. The files themselves are still
+ * read at startup, for Vite's Tailwind ordering seed only, because the build
+ * compiles them anyway. Leaving that seed to fill in as transforms run made
+ * `apps/landing`'s output vary from run to run (#2047).
+ */
+export function carrierSourceFiles(closure: CarrierClosure): string[] {
+  if (closure.contributions.status !== 'complete') return []
+  const files: string[] = []
+  for (const row of closure.contributions.instances) {
+    if (!row.data.compiledByConsumer) continue
+    for (const file of walkFiles(DEFAULT_INCLUDE, {
+      cwd: row.instance,
+      gitignore: false,
+      ignore: [...DEFAULT_EXCLUDE, '**/*.{test,spec,bench}.{ts,tsx,js,jsx,mts,mjs}'],
+    }))
+      if (SCANNABLE.has(path.extname(file))) files.push(path.resolve(row.instance, file))
   }
+  return files.sort()
 }
 
 /**

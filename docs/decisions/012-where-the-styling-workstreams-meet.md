@@ -1,6 +1,6 @@
 # 12. Where the styling workstreams meet: the fixed points, and what counts as enough evidence
 
-**Status:** decided
+**Status:** decided; point 4 amended 2026-11-20 (#2047)
 **Date:** 2026-11-17
 
 ## Why
@@ -115,6 +115,52 @@ and B and E may not work around an ungraduated domain with a local sort.
 late, and what a transitive or duplicated instance costs at startup. RFC 010
 §9 calls this a major unknown and no spike has closed it. It is its own
 issue, and the old scan stays until that issue shows the replacement.
+
+*Amended for #2047: the capture, and an incomplete capture fails.* #2047 is
+that issue, and
+[`manifest-candidate-capture.md`](../measurements/manifest-candidate-capture.md)
+is its measurement.
+- **What is captured.** Every adapter (Metro, Vite and Next) captures at
+  startup, before any module graph exists. The capture starts from the app's own `package.json` and
+  descends only into packages that declare `hozo.manifest`. On both real apps
+  it took 33–53 ms and held every manifest the build reached.
+- **What the capture missed.** A package with a manifest that a build reaches
+  outside the capture fails the build when it is resolved or loaded, and the
+  error names the package. That happens before output is published.
+- **An incomplete capture now fails the build** instead of selecting the
+  ordinary route. The error names each package and the reason, and it comes
+  at startup, before any output, so a build still never changes route midway.
+  Why the fallback goes:
+  - For packages, the ordinary route was the `@hozo/*` source walk that this
+    point replaces. Keeping the walk only as a fallback keeps a second
+    candidate path for one realistic cause: mixed `@hozo/*` versions. The
+    published `@hozo/ui` 0.4.0 ships a v1 manifest, which has no package
+    channels.
+  - `@hozo/*` is released as one `fixed` group, so that mix is unsupported
+    anyway, and "upgrade it to the same version" is the useful answer.
+  - The walk read only `@hozo/*`, so it gave a third-party package with a
+    broken manifest nothing.
+- **What counts as incomplete.**
+  - A carrier's manifest is missing, unreadable or conflicting.
+  - The closure is over its budget.
+  - An `@hozo/*` package has a v1 manifest.
+  - A v1 manifest from any other package is **not** incomplete. It is what
+    `hozo manifest` still writes: text forwarding, and no candidates. That
+    package contributes none, as before #2047.
+- **What does not change.** The principle: no build ever uses part of the
+  candidates.
+- **What still walks sources.**
+  - The experimental owner paths, which bring their own capture.
+  - An explicit `content.packages`, which names the packages whose sources
+    are walked, as Tailwind's `@source` does.
+- **Vite.**
+  - It compiles the source a captured package ships for its consumer
+    (`compiledByConsumer`) because the capture admits it, not because the
+    walk listed it. Vite transforms a file under `node_modules` only if it was
+    admitted.
+  - It still reads those files at startup, but only for the Tailwind ordering
+    seed. Without them, the seed filled in while transforms ran, and
+    `apps/landing`'s output changed from run to run.
 
 ### 5. Text publication is a field of the contract
 

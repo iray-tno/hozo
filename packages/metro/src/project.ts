@@ -28,6 +28,7 @@ import {
   type HozoProjectOptions,
   type OwnerPackageContributions,
   preflightEnabled,
+  requireCarrierClosure,
   scanProject,
   scanSummary,
   unknownClassWarningLine,
@@ -91,7 +92,17 @@ export async function generateCandidateModule(
   projectRoot: string,
   options: HozoProjectOptions = {},
 ): Promise<GeneratedCandidateModule> {
-  const { publish, ...result } = await prepareCandidateModule(projectRoot, options)
+  // As `withHozo` does: packages contribute from their manifests (#2047).
+  const carriers = requireCarrierClosure(projectRoot, options.content, {
+    platform: 'native',
+    epoch: 'metro-carriers-0',
+  })
+  const { publish, ...result } = await prepareCandidateModule(
+    projectRoot,
+    options,
+    undefined,
+    carriers?.carriers.length ? carriers.contributions : undefined,
+  )
   publish()
   return result
 }

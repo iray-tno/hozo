@@ -42,8 +42,9 @@ import {
   CACHE_DIR,
   type CarrierClosure,
   type CarrierTrip,
-  captureCarrierClosure,
   carrierGuard,
+  carrierSourceFiles,
+  carrierSources,
   carrierTripMessage,
   checksRuntimeClasses,
   classesMissingFromRuntimeMap,
@@ -55,6 +56,7 @@ import {
   isTransformedSource,
   type OwnerContractRequest,
   preflightCssPath,
+  requireCarrierClosure,
   resolveClassHelpers,
   resolveStylexRequests,
   type StylexModuleCache,
@@ -139,32 +141,6 @@ export function hozoWithDiscoveredOwnerCallers(
   return configureHozo(options, undefined, [], true, true, preflight)
 }
 
-/**
- * The packages with a Hozo manifest this app can reach, whose manifests'
- * candidates stand in for scanning their sources (#2047). Incomplete means
- * the ordinary route for the whole build, before any output: the source
- * scan, and no guard. Decision 012 point 4.
- */
-function completeCarrierClosure(
-  root: string,
-  warn: (message: string) => void,
-): CarrierClosure | undefined {
-  // No manifest of its own to read dependencies from: nothing to capture.
-  if (!existsSync(path.join(root, 'package.json'))) return undefined
-  let closure: CarrierClosure
-  try {
-    closure = captureCarrierClosure(root, { platform: 'web', epoch: 'vite-carriers-0' })
-  } catch (error) {
-    warn(`[hozo] package manifests not captured; scanning sources: ${error}`)
-    return undefined
-  }
-  if (closure.contributions.status === 'complete') return closure
-  warn(
-    `[hozo] package manifests incomplete (${closure.contributions.reasons.join(', ')}); scanning sources`,
-  )
-  return undefined
-}
-
 function configureHozo(
   options: HozoOptions,
   ownerPlan?: ViteOwnerCandidatePlan,
@@ -179,11 +155,17 @@ function configureHozo(
   // guard for every module loaded after them (#2047).
   let carriers: CarrierClosure | undefined
   let guard: ((file: string) => CarrierTrip | undefined) | undefined
+  // Source those packages ship for this build to compile, admitted from the
+  // capture rather than from the walk's file list.
+  let carrierSource: (file: string) => boolean = () => false
   let cache: CandidateCache
   let stylexModules: StylexModuleCache
   let candidateCssPath = ''
   let preflightPath = ''
   let includedFiles = new Set<string>()
+  // Which files under `node_modules` the transform compiles and scans.
+  const admitted = (file: string) =>
+    includedFiles.has(file) || ownerCallerFiles.has(file) || carrierSource(file)
   let server: ViteDevServer | undefined
   let resolvedConfig: ResolvedConfig | undefined
   let preflight = ''
@@ -333,10 +315,7 @@ function configureHozo(
    */
   const pass = (accepts: (file: string) => boolean): Pick<Plugin, 'transform'> => ({
     async transform(code, id) {
-      const file = scannableFile(
-        id,
-        (candidate) => includedFiles.has(candidate) || ownerCallerFiles.has(candidate),
-      )
+      const file = scannableFile(id, admitted)
       if (file && !accepts(file)) return
       if (!file) return
       const request = Symbol(id)
@@ -360,11 +339,7 @@ function configureHozo(
         // `TRANSFORMABLE` -- so it has to be admitted here or its classes
         // would never reach the candidate set at all.
         const scannable =
-          file &&
-          !isDerivedModule &&
-          (includedFiles.has(path.resolve(file)) ||
-            ownerCallerFiles.has(path.resolve(file)) ||
-            isTransformedSource(file))
+          file && !isDerivedModule && (admitted(path.resolve(file)) || isTransformedSource(file))
         if (file && scannable) {
           // For the `pre` pass `code` is still the source as written, which
           // is what the scanner expects. For the second pass it is the JSX
@@ -890,14 +865,20 @@ function configureHozo(
         // The whole project, not just what the bundler happens to reach: a
         // class can be produced by a module the graph never resolves
         // statically.
-        // Captured here, before any module is resolved; the experimental owner
-        // paths above bring their own. An explicit `content.packages` already
-        // says which packages contribute, so it keeps the scan it names.
+        // The packages with a Hozo manifest this app can reach (#2047),
+        // captured before any module is resolved. Their manifests' candidates
+        // are the only ones packages contribute, and an incomplete capture
+        // throws before any output. The experimental owner paths above bring
+        // their own; an explicit `content.packages` names sources to scan.
         carriers =
-          ownerPlan || discoverOwnerSources || options.content?.packages !== undefined
+          ownerPlan || discoverOwnerSources
             ? undefined
-            : completeCarrierClosure(root, (message) => this.warn(message))
+            : requireCarrierClosure(root, options.content, {
+                platform: 'web',
+                epoch: 'vite-carriers-0',
+              })
         guard = carriers && carrierGuard(carriers)
+        carrierSource = carriers ? carrierSources(carriers) : () => false
         const project =
           discoveredProject ??
           scanProject(
@@ -924,6 +905,15 @@ function configureHozo(
             scanTailwindOrderCandidates(source),
           )
         }
+        // The captured carriers' source, which this build compiles: in the
+        // ordering seed before the first transform, as the walk's files are.
+        if (carriers)
+          for (const file of carrierSourceFiles(carriers))
+            rememberCandidates(
+              JSON.stringify(['lexical', file]),
+              file,
+              scanTailwindOrderCandidates(readFileSync(file, 'utf8')),
+            )
         updateUniverse()
         await resolveStylexRequests(
           stylexModules,
@@ -1073,9 +1063,7 @@ function configureHozo(
           revision: contentRevision(readFileSync(file, 'utf8')),
         }))
         const modules = [...this.getModuleIds()]
-          .filter((id) =>
-            scannableFile(id, (file) => includedFiles.has(file) || ownerCallerFiles.has(file)),
-          )
+          .filter((id) => scannableFile(id, admitted))
           .map((id) => {
             const module = this.getModuleInfo(id)
             return { id, code: module?.code ?? null, meta: module?.meta ?? {} }

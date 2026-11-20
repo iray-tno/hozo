@@ -48,7 +48,7 @@ export interface CarrierClosure {
   /** The `package.json` files read, with their hashes, for a staleness check. */
   readonly metadata: readonly OwnerMetadataBoundary[]
   /** Incomplete when any carrier's manifest is missing, unreadable or lacks
-   * package channels, or the closure is over budget: the ordinary route. */
+   * package channels, or the closure is over budget: the build fails. */
   readonly contributions: OwnerPackageContributions
 }
 
@@ -149,8 +149,51 @@ type Owner = { instance: string; name: string; manifest: boolean } | null
  */
 export function carrierGuard(closure: CarrierClosure): (file: string) => CarrierTrip | undefined {
   const allowed = new Set([closure.root, ...closure.carriers.map((row) => row.instance)])
+  const ownerOf = ownerLookup()
+  return (file) => {
+    const physical = file.split('?')[0]!
+    if (!path.isAbsolute(physical) || physical.includes('\0')) return undefined
+    const owner = ownerOf(path.dirname(physical))
+    if (!owner?.manifest || allowed.has(owner.instance)) return undefined
+    return Object.freeze({ instance: owner.instance, name: owner.name })
+  }
+}
+
+const TEST_FILE = /\.(?:test|spec|bench)\.[cm]?[jt]sx?$/
+
+/**
+ * Whether a file is source that a captured carrier ships for its consumer to
+ * compile (`compiledByConsumer` in its manifest).
+ *
+ * The bundler has to admit such a file to the Hozo transform itself. Until
+ * #2047, Vite admitted a file under `node_modules` only if the `@hozo/*`
+ * source walk had listed it. So a source-distributed package from anywhere
+ * else was never compiled, and deleting the walk would have stopped compiling
+ * `@hozo/ui` too. Its test files stay out, as they did from the walk.
+ */
+export function carrierSources(closure: CarrierClosure): (file: string) => boolean {
+  const compiled = new Set(
+    closure.contributions.status === 'complete'
+      ? closure.contributions.instances
+          .filter((row) => row.data.compiledByConsumer)
+          .map((row) => row.instance)
+      : [],
+  )
+  const ownerOf = ownerLookup()
+  return (file) => {
+    if (compiled.size === 0) return false
+    const physical = file.split('?')[0]!
+    if (!path.isAbsolute(physical) || physical.includes('\0') || TEST_FILE.test(physical))
+      return false
+    const owner = ownerOf(path.dirname(physical))
+    return owner !== null && compiled.has(owner.instance)
+  }
+}
+
+/** The package owning a directory, cached per directory. */
+function ownerLookup(): (dir: string) => Owner {
   const owners = new Map<string, Owner>()
-  function ownerOf(start: string): Owner {
+  return function ownerOf(start: string): Owner {
     const visited: string[] = []
     let dir = start
     let found: Owner = null
@@ -182,13 +225,54 @@ export function carrierGuard(closure: CarrierClosure): (file: string) => Carrier
     for (const seen of visited) owners.set(seen, found)
     return found
   }
-  return (file) => {
-    const physical = file.split('?')[0]!
-    if (!path.isAbsolute(physical) || physical.includes('\0')) return undefined
-    const owner = ownerOf(path.dirname(physical))
-    if (!owner?.manifest || allowed.has(owner.instance)) return undefined
-    return Object.freeze({ instance: owner.instance, name: owner.name })
+}
+
+/**
+ * The closure a build takes its package candidates from, or undefined when
+ * it has none to take: the project names its own `content.packages`, or has
+ * no `package.json` to read dependencies from.
+ *
+ * An incomplete capture throws, at startup and before any output. Decision
+ * 012 point 4, as amended for #2047: no build uses part of the candidates,
+ * and there is no longer a source walk to fall back to.
+ */
+export function requireCarrierClosure(
+  root: string,
+  content: { packages?: readonly string[] } | undefined,
+  options: CarrierClosureOptions,
+): CarrierClosure | undefined {
+  if (content?.packages !== undefined) return undefined
+  if (!existsSync(path.join(root, 'package.json'))) return undefined
+  let closure: CarrierClosure
+  try {
+    closure = captureCarrierClosure(root, options)
+  } catch (error) {
+    throw new Error(`[hozo] could not capture the package manifests: ${error}`, { cause: error })
   }
+  if (closure.contributions.status === 'complete') return closure
+  throw new Error(carrierIncompleteMessage(closure.contributions.reasons))
+}
+
+/** Whether a carrier's manifest is v1: present, valid JSON, `version: 1`. */
+function textForwardingOnly(observation: OwnerManifestObservation): boolean {
+  if (observation.status !== 'resolved' || observation.manifest.kind !== 'present') return false
+  try {
+    return JSON.parse(observation.manifest.text)?.version === 1
+  } catch {
+    // Unreadable: the capture reports it as an invalid manifest.
+    return false
+  }
+}
+
+/** The error an incomplete capture fails the build with. */
+export function carrierIncompleteMessage(reasons: readonly string[]): string {
+  return (
+    `[hozo] the package manifests captured at startup are incomplete, so this build ` +
+    `cannot know every package's classes: ${reasons.join('; ')}. Every @hozo/* package ` +
+    `has to be on the same version, and a manifest from an older release ` +
+    `(package-channels-unavailable) has none of the candidates this build reads. ` +
+    `Upgrade the package named here to match, or fix its manifest, and restart.`
+  )
 }
 
 /** The error a trip fails the build with. */
@@ -266,8 +350,16 @@ export function captureCarrierClosure(
         reasons.push('carrier-edge-budget')
         break
       }
-      edges.push(edge)
-      observations.push(observation)
+      // A v1 manifest, which `hozo manifest` still writes, carries text
+      // forwarding and no candidates: the package contributes none, as before
+      // #2047, and is still a carrier for the guard and for descent. From an
+      // `@hozo/*` package it means an older release of a package that now
+      // ships candidates, and is incomplete rather than silently unstyled.
+      if (!textForwardingOnly(observation)) {
+        edges.push(edge)
+        observations.push(observation)
+      } else if (name.startsWith('@hozo/'))
+        reasons.push(`package-channels-unavailable: ${name} (a manifest from an older release)`)
       if (seen) continue
       const metadataFile = path.join(instance, 'package.json')
       carriers.set(instance, {
@@ -280,14 +372,21 @@ export function captureCarrierClosure(
     if (reasons.length) break
   }
 
-  const contributions: OwnerPackageContributions = reasons.length
-    ? Object.freeze({ status: 'incomplete', reasons: Object.freeze(reasons) })
-    : collectOwnerPackageContributions(
-        captureOwnerManifests(edges, observations, {
-          platform: options.platform,
-          epoch: options.epoch,
-        }),
-      )
+  const capture = reasons.length
+    ? undefined
+    : captureOwnerManifests(edges, observations, {
+        platform: options.platform,
+        epoch: options.epoch,
+      })
+  // Each issue names the declared package, so the error a build fails with
+  // can say which one to upgrade or fix.
+  if (capture?.status === 'incomplete')
+    for (const issue of capture.issues)
+      reasons.push(`${issue.kind}: ${issue.specifier}${issue.reason ? ` (${issue.reason})` : ''}`)
+  const contributions: OwnerPackageContributions =
+    capture === undefined || reasons.length
+      ? Object.freeze({ status: 'incomplete', reasons: Object.freeze(reasons) })
+      : collectOwnerPackageContributions(capture)
   const byPath = <T>(rows: Iterable<T>, key: (row: T) => string) =>
     [...rows].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0))
   return Object.freeze({

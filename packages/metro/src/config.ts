@@ -7,12 +7,12 @@ import type { ClassHelper, TextForwardingModule } from '@hozo/compiler'
 import {
   CACHE_DIR,
   type CarrierClosure,
-  captureCarrierClosure,
   carrierGuard,
   carrierTripMessage,
   type HozoProjectOptions,
   projectClassHelpers,
   projectTextForwarding,
+  requireCarrierClosure,
   StylexModuleCache,
   type StylexResolutionRequest,
   type StylexResolvedBindings,
@@ -323,31 +323,6 @@ export async function withHozoPartialOwnersOrOrdinary<T extends MetroConfigShape
   }
 }
 
-/**
- * The packages with a Hozo manifest this app can reach, captured once at
- * config load, before Metro has a resolver or a module graph (#2047). Their
- * manifests' candidates then stand in for scanning their sources.
- *
- * Incomplete means the ordinary route for the whole build, before anything
- * is written: the source scan, and no guard. Decision 012 point 4.
- */
-function completeCarrierClosure(projectRoot: string): CarrierClosure | undefined {
-  // No manifest of its own to read dependencies from: nothing to capture.
-  if (!existsSync(path.join(projectRoot, 'package.json'))) return undefined
-  let closure: CarrierClosure
-  try {
-    closure = captureCarrierClosure(projectRoot, { platform: 'native', epoch: 'metro-carriers-0' })
-  } catch (error) {
-    console.warn(`[hozo] package manifests not captured; scanning sources: ${error}`)
-    return undefined
-  }
-  if (closure.contributions.status === 'complete') return closure
-  console.warn(
-    `[hozo] package manifests incomplete (${closure.contributions.reasons.join(', ')}); scanning sources`,
-  )
-  return undefined
-}
-
 async function configureHozo<T extends MetroConfigShape>(
   configOrPromise: T | Promise<T>,
   options: HozoMetroOptions,
@@ -363,13 +338,18 @@ async function configureHozo<T extends MetroConfigShape>(
     )
   const projectRoot = path.resolve(options.root ?? config.projectRoot ?? process.cwd())
   if (ownerPreflight) assertMetroOwnerShadowScope(projectRoot, ownerPreflight)
-  // The experimental owner paths bring their own resolver-backed capture.
-  // An explicit `content.packages` already says which packages contribute
-  // (`[]`: none), so it keeps the scan it names.
-  const carriers =
-    ownerPreflight || options.content?.packages !== undefined
-      ? undefined
-      : completeCarrierClosure(projectRoot)
+  // The packages with a Hozo manifest this app can reach, captured once at
+  // config load, before Metro has a resolver or a module graph (#2047). Their
+  // manifests' candidates are the only ones packages contribute, and an
+  // incomplete capture throws here, before anything is written. The
+  // experimental owner paths bring their own resolver-backed capture, and an
+  // explicit `content.packages` names the package sources to scan instead.
+  const carriers = ownerPreflight
+    ? undefined
+    : requireCarrierClosure(projectRoot, options.content, {
+        platform: 'native',
+        epoch: 'metro-carriers-0',
+      })
   const guard = carriers && carrierGuard(carriers)
   const transformerPath = currentTransformerPath()
   const configuredUpstream = config.transformer?.babelTransformerPath
