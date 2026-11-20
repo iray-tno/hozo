@@ -270,6 +270,8 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
     'CodeBlock.mark',
     'CodeBlock.copy',
     'CodeBlock.caption',
+    'Checkbox.root',
+    'Switch.root',
     'Tabs.Tab',
     'Tabs.tabList',
     'Tabs.panel',

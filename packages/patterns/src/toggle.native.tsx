@@ -49,17 +49,46 @@ interface Shared<T extends HozoCheckedState> {
   style?: StyleProp<ViewStyle>
 }
 
+export interface HozoCheckboxStyleState {
+  readonly pressed: boolean
+  readonly hovered: boolean
+  readonly focused: boolean
+  readonly focusVisible: boolean
+  readonly disabled: boolean
+  readonly 'aria-checked': boolean
+  readonly 'data-hozo-disabled': boolean
+  readonly 'data-hozo-state=checked': boolean
+  readonly 'data-hozo-state=unchecked': boolean
+  readonly 'data-hozo-state=mixed': boolean
+}
+
+export interface HozoSwitchStyleState {
+  readonly pressed: boolean
+  readonly hovered: boolean
+  readonly focused: boolean
+  readonly focusVisible: boolean
+  readonly disabled: boolean
+  readonly 'aria-checked': boolean
+  readonly 'data-hozo-disabled': boolean
+  readonly 'data-hozo-state=checked': boolean
+  readonly 'data-hozo-state=unchecked': boolean
+}
+
 export interface HozoCheckboxProps extends Shared<HozoCheckedState> {
   checked?: HozoCheckedState
   defaultChecked?: HozoCheckedState
   /** Called with what the control became, which is never `mixed`. */
   onCheckedChange?: (checked: boolean) => void
+  /** @internal Prepared root class contribution compiled by the owner contract. */
+  hozoCheckboxStyle?: (state: HozoCheckboxStyleState) => StyleProp<ViewStyle | TextStyle>
 }
 
 export interface HozoSwitchProps extends Shared<boolean> {
   checked?: boolean
   defaultChecked?: boolean
   onCheckedChange?: (checked: boolean) => void
+  /** @internal Prepared root class contribution compiled by the owner contract. */
+  hozoSwitchStyle?: (state: HozoSwitchStyleState) => StyleProp<ViewStyle | TextStyle>
 }
 
 /** What a press produces. Mixed resolves to checked, as the APG specifies. */
@@ -80,20 +109,53 @@ function useToggle(
   return { state, press }
 }
 
+const EMPTY_LOOK: [ViewStyle, TextStyle] = [{}, {}]
+
 /** A control's resolved classes, split into its box and its label (#886). */
-function look(
+function lookCheckbox(
   className: string | undefined,
+  prepared: ((state: HozoCheckboxStyleState) => StyleProp<ViewStyle | TextStyle>) | undefined,
+  interaction: InteractionState,
+  state: HozoCheckedState,
+  disabled?: boolean,
+): [ViewStyle, TextStyle] {
+  if (!prepared && !className) return EMPTY_LOOK
+  const facts: HozoCheckboxStyleState = {
+    ...interaction,
+    disabled: Boolean(disabled),
+    'aria-checked': state === true,
+    'data-hozo-disabled': Boolean(disabled),
+    'data-hozo-state=checked': state === true,
+    'data-hozo-state=unchecked': state === false,
+    'data-hozo-state=mixed': state === 'mixed',
+  }
+  return splitTextStyle(
+    prepared
+      ? prepared(facts)
+      : hozoClasses(className, { ...facts, 'aria-disabled': Boolean(disabled) }),
+  )
+}
+
+function lookSwitch(
+  className: string | undefined,
+  prepared: ((state: HozoSwitchStyleState) => StyleProp<ViewStyle | TextStyle>) | undefined,
   interaction: InteractionState,
   checked: boolean,
   disabled?: boolean,
-) {
+): [ViewStyle, TextStyle] {
+  if (!prepared && !className) return EMPTY_LOOK
+  const facts: HozoSwitchStyleState = {
+    ...interaction,
+    disabled: Boolean(disabled),
+    'aria-checked': checked,
+    'data-hozo-disabled': Boolean(disabled),
+    'data-hozo-state=checked': checked,
+    'data-hozo-state=unchecked': !checked,
+  }
   return splitTextStyle(
-    hozoClasses(className, {
-      ...interaction,
-      disabled: Boolean(disabled),
-      'aria-checked': checked,
-      'aria-disabled': Boolean(disabled),
-    }),
+    prepared
+      ? prepared(facts)
+      : hozoClasses(className, { ...facts, 'aria-disabled': Boolean(disabled) }),
   )
 }
 
@@ -112,7 +174,10 @@ export function HozoCheckbox({
   disabled,
   style,
   indicator,
+  hozoCheckboxStyle,
 }: HozoCheckboxProps) {
+  if (hozoCheckboxStyle && className !== undefined)
+    throw new Error('Prepared Checkbox styles must consume className')
   const { state, press } = useToggle(checked, defaultChecked, onCheckedChange)
   return (
     <Pressable
@@ -121,13 +186,16 @@ export function HozoCheckbox({
       accessibilityState={{ checked: state, disabled }}
       disabled={disabled}
       style={(interaction) => [
-        look(className, interaction, state === true, disabled)[0],
+        lookCheckbox(className, hozoCheckboxStyle, interaction, state, disabled)[0],
         hozoAuthoredStyle(style),
       ]}
       onPress={press}
     >
       {(interaction) => {
-        const text = label(children, look(className, interaction, state === true, disabled)[1])
+        const text = label(
+          children,
+          lookCheckbox(className, hozoCheckboxStyle, interaction, state, disabled)[1],
+        )
         if (!indicator) return text
         return (
           <>
@@ -155,7 +223,10 @@ export function HozoSwitch({
   disabled,
   style,
   indicator,
+  hozoSwitchStyle,
 }: HozoSwitchProps) {
+  if (hozoSwitchStyle && className !== undefined)
+    throw new Error('Prepared Switch styles must consume className')
   const { state, press } = useToggle(checked, defaultChecked, onCheckedChange)
   return (
     <Pressable
@@ -164,13 +235,16 @@ export function HozoSwitch({
       accessibilityState={{ checked: state === true, disabled }}
       disabled={disabled}
       style={(interaction) => [
-        look(className, interaction, state === true, disabled)[0],
+        lookSwitch(className, hozoSwitchStyle, interaction, state === true, disabled)[0],
         hozoAuthoredStyle(style),
       ]}
       onPress={press}
     >
       {(interaction) => {
-        const text = label(children, look(className, interaction, state === true, disabled)[1])
+        const text = label(
+          children,
+          lookSwitch(className, hozoSwitchStyle, interaction, state === true, disabled)[1],
+        )
         if (!indicator) return text
         return (
           <>

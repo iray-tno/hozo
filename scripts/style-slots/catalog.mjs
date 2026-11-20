@@ -663,7 +663,16 @@ export const components = {
       },
     },
   }),
-  Checkbox: slots('className'),
+  Checkbox: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'checkbox-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Chip: slots('className removeClassName', {
     secondary: true,
     overrides: {
@@ -987,7 +996,16 @@ export const components = {
       },
     },
   ),
-  Switch: slots('className'),
+  Switch: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'switch-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Tabs: slots('className tabListClassName tabClassName panelClassName', {
     overrides: {
       tabListClassName: {
@@ -1896,6 +1914,61 @@ export const ownerShadow = {
       ],
     },
     {
+      owner: 'Checkbox.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCheckboxStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: {
+            facts: [
+              'disabled',
+              'aria-checked',
+              'data-hozo-disabled',
+              'data-hozo-state=checked',
+              'data-hozo-state=unchecked',
+              'data-hozo-state=mixed',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'Switch.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSwitchStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: {
+            facts: [
+              'disabled',
+              'aria-checked',
+              'data-hozo-disabled',
+              'data-hozo-state=checked',
+              'data-hozo-state=unchecked',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
       owner: 'Form.root',
       classProp: 'className',
       audit: 'audited',
@@ -2595,6 +2668,16 @@ export const ownerPublications = [
     owner: 'CodeBlock.caption',
     package: '@hozo/patterns',
     exports: ['CodeBlock'],
+  },
+  {
+    owner: 'Checkbox.root',
+    package: '@hozo/patterns',
+    exports: ['Checkbox', 'HozoCheckbox'],
+  },
+  {
+    owner: 'Switch.root',
+    package: '@hozo/patterns',
+    exports: ['Switch', 'HozoSwitch'],
   },
   {
     owner: 'Form.root',

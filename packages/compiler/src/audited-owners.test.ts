@@ -706,3 +706,37 @@ export function StaticListing() {
   assert.equal(lowered.needsClientBoundary, false)
   assert.match(lowered.code, /captionClassName=\{"hozo-owner-/)
 })
+
+test('ordinary Web lowering compiles Checkbox and Switch root className by default (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Checkbox, Switch } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <Checkbox
+        className="p-2 bg-[#111111] hover:bg-[#222222] active:bg-[#333333] aria-checked:border-[#444444] data-[hozo-state=checked]:bg-[#555555] data-[hozo-state=unchecked]:bg-[#666666] data-[hozo-state=mixed]:bg-[#777777] disabled:opacity-50 text-[#eeeeee]"
+      >
+        Agree
+      </Checkbox>
+      <Switch
+        className="p-2 bg-[#101010] hover:bg-[#202020] active:bg-[#303030] aria-checked:border-[#404040] data-[hozo-state=checked]:bg-[#505050] data-[hozo-state=unchecked]:bg-[#606060] disabled:opacity-50 text-[#f0f0f0]"
+      >
+        Notifications
+      </Switch>
+      <Checkbox {...spread} className="bg-[#888888]">Spread</Checkbox>
+      <Switch className={dynamic}>Dynamic</Switch>
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.equal(lowered.needsClientBoundary, true)
+  assert.doesNotMatch(lowered.code, /className="p-2 bg-\[#111111\]/)
+  assert.doesNotMatch(lowered.code, /className="p-2 bg-\[#101010\]/)
+  assert.match(lowered.code, /className=\{"hozo-owner-/)
+  assert.match(lowered.code, /className="bg-\[#888888\]"/)
+  assert.match(lowered.code, /className=\{dynamic\}/)
+  assert.match(lowered.css, /data-hozo-state="mixed"/)
+  assert.match(lowered.css, /aria-checked="true"/)
+})

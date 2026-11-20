@@ -35,6 +35,7 @@ import {
 import {
   Accordion,
   BottomSheet,
+  Checkbox,
   Chip,
   CodeBlock,
   CodeClipboardProvider,
@@ -44,6 +45,7 @@ import {
   ResizablePane,
   Slider,
   Splitter,
+  Switch,
   Tabs,
   Tree,
 } from '@hozo/patterns'
@@ -9309,6 +9311,198 @@ export function Screen() {
       )
     } finally {
       await page.mouse.up()
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('Checkbox and Switch deliver prepared root styles across states on Web Chromium and Native (#2137)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Checkbox, Switch } from '@hozo/patterns'
+export function Screen({
+  checked,
+  switchChecked,
+  disabled,
+}: {
+  checked?: boolean | 'mixed'
+  switchChecked?: boolean
+  disabled?: boolean
+}) {
+  return (
+    <div id="wrap">
+      <Checkbox
+        checked={checked}
+        disabled={disabled}
+        className="pt-2 border border-[#cccccc] bg-[#111111] data-[hozo-state=unchecked]:bg-[#777777] data-[hozo-state=checked]:bg-[#666666] data-[hozo-state=mixed]:bg-[#888888] aria-checked:border-[#555555] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] disabled:bg-[#999999] text-[#eeeeee] disabled:text-[#aaaaaa]"
+      >
+        Agree
+      </Checkbox>
+      <Switch
+        checked={switchChecked}
+        disabled={disabled}
+        className="pt-3 border border-[#cccccc] bg-[#101010] data-[hozo-state=unchecked]:bg-[#707070] data-[hozo-state=checked]:bg-[#606060] aria-checked:border-[#505050] hover:bg-[#202020] active:bg-[#303030] focus-visible:border-[#404040] disabled:bg-[#909090] text-[#f0f0f0] disabled:text-[#a0a0a0]"
+      >
+        Alerts
+      </Switch>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  assert.match(web.code, /className=\{"hozo-owner-/)
+
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Checkbox, Switch }
+      throw new Error(`Unexpected web require: ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const nativeProps = {}
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props, ...children) => {
+      if (type === 'Checkbox' || type === 'Switch') nativeProps[type] = props
+      return { type, props, children }
+    },
+    require: (id) => {
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (id === '@hozo/patterns') return { Checkbox: 'Checkbox', Switch: 'Switch' }
+      throw new Error(`Unexpected native require: ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({})
+  assert.equal(typeof nativeProps.Checkbox.hozoCheckboxStyle, 'function')
+  assert.equal(nativeProps.Checkbox.className, undefined)
+  assert.equal(typeof nativeProps.Switch.hozoSwitchStyle, 'function')
+  assert.equal(nativeProps.Switch.className, undefined)
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const checkboxNative = (state, overrides = {}) =>
+    flat(
+      nativeProps.Checkbox.hozoCheckboxStyle({
+        pressed: false,
+        hovered: false,
+        focused: false,
+        focusVisible: false,
+        disabled: false,
+        'aria-checked': state === true,
+        'data-hozo-disabled': Boolean(overrides.disabled),
+        'data-hozo-state=checked': state === true,
+        'data-hozo-state=unchecked': state === false,
+        'data-hozo-state=mixed': state === 'mixed',
+        ...overrides,
+      }),
+    )
+  const switchNative = (state, overrides = {}) =>
+    flat(
+      nativeProps.Switch.hozoSwitchStyle({
+        pressed: false,
+        hovered: false,
+        focused: false,
+        focusVisible: false,
+        disabled: false,
+        'aria-checked': state === true,
+        'data-hozo-disabled': Boolean(overrides.disabled),
+        'data-hozo-state=checked': state === true,
+        'data-hozo-state=unchecked': state === false,
+        ...overrides,
+      }),
+    )
+
+  const page = await browser.newPage()
+  try {
+    const renderStates = async (props) => {
+      const html = renderToStaticMarkup(createElement(webMod.exports.Screen, props))
+      await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+      return page.evaluate(() => {
+        const read = (sel) => {
+          const el = document.querySelector(sel)
+          const cs = getComputedStyle(el)
+          return {
+            tag: el.tagName,
+            bg: cs.backgroundColor,
+            border: cs.borderTopColor,
+            color: cs.color,
+            paddingTop: parseFloat(cs.paddingTop),
+          }
+        }
+        return {
+          checkbox: read('#wrap [role="checkbox"]'),
+          toggleSwitch: read('#wrap [role="switch"]'),
+        }
+      })
+    }
+
+    for (const [props, cbState, swState, overrides] of [
+      [{ checked: false, switchChecked: false }, false, false, {}],
+      [{ checked: true, switchChecked: true }, true, true, {}],
+      [{ checked: 'mixed', switchChecked: false }, 'mixed', false, {}],
+      [{ checked: false, switchChecked: false, disabled: true }, false, false, { disabled: true }],
+    ]) {
+      const webRow = await renderStates(props)
+      const cb = checkboxNative(cbState, overrides)
+      const sw = switchNative(swState, overrides)
+      assert.deepEqual(webRow.checkbox, {
+        tag: 'BUTTON',
+        bg: hexToRgb(cb.backgroundColor),
+        border: hexToRgb(cb.borderColor),
+        color: hexToRgb(cb.color),
+        paddingTop: cb.paddingTop,
+      })
+      assert.deepEqual(webRow.toggleSwitch, {
+        tag: 'BUTTON',
+        bg: hexToRgb(sw.backgroundColor),
+        border: hexToRgb(sw.borderColor),
+        color: hexToRgb(sw.color),
+        paddingTop: sw.paddingTop,
+      })
+    }
+
+    await renderStates({ checked: false, switchChecked: false })
+    for (const [sel, nativeFn] of [
+      ['#wrap [role="checkbox"]', (ov) => checkboxNative(false, ov)],
+      ['#wrap [role="switch"]', (ov) => switchNative(false, ov)],
+    ]) {
+      const loc = page.locator(sel)
+      await loc.hover()
+      await page.waitForFunction((s) => document.querySelector(s).matches(':hover'), sel)
+      const hoveredBg = await loc.evaluate((el) => getComputedStyle(el).backgroundColor)
+      assert.equal(hoveredBg, hexToRgb(nativeFn({ hovered: true }).backgroundColor))
+      await page.mouse.down()
+      try {
+        await page.waitForFunction((s) => document.querySelector(s).matches(':active'), sel)
+        const activeBg = await loc.evaluate((el) => getComputedStyle(el).backgroundColor)
+        assert.equal(activeBg, hexToRgb(nativeFn({ hovered: true, pressed: true }).backgroundColor))
+      } finally {
+        await page.mouse.up()
+      }
     }
   } finally {
     await page.close()

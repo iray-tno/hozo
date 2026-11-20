@@ -240,6 +240,20 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"CodeBlock.caption","classProp":"captionClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCaptionStyle","webClassProp":"captionClassName"},"authoredStyles":[{"prop":"captionStyle","order":0}],"shapes":[{"id":"caption","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"figcaption","events":[]}]}]}',
   },
   {
+    owner: 'Checkbox.root',
+    package: '@hozo/patterns',
+    exports: ['Checkbox', 'HozoCheckbox'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Checkbox.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCheckboxStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-checked","data-hozo-disabled","data-hozo-state=checked","data-hozo-state=unchecked","data-hozo-state=mixed"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Switch.root',
+    package: '@hozo/patterns',
+    exports: ['Switch', 'HozoSwitch'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Switch.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSwitchStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-checked","data-hozo-disabled","data-hozo-state=checked","data-hozo-state=unchecked"],"splitText":true}}]}]}',
+  },
+  {
     owner: 'Form.root',
     package: '@hozo/form',
     exports: ['Form', 'HozoForm'],

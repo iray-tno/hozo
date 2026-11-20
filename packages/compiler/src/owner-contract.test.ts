@@ -727,6 +727,49 @@ test('CodeBlock contracts declare figure root, figcaption text, copy button, and
       },
     ])
   }
+  const checkbox = parsed().contracts.find((entry) => entry.owner === 'Checkbox.root')!
+  assert.equal(checkbox.audit, 'audited')
+  assert.deepEqual(checkbox.shapes, [
+    {
+      id: 'root',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'button',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: {
+        facts: [
+          'disabled',
+          'aria-checked',
+          'data-hozo-disabled',
+          'data-hozo-state=checked',
+          'data-hozo-state=unchecked',
+          'data-hozo-state=mixed',
+        ],
+        splitText: true,
+      },
+    },
+  ])
+  const toggleSwitch = parsed().contracts.find((entry) => entry.owner === 'Switch.root')!
+  assert.equal(toggleSwitch.audit, 'audited')
+  assert.deepEqual(toggleSwitch.shapes, [
+    {
+      id: 'root',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'button',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: {
+        facts: [
+          'disabled',
+          'aria-checked',
+          'data-hozo-disabled',
+          'data-hozo-state=checked',
+          'data-hozo-state=unchecked',
+        ],
+        splitText: true,
+      },
+    },
+  ])
 })
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()

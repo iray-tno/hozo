@@ -24,6 +24,9 @@ export type OwnerFact =
   | 'data-collapsed'
   | 'data-hozo-state=open'
   | 'data-hozo-state=closed'
+  | 'data-hozo-state=checked'
+  | 'data-hozo-state=unchecked'
+  | 'data-hozo-state=mixed'
   | 'data-code-mark'
   | 'data-code-mark=ins'
   | 'data-code-mark=del'
@@ -359,6 +362,9 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
               'data-collapsed',
               'data-hozo-state=open',
               'data-hozo-state=closed',
+              'data-hozo-state=checked',
+              'data-hozo-state=unchecked',
+              'data-hozo-state=mixed',
               'data-code-mark',
               'data-code-mark=ins',
               'data-code-mark=del',

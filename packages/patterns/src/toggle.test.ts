@@ -63,7 +63,11 @@ test('a disabled control is disabled to the platform, not only to a reader', () 
   // this and a checkbox is not an exception to it.
   const html = render(Checkbox, { disabled: true })
   assert.match(html, /disabled=""/)
+  assert.match(html, /data-hozo-disabled=""/)
   assert.doesNotMatch(html, /aria-disabled/, 'the real attribute, not a second opinion beside it')
+  assert.match(render(Switch, { disabled: true }), /data-hozo-disabled=""/)
+  assert.doesNotMatch(render(Checkbox), /data-hozo-disabled/)
+  assert.doesNotMatch(render(Switch), /data-hozo-disabled/)
 })
 
 test('accessibilityLabel replaces the name rather than joining it', () => {

@@ -14,6 +14,8 @@ const exports = [
   'HozoAccordion',
   'HozoBottomSheet',
   'BottomSheet',
+  'Checkbox',
+  'HozoCheckbox',
   'CodeBlock',
   'Drawer',
   'HozoDrawer',
@@ -25,6 +27,8 @@ const exports = [
   'Slider',
   'HozoSlider',
   'Splitter',
+  'Switch',
+  'HozoSwitch',
   'Tabs',
   'HozoTabs',
   'Toolbar',
@@ -63,6 +67,7 @@ test('catalog publication owns the contract once and attaches only actual packag
         'BottomSheet.sheet',
       ],
     },
+    { name: 'Checkbox', owners: ['Checkbox.root'] },
     {
       name: 'CodeBlock',
       owners: [
@@ -96,10 +101,12 @@ test('catalog publication owns the contract once and attaches only actual packag
         'BottomSheet.sheet',
       ],
     },
+    { name: 'HozoCheckbox', owners: ['Checkbox.root'] },
     { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
     { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.trigger'] },
     { name: 'HozoRadioGroup', owners: ['RadioGroup.option'] },
     { name: 'HozoSlider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
+    { name: 'HozoSwitch', owners: ['Switch.root'] },
     { name: 'HozoTabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.tabList'] },
     { name: 'HozoToolbar', owners: ['Toolbar.root'] },
     { name: 'HozoTree', owners: ['Tree.row'] },
@@ -112,11 +119,12 @@ test('catalog publication owns the contract once and attaches only actual packag
     },
     { name: 'Slider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
     { name: 'Splitter', owners: ['Splitter.root'] },
+    { name: 'Switch', owners: ['Switch.root'] },
     { name: 'Tabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.tabList'] },
     { name: 'Toolbar', owners: ['Toolbar.root'] },
     { name: 'Tree', owners: ['Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 34)
+  assert.equal(result.owners.contracts.length, 36)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
@@ -154,6 +162,8 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['CodeBlock.mark', 'audited'],
       ['CodeBlock.copy', 'audited'],
       ['CodeBlock.caption', 'audited'],
+      ['Checkbox.root', 'audited'],
+      ['Switch.root', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
@@ -305,7 +315,7 @@ test('publication preserves recognized audit declarations without publishing a p
 })
 
 test('the catalog publishes primitive exports and text hosts only on their own package', () => {
-  const names = [...exports, 'Chip', 'Checkbox']
+  const names = [...exports, 'Chip']
   const options = {
     primitives: { '@hozo/patterns': ['Chip'] },
     hosts: [{ package: '@hozo/patterns', export: 'Checkbox', sharesState: true }],
@@ -324,7 +334,11 @@ test('the catalog publishes primitive exports and text hosts only on their own p
     /Primitive export is not a public value export: Chip/,
   )
   assert.throws(
-    () => packageOwnerChannels('@hozo/patterns', [...exports, 'Chip'], options),
-    /Text host is not a public value export: Checkbox/,
+    () =>
+      packageOwnerChannels('@hozo/patterns', [...exports, 'Chip'], {
+        ...options,
+        hosts: [{ package: '@hozo/patterns', export: 'MissingHost', sharesState: true }],
+      }),
+    /Text host is not a public value export: MissingHost/,
   )
 })

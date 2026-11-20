@@ -1643,3 +1643,191 @@ export function UnsupportedCodeBlock() {
     )
   }
 })
+
+test('Native Checkbox and Switch deliver prepared box and label styles without calling hozoClasses (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Checkbox, Switch } from '@hozo/patterns'
+export function Screen({
+  checked,
+  switchChecked,
+  disabled,
+}: {
+  checked?: boolean | 'mixed'
+  switchChecked?: boolean
+  disabled?: boolean
+}) {
+  return (
+    <>
+      <Checkbox
+        checked={checked}
+        disabled={disabled}
+        className="pt-2 bg-[#111111] data-[hozo-state=checked]:bg-[#666666] data-[hozo-state=unchecked]:bg-[#777777] data-[hozo-state=mixed]:bg-[#888888] aria-checked:border-[#555555] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] disabled:bg-[#999999] text-[#eeeeee] disabled:text-[#aaaaaa]"
+      >
+        Agree
+      </Checkbox>
+      <Switch
+        checked={switchChecked}
+        disabled={disabled}
+        className="pt-3 bg-[#101010] data-[hozo-state=checked]:bg-[#606060] data-[hozo-state=unchecked]:bg-[#707070] aria-checked:border-[#505050] hover:bg-[#202020] active:bg-[#303030] focus-visible:border-[#404040] disabled:bg-[#909090] text-[#f0f0f0] disabled:text-[#a0a0a0]"
+      >
+        Alerts
+      </Switch>
+    </>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoCheckboxStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoSwitchStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-2/)
+  assert.doesNotMatch(transformed, /className="pt-3/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const toggleMod = loadNativePatternModule('toggle.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = {
+    exports: {} as {
+      Screen: React.ComponentType<{
+        checked?: boolean | 'mixed'
+        switchChecked?: boolean
+        disabled?: boolean
+      }>
+    },
+  }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return { Checkbox: toggleMod.exports.Checkbox, Switch: toggleMod.exports.Switch }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    props: { checked?: boolean | 'mixed'; switchChecked?: boolean; disabled?: boolean } = {},
+    interaction: Partial<{
+      hovered: boolean
+      pressed: boolean
+      focused: boolean
+      focusVisible: boolean
+    }> = {},
+  ) => {
+    toggleMod.captured.length = 0
+    toggleMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: false,
+      focusVisible: false,
+      ...interaction,
+    })
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen, props))
+    const pressables = toggleMod.captured.filter((e) => e.host === 'Pressable')
+    const texts = toggleMod.captured.filter((e) => e.host === 'Text')
+    return {
+      checkboxBox: flattenStyle(pressables[0]!.props.style),
+      switchBox: flattenStyle(pressables[1]!.props.style),
+      checkboxText: flattenStyle(texts[0]!.props.style),
+      switchText: flattenStyle(texts[1]!.props.style),
+    }
+  }
+
+  const unchecked = renderCase({ checked: false, switchChecked: false })
+  assert.equal(unchecked.checkboxBox.backgroundColor, '#777777')
+  assert.equal(unchecked.checkboxBox.paddingTop, 8)
+  assert.equal(unchecked.checkboxText.color, '#eeeeee')
+  assert.equal(unchecked.switchBox.backgroundColor, '#707070')
+  assert.equal(unchecked.switchBox.paddingTop, 12)
+  assert.equal(unchecked.switchText.color, '#f0f0f0')
+
+  const checked = renderCase({ checked: true, switchChecked: true })
+  assert.equal(checked.checkboxBox.backgroundColor, '#666666')
+  assert.equal(checked.checkboxBox.borderColor, '#555555')
+  assert.equal(checked.switchBox.backgroundColor, '#606060')
+  assert.equal(checked.switchBox.borderColor, '#505050')
+
+  const mixed = renderCase({ checked: 'mixed', switchChecked: false })
+  assert.equal(mixed.checkboxBox.backgroundColor, '#888888')
+  assert.equal(mixed.checkboxBox.borderColor, undefined)
+
+  const disabled = renderCase({ checked: false, switchChecked: false, disabled: true })
+  assert.equal(disabled.checkboxBox.backgroundColor, '#999999')
+  assert.equal(disabled.checkboxText.color, '#aaaaaa')
+  assert.equal(disabled.switchBox.backgroundColor, '#909090')
+  assert.equal(disabled.switchText.color, '#a0a0a0')
+
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { hovered: true }).checkboxBox
+      .backgroundColor,
+    '#222222',
+  )
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { pressed: true }).checkboxBox
+      .backgroundColor,
+    '#333333',
+  )
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { focused: true, focusVisible: true })
+      .checkboxBox.borderColor,
+    '#444444',
+  )
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { hovered: true }).switchBox
+      .backgroundColor,
+    '#202020',
+  )
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { pressed: true }).switchBox
+      .backgroundColor,
+    '#303030',
+  )
+  assert.equal(
+    renderCase({ checked: false, switchChecked: false }, { focused: true, focusVisible: true })
+      .switchBox.borderColor,
+    '#404040',
+  )
+  assert.equal(
+    classResolverCalls,
+    0,
+    'prepared Checkbox and Switch literals must never call hozoClasses',
+  )
+
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          toggleMod.exports.Checkbox as React.ComponentType<Record<string, unknown>>,
+          { className: 'pt-2', hozoCheckboxStyle: () => ({}) },
+        ),
+      ),
+    /Prepared Checkbox styles must consume className/,
+  )
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          toggleMod.exports.Switch as React.ComponentType<Record<string, unknown>>,
+          { className: 'pt-2', hozoSwitchStyle: () => ({}) },
+        ),
+      ),
+    /Prepared Switch styles must consume className/,
+  )
+})
