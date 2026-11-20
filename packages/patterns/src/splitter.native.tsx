@@ -129,9 +129,7 @@ function Handle({
               'data-dragging': drag.dragging,
               'data-collapsed': state.collapsed,
             })
-          : className
-            ? hozoClasses(className, facts)
-            : undefined,
+          : hozoClasses(className, facts),
         hozoAuthoredStyle(style),
       ]}
       onFocus={handlers.focus}
