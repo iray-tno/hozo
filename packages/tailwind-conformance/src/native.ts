@@ -193,6 +193,45 @@ const PROBE_CONTEXTS = [
       `      <View />\n    </View>\n  )\n}\n`,
   },
   {
+    // `aria-checked:`, `aria-expanded:`, `aria-selected:` and `aria-busy:`
+    // read React Native's accessibilityState, so they have a driver only
+    // where the element carries one. Without this context every one of
+    // them was refused for want of a state the probe never gave it.
+    name: 'Pressable with accessibilityState',
+    render: (candidate: string) =>
+      `import { Pressable } from '@hozo/core'\n` +
+      `export function C({ on }) {\n` +
+      `  return <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} className="${candidate}">x</Pressable>\n}\n`,
+  },
+  {
+    // `group-*:` styles an element by the state of a `group` ancestor, so
+    // it needs one. The child is a Text, the case the compiler wires.
+    name: 'Text in a group Pressable',
+    render: (candidate: string) =>
+      `import { Pressable, Text } from '@hozo/core'\n` +
+      `export function C({ on }) {\n` +
+      `  return (\n    <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `      <Text className="${candidate}">x</Text>\n    </Pressable>\n  )\n}\n`,
+  },
+  {
+    // `even:`, `nth-2:` and `not-first:` resolve from the element's
+    // position in the JSX tree; the first child below can answer none of
+    // them.
+    name: 'second child',
+    render: (candidate: string) =>
+      `import { View } from '@hozo/core'\n` +
+      `export function C() {\n  return (\n    <View>\n      <View>a</View>\n` +
+      `      <View className="${candidate}">x</View>\n      <View>c</View>\n    </View>\n  )\n}\n`,
+  },
+  {
+    // The last of three: `nth-3:`, `last:`, `odd:` past the first.
+    name: 'third child',
+    render: (candidate: string) =>
+      `import { View } from '@hozo/core'\n` +
+      `export function C() {\n  return (\n    <View>\n      <View>a</View>\n      <View>b</View>\n` +
+      `      <View className="${candidate}">x</View>\n    </View>\n  )\n}\n`,
+  },
+  {
     name: 'first child',
     render: (candidate: string) =>
       `import { View } from '@hozo/core'\n` +
