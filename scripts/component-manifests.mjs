@@ -77,6 +77,11 @@ async function main() {
       entry = json.exports?.['.']
       if (typeof entry !== 'string') throw new Error('UI manifest needs its explicit source entry')
       channels = await sourcePackageChannels(dir, entry, { packageName: json.name })
+    } else if (json.name === '@hozo/core') {
+      // No classes, owners or helpers of its own: the manifest is there so the
+      // startup capture descends through core to @hozo/patterns (#2047).
+      entry = './src/index.tsx'
+      channels = { exports: [], owners: null, helpers: [], compiledByConsumer: false, sources: [] }
     } else if (json.name === '@hozo/patterns' || json.name === '@hozo/form') {
       // The package publishes dist; source summaries must not depend on stale
       // built output or guess a selected platform from package-name spelling.

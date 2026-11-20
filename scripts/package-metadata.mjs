@@ -106,7 +106,13 @@ const PACKAGES = {
     keywords: ['react-native', 'compiler', 'rust', 'napi', 'tailwind'],
   },
   core: {
-    exports: { '.': './dist/index.js' },
+    exports: { '.': './dist/index.js', './hozo.manifest.json': './hozo.manifest.json' },
+    // Core writes no classes, but it depends on @hozo/patterns, which does.
+    // The startup capture descends only through packages with a manifest
+    // (#2047), so without one an app that installs only @hozo/core never
+    // captures @hozo/patterns and the load guard stops its build.
+    files: ['dist', 'hozo.manifest.json'],
+    hozo: { manifest: './hozo.manifest.json' },
     native: true,
     keywords: ['react-native', 'react', 'components', 'accessibility', 'universal'],
   },
