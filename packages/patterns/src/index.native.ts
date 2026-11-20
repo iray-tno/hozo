@@ -211,3 +211,8 @@ export {
   type HozoTreeRowLook,
   type TreeNode,
 } from './tree.native.tsx'
+export {
+  WindowedTable,
+  type WindowedTableColumn,
+  type WindowedTableProps,
+} from './windowed-table.native.tsx'

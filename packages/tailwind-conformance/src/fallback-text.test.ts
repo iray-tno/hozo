@@ -55,6 +55,7 @@ const core = require('../../core/src/index.native.ts') as Record<string, unknown
 const NEEDS_MORE_THAN_CHILDREN = new Map([
   ['CodeLines', 'Renders line/token data; covered by code-line and Native host tests.'],
   ['CodeBlock', 'Renders line/token data; covered by code-block host tests.'],
+  ['WindowedTable', 'Renders row/column data, not children; covered by windowed-table host tests.'],
   ['CodeClipboardProvider', 'A clipboard context provider, not a text host.'],
   ['Splitter', 'A separator driven by its bounds and size; it takes no children.'],
   [

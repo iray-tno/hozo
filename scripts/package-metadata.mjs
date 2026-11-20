@@ -126,7 +126,7 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'primitives', 'components', 'universal'],
   },
   patterns: {
-    dependencyOverrides: { '@hozo/typography': 'workspace:^' },
+    dependencyOverrides: { '@hozo/primitives': 'workspace:^', '@hozo/typography': 'workspace:^' },
     exports: { '.': './dist/index.js', './hozo.manifest.json': './hozo.manifest.json' },
     files: ['dist', 'hozo.manifest.json'],
     hozo: { manifest: './hozo.manifest.json' },

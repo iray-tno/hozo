@@ -245,6 +245,10 @@
       "types": "./dist/generated/view-dom-props.d.ts",
       "default": "./dist/generated/view-dom-props.js"
     },
+    "./generated/windowed-table": {
+      "types": "./dist/generated/windowed-table.d.ts",
+      "default": "./dist/generated/windowed-table.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

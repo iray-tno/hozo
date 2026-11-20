@@ -5,10 +5,12 @@ import test from 'node:test'
 import { PNG } from 'pngjs'
 import {
   assertReusableTableInputs,
+  tableRunSummary,
   tableSummary,
   tableTimingRecords,
   verifyTablePixels,
   verifyTableSample,
+  verifyTableWindow,
 } from './table-performance-evidence.mjs'
 import generator from './table-performance-source.cjs'
 
@@ -47,6 +49,80 @@ test('baseline instrumentation retains the current Table algorithm and fails on 
     () => generator.instrumentTableSource(`${source}\n  const info: ColumnInfo`),
     /anchor changed/,
   )
+})
+
+test('production WindowedTable observations round-trip to the exact source under either line ending', () => {
+  const source = readFileSync(
+    new URL('../../../packages/patterns/src/windowed-table.native.tsx', import.meta.url),
+    'utf8',
+  )
+  for (const eol of ['\n', '\r\n']) {
+    const original = source.replaceAll('\r\n', '\n').replaceAll('\n', eol)
+    const { hash, output } = generator.instrumentWindowedTableSource(original)
+    assert.equal(hash, createHash('sha256').update(original).digest('hex'))
+    const restored = output
+      .replace("useContext, useLayoutEffect } from 'react'", "useContext } from 'react'")
+      .replace(
+        `  useLayoutEffect(() => columnIndex === 0 ? tablePerformanceProbe.row(rowIndex) : undefined, [])${eol}`,
+        '',
+      )
+      .replace(
+        `      onLayout={() => tablePerformanceProbe.cellLayout(\`\${rowIndex}:\${columnIndex}\`)}${eol}`,
+        '',
+      )
+      .replace(`${eol}  useLayoutEffect(() => { tablePerformanceProbe.resolved() }, [])`, '')
+      .replace(`        ref={(list) => { tablePerformanceProbe.list = list }}${eol}`, '')
+    assert.equal(restored, original)
+  }
+  assert.throws(
+    () =>
+      generator.instrumentWindowedTableSource(
+        source.replace('        data={data}', '        data={changed}'),
+      ),
+    /anchor changed/,
+  )
+  assert.throws(
+    () => generator.instrumentWindowedTableSource(`${source}\n        data={data}`),
+    /anchor changed/,
+  )
+})
+
+test('production snapshots bind both source hashes, unique absolute rows and bounded recycling', () => {
+  const expected = {
+    count: 1000,
+    windowedSourceHash: 'source',
+    windowedModelHash: 'model',
+    includes: [1000],
+    excludes: [500],
+  }
+  const sample = {
+    count: 1000,
+    windowedSourceHash: 'source',
+    windowedModelHash: 'model',
+    naturalMeasurements: 0,
+    rows: 3,
+    peakRows: 24,
+    mountedRows: 50,
+    indices: [0, 1, 1000],
+  }
+  verifyTableWindow(sample, expected)
+  assert.deepEqual(
+    tableTimingRecords(`[Hozo Table window] ${JSON.stringify(sample)}`, '[Hozo Table window]'),
+    [sample],
+  )
+  for (const change of [
+    { windowedSourceHash: 'stale' },
+    { windowedModelHash: 'stale' },
+    { naturalMeasurements: 1 },
+    { rows: 0 },
+    { peakRows: 1001 },
+    { mountedRows: 2 },
+    { indices: [0, 1, 1] },
+    { indices: [0, 1, 1001] },
+    { indices: [0, 1, 500] },
+  ]) {
+    assert.throws(() => verifyTableWindow({ ...sample, ...change }, expected))
+  }
 })
 
 test('missing, truncated, zero-work and unfinished observations cannot pass as cheap mounts', () => {
@@ -111,6 +187,9 @@ test('missing, truncated, zero-work and unfinished observations cannot pass as c
 test('collector-only diagnostic reuse rejects all application, generator, dependency and workflow changes', () => {
   assertReusableTableInputs([
     'examples/native-showcase/scripts/table-performance-evidence.mjs',
+    'examples/native-showcase/scripts/verify-table-captures.mjs',
+    'packages/patterns/README.md',
+    'examples/storybook-demo/scripts/windowed-table.test.mjs',
     'docs/rfcs/014-windowed-table.md',
   ])
   for (const path of [
@@ -118,6 +197,8 @@ test('collector-only diagnostic reuse rejects all application, generator, depend
     'examples/native-showcase/src/table-performance-observer.ts',
     'examples/native-showcase/scripts/table-performance-source.cjs',
     'packages/semantics/src/table.native.tsx',
+    'packages/patterns/src/windowed-table.native.tsx',
+    'packages/patterns/src/windowed-table-types.ts',
     'packages/compiler/src/index.ts',
     'examples/native-showcase/metro.config.js',
     'pnpm-lock.yaml',
@@ -151,4 +232,56 @@ test('populated accessibility nodes cannot conceal blank header or first-row pix
   fill(nodes[0].rect, 0)
   fill(nodes[1].rect, 255)
   assert.throws(() => verifyTablePixels(PNG.sync.write(image), nodes), /empty pixels: ID, 0/)
+  const last = [{ 'content-desc': 'Total, 16983', rect: [60, 20, 78, 30] }]
+  assert.equal(
+    verifyTablePixels(PNG.sync.write(image), last, { index: 999, columns: [3], headers: false })
+      .length,
+    1,
+  )
+  assert.throws(
+    () =>
+      verifyTablePixels(PNG.sync.write(image), last, { index: 998, columns: [3], headers: false }),
+    /missing unique Table row anchor/,
+  )
+})
+
+test('repeated Region labels must belong to the uniquely anchored row, not clipped overscan', () => {
+  const image = new PNG({ width: 80, height: 40 })
+  image.data.fill(0)
+  for (let at = 3; at < image.data.length; at += 4) image.data[at] = 255
+  const total = { 'content-desc': 'Total, 16983', rect: [60, 20, 78, 30] }
+  const clipped = { 'content-desc': 'Region, West', rect: [40, 20, 58, 4] }
+  const earlier = { 'content-desc': 'Region, West', rect: [40, 0, 58, 10] }
+  const current = { 'content-desc': 'Region, West', rect: [40, 20, 58, 30] }
+  const options = { index: 999, columns: [2, 3], headers: false }
+  const result = verifyTablePixels(
+    PNG.sync.write(image),
+    [clipped, earlier, current, total],
+    options,
+  )
+  assert.deepEqual(
+    result.map((cell) => cell.rect),
+    [current.rect, total.rect],
+  )
+  assert.throws(
+    () => verifyTablePixels(PNG.sync.write(image), [clipped, earlier, total], options),
+    /missing Table node/,
+  )
+})
+
+test('window-only diagnostics cannot replace a fresh matrix or publish readiness timing as a median', () => {
+  const sample = { mode: 'windowed', count: 1000, warmup: true, passed: true }
+  const evidence = { scope: 'window-only-diagnostic', reusedBinary: true, cases: [sample] }
+  assert.equal(tableRunSummary(evidence), undefined)
+  for (const change of [
+    { reusedBinary: false },
+    { cases: [] },
+    { cases: [sample, sample] },
+    { cases: [{ ...sample, mode: 'normal' }] },
+    { cases: [{ ...sample, warmup: false }] },
+    { cases: [{ ...sample, count: 100 }] },
+    { cases: [{ ...sample, passed: false }] },
+    { scope: 'mount-matrix-and-window' },
+  ])
+    assert.throws(() => tableRunSummary({ ...evidence, ...change }))
 })

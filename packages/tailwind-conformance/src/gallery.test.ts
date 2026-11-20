@@ -47,6 +47,10 @@ const gallerySource = readFileSync(
 const NOT_ON_THE_SCREEN = new Map([
   ['CodeLines', 'Data-driven code lines covered by their dedicated Native host tests.'],
   [
+    'WindowedTable',
+    'Requires data, columns and a bounded viewport; covered by windowed-table host tests, with a release-emulator probe tracked by #2130, outside the primitive census.',
+  ],
+  [
     'CodeBlock',
     'Data-driven code figure covered by dedicated Native host tests and docs showcase.',
   ],

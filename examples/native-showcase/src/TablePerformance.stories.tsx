@@ -1,12 +1,18 @@
+import { HozoTextSizeContext } from '@hozo/engine/generated/text-size-context'
 import type { Meta, StoryObj } from '@storybook/react-native'
 import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { FlatList, Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 import {
   HozoTable,
   HozoTableCell,
   HozoTableRow,
   tableSourceHash,
 } from './.table-performance/table.native'
+import {
+  WindowedTable,
+  windowedModelHash,
+  windowedSourceHash,
+} from './.table-performance/windowed-table.native'
 import { type TableSample, tablePerformanceProbe } from './table-performance-observer'
 
 const COUNTS = [100, 500, 1000] as const
@@ -16,44 +22,34 @@ const HEIGHT = 32
 const VIEWPORT = 240
 type Row = { id: string; cells: string[] }
 
-function WindowRow({ item }: { item: Row }) {
-  useLayoutEffect(() => tablePerformanceProbe.row(), [])
-  return (
-    <View style={{ flexDirection: 'row', height: HEIGHT }}>
-      {item.cells.map((text, column) => (
-        <View
-          key={HEADERS[column]}
-          accessible
-          collapsable={false}
-          style={{ width: WIDTHS[column], padding: 4 }}
-          onLayout={() => tablePerformanceProbe.cellLayout(`${item.id}:${column}`)}
-        >
-          <Text numberOfLines={1} style={{ fontSize: 14, lineHeight: 24 }}>
-            {text}
-          </Text>
-        </View>
-      ))}
-    </View>
-  )
-}
+const columns = HEADERS.map((header, index) => ({
+  key: header,
+  header,
+  width: WIDTHS[index]!,
+  getText: (row: Row) => row.cells[index]!,
+}))
+const getRowKey = (row: Row) => row.id
 
-// A measurement-only fixed-width control. This deliberately does not claim a
-// public WindowedTable API or accessible table semantics for FlatList's Views.
-const WindowedControl = memo(function WindowedControl({ rows }: { rows: Row[] }) {
-  useLayoutEffect(() => tablePerformanceProbe.resolved(), [])
+// The current production source with build-time observation hooks, not the
+// earlier FlatList prototype. The generator's round-trip test guards this.
+const WindowedControl = memo(function WindowedControl({
+  rows,
+  rowHeight,
+}: {
+  rows: Row[]
+  rowHeight: number
+}) {
   return (
-    <FlatList
-      style={{ height: VIEWPORT, flexGrow: 0 }}
-      data={rows}
-      keyExtractor={(row) => row.id}
-      renderItem={({ item }) => <WindowRow item={item} />}
-      ListHeaderComponent={<WindowRow item={{ id: 'header', cells: HEADERS }} />}
-      initialNumToRender={8}
-      maxToRenderPerBatch={8}
-      windowSize={3}
-      removeClippedSubviews={false}
-      getItemLayout={(_, index) => ({ length: HEIGHT, offset: HEIGHT * (index + 1), index })}
-    />
+    <HozoTextSizeContext.Provider value={16}>
+      <WindowedTable
+        data={rows}
+        columns={columns}
+        getRowKey={getRowKey}
+        rowHeight={rowHeight}
+        maxHeight={VIEWPORT}
+        accessibilityLabel="Orders"
+      />
+    </HozoTextSizeContext.Provider>
   )
 })
 
@@ -67,7 +63,7 @@ const NormalControl = memo(function NormalControl({ rows }: { rows: Row[] }) {
               <HozoTableCell
                 key={HEADERS[column]}
                 head={row.id === 'header'}
-                style={{ padding: 4, fontSize: 14, lineHeight: 24 }}
+                style={{ padding: 4, fontSize: 16, lineHeight: 24 }}
               >
                 {text}
               </HozoTableCell>
@@ -80,6 +76,9 @@ const NormalControl = memo(function NormalControl({ rows }: { rows: Row[] }) {
 })
 
 function TablePerformance() {
+  const { fontScale } = useWindowDimensions()
+  const rowHeight = HEIGHT * Math.max(1, fontScale)
+  const [narrow, setNarrow] = useState(false)
   // Fixture allocation is outside the measured input handler for both modes.
   const fixtures = useMemo<Map<number, Row[]>>(
     () =>
@@ -148,13 +147,17 @@ function TablePerformance() {
         cellLayouts: selection.cellLayouts,
         distinctLaidOutCells: selection.laidOutCells.size,
         sourceHash: tableSourceHash,
+        windowedSourceHash,
+        windowedModelHash,
+        rowHeight,
+        fontScale,
       }
       console.info('[Hozo Table timing]', JSON.stringify(record))
       setStatus(`${selection.name}: ${record.passed ? 'complete' : 'timeout'}`)
     }
     frame = requestAnimationFrame(next)
     return () => cancelAnimationFrame(frame)
-  }, [selection])
+  }, [selection, rowHeight, fontScale])
 
   return (
     <View style={{ flex: 1, gap: 8 }}>
@@ -180,6 +183,7 @@ function TablePerformance() {
                   cellLayouts: 0,
                   laidOutCells: new Set(),
                   resolvedMs: null,
+                  rowIndices: new Set(),
                 }
                 tablePerformanceProbe.sample = sample
                 setStatus('Measuring')
@@ -204,13 +208,68 @@ function TablePerformance() {
           <Text>Clear table</Text>
         </Pressable>
       </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {(
+          [
+            [
+              'Jump to last row',
+              () =>
+                tablePerformanceProbe.list?.scrollToIndex({
+                  index: (selection?.count ?? 1) - 1,
+                  animated: false,
+                  viewPosition: 1,
+                }),
+            ],
+            [
+              'Return to first row',
+              () => tablePerformanceProbe.list?.scrollToOffset({ offset: 0, animated: false }),
+            ],
+            ['Narrow table', () => setNarrow(true)],
+            ['Wide table', () => setNarrow(false)],
+            [
+              'Record table window',
+              () => {
+                if (selection?.mode !== 'windowed') return
+                console.info(
+                  '[Hozo Table window]',
+                  JSON.stringify({
+                    name: selection.name,
+                    count: selection.count,
+                    sourceHash: tableSourceHash,
+                    windowedSourceHash,
+                    windowedModelHash,
+                    rows: selection.rows,
+                    peakRows: selection.peakRows,
+                    mountedRows: selection.mountedRows,
+                    indices: [...selection.rowIndices].sort((a, b) => a - b),
+                    naturalMeasurements: selection.measurements,
+                    rowHeight,
+                    fontScale,
+                    narrow,
+                  }),
+                )
+              },
+            ],
+          ] as const
+        ).map(([label, onPress]) => (
+          <Pressable
+            key={label}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            onPress={onPress}
+          >
+            <Text>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text>{`Font scale ${fontScale.toFixed(2)}, row height ${rowHeight.toFixed(1)}`}</Text>
       <Text>{status}</Text>
       {selection && (
-        <View key={selection.name}>
+        <View key={selection.name} style={narrow ? { width: 220 } : undefined}>
           {selection.mode === 'normal' ? (
             <NormalControl rows={fixtures.get(selection.count) ?? []} />
           ) : (
-            <WindowedControl rows={fixtures.get(selection.count) ?? []} />
+            <WindowedControl rows={fixtures.get(selection.count) ?? []} rowHeight={rowHeight} />
           )}
         </View>
       )}

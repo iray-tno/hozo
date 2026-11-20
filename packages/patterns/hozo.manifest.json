@@ -298,6 +298,10 @@
       ]
     },
     {
+      "name": "WindowedTable",
+      "owners": []
+    },
+    {
       "name": "avatarInitials",
       "owners": []
     },
@@ -1726,12 +1730,14 @@
     "border-box",
     "collapse",
     "contents",
+    "fixed",
     "flex",
     "hidden",
     "inline-block",
     "inline-flex",
     "isolate",
     "relative",
+    "table",
     "visible",
     "z-50"
   ],

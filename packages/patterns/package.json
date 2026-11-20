@@ -121,6 +121,14 @@
       "types": "./dist/generated/stepper.d.ts",
       "default": "./dist/generated/stepper.js"
     },
+    "./generated/windowed-table": {
+      "react-native": {
+        "types": "./dist/generated/windowed-table.native.d.ts",
+        "default": "./dist/generated/windowed-table.native.js"
+      },
+      "types": "./dist/generated/windowed-table.d.ts",
+      "default": "./dist/generated/windowed-table.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -144,7 +152,8 @@
   "dependencies": {
     "@hozo/behaviors": "workspace:^",
     "@hozo/engine": "workspace:^",
-    "@hozo/typography": "workspace:^"
+    "@hozo/typography": "workspace:^",
+    "@hozo/primitives": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0",

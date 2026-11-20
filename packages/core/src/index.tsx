@@ -118,6 +118,9 @@ export {
   type SplitterProps,
   type SplitterSide,
   type TreeNode,
+  WindowedTable,
+  type WindowedTableColumn,
+  type WindowedTableProps,
 } from '@hozo/patterns'
 export * from '@hozo/primitives'
 // These names are also re-exported by typography for convenience. Keep the
