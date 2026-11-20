@@ -251,3 +251,37 @@ test('the compiled core facade keeps the Native implementation and iOS full-valu
     root.unmount()
   })
 })
+
+test('Native decoration arrays and fragments normalize text without inspecting custom components', () => {
+  let root: ReturnType<typeof renderer.create>
+  let slice: ReturnType<typeof renderer.create>
+  const props = {
+    data: [data[0]],
+    getRowKey,
+    rowHeight: 64,
+    maxHeight: 128,
+    accessibilityLabel: 'Decorations',
+    columns: [
+      {
+        ...columns[0],
+        renderCell: () => ['literal ', createElement(Fragment, { key: 'fragment' }, 'fragment'), 0],
+      },
+    ],
+  }
+  renderer.act(() => {
+    root = renderer.create(createElement(WindowedTable, props))
+  })
+  const list = root.root.findByType('FlatList').props
+  renderer.act(() => {
+    slice = renderer.create(list.renderItem({ item: data[0], index: 0 }))
+  })
+  assert.deepEqual(
+    slice.root.findAllByType('Text').map((node: { children: string[] }) => node.children),
+    [['literal '], ['fragment'], ['0']],
+  )
+  assert.equal(slice.root.findByProps({ accessible: true }).props.accessibilityLabel, 'ID, row-0')
+  renderer.act(() => {
+    slice.unmount()
+    root.unmount()
+  })
+})

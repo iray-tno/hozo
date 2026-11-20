@@ -71,7 +71,7 @@ function TableCell({
             {content}
           </Text>
         ) : (
-          content
+          hozoTextChildren(content, { fontSize, lineHeight: fontSize * 1.5 })
         )}
       </View>
     </View>
@@ -142,3 +142,5 @@ export function WindowedTable<Row>(props: WindowedTableProps<Row>) {
     </ScrollView>
   )
 }
+
+import { hozoTextChildren } from '@hozo/behaviors'
