@@ -4,7 +4,7 @@ import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useId } from 'react'
-import { type StyleProp, View, type ViewStyle } from 'react-native'
+import { type StyleProp, type TextStyle, View, type ViewStyle } from 'react-native'
 import {
   type SplitterSide,
   type SplitterSizeProps,
@@ -12,8 +12,17 @@ import {
   splitterSign,
   useSplitterState,
 } from './splitter-state.ts'
+import { splitTextStyle } from './text-style.native.ts'
 
 export type { SplitterSide } from './splitter-state.ts'
+
+export interface SplitterHandleState {
+  hovered: boolean
+  focused: boolean
+  focusVisible: boolean
+  'data-dragging': boolean
+  'data-collapsed': boolean
+}
 
 export interface SplitterProps extends SplitterSizeProps {
   label: string
@@ -21,6 +30,8 @@ export interface SplitterProps extends SplitterSizeProps {
   side?: SplitterSide
   orientation?: 'vertical' | 'horizontal'
   className?: string
+  /** @internal Complete prepared handle class contribution (RFC 010). */
+  hozoSplitterStyle?: (state: SplitterHandleState) => StyleProp<ViewStyle>
   style?: StyleProp<ViewStyle>
 }
 
@@ -31,6 +42,12 @@ export interface ResizablePaneProps extends SplitterSizeProps {
   className?: string
   paneClassName?: string
   handleClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoResizablePaneStyle?: () => StyleProp<ViewStyle>
+  /** @internal Complete prepared pane class contribution (RFC 010). */
+  hozoPaneStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared handle class contribution (RFC 010). */
+  hozoHandleStyle?: (state: SplitterHandleState) => StyleProp<ViewStyle>
   style?: StyleProp<ViewStyle>
   paneStyle?: StyleProp<ViewStyle>
   handleStyle?: StyleProp<ViewStyle>
@@ -41,11 +58,13 @@ function Handle({
   side,
   label,
   className,
+  hozoStyle,
   style,
   valueText,
 }: {
   state: SplitterState
   side: SplitterSide
+  hozoStyle?: (state: SplitterHandleState) => StyleProp<ViewStyle>
 } & Pick<SplitterProps, 'label' | 'className' | 'style' | 'valueText'>) {
   const message = useHozoMessage()
   const { state: interaction, handlers } = usePressableInteraction({
@@ -107,7 +126,19 @@ function Handle({
       // never reaches past the parent's bounds, so on the surface's side of
       // the pane it is cut off there whatever the order. Before the classes,
       // so an explicit class or style can still say otherwise.
-      style={[{ zIndex: 1 }, hozoClasses(className, facts), hozoAuthoredStyle(style)]}
+      style={[
+        { zIndex: 1 },
+        hozoStyle
+          ? hozoStyle({
+              hovered: interaction.hovered,
+              focused: interaction.focused,
+              focusVisible: interaction.focusVisible,
+              'data-dragging': drag.dragging,
+              'data-collapsed': state.collapsed,
+            })
+          : hozoClasses(className, facts),
+        hozoAuthoredStyle(style),
+      ]}
       onFocus={handlers.focus}
       onBlur={handlers.blur}
       onPointerEnter={handlers.hoverIn}
@@ -119,10 +150,13 @@ function Handle({
 }
 
 export function Splitter(props: SplitterProps) {
+  if (props.hozoSplitterStyle && props.className !== undefined)
+    throw new Error('Prepared Splitter styles must consume className')
   const state = useSplitterState(props)
   return (
     <Handle
       {...props}
+      hozoStyle={props.hozoSplitterStyle}
       state={state}
       side={props.side ?? (props.orientation === 'horizontal' ? 'top' : 'start')}
     />
@@ -137,20 +171,40 @@ export function ResizablePane(props: ResizablePaneProps) {
     className,
     paneClassName,
     handleClassName,
+    hozoResizablePaneStyle,
+    hozoPaneStyle,
+    hozoHandleStyle,
     style,
     paneStyle,
     handleStyle,
     valueText,
   } = props
+  if (hozoResizablePaneStyle && className !== undefined)
+    throw new Error('Prepared ResizablePane styles must consume className')
+  if (hozoPaneStyle && paneClassName !== undefined)
+    throw new Error('Prepared ResizablePane styles must consume paneClassName')
+  if (hozoHandleStyle && handleClassName !== undefined)
+    throw new Error('Prepared ResizablePane styles must consume handleClassName')
   const state = useSplitterState(props)
   const id = useId()
   const vertical = side === 'start' || side === 'end'
+  const paneClassStyle = hozoPaneStyle
+    ? hozoPaneStyle()
+    : paneClassName
+      ? hozoClasses(paneClassName)
+      : undefined
+  const authoredPaneStyle = hozoAuthoredStyle(paneStyle)
+  const [paneBox, paneText] =
+    paneClassStyle !== undefined || authoredPaneStyle !== undefined
+      ? splitTextStyle([paneClassStyle, authoredPaneStyle])
+      : [undefined, undefined]
   const splitter = (
     <Handle
       state={state}
       side={side}
       label={label}
       className={handleClassName}
+      hozoStyle={hozoHandleStyle}
       style={handleStyle}
       valueText={valueText}
     />
@@ -158,7 +212,11 @@ export function ResizablePane(props: ResizablePaneProps) {
   return (
     <View
       style={[
-        hozoClasses(className),
+        hozoResizablePaneStyle
+          ? hozoResizablePaneStyle()
+          : className
+            ? hozoClasses(className)
+            : undefined,
         hozoAuthoredStyle(style),
         { flexDirection: vertical ? 'row' : 'column', flexShrink: 0 },
       ]}
@@ -171,8 +229,7 @@ export function ResizablePane(props: ResizablePaneProps) {
         importantForAccessibility={state.collapsed ? 'no-hide-descendants' : 'auto'}
         accessibilityElementsHidden={state.collapsed}
         style={[
-          hozoClasses(paneClassName),
-          hozoAuthoredStyle(paneStyle),
+          paneBox,
           {
             [vertical ? 'width' : 'height']: state.current,
             flexShrink: 0,
@@ -181,7 +238,7 @@ export function ResizablePane(props: ResizablePaneProps) {
           },
         ]}
       >
-        {hozoTextChildren(children)}
+        {hozoTextChildren(children, paneText)}
       </View>
       {side === 'start' || side === 'top' ? splitter : null}
     </View>

@@ -505,18 +505,67 @@ export const components = {
       overrides: { className: { lowering: 'component-managed' } },
     },
   ),
-  Splitter: slots('className', { overrides: { className: { lowering: 'component-managed' } } }),
+  Splitter: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'splitter-handle',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+    },
+  }),
   ResizablePane: slots('className paneClassName handleClassName', {
-    overrides: { className: { lowering: 'component-managed' } },
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'resizable-pane-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+      paneClassName: {
+        owner: 'resizable-pane-pane',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      handleClassName: {
+        owner: 'resizable-pane-handle',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+    },
   }),
   Accordion: slots(
     'className sectionClassName headingClassName triggerClassName panelClassName panelContentClassName',
     {
       overrides: {
+        sectionClassName: {
+          owner: 'accordion-section',
+          gate: 'each-section',
+          composition: 'prepared-owner-contract',
+        },
         headingClassName: {
+          owner: 'accordion-heading',
+          gate: 'each-section',
+          composition: 'prepared-owner-contract; split-box-text',
           styleProp: null,
           reason:
             'Native has no heading host or headingStyle: heading classes precede trigger classes on the trigger.',
+        },
+        triggerClassName: {
+          owner: 'accordion-trigger',
+          gate: 'each-section',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        panelClassName: {
+          owner: 'accordion-panel',
+          gate: 'each-panel',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        panelContentClassName: {
+          owner: 'accordion-panel-content',
+          gate: 'each-panel',
+          composition: 'prepared-owner-contract; split-box-text',
         },
       },
     },
@@ -805,7 +854,25 @@ export const components = {
       },
     },
   }),
-  Slider: slots('className thumbClassName fillClassName railClassName'),
+  Slider: slots('className thumbClassName fillClassName railClassName', {
+    overrides: {
+      thumbClassName: {
+        owner: 'slider-thumb',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+      fillClassName: {
+        owner: 'slider-fill',
+        gate: 'fill-styled',
+        composition: 'prepared-owner-contract',
+      },
+      railClassName: {
+        owner: 'slider-rail',
+        gate: 'rail-styled',
+        composition: 'prepared-owner-contract',
+      },
+    },
+  }),
   Stepper: slots(
     'className stepClassName completedStepClassName currentStepClassName errorStepClassName indicatorClassName completedIndicatorClassName currentIndicatorClassName errorIndicatorClassName descriptionClassName',
     {
@@ -1245,6 +1312,233 @@ export const ownerShadow = {
           webHost: 'div',
           events: ['pressed', 'hovered', 'focused', 'focusVisible'],
           inputs: { facts: ['aria-selected', 'aria-expanded', 'aria-disabled'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Splitter.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSplitterStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'handle',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: ['hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['data-dragging', 'data-collapsed'], splitText: false },
+        },
+      ],
+    },
+    {
+      owner: 'ResizablePane.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoResizablePaneStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'ResizablePane.pane',
+      classProp: 'paneClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPaneStyle', webClassProp: 'paneClassName' },
+      authoredStyles: [{ prop: 'paneStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'pane',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'section',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'ResizablePane.handle',
+      classProp: 'handleClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoHandleStyle', webClassProp: 'handleClassName' },
+      authoredStyles: [{ prop: 'handleStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'handle',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: ['hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['data-dragging', 'data-collapsed'], splitText: false },
+        },
+      ],
+    },
+    {
+      owner: 'Slider.thumb',
+      classProp: 'thumbClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSliderThumbStyle', webClassProp: 'thumbClassName' },
+      authoredStyles: [{ prop: 'thumbStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'thumb',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: ['focused', 'focusVisible'],
+          inputs: { facts: ['aria-disabled'], splitText: false },
+        },
+      ],
+    },
+    {
+      owner: 'Slider.fill',
+      classProp: 'fillClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoFillStyle', webClassProp: 'fillClassName' },
+      authoredStyles: [{ prop: 'fillStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'fill',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Slider.rail',
+      classProp: 'railClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoRailStyle', webClassProp: 'railClassName' },
+      authoredStyles: [{ prop: 'railStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'rail',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Accordion.section',
+      classProp: 'sectionClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSectionStyle', webClassProp: 'sectionClassName' },
+      authoredStyles: [{ prop: 'sectionStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'section',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Accordion.heading',
+      classProp: 'headingClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoHeadingStyle', webClassProp: 'headingClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'heading',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'heading',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Accordion.trigger',
+      classProp: 'triggerClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTriggerStyle', webClassProp: 'triggerClassName' },
+      authoredStyles: [
+        { prop: 'triggerStyle', order: 0 },
+        { prop: 'triggerTextStyle', order: 1 },
+      ],
+      shapes: [
+        {
+          id: 'trigger',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: {
+            facts: [
+              'disabled',
+              'aria-expanded',
+              'data-hozo-disabled',
+              'data-hozo-state=open',
+              'data-hozo-state=closed',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'Accordion.panel',
+      classProp: 'panelClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPanelStyle', webClassProp: 'panelClassName' },
+      authoredStyles: [{ prop: 'panelStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'panel',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: {
+            facts: ['data-hozo-state=open', 'data-hozo-state=closed'],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'Accordion.panelContent',
+      classProp: 'panelContentClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPanelContentStyle', webClassProp: 'panelContentClassName' },
+      authoredStyles: [{ prop: 'panelContentStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'panelContent',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
         },
       ],
     },
@@ -1823,6 +2117,66 @@ export const ownerPublications = [
     owner: 'Tree.row',
     package: '@hozo/patterns',
     exports: ['Tree', 'HozoTree'],
+  },
+  {
+    owner: 'Splitter.root',
+    package: '@hozo/patterns',
+    exports: ['Splitter'],
+  },
+  {
+    owner: 'ResizablePane.root',
+    package: '@hozo/patterns',
+    exports: ['ResizablePane'],
+  },
+  {
+    owner: 'ResizablePane.pane',
+    package: '@hozo/patterns',
+    exports: ['ResizablePane'],
+  },
+  {
+    owner: 'ResizablePane.handle',
+    package: '@hozo/patterns',
+    exports: ['ResizablePane'],
+  },
+  {
+    owner: 'Slider.thumb',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+  },
+  {
+    owner: 'Slider.fill',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+  },
+  {
+    owner: 'Slider.rail',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+  },
+  {
+    owner: 'Accordion.section',
+    package: '@hozo/patterns',
+    exports: ['Accordion', 'HozoAccordion'],
+  },
+  {
+    owner: 'Accordion.heading',
+    package: '@hozo/patterns',
+    exports: ['Accordion', 'HozoAccordion'],
+  },
+  {
+    owner: 'Accordion.trigger',
+    package: '@hozo/patterns',
+    exports: ['Accordion', 'HozoAccordion'],
+  },
+  {
+    owner: 'Accordion.panel',
+    package: '@hozo/patterns',
+    exports: ['Accordion', 'HozoAccordion'],
+  },
+  {
+    owner: 'Accordion.panelContent',
+    package: '@hozo/patterns',
+    exports: ['Accordion', 'HozoAccordion'],
   },
   {
     owner: 'Form.root',

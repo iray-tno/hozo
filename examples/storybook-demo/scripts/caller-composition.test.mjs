@@ -32,7 +32,17 @@ import {
   TextArea,
   TimePicker,
 } from '@hozo/form'
-import { Chip, Drawer, Popover, RadioGroup, Tree } from '@hozo/patterns'
+import {
+  Accordion,
+  Chip,
+  Drawer,
+  Popover,
+  RadioGroup,
+  ResizablePane,
+  Slider,
+  Splitter,
+  Tree,
+} from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -8066,6 +8076,619 @@ export function Screen() {
     } finally {
       await page.mouse.up()
     }
+  } finally {
+    await page.close()
+  }
+})
+
+test('Splitter delivers prepared handle markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Splitter } from '@hozo/patterns'
+export function Screen({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <div id="wrap">
+      <Splitter
+        label="Sidebar"
+        controls="nav"
+        min={100}
+        max={400}
+        collapsible
+        collapsed={collapsed}
+        className="w-4 h-12 bg-[#111111] hover:bg-[#222222] border border-[#aaaaaa] focus-visible:border-[#333333] data-[dragging]:bg-[#444444] data-[collapsed]:bg-[#555555]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Splitter }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Splitter') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Splitter: 'Splitter' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ collapsed: false })
+  assert.equal(nativeProps.className, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const handleNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoSplitterStyle({
+        hovered: false,
+        focused: false,
+        focusVisible: false,
+        'data-dragging': false,
+        'data-collapsed': false,
+        ...overrides,
+      }),
+    )
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen, { collapsed: false }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const sep = page.locator('#wrap [role="separator"]')
+    const readSep = () =>
+      sep.evaluate((el) => ({
+        bg: getComputedStyle(el).backgroundColor,
+        borderColor: getComputedStyle(el).borderTopColor,
+      }))
+
+    assert.equal((await readSep()).bg, hexToRgb(handleNative().backgroundColor))
+
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap [role="separator"]').matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readSep()).borderColor,
+      hexToRgb(handleNative({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    await page.evaluate(() => document.activeElement?.blur())
+    await sep.hover()
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap [role="separator"]').matches(':hover'),
+    )
+    assert.equal((await readSep()).bg, hexToRgb(handleNative({ hovered: true }).backgroundColor))
+
+    // Dragging attribute written by useDrag1D during an active drag
+    await sep.evaluate((el) => el.setAttribute('data-dragging', ''))
+    assert.equal(
+      (await readSep()).bg,
+      hexToRgb(handleNative({ hovered: true, 'data-dragging': true }).backgroundColor),
+    )
+
+    // Collapsed state rendered by Splitter collapsible collapsed
+    const collapsedHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { collapsed: true }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${collapsedHtml}`)
+    assert.equal(
+      (await readSep()).bg,
+      hexToRgb(handleNative({ 'data-collapsed': true }).backgroundColor),
+    )
+  } finally {
+    await page.close()
+  }
+})
+
+test('ResizablePane delivers prepared root, section pane and handle markers on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { ResizablePane } from '@hozo/patterns'
+export function Screen({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <div id="wrap">
+      <ResizablePane
+        side="start"
+        label="Nav"
+        min={100}
+        max={400}
+        collapsible
+        collapsed={collapsed}
+        className="bg-[#010101]"
+        paneClassName="pt-4 bg-[#fafafa] text-[#112233]"
+        handleClassName="w-4 h-12 bg-[#111111] hover:bg-[#222222] border border-[#aaaaaa] focus-visible:border-[#333333] data-[dragging]:bg-[#444444] data-[collapsed]:bg-[#555555]"
+      >
+        Sidebar
+      </ResizablePane>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { ResizablePane }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'ResizablePane') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { ResizablePane: 'ResizablePane' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ collapsed: false })
+  assert.equal(nativeProps.className, undefined)
+  assert.equal(nativeProps.paneClassName, undefined)
+  assert.equal(nativeProps.handleClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeRoot = flat(nativeProps.hozoResizablePaneStyle())
+  const nativePane = flat(nativeProps.hozoPaneStyle())
+  const handleNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoHandleStyle({
+        hovered: false,
+        focused: false,
+        focusVisible: false,
+        'data-dragging': false,
+        'data-collapsed': false,
+        ...overrides,
+      }),
+    )
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen, { collapsed: false }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const root = document.querySelector('#wrap > div')
+      const pane = document.querySelector('#wrap section')
+      const handle = document.querySelector('#wrap [role="separator"]')
+      return {
+        rootBg: getComputedStyle(root).backgroundColor,
+        panePaddingTop: parseFloat(getComputedStyle(pane).paddingTop),
+        paneBg: getComputedStyle(pane).backgroundColor,
+        paneColor: getComputedStyle(pane).color,
+        handleBg: getComputedStyle(handle).backgroundColor,
+      }
+    })
+    assert.deepEqual(markers, {
+      rootBg: hexToRgb(nativeRoot.backgroundColor),
+      panePaddingTop: nativePane.paddingTop,
+      paneBg: hexToRgb(nativePane.backgroundColor),
+      paneColor: hexToRgb(nativePane.color),
+      handleBg: hexToRgb(handleNative().backgroundColor),
+    })
+
+    const sep = page.locator('#wrap [role="separator"]')
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap [role="separator"]').matches(':focus-visible'),
+    )
+    assert.equal(
+      await sep.evaluate((el) => getComputedStyle(el).borderTopColor),
+      hexToRgb(handleNative({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    await page.evaluate(() => document.activeElement?.blur())
+    await sep.hover()
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap [role="separator"]').matches(':hover'),
+    )
+    assert.equal(
+      await sep.evaluate((el) => getComputedStyle(el).backgroundColor),
+      hexToRgb(handleNative({ hovered: true }).backgroundColor),
+    )
+
+    await sep.evaluate((el) => el.setAttribute('data-dragging', ''))
+    assert.equal(
+      await sep.evaluate((el) => getComputedStyle(el).backgroundColor),
+      hexToRgb(handleNative({ hovered: true, 'data-dragging': true }).backgroundColor),
+    )
+
+    const collapsedHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { collapsed: true }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${collapsedHtml}`)
+    assert.equal(
+      await sep.evaluate((el) => getComputedStyle(el).backgroundColor),
+      hexToRgb(handleNative({ 'data-collapsed': true }).backgroundColor),
+    )
+  } finally {
+    await page.close()
+  }
+})
+
+test('Slider delivers prepared rail, fill and thumb markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Slider } from '@hozo/patterns'
+export function Screen({ disabled }: { disabled?: boolean }) {
+  return (
+    <div id="wrap">
+      <Slider
+        accessibilityLabel="Volume"
+        defaultValue={40}
+        disabled={disabled}
+        railClassName="bg-[#101010] h-2"
+        fillClassName="bg-[#202020] h-2"
+        thumbClassName="w-6 h-6 bg-[#111111] border border-[#aaaaaa] focus-visible:border-[#333333] aria-disabled:bg-[#444444]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Slider }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Slider') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Slider: 'Slider' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ disabled: false })
+  assert.equal(nativeProps.railClassName, undefined)
+  assert.equal(nativeProps.fillClassName, undefined)
+  assert.equal(nativeProps.thumbClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeRail = flat(nativeProps.hozoRailStyle())
+  const nativeFill = flat(nativeProps.hozoFillStyle())
+  const thumbNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoSliderThumbStyle({
+        focused: false,
+        focusVisible: false,
+        'aria-disabled': false,
+        ...overrides,
+      }),
+    )
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen, { disabled: false }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const hidden = document.querySelectorAll('#wrap [aria-hidden="true"]')
+      const thumb = document.querySelector('#wrap [role="slider"]')
+      return {
+        railBg: getComputedStyle(hidden[0]).backgroundColor,
+        fillBg: getComputedStyle(hidden[1]).backgroundColor,
+        thumbBg: getComputedStyle(thumb).backgroundColor,
+        thumbBorder: getComputedStyle(thumb).borderTopColor,
+      }
+    })
+    assert.deepEqual(markers, {
+      railBg: hexToRgb(nativeRail.backgroundColor),
+      fillBg: hexToRgb(nativeFill.backgroundColor),
+      thumbBg: hexToRgb(thumbNative().backgroundColor),
+      thumbBorder: hexToRgb(thumbNative().borderColor),
+    })
+
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap [role="slider"]').matches(':focus-visible'),
+    )
+    assert.equal(
+      await page
+        .locator('#wrap [role="slider"]')
+        .evaluate((el) => getComputedStyle(el).borderTopColor),
+      hexToRgb(thumbNative({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    const disabledHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { disabled: true }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${disabledHtml}`)
+    assert.equal(
+      await page
+        .locator('#wrap [role="slider"]')
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+      hexToRgb(thumbNative({ 'aria-disabled': true }).backgroundColor),
+    )
+  } finally {
+    await page.close()
+  }
+})
+
+test('Accordion delivers all five prepared slot markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Accordion } from '@hozo/patterns'
+export function Screen({ expanded }: { expanded?: string | null }) {
+  return (
+    <div id="wrap">
+      <Accordion
+        expanded={expanded}
+        accessibilityLabel="Help"
+        items={[
+          { id: 'a', header: 'Shipping', content: 'Two days.' },
+          { id: 'b', header: 'Disabled', content: 'Hidden.', disabled: true },
+        ]}
+        sectionClassName="bg-[#010101]"
+        headingClassName="mt-2"
+        triggerClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] border border-[#aaaaaa] focus-visible:border-[#444444] aria-expanded:bg-[#555555] disabled:bg-[#666666] data-[hozo-state=open]:border-[#777777] text-[#eeeeee] disabled:text-[#999999]"
+        panelClassName="bg-[#fafafa] border border-[#bbbbbb] data-[hozo-state=open]:border-[#888888] text-[#112233]"
+        panelContentClassName="pt-4 text-[#223344]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Accordion }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Accordion') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Accordion: 'Accordion' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ expanded: 'a' })
+  for (const prop of [
+    'sectionClassName',
+    'headingClassName',
+    'triggerClassName',
+    'panelClassName',
+    'panelContentClassName',
+  ])
+    assert.equal(nativeProps[prop], undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeSection = flat(nativeProps.hozoSectionStyle())
+  const nativeHeading = flat(nativeProps.hozoHeadingStyle())
+  const triggerNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoTriggerStyle({
+        hovered: false,
+        pressed: false,
+        focused: false,
+        focusVisible: false,
+        disabled: false,
+        'aria-expanded': false,
+        'data-hozo-disabled': false,
+        'data-hozo-state=open': false,
+        'data-hozo-state=closed': true,
+        ...overrides,
+      }),
+    )
+  const panelNative = (open) =>
+    flat(
+      nativeProps.hozoPanelStyle({
+        'data-hozo-state=open': open,
+        'data-hozo-state=closed': !open,
+      }),
+    )
+  const nativeContent = flat(nativeProps.hozoPanelContentStyle())
+
+  const page = await browser.newPage()
+  try {
+    // Closed interactive states on first trigger + disabled second trigger
+    const closedHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { expanded: null }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${closedHtml}`)
+    const triggers = page.locator('#wrap button')
+    const first = triggers.nth(0)
+    const readBtn = (locator) =>
+      locator.evaluate((el) => ({
+        bg: getComputedStyle(el).backgroundColor,
+        color: getComputedStyle(el).color,
+        borderColor: getComputedStyle(el).borderTopColor,
+      }))
+
+    assert.equal(
+      await page.evaluate(
+        () =>
+          getComputedStyle(document.querySelector('#wrap [role="group"] > div')).backgroundColor,
+      ),
+      hexToRgb(nativeSection.backgroundColor),
+    )
+    assert.equal(
+      await page.evaluate(() =>
+        parseFloat(getComputedStyle(document.querySelector('#wrap h3')).marginTop),
+      ),
+      nativeHeading.marginTop,
+    )
+    assert.equal((await readBtn(first)).bg, hexToRgb(triggerNative().backgroundColor))
+    assert.equal((await readBtn(first)).color, hexToRgb(triggerNative().color))
+
+    const nativeDisabled = triggerNative({ disabled: true, 'data-hozo-disabled': true })
+    assert.equal((await readBtn(triggers.nth(1))).bg, hexToRgb(nativeDisabled.backgroundColor))
+    assert.equal((await readBtn(triggers.nth(1))).color, hexToRgb(nativeDisabled.color))
+
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap button').matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readBtn(first)).borderColor,
+      hexToRgb(triggerNative({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    await page.evaluate(() => document.activeElement?.blur())
+    await first.hover()
+    await page.waitForFunction(() => document.querySelector('#wrap button').matches(':hover'))
+    assert.equal(
+      (await readBtn(first)).bg,
+      hexToRgb(triggerNative({ hovered: true }).backgroundColor),
+    )
+
+    await page.mouse.down()
+    try {
+      await page.waitForFunction(() => document.querySelector('#wrap button').matches(':active'))
+      assert.equal(
+        (await readBtn(first)).bg,
+        hexToRgb(triggerNative({ hovered: true, pressed: true }).backgroundColor),
+      )
+    } finally {
+      await page.mouse.up()
+    }
+
+    // Expanded state: open trigger, open panel, and panelContent markers
+    const openHtml = renderToStaticMarkup(createElement(webMod.exports.Screen, { expanded: 'a' }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${openHtml}`)
+    const openMarkers = await page.evaluate(() => {
+      const btn = document.querySelector('#wrap button')
+      const panel = document.querySelector('#wrap [role="region"]')
+      const inner = panel.firstElementChild
+      return {
+        triggerBg: getComputedStyle(btn).backgroundColor,
+        triggerBorder: getComputedStyle(btn).borderTopColor,
+        panelBg: getComputedStyle(panel).backgroundColor,
+        panelBorder: getComputedStyle(panel).borderTopColor,
+        contentPaddingTop: parseFloat(getComputedStyle(inner).paddingTop),
+        contentColor: getComputedStyle(inner).color,
+      }
+    })
+    const openTrigger = triggerNative({
+      'aria-expanded': true,
+      'data-hozo-state=open': true,
+      'data-hozo-state=closed': false,
+    })
+    const openPanel = panelNative(true)
+    assert.deepEqual(openMarkers, {
+      triggerBg: hexToRgb(openTrigger.backgroundColor),
+      triggerBorder: hexToRgb(openTrigger.borderColor),
+      panelBg: hexToRgb(openPanel.backgroundColor),
+      panelBorder: hexToRgb(openPanel.borderColor),
+      contentPaddingTop: nativeContent.paddingTop,
+      contentColor: hexToRgb(nativeContent.color),
+    })
   } finally {
     await page.close()
   }

@@ -285,7 +285,7 @@ test('TimePicker contracts declare interactive spinbutton View and data-hozo-ste
   }, /decoration events\/host/)
   rejects((doc) => {
     const entry = doc.contracts.find((row) => row.owner === 'TimePicker.value')!
-    entry.shapes[0]!.inputs!.splitText = false
+    entry.shapes[0]!.events = []
   }, /full control snapshot/)
 })
 test('single-platform contracts declare null host/carrier on the absent platform (#2095)', () => {
@@ -471,6 +471,200 @@ test('Tree row contract declares Pressable div host and aria-selected/expanded/d
       webHost: 'div',
       events: ['pressed', 'hovered', 'focused', 'focusVisible'],
       inputs: { facts: ['aria-selected', 'aria-expanded', 'aria-disabled'], splitText: true },
+    },
+  ])
+})
+test('Splitter root contract declares interactive View div host and drag/collapse facts (#2046)', () => {
+  const splitter = parsed().contracts.find((entry) => entry.owner === 'Splitter.root')!
+  assert.equal(splitter.audit, 'audited')
+  assert.deepEqual(splitter.abi, {
+    nativePreparedProp: 'hozoSplitterStyle',
+    webClassProp: 'className',
+  })
+  assert.deepEqual(splitter.authoredStyles, [{ prop: 'style', order: 0 }])
+  assert.deepEqual(splitter.shapes, [
+    {
+      id: 'handle',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: ['hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['data-dragging', 'data-collapsed'], splitText: false },
+    },
+  ])
+})
+test('ResizablePane contracts declare div root, section split-text pane, and handle View (#2046)', () => {
+  const root = parsed().contracts.find((entry) => entry.owner === 'ResizablePane.root')!
+  assert.equal(root.audit, 'audited')
+  assert.deepEqual(root.abi, {
+    nativePreparedProp: 'hozoResizablePaneStyle',
+    webClassProp: 'className',
+  })
+  assert.deepEqual(root.authoredStyles, [{ prop: 'style', order: 0 }])
+  assert.deepEqual(root.shapes, [
+    { id: 'root', when: { eq: ['present', true] }, nativeHost: 'View', webHost: 'div', events: [] },
+  ])
+  const pane = parsed().contracts.find((entry) => entry.owner === 'ResizablePane.pane')!
+  assert.equal(pane.audit, 'audited')
+  assert.deepEqual(pane.abi, {
+    nativePreparedProp: 'hozoPaneStyle',
+    webClassProp: 'paneClassName',
+  })
+  assert.deepEqual(pane.authoredStyles, [{ prop: 'paneStyle', order: 0 }])
+  assert.deepEqual(pane.shapes, [
+    {
+      id: 'pane',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'section',
+      events: [],
+      inputs: { facts: [], splitText: true },
+    },
+  ])
+  const handle = parsed().contracts.find((entry) => entry.owner === 'ResizablePane.handle')!
+  assert.equal(handle.audit, 'audited')
+  assert.deepEqual(handle.abi, {
+    nativePreparedProp: 'hozoHandleStyle',
+    webClassProp: 'handleClassName',
+  })
+  assert.deepEqual(handle.authoredStyles, [{ prop: 'handleStyle', order: 0 }])
+  assert.deepEqual(handle.shapes, [
+    {
+      id: 'handle',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: ['hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['data-dragging', 'data-collapsed'], splitText: false },
+    },
+  ])
+})
+test('Slider contracts declare focus-only thumb View and stateless fill/rail Views (#2046)', () => {
+  const thumb = parsed().contracts.find((entry) => entry.owner === 'Slider.thumb')!
+  assert.equal(thumb.audit, 'audited')
+  assert.deepEqual(thumb.abi, {
+    nativePreparedProp: 'hozoSliderThumbStyle',
+    webClassProp: 'thumbClassName',
+  })
+  assert.deepEqual(thumb.authoredStyles, [{ prop: 'thumbStyle', order: 0 }])
+  assert.deepEqual(thumb.shapes, [
+    {
+      id: 'thumb',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: ['focused', 'focusVisible'],
+      inputs: { facts: ['aria-disabled'], splitText: false },
+    },
+  ])
+  for (const [owner, classProp, prop, styleProp, id] of [
+    ['Slider.fill', 'fillClassName', 'hozoFillStyle', 'fillStyle', 'fill'],
+    ['Slider.rail', 'railClassName', 'hozoRailStyle', 'railStyle', 'rail'],
+  ] as const) {
+    const entry = parsed().contracts.find((row) => row.owner === owner)!
+    assert.equal(entry.audit, 'audited')
+    assert.deepEqual(entry.abi, { nativePreparedProp: prop, webClassProp: classProp })
+    assert.deepEqual(entry.authoredStyles, [{ prop: styleProp, order: 0 }])
+    assert.deepEqual(entry.shapes, [
+      { id, when: { eq: ['present', true] }, nativeHost: 'View', webHost: 'div', events: [] },
+    ])
+  }
+})
+test('Accordion contracts declare section, heading, trigger, data-state panel, and panelContent (#2046)', () => {
+  const section = parsed().contracts.find((entry) => entry.owner === 'Accordion.section')!
+  assert.equal(section.audit, 'audited')
+  assert.deepEqual(section.abi, {
+    nativePreparedProp: 'hozoSectionStyle',
+    webClassProp: 'sectionClassName',
+  })
+  assert.deepEqual(section.authoredStyles, [{ prop: 'sectionStyle', order: 0 }])
+  assert.deepEqual(section.shapes, [
+    {
+      id: 'section',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: [],
+    },
+  ])
+  const heading = parsed().contracts.find((entry) => entry.owner === 'Accordion.heading')!
+  assert.equal(heading.audit, 'audited')
+  assert.deepEqual(heading.abi, {
+    nativePreparedProp: 'hozoHeadingStyle',
+    webClassProp: 'headingClassName',
+  })
+  assert.deepEqual(heading.authoredStyles, [])
+  assert.deepEqual(heading.shapes, [
+    {
+      id: 'heading',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'heading',
+      events: [],
+      inputs: { facts: [], splitText: true },
+    },
+  ])
+  const trigger = parsed().contracts.find((entry) => entry.owner === 'Accordion.trigger')!
+  assert.equal(trigger.audit, 'audited')
+  assert.deepEqual(trigger.abi, {
+    nativePreparedProp: 'hozoTriggerStyle',
+    webClassProp: 'triggerClassName',
+  })
+  assert.deepEqual(trigger.authoredStyles, [
+    { prop: 'triggerStyle', order: 0 },
+    { prop: 'triggerTextStyle', order: 1 },
+  ])
+  assert.deepEqual(trigger.shapes, [
+    {
+      id: 'trigger',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'button',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: {
+        facts: [
+          'disabled',
+          'aria-expanded',
+          'data-hozo-disabled',
+          'data-hozo-state=open',
+          'data-hozo-state=closed',
+        ],
+        splitText: true,
+      },
+    },
+  ])
+  const panel = parsed().contracts.find((entry) => entry.owner === 'Accordion.panel')!
+  assert.equal(panel.audit, 'audited')
+  assert.deepEqual(panel.abi, {
+    nativePreparedProp: 'hozoPanelStyle',
+    webClassProp: 'panelClassName',
+  })
+  assert.deepEqual(panel.authoredStyles, [{ prop: 'panelStyle', order: 0 }])
+  assert.deepEqual(panel.shapes, [
+    {
+      id: 'panel',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: [],
+      inputs: { facts: ['data-hozo-state=open', 'data-hozo-state=closed'], splitText: true },
+    },
+  ])
+  const content = parsed().contracts.find((entry) => entry.owner === 'Accordion.panelContent')!
+  assert.equal(content.audit, 'audited')
+  assert.deepEqual(content.abi, {
+    nativePreparedProp: 'hozoPanelContentStyle',
+    webClassProp: 'panelContentClassName',
+  })
+  assert.deepEqual(content.authoredStyles, [{ prop: 'panelContentStyle', order: 0 }])
+  assert.deepEqual(content.shapes, [
+    {
+      id: 'panelContent',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: [],
+      inputs: { facts: [], splitText: true },
     },
   ])
 })

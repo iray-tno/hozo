@@ -10,6 +10,8 @@ const channels = (name, names, options = {}) =>
 
 const exports = [
   'Other',
+  'Accordion',
+  'HozoAccordion',
   'HozoBottomSheet',
   'BottomSheet',
   'Drawer',
@@ -18,6 +20,10 @@ const exports = [
   'HozoPopover',
   'RadioGroup',
   'HozoRadioGroup',
+  'ResizablePane',
+  'Slider',
+  'HozoSlider',
+  'Splitter',
   'Tabs',
   'HozoTabs',
   'Toolbar',
@@ -37,23 +43,50 @@ test('catalog publication owns the contract once and attaches only actual packag
   assert.deepEqual(result.owners, patternsShadow)
   assert.notEqual(result.owners, ownerShadow, 'producer output must not mutate the catalog')
   assert.deepEqual(result.exports, [
+    {
+      name: 'Accordion',
+      owners: [
+        'Accordion.heading',
+        'Accordion.panel',
+        'Accordion.panelContent',
+        'Accordion.section',
+        'Accordion.trigger',
+      ],
+    },
     { name: 'BottomSheet', owners: ['BottomSheet.handle'] },
     { name: 'Drawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
+    {
+      name: 'HozoAccordion',
+      owners: [
+        'Accordion.heading',
+        'Accordion.panel',
+        'Accordion.panelContent',
+        'Accordion.section',
+        'Accordion.trigger',
+      ],
+    },
     { name: 'HozoBottomSheet', owners: ['BottomSheet.handle'] },
     { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
     { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.trigger'] },
     { name: 'HozoRadioGroup', owners: ['RadioGroup.option'] },
+    { name: 'HozoSlider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
     { name: 'HozoTabs', owners: ['Tabs.Tab'] },
     { name: 'HozoToolbar', owners: ['Toolbar.root'] },
     { name: 'HozoTree', owners: ['Tree.row'] },
     { name: 'Other', owners: [] },
     { name: 'Popover', owners: ['Popover.panel', 'Popover.trigger'] },
     { name: 'RadioGroup', owners: ['RadioGroup.option'] },
+    {
+      name: 'ResizablePane',
+      owners: ['ResizablePane.handle', 'ResizablePane.pane', 'ResizablePane.root'],
+    },
+    { name: 'Slider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
+    { name: 'Splitter', owners: ['Splitter.root'] },
     { name: 'Tabs', owners: ['Tabs.Tab'] },
     { name: 'Toolbar', owners: ['Toolbar.root'] },
     { name: 'Tree', owners: ['Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 9)
+  assert.equal(result.owners.contracts.length, 21)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
@@ -66,6 +99,18 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['Popover.panel', 'audited'],
       ['RadioGroup.option', 'audited'],
       ['Tree.row', 'audited'],
+      ['Splitter.root', 'audited'],
+      ['ResizablePane.root', 'audited'],
+      ['ResizablePane.pane', 'audited'],
+      ['ResizablePane.handle', 'audited'],
+      ['Slider.thumb', 'audited'],
+      ['Slider.fill', 'audited'],
+      ['Slider.rail', 'audited'],
+      ['Accordion.section', 'audited'],
+      ['Accordion.heading', 'audited'],
+      ['Accordion.trigger', 'audited'],
+      ['Accordion.panel', 'audited'],
+      ['Accordion.panelContent', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')

@@ -40,6 +40,7 @@ function loadNativePatternModule(
   })
   const captured: { host: string; props: Record<string, unknown> }[] = []
   let interactionState = { hovered: false, pressed: false, focused: false, focusVisible: false }
+  let draggingState = false
   const host = (name: string) => (props: Record<string, unknown>) => {
     const resolvedProps = {
       ...props,
@@ -90,7 +91,8 @@ function loadNativePatternModule(
       return { hozoAuthoredStyle: (s: unknown) => s }
     if (specifier === '@hozo/engine/generated/safe-area')
       return { useHozoProvidedSafeArea: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }
-    if (specifier === '@hozo/engine/generated/animated') return { HozoAnimated: rn.View }
+    if (specifier === '@hozo/engine/generated/animated')
+      return { HozoAnimated: rn.View, PresenceContext: React.createContext(null) }
     if (specifier === '@hozo/engine/generated/environment')
       return { useHozoEnvironment: () => false }
     if (specifier === '@hozo/engine') {
@@ -131,6 +133,7 @@ function loadNativePatternModule(
         }),
         Portal: ({ children }: { children?: React.ReactNode }) => children ?? null,
         FloatingPositioner: ({ children }: { children?: React.ReactNode }) => children ?? null,
+        useDrag1D: () => ({ dragging: draggingState, handlers: {} }),
       }
     }
     if (specifier === '@hozo/behaviors/pressable-interaction') {
@@ -187,6 +190,9 @@ function loadNativePatternModule(
     captured,
     setInteraction(next: Partial<typeof interactionState>) {
       interactionState = { ...interactionState, ...next }
+    },
+    setDragging(next: boolean) {
+      draggingState = next
     },
   }
 }
@@ -648,4 +654,528 @@ export function Fallback() {
       ),
     /Prepared Tree styles must consume rowClassName/,
   )
+})
+
+test('Native Splitter delivers prepared handle styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Splitter } from '@hozo/patterns'
+export function Screen({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <Splitter
+      label="Sidebar"
+      controls="nav"
+      min={100}
+      max={400}
+      collapsible
+      collapsed={collapsed}
+      className="w-1 bg-[#111111] hover:bg-[#222222] focus-visible:border-[#333333] data-[dragging]:bg-[#444444] data-[collapsed]:bg-[#555555]"
+    />
+  )
+}
+export function Fallback() {
+  return (
+    <Splitter
+      label="Keep"
+      controls="nav"
+      min={100}
+      max={400}
+      className="active:bg-[#666666]"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoSplitterStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="w-1 bg-\[#111111\]/)
+  // Interactive View handle has no Pressable press responder; active: stays on the runtime path.
+  assert.match(transformed, /className="active:bg-\[#666666\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const splitterMod = loadNativePatternModule('splitter.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ collapsed?: boolean }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Splitter: splitterMod.exports.Splitter }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    options: {
+      collapsed?: boolean
+      dragging?: boolean
+      hovered?: boolean
+      focused?: boolean
+      focusVisible?: boolean
+    } = {},
+  ) => {
+    splitterMod.captured.length = 0
+    splitterMod.setDragging(Boolean(options.dragging))
+    splitterMod.setInteraction({
+      hovered: Boolean(options.hovered),
+      pressed: false,
+      focused: Boolean(options.focused),
+      focusVisible: Boolean(options.focusVisible),
+    })
+    renderToStaticMarkup(
+      React.createElement(screenMod.exports.Screen, { collapsed: options.collapsed }),
+    )
+    return flattenStyle(splitterMod.captured.find((entry) => entry.host === 'View')!.props.style)
+  }
+
+  assert.equal(renderCase().backgroundColor, '#111111')
+  assert.equal(renderCase({ hovered: true }).backgroundColor, '#222222')
+  assert.equal(renderCase({ focused: true, focusVisible: true }).borderColor, '#333333')
+  assert.equal(renderCase({ dragging: true }).backgroundColor, '#444444')
+  assert.equal(renderCase({ collapsed: true }).backgroundColor, '#555555')
+  assert.equal(classResolverCalls, 0, 'prepared Splitter literals must never call hozoClasses')
+
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          splitterMod.exports.Splitter as React.ComponentType<Record<string, unknown>>,
+          {
+            label: 'Sidebar',
+            controls: 'nav',
+            min: 100,
+            max: 400,
+            className: 'w-1',
+            hozoSplitterStyle: () => ({}),
+          },
+        ),
+      ),
+    /Prepared Splitter styles must consume className/,
+  )
+})
+
+test('Native ResizablePane delivers prepared root, pane and handle styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { ResizablePane } from '@hozo/patterns'
+export function Screen({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <ResizablePane
+      side="start"
+      label="Nav"
+      min={100}
+      max={400}
+      collapsible
+      collapsed={collapsed}
+      className="bg-[#010101]"
+      paneClassName="pt-4 bg-[#fafafa] text-[#112233]"
+      handleClassName="w-1 bg-[#111111] hover:bg-[#222222] focus-visible:border-[#333333] data-[dragging]:bg-[#444444] data-[collapsed]:bg-[#555555]"
+    >
+      Sidebar
+    </ResizablePane>
+  )
+}
+export function Fallback() {
+  return (
+    <ResizablePane side="start" label="Keep" min={100} max={400} paneClassName="hover:opacity-50">
+      Keep
+    </ResizablePane>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoResizablePaneStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPaneStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoHandleStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="bg-\[#010101\]"/)
+  assert.doesNotMatch(transformed, /paneClassName="pt-4/)
+  assert.doesNotMatch(transformed, /handleClassName="w-1/)
+  // Stateless pane refuses hover: and keeps the runtime path.
+  assert.match(transformed, /paneClassName="hover:opacity-50"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const splitterMod = loadNativePatternModule('splitter.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ collapsed?: boolean }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return { ResizablePane: splitterMod.exports.ResizablePane }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    options: {
+      collapsed?: boolean
+      dragging?: boolean
+      hovered?: boolean
+      focused?: boolean
+      focusVisible?: boolean
+    } = {},
+  ) => {
+    splitterMod.captured.length = 0
+    splitterMod.setDragging(Boolean(options.dragging))
+    splitterMod.setInteraction({
+      hovered: Boolean(options.hovered),
+      pressed: false,
+      focused: Boolean(options.focused),
+      focusVisible: Boolean(options.focusVisible),
+    })
+    renderToStaticMarkup(
+      React.createElement(screenMod.exports.Screen, { collapsed: options.collapsed }),
+    )
+    const views = splitterMod.captured.filter((entry) => entry.host === 'View')
+    return {
+      root: flattenStyle(views[0]!.props.style),
+      pane: flattenStyle(views[1]!.props.style),
+      handle: flattenStyle(views[2]!.props.style),
+      text: flattenStyle(splitterMod.captured.find((entry) => entry.host === 'Text')!.props.style),
+    }
+  }
+
+  const rest = renderCase()
+  assert.equal(rest.root.backgroundColor, '#010101')
+  assert.equal(rest.pane.paddingTop, 16)
+  assert.equal(rest.pane.backgroundColor, '#fafafa')
+  assert.equal(rest.text.color, '#112233')
+  assert.equal(rest.handle.backgroundColor, '#111111')
+  assert.equal(renderCase({ hovered: true }).handle.backgroundColor, '#222222')
+  assert.equal(renderCase({ focused: true, focusVisible: true }).handle.borderColor, '#333333')
+  assert.equal(renderCase({ dragging: true }).handle.backgroundColor, '#444444')
+  assert.equal(renderCase({ collapsed: true }).handle.backgroundColor, '#555555')
+  assert.equal(classResolverCalls, 0, 'prepared ResizablePane literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoResizablePaneStyle'],
+    ['paneClassName', 'hozoPaneStyle'],
+    ['handleClassName', 'hozoHandleStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            splitterMod.exports.ResizablePane as React.ComponentType<Record<string, unknown>>,
+            {
+              side: 'start',
+              label: 'Nav',
+              min: 100,
+              max: 400,
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+            },
+            'Body',
+          ),
+        ),
+      new RegExp(`Prepared ResizablePane styles must consume ${classProp}`),
+    )
+  }
+})
+
+test('Native Slider delivers prepared thumb, fill and rail styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Slider } from '@hozo/patterns'
+export function Screen({ disabled }: { disabled?: boolean }) {
+  return (
+    <Slider
+      accessibilityLabel="Volume"
+      defaultValue={40}
+      disabled={disabled}
+      railClassName="bg-[#101010]"
+      fillClassName="bg-[#202020]"
+      thumbClassName="bg-[#111111] focus:border-[#222222] focus-visible:border-[#333333] aria-disabled:bg-[#444444]"
+    />
+  )
+}
+export function Fallback() {
+  return (
+    <Slider
+      accessibilityLabel="Keep"
+      thumbClassName="hover:bg-[#555555]"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoRailStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoFillStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoSliderThumbStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /railClassName="bg-\[#101010\]"/)
+  assert.doesNotMatch(transformed, /fillClassName="bg-\[#202020\]"/)
+  assert.doesNotMatch(transformed, /thumbClassName="bg-\[#111111\]/)
+  // Track owns pointers on Native; thumb refuses hover: and keeps the runtime path.
+  assert.match(transformed, /thumbClassName="hover:bg-\[#555555\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const sliderMod = loadNativePatternModule('slider.native.tsx', { hozoClasses: spyHozoClasses })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ disabled?: boolean }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Slider: sliderMod.exports.Slider }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    options: { disabled?: boolean; focused?: boolean; focusVisible?: boolean } = {},
+  ) => {
+    sliderMod.captured.length = 0
+    sliderMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: Boolean(options.focused),
+      focusVisible: Boolean(options.focusVisible),
+    })
+    renderToStaticMarkup(
+      React.createElement(screenMod.exports.Screen, { disabled: options.disabled }),
+    )
+    const views = sliderMod.captured.filter((entry) => entry.host === 'View')
+    // [0: track, 1: rail, 2: fill, 3: thumb]
+    assert.equal(views.length, 4, 'prepared rail and fill must still mount without class strings')
+    return {
+      rail: flattenStyle(views[1]!.props.style),
+      fill: flattenStyle(views[2]!.props.style),
+      thumb: flattenStyle(views[3]!.props.style),
+    }
+  }
+
+  const rest = renderCase()
+  assert.equal(rest.rail.backgroundColor, '#101010')
+  assert.equal(rest.fill.backgroundColor, '#202020')
+  assert.equal(rest.thumb.backgroundColor, '#111111')
+  assert.equal(renderCase({ focused: true }).thumb.borderColor, '#222222')
+  assert.equal(renderCase({ focused: true, focusVisible: true }).thumb.borderColor, '#333333')
+  assert.equal(renderCase({ disabled: true }).thumb.backgroundColor, '#444444')
+  assert.equal(classResolverCalls, 0, 'prepared Slider literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp] of [
+    ['thumbClassName', 'hozoSliderThumbStyle'],
+    ['fillClassName', 'hozoFillStyle'],
+    ['railClassName', 'hozoRailStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            sliderMod.exports.Slider as React.ComponentType<Record<string, unknown>>,
+            {
+              accessibilityLabel: 'Volume',
+              [classProp]: 'bg-[#000000]',
+              [preparedProp]: () => ({}),
+            },
+          ),
+        ),
+      new RegExp(`Prepared Slider styles must consume ${classProp}`),
+    )
+  }
+})
+
+test('Native Accordion delivers all five prepared slot styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Accordion } from '@hozo/patterns'
+export function Screen({ expanded }: { expanded?: string | null }) {
+  return (
+    <Accordion
+      expanded={expanded}
+      items={[
+        { id: 'a', header: 'Shipping', content: 'Two days.' },
+        { id: 'b', header: 'Disabled', content: 'Hidden.', disabled: true },
+      ]}
+      sectionClassName="bg-[#010101]"
+      headingClassName="mt-2"
+      triggerClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] aria-expanded:bg-[#555555] disabled:bg-[#666666] data-[hozo-state=open]:border-[#777777] text-[#eeeeee] disabled:text-[#999999]"
+      panelClassName="bg-[#fafafa] data-[hozo-state=open]:border-[#888888] text-[#112233]"
+      panelContentClassName="pt-4 text-[#223344]"
+    />
+  )
+}
+export function Fallback() {
+  return (
+    <Accordion
+      items={[{ id: 'a', header: 'A', content: 'B' }]}
+      panelClassName="transition-[height] duration-200 bg-[#fafafa]"
+      sectionClassName="hover:opacity-50"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoSectionStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoHeadingStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTriggerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPanelStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPanelContentStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /sectionClassName="bg-\[#010101\]"/)
+  assert.doesNotMatch(transformed, /headingClassName="mt-2"/)
+  assert.doesNotMatch(transformed, /triggerClassName="bg-\[#111111\]/)
+  assert.doesNotMatch(transformed, /panelClassName="bg-\[#fafafa\]/)
+  assert.doesNotMatch(transformed, /panelContentClassName="pt-4/)
+  // Transition panel and interactive section stay on the runtime path.
+  assert.match(transformed, /panelClassName="transition-\[height\] duration-200 bg-\[#fafafa\]"/)
+  assert.match(transformed, /sectionClassName="hover:opacity-50"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const accordionMod = loadNativePatternModule('accordion.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ expanded?: string | null }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Accordion: accordionMod.exports.Accordion }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    expanded: string | null,
+    interaction: {
+      hovered?: boolean
+      pressed?: boolean
+      focused?: boolean
+      focusVisible?: boolean
+    } = {},
+  ) => {
+    accordionMod.captured.length = 0
+    accordionMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: false,
+      focusVisible: false,
+      ...interaction,
+    })
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { expanded }))
+    return {
+      views: accordionMod.captured
+        .filter((entry) => entry.host === 'View')
+        .map((entry) => flattenStyle(entry.props.style)),
+      triggers: accordionMod.captured
+        .filter((entry) => entry.host === 'Pressable')
+        .map((entry) => flattenStyle(entry.props.style)),
+      texts: accordionMod.captured
+        .filter((entry) => entry.host === 'Text')
+        .map((entry) => flattenStyle(entry.props.style)),
+    }
+  }
+
+  const closed = renderCase(null)
+  assert.equal(closed.views[1]!.backgroundColor, '#010101')
+  assert.equal(closed.triggers[0]!.marginTop, 8)
+  assert.equal(closed.triggers[0]!.backgroundColor, '#111111')
+  assert.equal(closed.triggers[1]!.backgroundColor, '#666666')
+  assert.equal(closed.texts[0]!.color, '#eeeeee')
+  assert.equal(closed.texts[1]!.color, '#999999')
+
+  assert.equal(renderCase(null, { hovered: true }).triggers[0]!.backgroundColor, '#222222')
+  assert.equal(renderCase(null, { pressed: true }).triggers[0]!.backgroundColor, '#333333')
+  assert.equal(
+    renderCase(null, { focused: true, focusVisible: true }).triggers[0]!.borderColor,
+    '#444444',
+  )
+
+  const opened = renderCase('a')
+  // Views: [0: root, 1: section0, 2: panel0, 3: panelContent0, 4: section1]
+  assert.equal(opened.triggers[0]!.backgroundColor, '#555555')
+  assert.equal(opened.triggers[0]!.borderColor, '#777777')
+  assert.equal(opened.views[2]!.backgroundColor, '#fafafa')
+  assert.equal(opened.views[2]!.borderColor, '#888888')
+  assert.equal(opened.views[3]!.paddingTop, 16)
+  assert.equal(opened.texts[1]!.color, '#223344')
+
+  assert.equal(classResolverCalls, 0, 'prepared Accordion literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp] of [
+    ['sectionClassName', 'hozoSectionStyle'],
+    ['headingClassName', 'hozoHeadingStyle'],
+    ['triggerClassName', 'hozoTriggerStyle'],
+    ['panelClassName', 'hozoPanelStyle'],
+    ['panelContentClassName', 'hozoPanelContentStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            accordionMod.exports.Accordion as React.ComponentType<Record<string, unknown>>,
+            {
+              items: [{ id: 'a', header: 'A', content: 'B' }],
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+            },
+          ),
+        ),
+      new RegExp(`Prepared Accordion styles must consume ${classProp}`),
+    )
+  }
 })

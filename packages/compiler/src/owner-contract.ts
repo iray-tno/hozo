@@ -20,6 +20,10 @@ export type OwnerFact =
   | 'data-hozo-step'
   | 'data-hozo-step=increase'
   | 'data-hozo-step=decrease'
+  | 'data-dragging'
+  | 'data-collapsed'
+  | 'data-hozo-state=open'
+  | 'data-hozo-state=closed'
 
 export interface OwnerShape {
   id: string
@@ -35,6 +39,8 @@ export interface OwnerShape {
     | 'select'
     | 'table'
     | 'td'
+    | 'section'
+    | 'heading'
     | null
   events: ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
   /** Explicit preparation inputs, not inferred from a synthetic host. */
@@ -204,7 +210,19 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       `${at}.author order`,
     )
     const nativeHosts = ['Pressable', 'View', 'Text', 'TextInput']
-    const webHosts = ['button', 'div', 'form', 'label', 'span', 'textarea', 'select', 'table', 'td']
+    const webHosts = [
+      'button',
+      'div',
+      'form',
+      'label',
+      'span',
+      'textarea',
+      'select',
+      'table',
+      'td',
+      'section',
+      'heading',
+    ]
     const shapes = list(contract.shapes, 16, `${at}.shapes`).map((value): OwnerShape => {
       const shape = object(
         value,
@@ -235,10 +253,14 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       // Only verified host pairs (or explicit single-platform hosts) have application evidence.
       const interactiveViewEvents =
         shape.webHost === 'div' &&
-        events.length === 3 &&
-        ['hovered', 'focused', 'focusVisible'].every((event) =>
-          events.includes(event as OwnerShape['events'][number]),
-        )
+        ((events.length === 3 &&
+          ['hovered', 'focused', 'focusVisible'].every((event) =>
+            events.includes(event as OwnerShape['events'][number]),
+          )) ||
+          (events.length === 2 &&
+            ['focused', 'focusVisible'].every((event) =>
+              events.includes(event as OwnerShape['events'][number]),
+            )))
       const nativeOnlyInteractiveView =
         nativeOnly && shape.nativeHost === 'View' && events.length > 0
       const nativeOnlyPressOnly =
@@ -249,7 +271,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       if (dualPlatform) {
         if (
           shape.nativeHost === 'View' &&
-          (!['div', 'form', 'table'].includes(shape.webHost as string) ||
+          (!['div', 'form', 'table', 'section', 'heading'].includes(shape.webHost as string) ||
             (events.length !== 0 && !interactiveViewEvents))
         )
           fail(`${at}.decoration events/host`)
@@ -278,7 +300,9 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
           fail(`${at}.input events/host`)
       } else if (webOnly) {
         if (
-          ['label', 'span', 'form', 'table'].includes(shape.webHost as string) &&
+          ['label', 'span', 'form', 'table', 'section', 'heading'].includes(
+            shape.webHost as string,
+          ) &&
           events.length !== 0
         )
           fail(`${at}.decoration events/host`)
@@ -320,6 +344,10 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
               'data-hozo-step',
               'data-hozo-step=increase',
               'data-hozo-step=decrease',
+              'data-dragging',
+              'data-collapsed',
+              'data-hozo-state=open',
+              'data-hozo-state=closed',
             ].includes(fact),
           )
         )
@@ -346,10 +374,21 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
           supplied.splitText &&
           facts.length === 0 &&
           events.length === 0
-        const interactiveViewReady =
+        const dataOnlyViewReady =
           shape.nativeHost === 'View' &&
-          ((supplied.splitText && interactiveViewEvents) || nativeOnlyInteractiveView)
-        if (!pressableReady && !textInputReady && !splitTextViewReady && !interactiveViewReady)
+          shape.webHost === 'div' &&
+          events.length === 0 &&
+          facts.length > 0 &&
+          facts.every((fact) => fact.startsWith('data-'))
+        const interactiveViewReady =
+          shape.nativeHost === 'View' && (interactiveViewEvents || nativeOnlyInteractiveView)
+        if (
+          !pressableReady &&
+          !textInputReady &&
+          !splitTextViewReady &&
+          !dataOnlyViewReady &&
+          !interactiveViewReady
+        )
           fail(`${at}.shape inputs need the full control snapshot`)
         inputs = { facts, splitText: supplied.splitText }
       }

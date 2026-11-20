@@ -1442,13 +1442,13 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         Condition::LastChild => Some("last".to_string()),
         Condition::Disabled => Some("disabled".to_string()),
         Condition::Enabled => Some("enabled".to_string()),
-        // Declared owner `data-hozo-*` predicates reach StyleSheet keys and need
+        // Declared owner data-attribute predicates reach StyleSheet keys and need
         // distinct JS identifiers so sibling data conditions do not overwrite
         // each other. Other data attributes are refused (except Presence's
         // closed state) and keep the generic `"data"` suffix.
         Condition::DataAttribute(selector) => {
             if let Some(key) = crate::candidate::data_fact_key(selector) {
-                if key.starts_with("data-hozo-") {
+                if key.starts_with("data-hozo-") || OwnerFact::from_data_key(&key).is_some() {
                     return Some(
                         key.replace('_', "__")
                             .replace('-', "_")

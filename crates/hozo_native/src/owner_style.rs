@@ -46,6 +46,10 @@ pub enum OwnerFact {
     DataHozoStep,
     DataHozoStepIncrease,
     DataHozoStepDecrease,
+    DataDragging,
+    DataCollapsed,
+    DataHozoStateOpen,
+    DataHozoStateClosed,
 }
 
 impl OwnerFact {
@@ -67,6 +71,10 @@ impl OwnerFact {
             Self::DataHozoStep => "data-hozo-step",
             Self::DataHozoStepIncrease => "data-hozo-step=increase",
             Self::DataHozoStepDecrease => "data-hozo-step=decrease",
+            Self::DataDragging => "data-dragging",
+            Self::DataCollapsed => "data-collapsed",
+            Self::DataHozoStateOpen => "data-hozo-state=open",
+            Self::DataHozoStateClosed => "data-hozo-state=closed",
         }
     }
 
@@ -88,11 +96,51 @@ impl OwnerFact {
             Self::DataHozoStep => "__hozoOwnerDataHozoStep",
             Self::DataHozoStepIncrease => "__hozoOwnerDataHozoStepIncrease",
             Self::DataHozoStepDecrease => "__hozoOwnerDataHozoStepDecrease",
+            Self::DataDragging => "__hozoOwnerDataDragging",
+            Self::DataCollapsed => "__hozoOwnerDataCollapsed",
+            Self::DataHozoStateOpen => "__hozoOwnerDataHozoStateOpen",
+            Self::DataHozoStateClosed => "__hozoOwnerDataHozoStateClosed",
         }
     }
 
     pub(crate) fn parameter(self) -> String {
         format!("{:?}: {}", self.key(), self.alias())
+    }
+
+    pub(crate) fn from_data_key(key: &str) -> Option<Self> {
+        match key {
+            "data-hozo-outside" => Some(Self::DataHozoOutside),
+            "data-hozo-disabled" => Some(Self::DataHozoDisabled),
+            "data-hozo-range-start" => Some(Self::DataHozoRangeStart),
+            "data-hozo-range-end" => Some(Self::DataHozoRangeEnd),
+            "data-hozo-in-range" => Some(Self::DataHozoInRange),
+            "data-hozo-step" => Some(Self::DataHozoStep),
+            "data-hozo-step=increase" => Some(Self::DataHozoStepIncrease),
+            "data-hozo-step=decrease" => Some(Self::DataHozoStepDecrease),
+            "data-dragging" => Some(Self::DataDragging),
+            "data-collapsed" => Some(Self::DataCollapsed),
+            "data-hozo-state=open" => Some(Self::DataHozoStateOpen),
+            "data-hozo-state=closed" => Some(Self::DataHozoStateClosed),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn is_data_fact(self) -> bool {
+        matches!(
+            self,
+            Self::DataHozoOutside
+                | Self::DataHozoDisabled
+                | Self::DataHozoRangeStart
+                | Self::DataHozoRangeEnd
+                | Self::DataHozoInRange
+                | Self::DataHozoStep
+                | Self::DataHozoStepIncrease
+                | Self::DataHozoStepDecrease
+                | Self::DataDragging
+                | Self::DataCollapsed
+                | Self::DataHozoStateOpen
+                | Self::DataHozoStateClosed
+        )
     }
 }
 
@@ -239,7 +287,9 @@ pub fn lower_owner_style_with_inputs(
             _ => false,
         }
     }
-    let interactive_view = root.primitive == Primitive::View && !inputs.events.is_empty();
+    let interactive_view = root.primitive == Primitive::View
+        && (!inputs.events.is_empty()
+            || (!facts.is_empty() && facts.iter().all(|fact| fact.is_data_fact())));
     let eligible = matches!(
         root.primitive,
         Primitive::View | Primitive::Pressable | Primitive::Text | Primitive::TextInput
@@ -926,5 +976,73 @@ mod tests {
         assert!(carrier
             .expression
             .contains("typeof __hozoOwnerAriaChecked === 'boolean'"));
+    }
+
+    #[test]
+    fn splitter_handle_view_compiles_dragging_and_collapsed_facts() {
+        let source = "const el=<View className=\"bg-[#111111] hover:bg-[#222222] focus-visible:border-[#333333] data-[dragging]:bg-[#444444] data-[collapsed]:bg-[#555555]\"/>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let events = [
+            OwnerEvent::Hovered,
+            OwnerEvent::Focused,
+            OwnerEvent::FocusVisible,
+        ];
+        let facts = [OwnerFact::DataDragging, OwnerFact::DataCollapsed];
+        let (output, carrier) = lower_owner_style_with_inputs(
+            &parsed.roots[0].node,
+            &[],
+            source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &facts,
+                events: &events,
+                split_text: false,
+            },
+        );
+        let carrier = carrier.expect("splitter handle owner style compiles");
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(carrier.callback && !carrier.split_text);
+        assert!(carrier
+            .expression
+            .contains("\"data-dragging\": __hozoOwnerDataDragging"));
+        assert!(carrier
+            .expression
+            .contains("\"data-collapsed\": __hozoOwnerDataCollapsed"));
+        assert!(carrier.expression.contains("hozo0_data_dragging"));
+        assert!(carrier.expression.contains("hozo0_data_collapsed"));
+        assert!(output.styles.contains("hozo0_data_dragging:"));
+        assert!(output.styles.contains("hozo0_data_collapsed:"));
+        assert!(!carrier.expression.contains("pressed"));
+    }
+
+    #[test]
+    fn data_only_view_owner_compiles_hozo_state_without_inventing_events() {
+        let source = "const el=<View className=\"bg-[#111111] text-[#222222] data-[hozo-state=open]:bg-[#333333] data-[hozo-state=closed]:bg-[#444444]\"/>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let facts = [OwnerFact::DataHozoStateOpen, OwnerFact::DataHozoStateClosed];
+        let (output, carrier) = lower_owner_style_with_inputs(
+            &parsed.roots[0].node,
+            &[],
+            source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &facts,
+                events: &[],
+                split_text: true,
+            },
+        );
+        let carrier = carrier.expect("data-only split-text View compiles");
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(carrier.callback && carrier.split_text);
+        assert!(carrier
+            .expression
+            .contains("\"data-hozo-state=open\": __hozoOwnerDataHozoStateOpen"));
+        assert!(carrier
+            .expression
+            .contains("\"data-hozo-state=closed\": __hozoOwnerDataHozoStateClosed"));
+        assert!(output.styles.contains("hozo0_data_hozo_state_eq_open:"));
+        assert!(output.styles.contains("hozo0_data_hozo_state_eq_closed:"));
+        assert!(!carrier.expression.contains("pressed"));
+        assert!(!carrier.expression.contains("hovered"));
     }
 }
