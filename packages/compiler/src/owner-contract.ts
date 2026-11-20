@@ -7,6 +7,7 @@ export type OwnerFact =
   | 'disabled'
   | 'readOnly'
   | 'aria-selected'
+  | 'aria-checked'
   | 'aria-disabled'
   | 'aria-invalid'
   | 'aria-required'
@@ -259,7 +260,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
           fail(`${at}.text events/host`)
         if (
           shape.nativeHost === 'Pressable' &&
-          !['button', 'select', 'td'].includes(shape.webHost as string)
+          !['button', 'select', 'td', 'div'].includes(shape.webHost as string)
         )
           fail(`${at}.control host`)
         if (
@@ -306,6 +307,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
               'disabled',
               'readOnly',
               'aria-selected',
+              'aria-checked',
               'aria-disabled',
               'aria-invalid',
               'aria-required',

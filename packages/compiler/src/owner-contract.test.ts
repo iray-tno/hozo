@@ -436,6 +436,25 @@ test('Popover trigger and panel contracts declare Pressable facts and split-text
     },
   ])
 })
+test('RadioGroup option contract declares Pressable div host and aria-checked/aria-disabled facts (#2046)', () => {
+  const option = parsed().contracts.find((row) => row.owner === 'RadioGroup.option')!
+  assert.equal(option.audit, 'audited')
+  assert.deepEqual(option.abi, {
+    nativePreparedProp: 'hozoOptionStyle',
+    webClassProp: 'optionClassName',
+  })
+  assert.deepEqual(option.authoredStyles, [{ prop: 'optionStyle', order: 0 }])
+  assert.deepEqual(option.shapes, [
+    {
+      id: 'option',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'div',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['aria-checked', 'aria-disabled'], splitText: true },
+    },
+  ])
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)
@@ -591,7 +610,7 @@ test('unsupported host/event declarations remain errors rather than invented dec
     Object.assign(value.contracts[0]!.shapes[0]!, { nativeHost: 'Text' })
   }, /host/)
   rejects((value) => {
-    value.contracts[0]!.shapes[0]!.webHost = 'div'
+    value.contracts[0]!.shapes[0]!.webHost = 'form'
   }, /host/)
   rejects((value) => {
     Object.assign(value.contracts[0]!.shapes[0]!, { events: ['selected'] })

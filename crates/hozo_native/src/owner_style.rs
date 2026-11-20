@@ -33,6 +33,7 @@ pub enum OwnerFact {
     Disabled,
     ReadOnly,
     AriaSelected,
+    AriaChecked,
     AriaDisabled,
     AriaInvalid,
     AriaRequired,
@@ -53,6 +54,7 @@ impl OwnerFact {
             Self::Disabled => "disabled",
             Self::ReadOnly => "readOnly",
             Self::AriaSelected => "aria-selected",
+            Self::AriaChecked => "aria-checked",
             Self::AriaDisabled => "aria-disabled",
             Self::AriaInvalid => "aria-invalid",
             Self::AriaRequired => "aria-required",
@@ -73,6 +75,7 @@ impl OwnerFact {
             Self::Disabled => "__hozoOwnerDisabled",
             Self::ReadOnly => "__hozoOwnerReadOnly",
             Self::AriaSelected => "__hozoOwnerAriaSelected",
+            Self::AriaChecked => "__hozoOwnerAriaChecked",
             Self::AriaDisabled => "__hozoOwnerAriaDisabled",
             Self::AriaInvalid => "__hozoOwnerAriaInvalid",
             Self::AriaRequired => "__hozoOwnerAriaRequired",
@@ -896,5 +899,32 @@ mod tests {
                 "press-only Pressable must refuse {rejected}"
             );
         }
+    }
+
+    #[test]
+    fn aria_checked_owner_fact_compiles_for_radio_option() {
+        let source = "const el=<Pressable className=\"bg-[#111111] aria-checked:bg-[#222222] not-aria-checked:opacity-75 aria-disabled:text-[#888888]\"/>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let facts = [OwnerFact::AriaChecked, OwnerFact::AriaDisabled];
+        let (output, carrier) = lower_owner_style_with_inputs(
+            &parsed.roots[0].node,
+            &[],
+            source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &facts,
+                split_text: true,
+                ..Default::default()
+            },
+        );
+        let carrier = carrier.expect("aria-checked owner style compiles");
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(carrier.callback && carrier.split_text);
+        assert!(carrier
+            .expression
+            .contains("\"aria-checked\": __hozoOwnerAriaChecked"));
+        assert!(carrier
+            .expression
+            .contains("typeof __hozoOwnerAriaChecked === 'boolean'"));
     }
 }

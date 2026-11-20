@@ -84,13 +84,18 @@ function loadNativePatternModule(
   const localRequire = (specifier: string): unknown => {
     if (specifier === 'react') return React
     if (specifier === 'react-native') return rn
-    if (specifier === '@hozo/engine/project') return { hozoClasses: options.hozoClasses }
+    if (specifier === '@hozo/engine/project')
+      return { hozoClasses: options.hozoClasses, hozoClassTransitions: {} }
     if (specifier === '@hozo/engine/generated/gap-styles')
       return { hozoAuthoredStyle: (s: unknown) => s }
     if (specifier === '@hozo/engine/generated/safe-area')
       return { useHozoProvidedSafeArea: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }
+    if (specifier === '@hozo/engine/generated/animated') return { HozoAnimated: rn.View }
+    if (specifier === '@hozo/engine/generated/environment')
+      return { useHozoEnvironment: () => false }
     if (specifier === '@hozo/engine') {
       return {
+        createClassTransitions: () => () => undefined,
         hozoSplitTextStyle: (style: Record<string, unknown>) => {
           const textKeys = new Set([
             'color',
@@ -405,4 +410,124 @@ export function Fallback() {
       new RegExp(`Prepared Popover styles must consume ${classProp}`),
     )
   }
+})
+
+test('Native RadioGroup delivers prepared option styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { RadioGroup } from '@hozo/patterns'
+export function Screen({ value }: { value?: string }) {
+  return (
+    <RadioGroup
+      value={value}
+      options={[
+        { value: 'a', label: 'Alpha' },
+        { value: 'b', label: 'Beta' },
+        { value: 'c', label: 'Gamma', disabled: true },
+      ]}
+      optionClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] aria-checked:bg-[#555555] aria-disabled:bg-[#666666] text-[#eeeeee] aria-disabled:text-[#999999]"
+    />
+  )
+}
+export function Fallback() {
+  return (
+    <RadioGroup
+      options={[{ value: 'a', label: 'Alpha' }]}
+      optionClassName="disabled:opacity-50"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoOptionStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /optionClassName="bg-\[#111111\]/)
+  // Web <div role="radio"> has no HTML disabled attribute; disabled: stays on the runtime path.
+  assert.match(transformed, /optionClassName="disabled:opacity-50"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const radioMod = loadNativePatternModule('radio.native.tsx', { hozoClasses: spyHozoClasses })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ value?: string }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { RadioGroup: radioMod.exports.RadioGroup }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    value: string,
+    interaction: {
+      hovered?: boolean
+      pressed?: boolean
+      focused?: boolean
+      focusVisible?: boolean
+    } = {},
+  ) => {
+    radioMod.captured.length = 0
+    radioMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: false,
+      focusVisible: false,
+      ...interaction,
+    })
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { value }))
+    return {
+      options: radioMod.captured
+        .filter((entry) => entry.host === 'Pressable')
+        .map((entry) => flattenStyle(entry.props.style)),
+      texts: radioMod.captured
+        .filter((entry) => entry.host === 'Text')
+        .map((entry) => flattenStyle(entry.props.style)),
+    }
+  }
+
+  const rest = renderCase('b')
+  assert.equal(rest.options[0]!.backgroundColor, '#111111')
+  assert.equal(rest.options[1]!.backgroundColor, '#555555')
+  assert.equal(rest.options[2]!.backgroundColor, '#666666')
+  assert.equal(rest.texts[0]!.color, '#eeeeee')
+  assert.equal(rest.texts[2]!.color, '#999999')
+
+  assert.equal(renderCase('b', { hovered: true }).options[0]!.backgroundColor, '#222222')
+  assert.equal(renderCase('b', { pressed: true }).options[0]!.backgroundColor, '#333333')
+  assert.equal(
+    renderCase('b', { focused: true, focusVisible: true }).options[0]!.borderColor,
+    '#444444',
+  )
+
+  assert.equal(classResolverCalls, 0, 'prepared RadioGroup literals must never call hozoClasses')
+
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          radioMod.exports.RadioGroup as React.ComponentType<Record<string, unknown>>,
+          {
+            options: [{ value: 'a', label: 'A' }],
+            optionClassName: 'pt-2',
+            hozoOptionStyle: () => ({}),
+          },
+        ),
+      ),
+    /Prepared RadioGroup styles must consume optionClassName/,
+  )
 })

@@ -32,7 +32,7 @@ import {
   TextArea,
   TimePicker,
 } from '@hozo/form'
-import { Chip, Drawer, Popover } from '@hozo/patterns'
+import { Chip, Drawer, Popover, RadioGroup } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -7759,6 +7759,159 @@ export function Screen({ open, disabled }: { open?: boolean; disabled?: boolean 
       bg: hexToRgb(nativeDisabled.backgroundColor),
       color: hexToRgb(nativeDisabled.color),
     })
+  } finally {
+    await page.close()
+  }
+})
+
+test('RadioGroup delivers prepared option markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { RadioGroup } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <RadioGroup
+        value="b"
+        accessibilityLabel="Size"
+        options={[
+          { value: 'a', label: 'Alpha' },
+          { value: 'b', label: 'Beta' },
+          { value: 'c', label: 'Gamma', disabled: true },
+        ]}
+        optionClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] border aria-checked:bg-[#555555] aria-disabled:bg-[#666666] text-[#eeeeee] aria-disabled:text-[#999999]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { RadioGroup }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'RadioGroup') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { RadioGroup: 'RadioGroup' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+  assert.equal(nativeProps.optionClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const optionNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoOptionStyle({
+        hovered: false,
+        pressed: false,
+        focused: false,
+        focusVisible: false,
+        'aria-checked': false,
+        'aria-disabled': false,
+        ...overrides,
+      }),
+    )
+
+  const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const readOption = (index) =>
+      page
+        .locator('#wrap [role="radio"]')
+        .nth(index)
+        .evaluate((el) => ({
+          bg: getComputedStyle(el).backgroundColor,
+          color: getComputedStyle(el).color,
+          borderColor: getComputedStyle(el).borderTopColor,
+        }))
+
+    // Unchecked, checked, and disabled rest states
+    assert.equal((await readOption(0)).bg, hexToRgb(optionNative().backgroundColor))
+    assert.equal((await readOption(0)).color, hexToRgb(optionNative().color))
+    assert.equal(
+      (await readOption(1)).bg,
+      hexToRgb(optionNative({ 'aria-checked': true }).backgroundColor),
+    )
+    assert.equal(
+      (await readOption(2)).bg,
+      hexToRgb(optionNative({ 'aria-disabled': true }).backgroundColor),
+    )
+    assert.equal(
+      (await readOption(2)).color,
+      hexToRgb(optionNative({ 'aria-disabled': true }).color),
+    )
+
+    // Keyboard Tab focuses the checked option (tabIndex=0) with :focus-visible
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#wrap [role="radio"]')[1].matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readOption(1)).borderColor,
+      hexToRgb(
+        optionNative({ focused: true, focusVisible: true, 'aria-checked': true }).borderColor,
+      ),
+    )
+
+    // Hover and active on unchecked option
+    await page.evaluate(() => document.activeElement?.blur())
+    const first = page.locator('#wrap [role="radio"]').nth(0)
+    await first.hover()
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#wrap [role="radio"]')[0].matches(':hover'),
+    )
+    assert.equal(
+      (await readOption(0)).bg,
+      hexToRgb(optionNative({ hovered: true }).backgroundColor),
+    )
+
+    await page.mouse.down()
+    try {
+      await page.waitForFunction(() =>
+        document.querySelectorAll('#wrap [role="radio"]')[0].matches(':active'),
+      )
+      assert.equal(
+        (await readOption(0)).bg,
+        hexToRgb(optionNative({ hovered: true, pressed: true }).backgroundColor),
+      )
+    } finally {
+      await page.mouse.up()
+    }
   } finally {
     await page.close()
   }

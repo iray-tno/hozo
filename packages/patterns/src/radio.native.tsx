@@ -1,7 +1,7 @@
 import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { controlIndicator } from './control-indicator.native.tsx'
 import type { HozoControlIndicatorClasses } from './control-indicator-classes.ts'
 import { optionKey } from './option-key.ts'
@@ -38,6 +38,13 @@ export interface HozoRadioGroupProps<T> {
   className?: string
   /** The class list for each option, resolved like `className`. */
   optionClassName?: string
+  /** @internal Complete prepared option class contribution (RFC 010). */
+  hozoOptionStyle?: (
+    state: InteractionState & {
+      'aria-checked': boolean
+      'aria-disabled': boolean
+    },
+  ) => StyleProp<ViewStyle | TextStyle>
   /** Shared author prop; Native focus order does not use the Web arrow-key axis. */
   orientation?: 'horizontal' | 'vertical' | 'both'
   options: readonly HozoRadioOption<T>[]
@@ -52,6 +59,7 @@ export interface HozoRadioGroupProps<T> {
 export function HozoRadioGroup<T>({
   className,
   optionClassName,
+  hozoOptionStyle,
   options,
   defaultValue,
   value,
@@ -61,6 +69,8 @@ export function HozoRadioGroup<T>({
   optionStyle,
   indicator,
 }: HozoRadioGroupProps<T>) {
+  if (hozoOptionStyle && optionClassName !== undefined)
+    throw new Error('Prepared RadioGroup styles must consume optionClassName')
   const [uncontrolled, setUncontrolled] = useState<T | undefined>(defaultValue)
   const current = value ?? uncontrolled
 
@@ -78,18 +88,26 @@ export function HozoRadioGroup<T>({
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={accessibilityLabel}
-      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
+      style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}
     >
       {options.map((option, at) => {
         const checked = option.value === current
         const look = (interaction: InteractionState) =>
           splitTextStyle(
-            hozoClasses(optionClassName, {
-              ...interaction,
-              disabled: Boolean(option.disabled),
-              'aria-checked': checked,
-              'aria-disabled': Boolean(option.disabled),
-            }),
+            hozoOptionStyle
+              ? hozoOptionStyle({
+                  ...interaction,
+                  'aria-checked': checked,
+                  'aria-disabled': Boolean(option.disabled),
+                })
+              : optionClassName
+                ? hozoClasses(optionClassName, {
+                    ...interaction,
+                    disabled: Boolean(option.disabled),
+                    'aria-checked': checked,
+                    'aria-disabled': Boolean(option.disabled),
+                  })
+                : undefined,
           )
         return (
           <Pressable

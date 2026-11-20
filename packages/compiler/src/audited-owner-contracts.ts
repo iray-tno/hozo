@@ -37,6 +37,13 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Popover.panel","classProp":"panelClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPanelStyle","webClassProp":"panelClassName"},"authoredStyles":[{"prop":"panelStyle","order":0}],"shapes":[{"id":"panel","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
   },
   {
+    owner: 'RadioGroup.option',
+    package: '@hozo/patterns',
+    exports: ['RadioGroup', 'HozoRadioGroup'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"RadioGroup.option","classProp":"optionClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoOptionStyle","webClassProp":"optionClassName"},"authoredStyles":[{"prop":"optionStyle","order":0}],"shapes":[{"id":"option","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"div","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["aria-checked","aria-disabled"],"splitText":true}}]}]}',
+  },
+  {
     owner: 'Form.root',
     package: '@hozo/form',
     exports: ['Form', 'HozoForm'],

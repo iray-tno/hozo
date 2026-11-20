@@ -796,7 +796,15 @@ export const components = {
       },
     },
   }),
-  RadioGroup: slots('className optionClassName'),
+  RadioGroup: slots('className optionClassName', {
+    overrides: {
+      optionClassName: {
+        owner: 'radio-group-option',
+        gate: 'each-option',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Slider: slots('className thumbClassName fillClassName railClassName'),
   Stepper: slots(
     'className stepClassName completedStepClassName currentStepClassName errorStepClassName indicatorClassName completedIndicatorClassName currentIndicatorClassName errorIndicatorClassName descriptionClassName',
@@ -1193,6 +1201,24 @@ export const ownerShadow = {
           webHost: 'div',
           events: [],
           inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'RadioGroup.option',
+      classProp: 'optionClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoOptionStyle', webClassProp: 'optionClassName' },
+      authoredStyles: [{ prop: 'optionStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'option',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'div',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['aria-checked', 'aria-disabled'], splitText: true },
         },
       ],
     },
@@ -1761,6 +1787,11 @@ export const ownerPublications = [
     owner: 'Popover.panel',
     package: '@hozo/patterns',
     exports: ['Popover', 'HozoPopover'],
+  },
+  {
+    owner: 'RadioGroup.option',
+    package: '@hozo/patterns',
+    exports: ['RadioGroup', 'HozoRadioGroup'],
   },
   {
     owner: 'Form.root',

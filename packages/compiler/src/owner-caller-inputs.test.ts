@@ -118,7 +118,7 @@ test('missing destination or semantic inputs and contradictory shapes retain the
 test('state-input declarations are bounded symbolic data and require a complete actual control snapshot', () => {
   for (const change of [
     (shape: TestShape) => {
-      shape.inputs!.facts = ['aria-checked']
+      shape.inputs!.facts = ['aria-busy']
     },
     (shape: TestShape) => {
       shape.inputs!.facts = ['disabled', 'disabled']

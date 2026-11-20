@@ -358,3 +358,30 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.css, /aria-expanded="true"/)
   assert.match(lowered.css, /#fafafa|rgb\(250,\s*250,\s*250\)/)
 })
+
+test('ordinary Web lowering compiles RadioGroup optionClassName by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { RadioGroup } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  const options = [{ value: 'a', label: 'A' }]
+  return (
+    <>
+      <RadioGroup
+        options={options}
+        optionClassName="py-2 bg-[#111111] hover:bg-[#222222] aria-checked:bg-[#333333] aria-disabled:text-[#777777]"
+      />
+      <RadioGroup {...spread} options={options} optionClassName="bg-[#444444]" />
+      <RadioGroup options={options} optionClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /optionClassName="py-2 bg-\[#111111\]/)
+  assert.match(lowered.code, /optionClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /optionClassName="bg-\[#444444\]"/)
+  assert.match(lowered.code, /optionClassName=\{dynamic\}/)
+  assert.match(lowered.css, /aria-checked="true"/)
+  assert.match(lowered.css, /aria-disabled="true"/)
+})
