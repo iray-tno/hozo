@@ -34,29 +34,34 @@ its own storage and its own invalidation, and nothing pointed it anywhere else.
 
 **One record per file, produced in one read, stored once.**
 
-- **What it holds.** Every fact the build derives from one file's source alone:
-  - its candidate facts, as `CandidateCache.exportFile` writes them, replayed
-    with `importFile`;
+- **What it holds.** Every fact the build derives from one file's source alone
+  that had no store of its own:
   - its ordering names;
   - its static import specifiers;
   - the class helpers it imports, and the ones it exports;
-  - its text-forwarding summary (components and re-exports);
-  - its StyleX summary.
+  - its text-forwarding summary (components and re-exports).
+- **What keeps its own store.** Candidate facts (`CandidateCache`,
+  `candidates.json`) and StyleX summaries (`StylexModuleCache`,
+  `stylex-modules.json`). They come from the same read and are already keyed
+  per file by mtime. Metro's workers, Next's epoch and `hozo square` open them
+  directly, and moving them would buy nothing measurable (below).
 - **How it is keyed.** By absolute path, current while the file's mtime is
-  unchanged, with the content hash deciding whether a consumer's answer could
-  have changed (as `StylexModuleCache` does today).
-- **Where it lives.** One file under `node_modules/.hozo`, with a schema
+  unchanged, with a content hash, as `StylexModuleCache` keys its entries.
+- **Where it lives.** `node_modules/.hozo/file-facts.json`, with a schema
   version. A record of an older schema is recomputed, not migrated.
 - **Who produces it.** One function, given a path and its source. It applies
   the cheap guards the passes apply today, such as skipping the StyleX parse
   when the source never mentions StyleX.
-- **Who reads it.** Every channel is derived from records, never from source:
-  - the candidate set;
+- **Who reads it.** Every channel is derived from records, never from source
+  read again:
   - the ordering seed;
   - class helpers (the importer's record, then the target's);
   - project text forwarding (the importer's imports, then each target's
-    summary, re-exports followed through records);
-  - the StyleX graph.
+    summary, re-exports followed through records).
+
+  A bundler transform that already holds a module's code (Vite) reads that
+  module's own facts from the code it was given, which can differ from the
+  file on disk. It reads the facts of the files it imports from records.
 
   A file a channel needs that is not in the walk, such as a helper outside
   `content`, gets a record the same way, on demand.
@@ -87,10 +92,17 @@ in the same change.
 - **Folding project facts into the manifest file.** That would give the manifest
   invalidation, or give project facts none. Either loses what one of them is
   for.
-- **A Rust-owned store for everything, now.** `CandidateCache` already owns its
-  facts natively, and its export and import calls let the record carry them
-  without moving it. One Rust call that returns every fact from one parse is a
-  later step, taken only if measured worth it (#1307's plan, step 3).
+- **One Rust call that returns every fact from one parse, with the candidate
+  and StyleX stores folded in** (#1307's plan, step 3). Measured on a cold scan
+  of this repository's sources (best of three rounds):
+  - `@hozo/patterns`, 105 files and 451 kB, costs 487 ms across every producer.
+    Of that, 222 ms is the candidate scan and 98 ms the ordering names.
+  - The import, helper and forwarding producers that one parse could share
+    total 166 ms, about 1.5 ms a file. That cost is paid only when a file
+    changes, and nothing at all with warm records.
+
+  A crate and napi change is not worth that. Reopen it if a producer added later
+  makes a changed file's cost noticeable.
 - **Keeping a channel per fact.** That is how five came about.
 
 ## Evidence
@@ -103,9 +115,14 @@ in the same change.
   `importFile`.
 - #1307's comments: the channel table on `1b655da6`, and the startup timings
   with their correction.
+- #2128: the record, and Metro startups on the three Metro apps. On
+  `native-showcase`, 338 reads of project files and about 555 ms became 0 reads
+  and about 262 ms with warm records, with identical outputs.
 
 ## Reopen when
 
 - A fact needs more than one file's source to compute. It belongs to a channel
   derived from records, not to the record.
 - The record's store is itself the slow part of a startup.
+- A changed file's producers, together, become noticeable. That is the case
+  for one parse (Rejected, above).
