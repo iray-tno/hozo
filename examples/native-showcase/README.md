@@ -92,6 +92,11 @@ differ. Application, Table, observer, generator, dependency and workflow
 changes require a fresh build. Both revisions and every differing path are
 retained; reused-binary diagnostics do not become release evidence.
 
+Reused Table diagnostics perform one excluded 1,000-row readiness mount and
+the five window checkpoints, without repeating the producer's mount matrix
+or publishing new timing medians. Keep the fresh producer's measurements
+and the reused-APK functional evidence as separate cohorts.
+
 Both controls are generated from the current Native Table/WindowedTable sources at Metro
 startup and before typechecking. Assertions require unique instrumentation
 anchors; the generator fails if they drift. The generated files are ignored,

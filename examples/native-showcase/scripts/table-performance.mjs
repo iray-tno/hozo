@@ -12,7 +12,7 @@ import { centre, matchLabel, parseNodes } from './device-evidence.mjs'
 import {
   assertReusableTableInputs,
   TABLE_COUNTS,
-  tableSummary,
+  tableRunSummary,
   tableTimingRecords,
   verifyTablePixels,
   verifyTableSample,
@@ -80,6 +80,7 @@ try {
   assert.match(signing.commit ?? '', /^[a-f0-9]{40}$/)
   evidence.binarySource = signing.commit
   evidence.reusedBinary = evidence.binaryRun !== process.env.GITHUB_RUN_ID
+  evidence.scope = evidence.reusedBinary ? 'window-only-diagnostic' : 'mount-matrix-and-window'
   if (evidence.reusedBinary) {
     assert.equal(process.env.HOZO_DIAGNOSTICS, '1', 'binary reuse must be an explicit diagnostic')
     execFileSync('git', ['fetch', '--no-tags', '--depth=1', 'origin', signing.commit], {
@@ -208,16 +209,22 @@ try {
       `${name}: boundary ${record.boundaryMs.toFixed(1)}ms; settled ${record.settledMs.toFixed(1)}ms; natural measurements ${record.naturalMeasurements}; peak rows ${record.peakRows}`,
     )
   }
-  for (const mode of ['normal', 'windowed']) await measure(mode, 100, 0, true)
-  for (let round = 1; round <= 3; round++) {
-    for (const count of TABLE_COUNTS) {
-      for (const mode of round % 2 ? ['normal', 'windowed'] : ['windowed', 'normal']) {
-        await measure(mode, count, round)
+  if (evidence.reusedBinary) {
+    // The producer already measured the unchanged mounting paths. Reused
+    // diagnostics establish readiness once, then exercise window transitions.
+    await measure('windowed', 1000, 0, true)
+  } else {
+    for (const mode of ['normal', 'windowed']) await measure(mode, 100, 0, true)
+    for (let round = 1; round <= 3; round++) {
+      for (const count of TABLE_COUNTS) {
+        for (const mode of round % 2 ? ['normal', 'windowed'] : ['windowed', 'normal']) {
+          await measure(mode, count, round)
+        }
       }
     }
   }
-  evidence.summary = tableSummary(evidence.cases)
-  // The matrix ends with a settled 1,000-row production mount. Exercise that
+  evidence.summary = tableRunSummary(evidence)
+  // Both paths leave a settled 1,000-row production mount. Exercise that
   // same instance, keeping scroll observations out of the mount medians.
   const tapCurrent = async (name) =>
     adb('shell', 'input', 'tap', ...centre(await controls(name)).map(String))
@@ -299,11 +306,11 @@ try {
     'shell',
     'input',
     'swipe',
-    String(Math.round(left + 185 * evidence.pixelRatio)),
+    String(Math.round(left + 210 * evidence.pixelRatio)),
     String(y),
-    String(Math.round(left + 25 * evidence.pixelRatio)),
+    String(Math.round(left + 10 * evidence.pixelRatio)),
     String(y),
-    '300',
+    '800',
   )
   await controls('Total, 0')
   const narrow = await snapshot('horizontal-window', 0, { columns: [2, 3] })

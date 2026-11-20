@@ -108,6 +108,7 @@ export function assertReusableTableInputs(changed) {
     'examples/native-showcase/scripts/table-performance.test.mjs',
     'examples/native-showcase/README.md',
     'packages/patterns/README.md',
+    'examples/storybook-demo/scripts/windowed-table.test.mjs',
   ])
   for (const path of changed) {
     assert.ok(
@@ -196,4 +197,19 @@ export function tableSummary(cases) {
       }
     }),
   )
+}
+
+export function tableRunSummary(evidence) {
+  if (evidence.scope === 'window-only-diagnostic') {
+    assert.equal(evidence.reusedBinary, true, 'window-only runs require an identified reused APK')
+    assert.equal(evidence.cases.length, 1, 'window diagnostics have one readiness mount')
+    const [sample] = evidence.cases
+    assert.equal(sample.mode, 'windowed')
+    assert.equal(sample.count, 1000)
+    assert.equal(sample.warmup, true)
+    assert.equal(sample.passed, true)
+    return undefined
+  }
+  assert.equal(evidence.cases.length, 20, 'the fresh mount matrix includes both warmups')
+  return tableSummary(evidence.cases)
 }

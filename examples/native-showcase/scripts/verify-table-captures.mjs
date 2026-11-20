@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseNodes } from './device-evidence.mjs'
 import {
-  tableSummary,
+  tableRunSummary,
   verifyTablePixels,
   verifyTableSample,
   verifyTableWindow,
@@ -30,7 +30,7 @@ try {
   )
   assert.equal(evidence.passed, true, 'the original measurement must pass independently')
   assert.match(evidence.sourceHash, /^[a-f0-9]{64}$/)
-  tableSummary(evidence.cases)
+  tableRunSummary(evidence)
   for (const sample of evidence.cases) {
     assert.match(sample.name, /^(?:warmup|round-[123])-(?:normal|windowed)-(?:100|500|1000)$/)
     const entry = { name: sample.name, passed: false }

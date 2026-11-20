@@ -5,6 +5,7 @@ import test from 'node:test'
 import { PNG } from 'pngjs'
 import {
   assertReusableTableInputs,
+  tableRunSummary,
   tableSummary,
   tableTimingRecords,
   verifyTablePixels,
@@ -187,6 +188,7 @@ test('collector-only diagnostic reuse rejects all application, generator, depend
   assertReusableTableInputs([
     'examples/native-showcase/scripts/table-performance-evidence.mjs',
     'packages/patterns/README.md',
+    'examples/storybook-demo/scripts/windowed-table.test.mjs',
     'docs/rfcs/014-windowed-table.md',
   ])
   for (const path of [
@@ -264,4 +266,21 @@ test('repeated Region labels must belong to the uniquely anchored row, not clipp
     () => verifyTablePixels(PNG.sync.write(image), [clipped, earlier, total], options),
     /missing Table node/,
   )
+})
+
+test('window-only diagnostics cannot replace a fresh matrix or publish readiness timing as a median', () => {
+  const sample = { mode: 'windowed', count: 1000, warmup: true, passed: true }
+  const evidence = { scope: 'window-only-diagnostic', reusedBinary: true, cases: [sample] }
+  assert.equal(tableRunSummary(evidence), undefined)
+  for (const change of [
+    { reusedBinary: false },
+    { cases: [] },
+    { cases: [sample, sample] },
+    { cases: [{ ...sample, mode: 'normal' }] },
+    { cases: [{ ...sample, warmup: false }] },
+    { cases: [{ ...sample, count: 100 }] },
+    { cases: [{ ...sample, passed: false }] },
+    { scope: 'mount-matrix-and-window' },
+  ])
+    assert.throws(() => tableRunSummary({ ...evidence, ...change }))
 })
