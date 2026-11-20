@@ -74,6 +74,7 @@ function syntheticPrimitiveFor(shape: OwnerShape, web: boolean): string {
       return 'Pressable'
     case 'label':
     case 'span':
+    case 'figcaption':
       return 'Text'
     case 'textarea':
       return 'TextInput'

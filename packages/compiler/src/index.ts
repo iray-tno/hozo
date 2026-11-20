@@ -709,6 +709,10 @@ export interface NativeCompileOptions extends CompileEvidence {
     | 'data-collapsed'
     | 'data-hozo-state=open'
     | 'data-hozo-state=closed'
+    | 'data-code-mark'
+    | 'data-code-mark=ins'
+    | 'data-code-mark=del'
+    | 'data-code-mark=mark'
   )[]
   /** @internal Explicit interaction events for interactive View owners (e.g. spinbutton). */
   ownerEvents?: readonly ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]

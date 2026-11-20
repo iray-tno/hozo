@@ -625,3 +625,48 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.code, /scrimClassName="bg-\[#555555\]"/)
   assert.match(lowered.code, /sheetClassName=\{dynamic\}/)
 })
+
+test('ordinary Web lowering compiles all eight CodeBlock slots by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { CodeBlock } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  const lines = [{ tokens: 'const x = 1', mark: 'ins' as const }]
+  return (
+    <>
+      <CodeBlock
+        title="Example"
+        lines={lines}
+        lineNumbers
+        copy
+        className="p-2 bg-[#010101] text-[#111111]"
+        lineClassName="px-2 data-[code-mark]:border-[#222222]"
+        gutterClassName="pr-2 data-[code-mark=ins]:text-[#333333]"
+        insClassName="bg-[#002200]"
+        delClassName="bg-[#220000]"
+        markClassName="bg-[#222200]"
+        copyClassName="px-2 bg-[#444444] hover:bg-[#555555] text-[#eeeeee]"
+        captionClassName="text-[#666666]"
+      />
+      <CodeBlock {...spread} lines={lines} className="bg-[#777777]" />
+      <CodeBlock lines={lines} lineClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  for (const prop of [
+    'className',
+    'lineClassName',
+    'gutterClassName',
+    'insClassName',
+    'delClassName',
+    'markClassName',
+    'copyClassName',
+    'captionClassName',
+  ])
+    assert.match(lowered.code, new RegExp(`${prop}=\\{"hozo-owner-`))
+  assert.match(lowered.code, /className="bg-\[#777777\]"/)
+  assert.match(lowered.code, /lineClassName=\{dynamic\}/)
+  assert.match(lowered.css, /data-code-mark="ins"/)
+})

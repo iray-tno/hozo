@@ -668,6 +668,66 @@ test('Accordion contracts declare section, heading, trigger, data-state panel, a
     },
   ])
 })
+
+test('CodeBlock contracts declare figure root, figcaption text, copy button, and data-code-mark spans (#2046)', () => {
+  const root = parsed().contracts.find((entry) => entry.owner === 'CodeBlock.root')!
+  assert.equal(root.audit, 'audited')
+  assert.deepEqual(root.shapes, [
+    {
+      id: 'root',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'figure',
+      events: [],
+      inputs: { facts: [], splitText: true },
+    },
+  ])
+  const caption = parsed().contracts.find((entry) => entry.owner === 'CodeBlock.caption')!
+  assert.equal(caption.audit, 'audited')
+  assert.deepEqual(caption.shapes, [
+    {
+      id: 'caption',
+      when: { eq: ['present', true] },
+      nativeHost: 'Text',
+      webHost: 'figcaption',
+      events: [],
+    },
+  ])
+  const copy = parsed().contracts.find((entry) => entry.owner === 'CodeBlock.copy')!
+  assert.equal(copy.audit, 'audited')
+  assert.deepEqual(copy.shapes, [
+    {
+      id: 'copy',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'button',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: { facts: [], splitText: true },
+    },
+  ])
+  for (const part of ['line', 'gutter', 'ins', 'del', 'mark']) {
+    const entry = parsed().contracts.find((row) => row.owner === `CodeBlock.${part}`)!
+    assert.equal(entry.audit, 'audited')
+    assert.deepEqual(entry.shapes, [
+      {
+        id: part,
+        when: { eq: ['present', true] },
+        nativeHost: 'View',
+        webHost: 'span',
+        events: [],
+        inputs: {
+          facts: [
+            'data-code-mark',
+            'data-code-mark=ins',
+            'data-code-mark=del',
+            'data-code-mark=mark',
+          ],
+          splitText: true,
+        },
+      },
+    ])
+  }
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)
@@ -681,7 +741,7 @@ test('shadow data is explicit, bounded and independent of the shipped v1 manifes
   assert.equal(contract().audit, 'audited')
   assert.deepEqual(contract().authoredStyles, [{ prop: 'handleStyle', order: 0 }])
   assert.throws(() => parseOwnerContractShadow('{'), /JSON/)
-  assert.throws(() => parseOwnerContractShadow(' '.repeat(65_537)), /size/)
+  assert.throws(() => parseOwnerContractShadow(' '.repeat(131_073)), /size/)
   assert.throws(() => parseOwnerContractShadow('{"schema":2,"contracts":[]}'), /schema/)
   assert.throws(
     () =>

@@ -36,6 +36,8 @@ import {
   Accordion,
   BottomSheet,
   Chip,
+  CodeBlock,
+  CodeClipboardProvider,
   Drawer,
   Popover,
   RadioGroup,
@@ -9012,6 +9014,233 @@ export function Screen({ detents }: { detents?: readonly number[] }) {
         barBg: hexToRgb(nativeBar.backgroundColor),
         barWidth: nativeBar.width,
       })
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('CodeBlock delivers all eight prepared slot markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { CodeBlock, CodeClipboardProvider } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <CodeClipboardProvider value={{ writeText: async () => {} }}>
+        <CodeBlock
+          title="Diff"
+          lineNumbers
+          copy
+          lines={[
+            { tokens: 'plain' },
+            { tokens: 'added', mark: 'ins' },
+            { tokens: 'removed', mark: 'del' },
+            { tokens: 'marked', mark: 'mark' },
+          ]}
+          className="pt-2 bg-[#010101]"
+          lineClassName="bg-[#101010] border border-[#aaaaaa] data-[code-mark]:border-[#202020] text-[#121212]"
+          gutterClassName="bg-[#303030] data-[code-mark=ins]:border-[#313131] data-[code-mark=del]:border-[#323232] data-[code-mark=mark]:border-[#333333] border border-[#bbbbbb] text-[#343434]"
+          insClassName="bg-[#002200] text-[#00ee00]"
+          delClassName="bg-[#220000] text-[#ee0000]"
+          markClassName="bg-[#222200] text-[#eeee00]"
+          copyClassName="bg-[#404040] hover:bg-[#414141] active:bg-[#424242] border border-[#cccccc] focus-visible:border-[#434343] text-[#f0f0f0]"
+          captionClassName="pt-1 text-[#505050]"
+        />
+      </CodeClipboardProvider>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  for (const prop of [
+    'className',
+    'lineClassName',
+    'gutterClassName',
+    'insClassName',
+    'delClassName',
+    'markClassName',
+    'copyClassName',
+    'captionClassName',
+  ])
+    assert.match(web.code, new RegExp(`${prop}=\\{"hozo-owner-`))
+
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { CodeBlock, CodeClipboardProvider }
+      throw new Error(`Unexpected web require: ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props, ...children) => {
+      if (type === 'CodeBlock') nativeProps = props
+      return { type, props, children }
+    },
+    require: (id) => {
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (id === '@hozo/patterns')
+        return { CodeBlock: 'CodeBlock', CodeClipboardProvider: 'CodeClipboardProvider' }
+      throw new Error(`Unexpected native require: ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+  for (const prop of [
+    'hozoCodeBlockStyle',
+    'hozoLineStyle',
+    'hozoGutterStyle',
+    'hozoInsStyle',
+    'hozoDelStyle',
+    'hozoMarkStyle',
+    'hozoCopyStyle',
+    'hozoCaptionStyle',
+  ])
+    assert.equal(typeof nativeProps[prop], 'function')
+  for (const prop of [
+    'className',
+    'lineClassName',
+    'gutterClassName',
+    'insClassName',
+    'delClassName',
+    'markClassName',
+    'copyClassName',
+    'captionClassName',
+  ])
+    assert.equal(nativeProps[prop], undefined)
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const factsFor = (mark) => ({
+    'data-code-mark': Boolean(mark),
+    'data-code-mark=ins': mark === 'ins',
+    'data-code-mark=del': mark === 'del',
+    'data-code-mark=mark': mark === 'mark',
+  })
+  const nativeRoot = flat(nativeProps.hozoCodeBlockStyle())
+  const nativeCaption = flat(nativeProps.hozoCaptionStyle())
+  const nativeLine = (mark) => flat(nativeProps.hozoLineStyle(factsFor(mark)))
+  const nativeGutter = (mark) => flat(nativeProps.hozoGutterStyle(factsFor(mark)))
+  const nativeIns = flat(nativeProps.hozoInsStyle(factsFor('ins')))
+  const nativeDel = flat(nativeProps.hozoDelStyle(factsFor('del')))
+  const nativeMark = flat(nativeProps.hozoMarkStyle(factsFor('mark')))
+  const nativeCopy = (overrides = {}) =>
+    flat(
+      nativeProps.hozoCopyStyle({
+        hovered: false,
+        pressed: false,
+        focused: false,
+        focusVisible: false,
+        ...overrides,
+      }),
+    )
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const fig = document.querySelector('#wrap figure')
+      const cap = fig.querySelector('figcaption')
+      const rows = [...fig.querySelectorAll('[data-code-line]')]
+      const rowData = rows.map((row) => {
+        const [gutter, content] = row.children
+        return {
+          gutterBg: getComputedStyle(gutter).backgroundColor,
+          gutterBorder: getComputedStyle(gutter).borderTopColor,
+          gutterColor: getComputedStyle(gutter).color,
+          lineBg: getComputedStyle(content).backgroundColor,
+          lineBorder: getComputedStyle(content).borderTopColor,
+          lineColor: getComputedStyle(content).color,
+        }
+      })
+      return {
+        rootBg: getComputedStyle(fig).backgroundColor,
+        rootPaddingTop: parseFloat(getComputedStyle(fig).paddingTop),
+        captionColor: getComputedStyle(cap).color,
+        captionPaddingTop: parseFloat(getComputedStyle(cap).paddingTop),
+        rows: rowData,
+      }
+    })
+    assert.equal(markers.rootBg, hexToRgb(nativeRoot.backgroundColor))
+    assert.equal(markers.rootPaddingTop, nativeRoot.paddingTop)
+    assert.equal(markers.captionColor, hexToRgb(nativeCaption.color))
+    assert.equal(markers.captionPaddingTop, nativeCaption.paddingTop)
+    // Plain row 0
+    assert.equal(markers.rows[0].lineBg, hexToRgb(nativeLine(undefined).backgroundColor))
+    assert.equal(markers.rows[0].lineBorder, hexToRgb(nativeLine(undefined).borderColor))
+    assert.equal(markers.rows[0].gutterBg, hexToRgb(nativeGutter(undefined).backgroundColor))
+    assert.equal(markers.rows[0].gutterColor, hexToRgb(nativeGutter(undefined).color))
+    // Marked rows 1..3: ins, del, mark
+    assert.equal(markers.rows[1].lineBorder, hexToRgb(nativeLine('ins').borderColor))
+    assert.equal(markers.rows[1].gutterBorder, hexToRgb(nativeGutter('ins').borderColor))
+    assert.equal(markers.rows[1].lineBg, hexToRgb(nativeIns.backgroundColor))
+    assert.equal(markers.rows[1].lineColor, hexToRgb(nativeIns.color))
+    assert.equal(markers.rows[2].gutterBorder, hexToRgb(nativeGutter('del').borderColor))
+    assert.equal(markers.rows[2].lineBg, hexToRgb(nativeDel.backgroundColor))
+    assert.equal(markers.rows[2].lineColor, hexToRgb(nativeDel.color))
+    assert.equal(markers.rows[3].gutterBorder, hexToRgb(nativeGutter('mark').borderColor))
+    assert.equal(markers.rows[3].lineBg, hexToRgb(nativeMark.backgroundColor))
+    assert.equal(markers.rows[3].lineColor, hexToRgb(nativeMark.color))
+
+    // Copy button states: rest, focus-visible, hover, active
+    const copyBtn = page.locator('#wrap button')
+    const readCopy = () =>
+      copyBtn.evaluate((el) => ({
+        bg: getComputedStyle(el).backgroundColor,
+        color: getComputedStyle(el).color,
+        borderColor: getComputedStyle(el).borderTopColor,
+      }))
+    assert.equal((await readCopy()).bg, hexToRgb(nativeCopy().backgroundColor))
+    assert.equal((await readCopy()).color, hexToRgb(nativeCopy().color))
+
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap button').matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readCopy()).borderColor,
+      hexToRgb(nativeCopy({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    await page.evaluate(() => document.activeElement?.blur())
+    await copyBtn.hover()
+    await page.waitForFunction(() => document.querySelector('#wrap button').matches(':hover'))
+    assert.equal((await readCopy()).bg, hexToRgb(nativeCopy({ hovered: true }).backgroundColor))
+
+    await page.mouse.down()
+    try {
+      await page.waitForFunction(() => document.querySelector('#wrap button').matches(':active'))
+      assert.equal(
+        (await readCopy()).bg,
+        hexToRgb(nativeCopy({ hovered: true, pressed: true }).backgroundColor),
+      )
+    } finally {
+      await page.mouse.up()
     }
   } finally {
     await page.close()

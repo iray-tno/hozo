@@ -502,7 +502,49 @@ export const components = {
   CodeBlock: slots(
     'className lineClassName gutterClassName insClassName delClassName markClassName copyClassName captionClassName',
     {
-      overrides: { className: { lowering: 'component-managed' } },
+      overrides: {
+        className: {
+          lowering: 'component-managed',
+          owner: 'code-block-root',
+          gate: 'always',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        lineClassName: {
+          owner: 'code-block-line',
+          gate: 'each-line',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        gutterClassName: {
+          owner: 'code-block-gutter',
+          gate: 'when-gutter',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        insClassName: {
+          owner: 'code-block-ins',
+          gate: 'when-ins-line',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        delClassName: {
+          owner: 'code-block-del',
+          gate: 'when-del-line',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        markClassName: {
+          owner: 'code-block-mark',
+          gate: 'when-mark-line',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        copyClassName: {
+          owner: 'code-block-copy',
+          gate: 'when-copy',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        captionClassName: {
+          owner: 'code-block-caption',
+          gate: 'always',
+          composition: 'prepared-owner-contract',
+        },
+      },
     },
   ),
   Splitter: slots('className', {
@@ -1671,6 +1713,189 @@ export const ownerShadow = {
       ],
     },
     {
+      owner: 'CodeBlock.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCodeBlockStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'figure',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.line',
+      classProp: 'lineClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoLineStyle', webClassProp: 'lineClassName' },
+      authoredStyles: [{ prop: 'lineStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'line',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+          inputs: {
+            facts: [
+              'data-code-mark',
+              'data-code-mark=ins',
+              'data-code-mark=del',
+              'data-code-mark=mark',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.gutter',
+      classProp: 'gutterClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoGutterStyle', webClassProp: 'gutterClassName' },
+      authoredStyles: [{ prop: 'gutterStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'gutter',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+          inputs: {
+            facts: [
+              'data-code-mark',
+              'data-code-mark=ins',
+              'data-code-mark=del',
+              'data-code-mark=mark',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.ins',
+      classProp: 'insClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoInsStyle', webClassProp: 'insClassName' },
+      authoredStyles: [{ prop: 'insStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'ins',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+          inputs: {
+            facts: [
+              'data-code-mark',
+              'data-code-mark=ins',
+              'data-code-mark=del',
+              'data-code-mark=mark',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.del',
+      classProp: 'delClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoDelStyle', webClassProp: 'delClassName' },
+      authoredStyles: [{ prop: 'delStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'del',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+          inputs: {
+            facts: [
+              'data-code-mark',
+              'data-code-mark=ins',
+              'data-code-mark=del',
+              'data-code-mark=mark',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.mark',
+      classProp: 'markClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoMarkStyle', webClassProp: 'markClassName' },
+      authoredStyles: [{ prop: 'markStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'mark',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+          inputs: {
+            facts: [
+              'data-code-mark',
+              'data-code-mark=ins',
+              'data-code-mark=del',
+              'data-code-mark=mark',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.copy',
+      classProp: 'copyClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCopyStyle', webClassProp: 'copyClassName' },
+      authoredStyles: [{ prop: 'copyStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'copy',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.caption',
+      classProp: 'captionClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCaptionStyle', webClassProp: 'captionClassName' },
+      authoredStyles: [{ prop: 'captionStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'caption',
+          when: { eq: ['present', true] },
+          nativeHost: 'Text',
+          webHost: 'figcaption',
+          events: [],
+        },
+      ],
+    },
+    {
       owner: 'Form.root',
       classProp: 'className',
       audit: 'audited',
@@ -2330,6 +2555,46 @@ export const ownerPublications = [
     owner: 'BottomSheet.handleBar',
     package: '@hozo/patterns',
     exports: ['BottomSheet', 'HozoBottomSheet'],
+  },
+  {
+    owner: 'CodeBlock.root',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.line',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.gutter',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.ins',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.del',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.mark',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.copy',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.caption',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
   },
   {
     owner: 'Form.root',
