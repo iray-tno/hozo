@@ -112,6 +112,17 @@ alongside each screenshot. Missing/blank text fails the observation. Both
 controls are memoized so updating the diagnostic status does not re-render
 the measured table after the quiet boundary.
 
+Retained frames can also be checked without repeating the experiment:
+
+```sh
+node examples/native-showcase/scripts/verify-table-captures.mjs <downloaded-table-artifact>
+```
+
+This verifies the original successful matrix and all four headers/first-row
+values against their nodes and screenshot pixels. `pixel-verification.json`
+binds each result to its screenshot/tree hashes and the verifier's hashes;
+it is supplementary frame evidence with no new timing samples.
+
 `hozo-native-showcase-android-table-evidence` retains the APK/source hashes,
 release build identity, emulator/display properties, every timing record,
 screenshots and the complete/partial matrix. The first observation boundary
