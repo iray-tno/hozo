@@ -104,6 +104,9 @@ export async function prepareCandidateModule(
   projectRoot: string,
   options: HozoProjectOptions = {},
   ownerContributions?: OwnerPackageContributions,
+  /** Complete carrier-closure contributions: candidates only, none of the
+   * experimental owner inventory `ownerContributions` brings with it. */
+  carrierContributions?: OwnerPackageContributions,
 ): Promise<GeneratedCandidateModule & { publish(): void }> {
   let snapshot: Awaited<ReturnType<typeof loadProjectTailwindSnapshot>> | undefined
   let theme: Theme | undefined
@@ -130,7 +133,7 @@ export async function prepareCandidateModule(
     projectRoot,
     options.content,
     options.sources,
-    ownerContributions,
+    ownerContributions ?? carrierContributions,
   )
   if (options.debug) {
     // eslint-disable-next-line no-console
