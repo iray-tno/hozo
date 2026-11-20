@@ -17,7 +17,7 @@ const facts = ['disabled', 'aria-selected', 'aria-disabled']
 // Pre-Decision-012 bounded spikes covered by the owner-evidence receipt pipeline.
 // Owners migrated under Decision 012 point 6 earn `audited` via their host/state
 // tests and literal-route deletion rather than a second spike receipt reader.
-const spikeOwners = new Set(['BottomSheet.handle', 'Tabs.Tab', 'Toolbar.root'])
+const spikeOwners = new Set(['Tabs.Tab', 'Toolbar.root'])
 
 export function tabsDeclaration(text) {
   const data = parseOwnerPackageShadow(text)

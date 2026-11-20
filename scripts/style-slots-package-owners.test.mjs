@@ -53,7 +53,15 @@ test('catalog publication owns the contract once and attaches only actual packag
         'Accordion.trigger',
       ],
     },
-    { name: 'BottomSheet', owners: ['BottomSheet.handle'] },
+    {
+      name: 'BottomSheet',
+      owners: [
+        'BottomSheet.handle',
+        'BottomSheet.handleBar',
+        'BottomSheet.scrim',
+        'BottomSheet.sheet',
+      ],
+    },
     { name: 'Drawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
     {
       name: 'HozoAccordion',
@@ -65,7 +73,15 @@ test('catalog publication owns the contract once and attaches only actual packag
         'Accordion.trigger',
       ],
     },
-    { name: 'HozoBottomSheet', owners: ['BottomSheet.handle'] },
+    {
+      name: 'HozoBottomSheet',
+      owners: [
+        'BottomSheet.handle',
+        'BottomSheet.handleBar',
+        'BottomSheet.scrim',
+        'BottomSheet.sheet',
+      ],
+    },
     { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
     { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.trigger'] },
     { name: 'HozoRadioGroup', owners: ['RadioGroup.option'] },
@@ -86,11 +102,11 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'Toolbar', owners: ['Toolbar.root'] },
     { name: 'Tree', owners: ['Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 23)
+  assert.equal(result.owners.contracts.length, 26)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
-      ['BottomSheet.handle', 'unknown'],
+      ['BottomSheet.handle', 'audited'],
       ['Tabs.Tab', 'audited'],
       ['Toolbar.root', 'unknown'],
       ['Drawer.scrim', 'audited'],
@@ -113,6 +129,9 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['Accordion.panelContent', 'audited'],
       ['Tabs.tabList', 'audited'],
       ['Tabs.panel', 'audited'],
+      ['BottomSheet.scrim', 'audited'],
+      ['BottomSheet.sheet', 'audited'],
+      ['BottomSheet.handleBar', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')

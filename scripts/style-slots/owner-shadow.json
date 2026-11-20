@@ -4,7 +4,7 @@
     {
       "owner": "BottomSheet.handle",
       "classProp": "handleClassName",
-      "audit": "unknown",
+      "audit": "audited",
       "bindings": [
         "present",
         "resizable"
@@ -907,6 +907,106 @@
             "facts": [],
             "splitText": true
           }
+        }
+      ]
+    },
+    {
+      "owner": "BottomSheet.scrim",
+      "classProp": "scrimClassName",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoScrimStyle",
+        "webClassProp": "scrimClassName"
+      },
+      "authoredStyles": [
+        {
+          "prop": "scrimStyle",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "scrim",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
+      "owner": "BottomSheet.sheet",
+      "classProp": "sheetClassName",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoSheetStyle",
+        "webClassProp": "sheetClassName"
+      },
+      "authoredStyles": [
+        {
+          "prop": "sheetStyle",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "sheet",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": [],
+          "inputs": {
+            "facts": [],
+            "splitText": true
+          }
+        }
+      ]
+    },
+    {
+      "owner": "BottomSheet.handleBar",
+      "classProp": "handleBarClassName",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoHandleBarStyle",
+        "webClassProp": "handleBarClassName"
+      },
+      "authoredStyles": [
+        {
+          "prop": "handleBarStyle",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "handleBar",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "span",
+          "events": []
         }
       ]
     },

@@ -138,8 +138,14 @@ const literalPreview = previewOwnerLiteralCallers(literalSource, compiler, {
   shadow: ownerFixtureShadow('BottomSheet.handle'),
 })
 assert.equal(literalPreview.findings[0]!.disposition, 'prepared-literal')
+const opaqueLiteralSource = `${planSource}
+import {BottomSheet} from '@hozo/patterns';
+const opaqueHandleClass: string = ${JSON.stringify(literalClasses)};
+export function LiteralCaller({open,detents,author}) {
+  return <BottomSheet open={open} detents={detents} handleStyle={author.value} handleClassName={opaqueHandleClass}>Body</BottomSheet>
+}`
 const literalWarnings = mock.method(console, 'warn', () => {})
-const literalOrdinary = loadNativeModule(literalSource, project, { root: project, compiler })
+const literalOrdinary = loadNativeModule(opaqueLiteralSource, project, { root: project, compiler })
 const literalPrepared = loadNativeModule(literalPreview.code, project, { root: project, compiler })
 literalWarnings.mock.restore()
 const requests = (require(tracedSheet) as { requested: unknown[] }).requested
@@ -936,7 +942,7 @@ test('the real opaque decoration keeps its missing-state warning instead of borr
 })
 
 test('prepared evaluation is gated and receives no invented decoration events', () => {
-  assert.equal(contract.audit, 'unknown')
+  assert.equal(contract.audit, 'audited')
   assert.equal(contract.abi.nativePreparedProp, 'hozoHandleStyle')
   assert.equal(contract.shapes[1].nativeHost, 'View')
   assert.deepEqual(contract.shapes[1].events, [])

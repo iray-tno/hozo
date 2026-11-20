@@ -9,6 +9,13 @@ export interface AuditedOwnerContract {
 
 export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
   {
+    owner: 'BottomSheet.handle',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.handle","classProp":"handleClassName","audit":"audited","bindings":["present","resizable"],"abi":{"nativePreparedProp":"hozoHandleStyle","webClassProp":"handleClassName","nativePartial":{"prop":"hozoInteractiveHandleStyle","shape":"resizable"}},"authoredStyles":[{"prop":"handleStyle","order":0}],"shapes":[{"id":"resizable","when":{"all":[{"eq":["present",true]},{"eq":["resizable",true]}]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":[],"splitText":false}},{"id":"decorative","when":{"all":[{"eq":["present",true]},{"eq":["resizable",false]}]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
     owner: 'Tabs.Tab',
     package: '@hozo/patterns',
     exports: ['Tabs', 'HozoTabs'],
@@ -154,6 +161,27 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     exports: ['Tabs', 'HozoTabs'],
     shadow:
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.panel","classProp":"panelClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPanelStyle","webClassProp":"panelClassName"},"authoredStyles":[{"prop":"panelStyle","order":0}],"shapes":[{"id":"panel","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'BottomSheet.scrim',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.scrim","classProp":"scrimClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoScrimStyle","webClassProp":"scrimClassName"},"authoredStyles":[{"prop":"scrimStyle","order":0}],"shapes":[{"id":"scrim","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'BottomSheet.sheet',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.sheet","classProp":"sheetClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSheetStyle","webClassProp":"sheetClassName"},"authoredStyles":[{"prop":"sheetStyle","order":0}],"shapes":[{"id":"sheet","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'BottomSheet.handleBar',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.handleBar","classProp":"handleBarClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoHandleBarStyle","webClassProp":"handleBarClassName"},"authoredStyles":[{"prop":"handleBarStyle","order":0}],"shapes":[{"id":"handleBar","when":{"eq":["present",true]},"nativeHost":"View","webHost":"span","events":[]}]}]}',
   },
   {
     owner: 'Form.root',

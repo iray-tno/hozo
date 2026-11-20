@@ -597,7 +597,30 @@ export const components = {
       },
     },
   }),
-  BottomSheet: slots('className scrimClassName sheetClassName handleClassName handleBarClassName'),
+  BottomSheet: slots('className scrimClassName sheetClassName handleClassName handleBarClassName', {
+    overrides: {
+      scrimClassName: {
+        owner: 'bottom-sheet-scrim',
+        gate: 'when-mounted',
+        composition: 'prepared-owner-contract',
+      },
+      sheetClassName: {
+        owner: 'bottom-sheet-sheet',
+        gate: 'when-mounted',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      handleClassName: {
+        owner: 'bottom-sheet-handle',
+        gate: 'when-mounted',
+        composition: 'prepared-owner-contract',
+      },
+      handleBarClassName: {
+        owner: 'bottom-sheet-handle-bar',
+        gate: 'when-handle-bar',
+        composition: 'prepared-owner-contract',
+      },
+    },
+  }),
   Checkbox: slots('className'),
   Chip: slots('className removeClassName', {
     secondary: true,
@@ -1160,7 +1183,7 @@ export const ownerShadow = {
     {
       owner: 'BottomSheet.handle',
       classProp: 'handleClassName',
-      audit: 'unknown',
+      audit: 'audited',
       // A closed iOS Modal / exiting Web presence may still paint the owner.
       // `present` is actual rendered lifetime, not the author's `open` request.
       bindings: ['present', 'resizable'],
@@ -1592,6 +1615,58 @@ export const ownerShadow = {
           webHost: 'div',
           events: [],
           inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'BottomSheet.scrim',
+      classProp: 'scrimClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoScrimStyle', webClassProp: 'scrimClassName' },
+      authoredStyles: [{ prop: 'scrimStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'scrim',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'BottomSheet.sheet',
+      classProp: 'sheetClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSheetStyle', webClassProp: 'sheetClassName' },
+      authoredStyles: [{ prop: 'sheetStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'sheet',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'BottomSheet.handleBar',
+      classProp: 'handleBarClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoHandleBarStyle', webClassProp: 'handleBarClassName' },
+      authoredStyles: [{ prop: 'handleBarStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'handleBar',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
         },
       ],
     },
@@ -2240,6 +2315,21 @@ export const ownerPublications = [
     owner: 'Tabs.panel',
     package: '@hozo/patterns',
     exports: ['Tabs', 'HozoTabs'],
+  },
+  {
+    owner: 'BottomSheet.scrim',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+  },
+  {
+    owner: 'BottomSheet.sheet',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+  },
+  {
+    owner: 'BottomSheet.handleBar',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
   },
   {
     owner: 'Form.root',

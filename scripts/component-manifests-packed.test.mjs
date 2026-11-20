@@ -454,7 +454,7 @@ test('the built patterns tarball preserves scoped owner facts for both selected 
   )
 
   const contract = manifest.owners.contracts.find((row) => row.owner === 'BottomSheet.handle')
-  assert.equal(contract.audit, 'unknown')
+  assert.equal(contract.audit, 'audited')
   assert.equal(selectOwnerShape(contract, { present: false }).status, 'absent')
   for (const resizable of [false, true]) {
     const selection = selectOwnerShape(contract, { present: true, resizable })

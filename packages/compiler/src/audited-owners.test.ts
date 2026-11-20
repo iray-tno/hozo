@@ -585,3 +585,43 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.code, /tabClassName=\{dynamic\}/)
   assert.match(lowered.css, /aria-selected="true"/)
 })
+
+test('ordinary Web lowering compiles BottomSheet scrim, sheet, handle and handleBar slots by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { BottomSheet } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <BottomSheet
+        open
+        detents={[0.5, 1]}
+        scrimClassName="bg-[#010101]"
+        sheetClassName="pt-4 bg-[#fafafa] text-[#223344]"
+        handleClassName="py-2 bg-[#111111] hover:bg-[#222222]"
+        handleBarClassName="w-8 h-1 bg-[#333333]"
+      >
+        Body
+      </BottomSheet>
+      <BottomSheet {...spread} open scrimClassName="bg-[#555555]">
+        Spread
+      </BottomSheet>
+      <BottomSheet open sheetClassName={dynamic}>
+        Dynamic
+      </BottomSheet>
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /scrimClassName="bg-\[#010101\]"/)
+  assert.doesNotMatch(lowered.code, /sheetClassName="pt-4/)
+  assert.doesNotMatch(lowered.code, /handleClassName="py-2/)
+  assert.doesNotMatch(lowered.code, /handleBarClassName="w-8/)
+  assert.match(lowered.code, /scrimClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /sheetClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /handleClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /handleBarClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /scrimClassName="bg-\[#555555\]"/)
+  assert.match(lowered.code, /sheetClassName=\{dynamic\}/)
+})

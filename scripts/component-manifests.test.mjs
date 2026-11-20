@@ -115,6 +115,9 @@ test('patterns publishes its catalog-owned contract without cloning it onto the 
   for (const name of ['BottomSheet', 'HozoBottomSheet'])
     assert.deepEqual(manifest.exports.find((row) => row.name === name).owners, [
       'BottomSheet.handle',
+      'BottomSheet.handleBar',
+      'BottomSheet.scrim',
+      'BottomSheet.sheet',
     ])
   for (const name of ['Tabs', 'HozoTabs'])
     assert.deepEqual(manifest.exports.find((row) => row.name === name).owners, [

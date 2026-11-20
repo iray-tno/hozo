@@ -678,7 +678,7 @@ test('shadow data is explicit, bounded and independent of the shipped v1 manifes
   assert.equal(MANIFEST_VERSION, 2)
   assert.equal(parsed().schema, OWNER_SHADOW_VERSION)
   assert.equal(contract().owner, 'BottomSheet.handle')
-  assert.equal(contract().audit, 'unknown')
+  assert.equal(contract().audit, 'audited')
   assert.deepEqual(contract().authoredStyles, [{ prop: 'handleStyle', order: 0 }])
   assert.throws(() => parseOwnerContractShadow('{'), /JSON/)
   assert.throws(() => parseOwnerContractShadow(' '.repeat(65_537)), /size/)

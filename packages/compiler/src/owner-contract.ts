@@ -271,7 +271,9 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       if (dualPlatform) {
         if (
           shape.nativeHost === 'View' &&
-          (!['div', 'form', 'table', 'section', 'heading'].includes(shape.webHost as string) ||
+          (!['div', 'form', 'table', 'section', 'heading', 'span'].includes(
+            shape.webHost as string,
+          ) ||
             (events.length !== 0 && !interactiveViewEvents))
         )
           fail(`${at}.decoration events/host`)

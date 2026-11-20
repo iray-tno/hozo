@@ -1315,3 +1315,133 @@ export function UnsupportedTabs() {
     )
   }
 })
+
+test('Native BottomSheet delivers prepared scrim, sheet, handle and handleBar styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { BottomSheet } from '@hozo/patterns'
+export function Screen({ detents }: { detents?: readonly number[] }) {
+  return (
+    <BottomSheet
+      open
+      detents={detents}
+      scrimClassName="bg-[#010101]"
+      sheetClassName="pt-4 bg-[#fafafa] text-[#223344]"
+      handleClassName="py-2 bg-[#111111]"
+      handleBarClassName="w-8 h-1 bg-[#333333]"
+    >
+      Sheet body
+    </BottomSheet>
+  )
+}
+export function StatefulHandle() {
+  return (
+    <BottomSheet open detents={[0.5, 1]} handleClassName="py-2 hover:bg-[#444444]">
+      Body
+    </BottomSheet>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoScrimStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoSheetStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoHandleStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoHandleBarStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /scrimClassName="bg-\[#010101\]"/)
+  assert.doesNotMatch(transformed, /sheetClassName="pt-4/)
+  assert.doesNotMatch(transformed, /handleClassName="py-2 bg-\[#111111\]"/)
+  assert.doesNotMatch(transformed, /handleBarClassName="w-8/)
+  // Two-shape BottomSheet.handle retains stateful literals when decorative shape lacks hover:.
+  assert.match(transformed, /handleClassName="py-2 hover:bg-\[#444444\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const sheetMod = loadNativePatternModule('bottom-sheet.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = {
+    exports: {} as { Screen: React.ComponentType<{ detents?: readonly number[] }> },
+  }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { BottomSheet: sheetMod.exports.BottomSheet }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (detents: readonly number[]) => {
+    sheetMod.captured.length = 0
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { detents }))
+    return {
+      views: sheetMod.captured
+        .filter((entry) => entry.host === 'View')
+        .map((entry) => flattenStyle(entry.props.style)),
+      pressables: sheetMod.captured
+        .filter((entry) => entry.host === 'Pressable')
+        .map((entry) => flattenStyle(entry.props.style)),
+      texts: sheetMod.captured
+        .filter((entry) => entry.host === 'Text')
+        .map((entry) => flattenStyle(entry.props.style)),
+    }
+  }
+
+  // Resizable shape: Pressables [0: scrim, 1: handle]; Views [0: root, 1: sheet, 2: handleBar]
+  const resizable = renderCase([0.5, 1])
+  assert.equal(resizable.pressables[0]!.backgroundColor, '#010101')
+  assert.equal(resizable.views[1]!.backgroundColor, '#fafafa')
+  assert.equal(resizable.views[1]!.paddingTop, 16)
+  assert.equal(resizable.pressables[1]!.backgroundColor, '#111111')
+  assert.equal(resizable.pressables[1]!.paddingVertical ?? resizable.pressables[1]!.paddingTop, 8)
+  assert.equal(resizable.views[2]!.backgroundColor, '#333333')
+  assert.equal(resizable.views[2]!.width, 32)
+  assert.equal(resizable.texts[0]!.color, '#223344')
+
+  // Decorative shape: Pressables [0: scrim]; Views [0: root, 1: sheet, 2: decorativeHandle, 3: handleBar]
+  const decorative = renderCase([1])
+  assert.equal(decorative.pressables[0]!.backgroundColor, '#010101')
+  assert.equal(decorative.views[1]!.backgroundColor, '#fafafa')
+  assert.equal(decorative.views[2]!.backgroundColor, '#111111')
+  assert.equal(decorative.views[3]!.backgroundColor, '#333333')
+  assert.equal(decorative.texts[0]!.color, '#223344')
+
+  assert.equal(classResolverCalls, 0, 'prepared BottomSheet literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp, label] of [
+    ['scrimClassName', 'hozoScrimStyle', 'scrim'],
+    ['sheetClassName', 'hozoSheetStyle', 'sheet'],
+    ['handleClassName', 'hozoHandleStyle', 'handle'],
+    ['handleBarClassName', 'hozoHandleBarStyle', 'handleBar'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            sheetMod.exports.BottomSheet as React.ComponentType<Record<string, unknown>>,
+            {
+              open: true,
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+            },
+          ),
+        ),
+      new RegExp(`Prepared BottomSheet ${label} styles must consume ${classProp}`),
+    )
+  }
+})

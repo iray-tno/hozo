@@ -34,6 +34,7 @@ import {
 } from '@hozo/form'
 import {
   Accordion,
+  BottomSheet,
   Chip,
   Drawer,
   Popover,
@@ -8880,6 +8881,137 @@ export function Screen({ index }: { index?: number }) {
       )
     } finally {
       await page.mouse.up()
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('BottomSheet delivers prepared scrim, sheet, handle and handleBar markers on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { BottomSheet } from '@hozo/patterns'
+export function Screen({ detents }: { detents?: readonly number[] }) {
+  return (
+    <div id="wrap">
+      <BottomSheet
+        open
+        portal={false}
+        detents={detents}
+        accessibilityLabel="Filters"
+        scrimClassName="bg-[#010101]"
+        sheetClassName="pt-4 bg-[#fafafa] text-[#223344]"
+        handleClassName="py-2 bg-[#111111]"
+        handleBarClassName="block w-8 h-1 bg-[#333333]"
+      >
+        Sheet body
+      </BottomSheet>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  assert.match(web.code, /scrimClassName=\{"hozo-owner-/)
+  assert.match(web.code, /sheetClassName=\{"hozo-owner-/)
+  assert.match(web.code, /handleClassName=\{"hozo-owner-/)
+  assert.match(web.code, /handleBarClassName=\{"hozo-owner-/)
+
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { BottomSheet }
+      throw new Error(`Unexpected web require: ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  assert.match(nativeCode, /hozoScrimStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(nativeCode, /hozoSheetStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(nativeCode, /hozoHandleStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(nativeCode, /hozoHandleBarStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'BottomSheet') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (id === '@hozo/patterns') return { BottomSheet: 'BottomSheet' }
+      throw new Error(`Unexpected native require: ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ detents: [0.5, 1] })
+  for (const prop of ['hozoScrimStyle', 'hozoSheetStyle', 'hozoHandleStyle', 'hozoHandleBarStyle'])
+    assert.equal(typeof nativeProps[prop], 'function')
+  for (const prop of ['scrimClassName', 'sheetClassName', 'handleClassName', 'handleBarClassName'])
+    assert.equal(nativeProps[prop], undefined)
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeScrim = flat(nativeProps.hozoScrimStyle())
+  const nativeSheet = flat(nativeProps.hozoSheetStyle())
+  const nativeHandle = flat(nativeProps.hozoHandleStyle())
+  const nativeBar = flat(nativeProps.hozoHandleBarStyle())
+
+  const page = await browser.newPage()
+  try {
+    for (const [detents, handleTag] of [
+      [[0.5, 1], 'BUTTON'],
+      [[1], 'DIV'],
+    ]) {
+      const html = renderToStaticMarkup(createElement(webMod.exports.Screen, { detents }))
+      await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+      const markers = await page.evaluate(() => {
+        const dialog = document.querySelector('#wrap [role="dialog"]')
+        const scrim = document.querySelector('#wrap [data-hozo-state] > [aria-hidden="true"]')
+        const handle = dialog.firstElementChild
+        const bar = handle.firstElementChild
+        return {
+          scrimBg: getComputedStyle(scrim).backgroundColor,
+          sheetBg: getComputedStyle(dialog).backgroundColor,
+          sheetPaddingTop: parseFloat(getComputedStyle(dialog).paddingTop),
+          sheetColor: getComputedStyle(dialog).color,
+          handleTag: handle.tagName,
+          handleBg: getComputedStyle(handle).backgroundColor,
+          barTag: bar.tagName,
+          barBg: getComputedStyle(bar).backgroundColor,
+          barWidth: parseFloat(getComputedStyle(bar).width),
+        }
+      })
+      assert.deepEqual(markers, {
+        scrimBg: hexToRgb(nativeScrim.backgroundColor),
+        sheetBg: hexToRgb(nativeSheet.backgroundColor),
+        sheetPaddingTop: nativeSheet.paddingTop,
+        sheetColor: hexToRgb(nativeSheet.color),
+        handleTag,
+        handleBg: hexToRgb(nativeHandle.backgroundColor),
+        barTag: 'SPAN',
+        barBg: hexToRgb(nativeBar.backgroundColor),
+        barWidth: nativeBar.width,
+      })
     }
   } finally {
     await page.close()
