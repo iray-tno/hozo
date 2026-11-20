@@ -26,6 +26,7 @@ import {
   summarizeTextForwarding,
   type TextForwardingComponent,
   type TextForwardingModule,
+  type TextForwardingSummary,
 } from './index.ts'
 
 /** Bumped when a reader could misread an older or newer manifest. Version 2
@@ -71,6 +72,12 @@ export interface BuildManifestOptions {
   entry: string
   /** Defaults to reading the file system; a caller can serve memory instead. */
   readSource?: (file: string) => string | undefined
+  /**
+   * Each file's text-forwarding summary, `undefined` for no such file, in
+   * place of reading and summarising it here: a project's per-file records
+   * already hold it (decision 014).
+   */
+  summarize?: (file: string) => TextForwardingSummary | undefined
 }
 
 const EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js']
@@ -82,8 +89,8 @@ function readFromDisk(file: string): string | undefined {
 function resolveRelative(
   from: string,
   specifier: string,
-  read: (file: string) => string | undefined,
-): { file: string; source: string } | undefined {
+  summarize: (file: string) => TextForwardingSummary | undefined,
+): { file: string; summary: TextForwardingSummary } | undefined {
   const base = path.resolve(path.dirname(from), specifier)
   const candidates = [
     base,
@@ -91,8 +98,8 @@ function resolveRelative(
     ...EXTENSIONS.map((extension) => path.join(base, `index${extension}`)),
   ]
   for (const file of candidates) {
-    const source = read(file)
-    if (source !== undefined) return { file, source }
+    const summary = summarize(file)
+    if (summary !== undefined) return { file, summary }
   }
   return undefined
 }
@@ -122,6 +129,12 @@ function toEntry(component: TextForwardingComponent): TextForwardingEntry {
  */
 export function buildManifest(options: BuildManifestOptions): HozoManifest {
   const read = options.readSource ?? readFromDisk
+  const summarize =
+    options.summarize ??
+    ((file: string) => {
+      const source = read(file)
+      return source === undefined ? undefined : summarizeTextForwarding(source)
+    })
   const textForwarding: Record<string, TextForwardingEntry> = {}
 
   // Each name `file` exports, mapped to the names the entry publishes it
@@ -129,11 +142,15 @@ export function buildManifest(options: BuildManifestOptions): HozoManifest {
   // `Button`. `undefined` means every name, as itself: the entry.
   type Wanted = Map<string, string[]> | undefined
   const publishedAs = (wanted: Wanted, name: string) => (wanted ? (wanted.get(name) ?? []) : [name])
-  const visit = (file: string, source: string, wanted: Wanted, seen: Set<string>) => {
+  const visit = (
+    file: string,
+    summary: TextForwardingSummary,
+    wanted: Wanted,
+    seen: Set<string>,
+  ) => {
     const key = `${file}\u0000${wanted ? JSON.stringify([...wanted]) : '*'}`
     if (seen.has(key)) return
     seen.add(key)
-    const summary = summarizeTextForwarding(source)
     for (const component of summary.components) {
       for (const as of publishedAs(wanted, component.name)) textForwarding[as] = toEntry(component)
     }
@@ -147,14 +164,14 @@ export function buildManifest(options: BuildManifestOptions): HozoManifest {
       if (names.size > 0) next.set(reexport.specifier, names)
     }
     for (const [specifier, names] of next) {
-      const target = resolveRelative(file, specifier, read)
-      if (target) visit(target.file, target.source, names, seen)
+      const target = resolveRelative(file, specifier, summarize)
+      if (target) visit(target.file, target.summary, names, seen)
     }
   }
 
-  const source = read(options.entry)
-  if (source === undefined) throw new Error(`hozo manifest: cannot read ${options.entry}`)
-  visit(options.entry, source, undefined, new Set())
+  const entry = summarize(options.entry)
+  if (entry === undefined) throw new Error(`hozo manifest: cannot read ${options.entry}`)
+  visit(options.entry, entry, undefined, new Set())
 
   const sorted: Record<string, TextForwardingEntry> = {}
   for (const [name, entry] of Object.entries(textForwarding).sort(([a], [b]) => (a < b ? -1 : 1))) {

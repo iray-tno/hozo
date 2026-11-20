@@ -15,10 +15,9 @@
 // stylesheet without a restart.
 
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { scanTailwindOrderCandidates } from '@hozo/compiler'
 
 import { cssFileNameFor } from '@hozo/compiler/lower'
 import {
@@ -276,10 +275,9 @@ function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptio
     console.info(scanSummary(project.stats))
   }
   const orderingCandidates = new Set(project.cache.candidates())
+  // From the scan's own records, not a second read (decision 014).
   for (const file of project.files) {
-    for (const candidate of scanTailwindOrderCandidates(readFileSync(file, 'utf8'))) {
-      orderingCandidates.add(candidate)
-    }
+    for (const candidate of project.facts.get(file)?.order ?? []) orderingCandidates.add(candidate)
   }
   const loaderOptions = {
     ...options,
