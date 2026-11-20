@@ -539,6 +539,37 @@ test('ResizablePane contracts declare div root, section split-text pane, and han
     },
   ])
 })
+test('Slider contracts declare focus-only thumb View and stateless fill/rail Views (#2046)', () => {
+  const thumb = parsed().contracts.find((entry) => entry.owner === 'Slider.thumb')!
+  assert.equal(thumb.audit, 'audited')
+  assert.deepEqual(thumb.abi, {
+    nativePreparedProp: 'hozoSliderThumbStyle',
+    webClassProp: 'thumbClassName',
+  })
+  assert.deepEqual(thumb.authoredStyles, [{ prop: 'thumbStyle', order: 0 }])
+  assert.deepEqual(thumb.shapes, [
+    {
+      id: 'thumb',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: ['focused', 'focusVisible'],
+      inputs: { facts: ['aria-disabled'], splitText: false },
+    },
+  ])
+  for (const [owner, classProp, prop, styleProp, id] of [
+    ['Slider.fill', 'fillClassName', 'hozoFillStyle', 'fillStyle', 'fill'],
+    ['Slider.rail', 'railClassName', 'hozoRailStyle', 'railStyle', 'rail'],
+  ] as const) {
+    const entry = parsed().contracts.find((row) => row.owner === owner)!
+    assert.equal(entry.audit, 'audited')
+    assert.deepEqual(entry.abi, { nativePreparedProp: prop, webClassProp: classProp })
+    assert.deepEqual(entry.authoredStyles, [{ prop: styleProp, order: 0 }])
+    assert.deepEqual(entry.shapes, [
+      { id, when: { eq: ['present', true] }, nativeHost: 'View', webHost: 'div', events: [] },
+    ])
+  }
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

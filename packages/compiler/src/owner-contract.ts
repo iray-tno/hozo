@@ -249,10 +249,14 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       // Only verified host pairs (or explicit single-platform hosts) have application evidence.
       const interactiveViewEvents =
         shape.webHost === 'div' &&
-        events.length === 3 &&
-        ['hovered', 'focused', 'focusVisible'].every((event) =>
-          events.includes(event as OwnerShape['events'][number]),
-        )
+        ((events.length === 3 &&
+          ['hovered', 'focused', 'focusVisible'].every((event) =>
+            events.includes(event as OwnerShape['events'][number]),
+          )) ||
+          (events.length === 2 &&
+            ['focused', 'focusVisible'].every((event) =>
+              events.includes(event as OwnerShape['events'][number]),
+            )))
       const nativeOnlyInteractiveView =
         nativeOnly && shape.nativeHost === 'View' && events.length > 0
       const nativeOnlyPressOnly =

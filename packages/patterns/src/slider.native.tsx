@@ -65,6 +65,12 @@ export interface HozoSliderProps extends Partial<SliderRange> {
   thumbStyle?: StyleProp<ViewStyle>
   /** @internal Compiled classes, evaluated by the actual adjustable thumb. */
   hozoThumbStyle?: (state: SliderThumbState) => StyleProp<ViewStyle>
+  /** @internal Complete prepared thumb class contribution (RFC 010). */
+  hozoSliderThumbStyle?: (state: SliderThumbState) => StyleProp<ViewStyle>
+  /** @internal Complete prepared fill class contribution (RFC 010). */
+  hozoFillStyle?: () => StyleProp<ViewStyle>
+  /** @internal Complete prepared rail class contribution (RFC 010). */
+  hozoRailStyle?: () => StyleProp<ViewStyle>
   fillStyle?: StyleProp<ViewStyle>
   railStyle?: StyleProp<ViewStyle>
 }
@@ -90,9 +96,18 @@ export function HozoSlider({
   style,
   thumbStyle,
   hozoThumbStyle,
+  hozoSliderThumbStyle,
+  hozoFillStyle,
+  hozoRailStyle,
   fillStyle,
   railStyle,
 }: HozoSliderProps) {
+  if (hozoSliderThumbStyle && thumbClassName !== undefined)
+    throw new Error('Prepared Slider styles must consume thumbClassName')
+  if (hozoFillStyle && fillClassName !== undefined)
+    throw new Error('Prepared Slider styles must consume fillClassName')
+  if (hozoRailStyle && railClassName !== undefined)
+    throw new Error('Prepared Slider styles must consume railClassName')
   // View's non-touch focus events belong to the adjustable thumb, not the
   // track that receives the pan. A non-touch focus ring needs no pointer
   // subscriptions, Pressable host or change to drag hit testing.
@@ -166,7 +181,7 @@ export function HozoSlider({
     <View
       accessible={false}
       pointerEvents="box-only"
-      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
+      style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}
       onLayout={onLayout}
       {...drag.handlers}
       onResponderGrant={(event) => {
@@ -181,19 +196,34 @@ export function HozoSlider({
         return drag.handlers.onResponderGrant?.(event)
       }}
     >
-      {railStyle === undefined && railClassName === undefined ? null : (
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={[hozoClasses(railClassName), hozoAuthoredStyle(railStyle)]}
-        />
-      )}
-      {fillStyle === undefined && fillClassName === undefined ? null : (
+      {railStyle === undefined &&
+      railClassName === undefined &&
+      hozoRailStyle === undefined ? null : (
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           style={[
-            hozoClasses(fillClassName),
+            hozoRailStyle
+              ? hozoRailStyle()
+              : railClassName
+                ? hozoClasses(railClassName)
+                : undefined,
+            hozoAuthoredStyle(railStyle),
+          ]}
+        />
+      )}
+      {fillStyle === undefined &&
+      fillClassName === undefined &&
+      hozoFillStyle === undefined ? null : (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[
+            hozoFillStyle
+              ? hozoFillStyle()
+              : fillClassName
+                ? hozoClasses(fillClassName)
+                : undefined,
             hozoAuthoredStyle(fillStyle),
             vertical ? { height: `${fraction * 100}%` } : { width: `${fraction * 100}%` },
           ]}
@@ -218,7 +248,11 @@ export function HozoSlider({
           if (event.nativeEvent.actionName === 'decrement') step1(-1)
         }}
         style={[
-          hozoClasses(thumbClassName, thumbFacts),
+          hozoSliderThumbStyle
+            ? hozoSliderThumbStyle(thumbFacts)
+            : thumbClassName
+              ? hozoClasses(thumbClassName, thumbFacts)
+              : undefined,
           hozoThumbStyle?.(thumbFacts),
           hozoAuthoredStyle(thumbStyle),
           vertical ? { bottom: `${fraction * 100}%` } : { start: `${fraction * 100}%` },

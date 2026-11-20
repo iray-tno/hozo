@@ -32,7 +32,16 @@ import {
   TextArea,
   TimePicker,
 } from '@hozo/form'
-import { Chip, Drawer, Popover, RadioGroup, ResizablePane, Splitter, Tree } from '@hozo/patterns'
+import {
+  Chip,
+  Drawer,
+  Popover,
+  RadioGroup,
+  ResizablePane,
+  Slider,
+  Splitter,
+  Tree,
+} from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -8346,6 +8355,134 @@ export function Screen({ collapsed }: { collapsed?: boolean }) {
     assert.equal(
       await sep.evaluate((el) => getComputedStyle(el).backgroundColor),
       hexToRgb(handleNative({ 'data-collapsed': true }).backgroundColor),
+    )
+  } finally {
+    await page.close()
+  }
+})
+
+test('Slider delivers prepared rail, fill and thumb markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Slider } from '@hozo/patterns'
+export function Screen({ disabled }: { disabled?: boolean }) {
+  return (
+    <div id="wrap">
+      <Slider
+        accessibilityLabel="Volume"
+        defaultValue={40}
+        disabled={disabled}
+        railClassName="bg-[#101010] h-2"
+        fillClassName="bg-[#202020] h-2"
+        thumbClassName="w-6 h-6 bg-[#111111] border border-[#aaaaaa] focus-visible:border-[#333333] aria-disabled:bg-[#444444]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Slider }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Slider') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Slider: 'Slider' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ disabled: false })
+  assert.equal(nativeProps.railClassName, undefined)
+  assert.equal(nativeProps.fillClassName, undefined)
+  assert.equal(nativeProps.thumbClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeRail = flat(nativeProps.hozoRailStyle())
+  const nativeFill = flat(nativeProps.hozoFillStyle())
+  const thumbNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoSliderThumbStyle({
+        focused: false,
+        focusVisible: false,
+        'aria-disabled': false,
+        ...overrides,
+      }),
+    )
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen, { disabled: false }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const hidden = document.querySelectorAll('#wrap [aria-hidden="true"]')
+      const thumb = document.querySelector('#wrap [role="slider"]')
+      return {
+        railBg: getComputedStyle(hidden[0]).backgroundColor,
+        fillBg: getComputedStyle(hidden[1]).backgroundColor,
+        thumbBg: getComputedStyle(thumb).backgroundColor,
+        thumbBorder: getComputedStyle(thumb).borderTopColor,
+      }
+    })
+    assert.deepEqual(markers, {
+      railBg: hexToRgb(nativeRail.backgroundColor),
+      fillBg: hexToRgb(nativeFill.backgroundColor),
+      thumbBg: hexToRgb(thumbNative().backgroundColor),
+      thumbBorder: hexToRgb(thumbNative().borderColor),
+    })
+
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap [role="slider"]').matches(':focus-visible'),
+    )
+    assert.equal(
+      await page
+        .locator('#wrap [role="slider"]')
+        .evaluate((el) => getComputedStyle(el).borderTopColor),
+      hexToRgb(thumbNative({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    const disabledHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { disabled: true }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${disabledHtml}`)
+    assert.equal(
+      await page
+        .locator('#wrap [role="slider"]')
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+      hexToRgb(thumbNative({ 'aria-disabled': true }).backgroundColor),
     )
   } finally {
     await page.close()

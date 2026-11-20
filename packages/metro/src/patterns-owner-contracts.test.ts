@@ -905,3 +905,120 @@ export function Fallback() {
     )
   }
 })
+
+test('Native Slider delivers prepared thumb, fill and rail styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Slider } from '@hozo/patterns'
+export function Screen({ disabled }: { disabled?: boolean }) {
+  return (
+    <Slider
+      accessibilityLabel="Volume"
+      defaultValue={40}
+      disabled={disabled}
+      railClassName="bg-[#101010]"
+      fillClassName="bg-[#202020]"
+      thumbClassName="bg-[#111111] focus:border-[#222222] focus-visible:border-[#333333] aria-disabled:bg-[#444444]"
+    />
+  )
+}
+export function Fallback() {
+  return (
+    <Slider
+      accessibilityLabel="Keep"
+      thumbClassName="hover:bg-[#555555]"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoRailStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoFillStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoSliderThumbStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /railClassName="bg-\[#101010\]"/)
+  assert.doesNotMatch(transformed, /fillClassName="bg-\[#202020\]"/)
+  assert.doesNotMatch(transformed, /thumbClassName="bg-\[#111111\]/)
+  // Track owns pointers on Native; thumb refuses hover: and keeps the runtime path.
+  assert.match(transformed, /thumbClassName="hover:bg-\[#555555\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const sliderMod = loadNativePatternModule('slider.native.tsx', { hozoClasses: spyHozoClasses })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ disabled?: boolean }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Slider: sliderMod.exports.Slider }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    options: { disabled?: boolean; focused?: boolean; focusVisible?: boolean } = {},
+  ) => {
+    sliderMod.captured.length = 0
+    sliderMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: Boolean(options.focused),
+      focusVisible: Boolean(options.focusVisible),
+    })
+    renderToStaticMarkup(
+      React.createElement(screenMod.exports.Screen, { disabled: options.disabled }),
+    )
+    const views = sliderMod.captured.filter((entry) => entry.host === 'View')
+    // [0: track, 1: rail, 2: fill, 3: thumb]
+    assert.equal(views.length, 4, 'prepared rail and fill must still mount without class strings')
+    return {
+      rail: flattenStyle(views[1]!.props.style),
+      fill: flattenStyle(views[2]!.props.style),
+      thumb: flattenStyle(views[3]!.props.style),
+    }
+  }
+
+  const rest = renderCase()
+  assert.equal(rest.rail.backgroundColor, '#101010')
+  assert.equal(rest.fill.backgroundColor, '#202020')
+  assert.equal(rest.thumb.backgroundColor, '#111111')
+  assert.equal(renderCase({ focused: true }).thumb.borderColor, '#222222')
+  assert.equal(renderCase({ focused: true, focusVisible: true }).thumb.borderColor, '#333333')
+  assert.equal(renderCase({ disabled: true }).thumb.backgroundColor, '#444444')
+  assert.equal(classResolverCalls, 0, 'prepared Slider literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp] of [
+    ['thumbClassName', 'hozoSliderThumbStyle'],
+    ['fillClassName', 'hozoFillStyle'],
+    ['railClassName', 'hozoRailStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            sliderMod.exports.Slider as React.ComponentType<Record<string, unknown>>,
+            {
+              accessibilityLabel: 'Volume',
+              [classProp]: 'bg-[#000000]',
+              [preparedProp]: () => ({}),
+            },
+          ),
+        ),
+      new RegExp(`Prepared Slider styles must consume ${classProp}`),
+    )
+  }
+})

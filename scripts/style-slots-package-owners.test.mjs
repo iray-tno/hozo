@@ -19,6 +19,8 @@ const exports = [
   'RadioGroup',
   'HozoRadioGroup',
   'ResizablePane',
+  'Slider',
+  'HozoSlider',
   'Splitter',
   'Tabs',
   'HozoTabs',
@@ -45,6 +47,7 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
     { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.trigger'] },
     { name: 'HozoRadioGroup', owners: ['RadioGroup.option'] },
+    { name: 'HozoSlider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
     { name: 'HozoTabs', owners: ['Tabs.Tab'] },
     { name: 'HozoToolbar', owners: ['Toolbar.root'] },
     { name: 'HozoTree', owners: ['Tree.row'] },
@@ -55,12 +58,13 @@ test('catalog publication owns the contract once and attaches only actual packag
       name: 'ResizablePane',
       owners: ['ResizablePane.handle', 'ResizablePane.pane', 'ResizablePane.root'],
     },
+    { name: 'Slider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
     { name: 'Splitter', owners: ['Splitter.root'] },
     { name: 'Tabs', owners: ['Tabs.Tab'] },
     { name: 'Toolbar', owners: ['Toolbar.root'] },
     { name: 'Tree', owners: ['Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 13)
+  assert.equal(result.owners.contracts.length, 16)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
@@ -77,6 +81,9 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['ResizablePane.root', 'audited'],
       ['ResizablePane.pane', 'audited'],
       ['ResizablePane.handle', 'audited'],
+      ['Slider.thumb', 'audited'],
+      ['Slider.fill', 'audited'],
+      ['Slider.rail', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')

@@ -549,6 +549,111 @@
       ]
     },
     {
+      "owner": "Slider.thumb",
+      "classProp": "thumbClassName",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoSliderThumbStyle",
+        "webClassProp": "thumbClassName"
+      },
+      "authoredStyles": [
+        {
+          "prop": "thumbStyle",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "thumb",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": [
+            "focused",
+            "focusVisible"
+          ],
+          "inputs": {
+            "facts": [
+              "aria-disabled"
+            ],
+            "splitText": false
+          }
+        }
+      ]
+    },
+    {
+      "owner": "Slider.fill",
+      "classProp": "fillClassName",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoFillStyle",
+        "webClassProp": "fillClassName"
+      },
+      "authoredStyles": [
+        {
+          "prop": "fillStyle",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "fill",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
+      "owner": "Slider.rail",
+      "classProp": "railClassName",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoRailStyle",
+        "webClassProp": "railClassName"
+      },
+      "authoredStyles": [
+        {
+          "prop": "railStyle",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "rail",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": []
+        }
+      ]
+    },
+    {
       "owner": "Form.root",
       "classProp": "className",
       "audit": "audited",

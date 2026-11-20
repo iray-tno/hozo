@@ -483,3 +483,34 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
   assert.match(lowered.css, /\[data-dragging\]/)
 })
+
+test('ordinary Web lowering compiles Slider thumb, fill and rail slots by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Slider } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <Slider
+        accessibilityLabel="Volume"
+        thumbClassName="size-6 bg-[#111111] focus-visible:border-[#222222] aria-disabled:bg-[#333333]"
+        fillClassName="bg-[#444444]"
+        railClassName="bg-[#555555]"
+      />
+      <Slider {...spread} accessibilityLabel="Keep" thumbClassName="bg-[#666666]" />
+      <Slider accessibilityLabel="Dyn" fillClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /thumbClassName="size-6/)
+  assert.doesNotMatch(lowered.code, /fillClassName="bg-\[#444444\]"/)
+  assert.doesNotMatch(lowered.code, /railClassName="bg-\[#555555\]"/)
+  assert.match(lowered.code, /thumbClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /fillClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /railClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /thumbClassName="bg-\[#666666\]"/)
+  assert.match(lowered.code, /fillClassName=\{dynamic\}/)
+  assert.match(lowered.css, /aria-disabled="true"/)
+})

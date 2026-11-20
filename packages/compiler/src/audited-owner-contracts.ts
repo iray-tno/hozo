@@ -79,6 +79,27 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"ResizablePane.handle","classProp":"handleClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoHandleStyle","webClassProp":"handleClassName"},"authoredStyles":[{"prop":"handleStyle","order":0}],"shapes":[{"id":"handle","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":["hovered","focused","focusVisible"],"inputs":{"facts":["data-dragging","data-collapsed"],"splitText":false}}]}]}',
   },
   {
+    owner: 'Slider.thumb',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Slider.thumb","classProp":"thumbClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSliderThumbStyle","webClassProp":"thumbClassName"},"authoredStyles":[{"prop":"thumbStyle","order":0}],"shapes":[{"id":"thumb","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":["focused","focusVisible"],"inputs":{"facts":["aria-disabled"],"splitText":false}}]}]}',
+  },
+  {
+    owner: 'Slider.fill',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Slider.fill","classProp":"fillClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoFillStyle","webClassProp":"fillClassName"},"authoredStyles":[{"prop":"fillStyle","order":0}],"shapes":[{"id":"fill","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Slider.rail',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Slider.rail","classProp":"railClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoRailStyle","webClassProp":"railClassName"},"authoredStyles":[{"prop":"railStyle","order":0}],"shapes":[{"id":"rail","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
     owner: 'Form.root',
     package: '@hozo/form',
     exports: ['Form', 'HozoForm'],

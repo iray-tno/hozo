@@ -831,7 +831,25 @@ export const components = {
       },
     },
   }),
-  Slider: slots('className thumbClassName fillClassName railClassName'),
+  Slider: slots('className thumbClassName fillClassName railClassName', {
+    overrides: {
+      thumbClassName: {
+        owner: 'slider-thumb',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+      fillClassName: {
+        owner: 'slider-fill',
+        gate: 'fill-styled',
+        composition: 'prepared-owner-contract',
+      },
+      railClassName: {
+        owner: 'slider-rail',
+        gate: 'rail-styled',
+        composition: 'prepared-owner-contract',
+      },
+    },
+  }),
   Stepper: slots(
     'className stepClassName completedStepClassName currentStepClassName errorStepClassName indicatorClassName completedIndicatorClassName currentIndicatorClassName errorIndicatorClassName descriptionClassName',
     {
@@ -1342,6 +1360,58 @@ export const ownerShadow = {
           webHost: 'div',
           events: ['hovered', 'focused', 'focusVisible'],
           inputs: { facts: ['data-dragging', 'data-collapsed'], splitText: false },
+        },
+      ],
+    },
+    {
+      owner: 'Slider.thumb',
+      classProp: 'thumbClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSliderThumbStyle', webClassProp: 'thumbClassName' },
+      authoredStyles: [{ prop: 'thumbStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'thumb',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: ['focused', 'focusVisible'],
+          inputs: { facts: ['aria-disabled'], splitText: false },
+        },
+      ],
+    },
+    {
+      owner: 'Slider.fill',
+      classProp: 'fillClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoFillStyle', webClassProp: 'fillClassName' },
+      authoredStyles: [{ prop: 'fillStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'fill',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Slider.rail',
+      classProp: 'railClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoRailStyle', webClassProp: 'railClassName' },
+      authoredStyles: [{ prop: 'railStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'rail',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
         },
       ],
     },
@@ -1940,6 +2010,21 @@ export const ownerPublications = [
     owner: 'ResizablePane.handle',
     package: '@hozo/patterns',
     exports: ['ResizablePane'],
+  },
+  {
+    owner: 'Slider.thumb',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+  },
+  {
+    owner: 'Slider.fill',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
+  },
+  {
+    owner: 'Slider.rail',
+    package: '@hozo/patterns',
+    exports: ['Slider', 'HozoSlider'],
   },
   {
     owner: 'Form.root',
