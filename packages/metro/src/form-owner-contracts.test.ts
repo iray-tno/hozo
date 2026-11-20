@@ -27,7 +27,10 @@ function flattenStyle(style: unknown): Record<string, unknown> {
 
 function loadNativeFormModule(
   relativeFile: string,
-  options: { hozoClasses: (value?: string, facts?: unknown) => unknown },
+  options: {
+    hozoClasses: (value?: string, facts?: unknown) => unknown
+    openBooleanState?: boolean
+  },
 ) {
   const fullPath = path.join(root, 'packages/form/src', relativeFile)
   const source = readFileSync(fullPath, 'utf8')
@@ -42,7 +45,11 @@ function loadNativeFormModule(
   const captured: { host: string; props: Record<string, unknown> }[] = []
   const host = (name: string) => (props: Record<string, unknown>) => {
     captured.push({ host: name, props })
-    return React.createElement(`rn-${name.toLowerCase()}`, null, props.children as React.ReactNode)
+    const children =
+      typeof props.children === 'function'
+        ? (props.children as (state: { pressed: boolean }) => React.ReactNode)({ pressed: false })
+        : (props.children as React.ReactNode)
+    return React.createElement(`rn-${name.toLowerCase()}`, null, children)
   }
   const rn = {
     View: host('View'),
@@ -61,9 +68,16 @@ function loadNativeFormModule(
     AccessibilityInfo: { announceForAccessibility: () => {} },
   }
   let interactionState = { hovered: false, pressed: false, focused: false, focusVisible: false }
+  const reactModule = options.openBooleanState
+    ? {
+        ...React,
+        useState: <T>(initial: T) =>
+          React.useState(initial === false ? (true as unknown as T) : initial),
+      }
+    : React
   const cache = new Map<string, unknown>()
   const localRequire = (specifier: string): unknown => {
-    if (specifier === 'react') return React
+    if (specifier === 'react') return reactModule
     if (specifier === 'react-native') return rn
     if (specifier === '@hozo/engine/project') return { hozoClasses: options.hozoClasses }
     if (specifier === '@hozo/engine/generated/gap-styles')
@@ -561,7 +575,7 @@ export function Fallback({ dynamic }: { dynamic: string }) {
   }
 })
 
-test('Native NativeSelect delivers prepared root styles to Pressable and label Text without calling hozoClasses (#2045)', () => {
+test('Native NativeSelect delivers prepared styles across all five slots without calling hozoClasses (#2045, #2095)', () => {
   const compiler = createCompiler()
   const source = `import { NativeSelect } from '@hozo/form'
 export function Screen({
@@ -575,13 +589,29 @@ export function Screen({
 }) {
   return (
     <NativeSelect
-      options={[{ value: 'a', label: 'Alpha' }]}
+      options={[
+        { value: 'a', label: 'Alpha' },
+        { value: 'b', label: 'Beta', disabled: true },
+      ]}
       value="a"
       disabled={disabled}
       aria-invalid={invalid}
       aria-required={required}
       className="pt-4 text-[#112233] bg-[#101010] disabled:bg-[#202020] aria-[invalid=true]:bg-[#303030] aria-required:bg-[#404040]"
-      sheetClassName="p-2"
+      indicatorClassName="w-2 h-2 border-b-2 border-[#111111] aria-[invalid=true]:border-[#aa0000] disabled:opacity-50"
+      sheetClassName="pt-5 text-[#223344] bg-[#505050]"
+      scrimClassName="bg-[#000000]"
+      optionClassName="pt-3 text-[#334455] bg-[#606060] active:bg-[#707070] aria-selected:bg-[#808080] disabled:bg-[#909090]"
+    />
+  )
+}
+export function RefusedFallbacks() {
+  return (
+    <NativeSelect
+      options={[{ value: 'a', label: 'Alpha' }]}
+      indicatorClassName="text-[#111111]"
+      scrimClassName="hover:bg-[#111111]"
+      optionClassName="hover:bg-[#222222]"
     />
   )
 }
@@ -589,9 +619,19 @@ export function Screen({
   const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
   assert.ok(transformed)
   assert.match(transformed, /hozoSelectStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoIndicatorStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoSheetStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoScrimStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoOptionStyle=\{__hozoOwner\d+_Plan\d+\}/)
   assert.doesNotMatch(transformed, /className="pt-4/)
-  // Native-only fallback chrome slots remain untouched.
-  assert.match(transformed, /sheetClassName="p-2"/)
+  assert.doesNotMatch(transformed, /indicatorClassName="w-2/)
+  assert.doesNotMatch(transformed, /sheetClassName="pt-5/)
+  assert.doesNotMatch(transformed, /scrimClassName="bg-\[#000000\]"/)
+  assert.doesNotMatch(transformed, /optionClassName="pt-3/)
+  // Unsupported utilities stay retained (box-only indicator refuses text, stateless scrim and press-only option refuse hover).
+  assert.match(transformed, /indicatorClassName="text-\[#111111\]"/)
+  assert.match(transformed, /scrimClassName="hover:bg-\[#111111\]"/)
+  assert.match(transformed, /optionClassName="hover:bg-\[#222222\]"/)
 
   const { code } = esbuild.transformSync(transformed, {
     loader: 'tsx',
@@ -609,6 +649,7 @@ export function Screen({
   }
   const selectMod = loadNativeFormModule('native-select.native.tsx', {
     hozoClasses: spyHozoClasses,
+    openBooleanState: true,
   })
   const screenMod = {
     exports: {} as {
@@ -628,30 +669,61 @@ export function Screen({
   })
 
   renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { invalid: true }))
-  assert.equal(classResolverCalls, 0, 'prepared NativeSelect root must bypass hozoClasses')
+  assert.equal(classResolverCalls, 0, 'prepared NativeSelect must never call hozoClasses')
 
-  const triggerHost = selectMod.captured.find((entry) => entry.host === 'Pressable')
-  assert.ok(triggerHost)
-  assert.equal(flattenStyle(triggerHost.props.style).paddingTop, 16)
-  assert.equal(flattenStyle(triggerHost.props.style).backgroundColor, '#303030')
-  const valueText = selectMod.captured.find((entry) => entry.host === 'Text')
-  assert.ok(valueText)
-  assert.equal(flattenStyle(valueText.props.style).color, '#112233')
+  const pressables = selectMod.captured.filter((entry) => entry.host === 'Pressable')
+  const views = selectMod.captured.filter((entry) => entry.host === 'View')
+  const texts = selectMod.captured.filter((entry) => entry.host === 'Text')
 
-  assert.throws(
-    () =>
-      renderToStaticMarkup(
-        React.createElement(
-          selectMod.exports.NativeSelect as React.ComponentType<Record<string, unknown>>,
-          {
-            options: [{ value: 'a', label: 'Alpha' }],
-            className: 'pt-4',
-            hozoSelectStyle: () => ({}),
-          },
+  // Trigger Pressable (index 0) carries WITH_INDICATOR row layout + prepared control styles.
+  const triggerStyle = flattenStyle(pressables[0]!.props.style)
+  assert.equal(triggerStyle.flexDirection, 'row')
+  assert.equal(triggerStyle.paddingTop, 16)
+  assert.equal(triggerStyle.backgroundColor, '#303030')
+  assert.equal(flattenStyle(texts[0]!.props.style).color, '#112233')
+
+  // Indicator View (index 0) renders because hozoIndicatorStyle is supplied, with aria-invalid border color.
+  const indicatorStyle = flattenStyle(views[0]!.props.style)
+  assert.equal(indicatorStyle.width, 8)
+  assert.equal(indicatorStyle.borderColor, '#aa0000')
+
+  // Scrim Pressable (index 1) and Sheet View (index 1) deliver resting prepared styles.
+  assert.equal(flattenStyle(pressables[1]!.props.style).backgroundColor, '#000000')
+  const sheetStyle = flattenStyle(views[1]!.props.style)
+  assert.equal(sheetStyle.paddingTop, 20)
+  assert.equal(sheetStyle.backgroundColor, '#505050')
+
+  // Option rows (pressables 2 & 3): Alpha is selected, Beta is disabled; active press state works via style callback.
+  const alphaStyleFn = pressables[2]!.props.style as (state: { pressed: boolean }) => unknown
+  const betaStyleFn = pressables[3]!.props.style as (state: { pressed: boolean }) => unknown
+  assert.equal(flattenStyle(alphaStyleFn({ pressed: false })).paddingTop, 12)
+  assert.equal(flattenStyle(alphaStyleFn({ pressed: false })).backgroundColor, '#808080')
+  assert.equal(flattenStyle(betaStyleFn({ pressed: false })).backgroundColor, '#909090')
+  // Verify option text inherits sheet text color below option's own text color.
+  assert.equal(flattenStyle(texts[1]!.props.style).color, '#334455')
+
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoSelectStyle'],
+    ['indicatorClassName', 'hozoIndicatorStyle'],
+    ['sheetClassName', 'hozoSheetStyle'],
+    ['scrimClassName', 'hozoScrimStyle'],
+    ['optionClassName', 'hozoOptionStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            selectMod.exports.NativeSelect as React.ComponentType<Record<string, unknown>>,
+            {
+              options: [{ value: 'a', label: 'Alpha' }],
+              [classProp]: 'pt-4',
+              [preparedProp]: () => ({}),
+            },
+          ),
         ),
-      ),
-    /Prepared NativeSelect styles must consume className/,
-  )
+      new RegExp(`Prepared NativeSelect styles must consume ${classProp}`),
+    )
+  }
 })
 
 test('Native Calendar delivers prepared styles across all five slots without calling hozoClasses (#2045)', () => {

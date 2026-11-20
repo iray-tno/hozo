@@ -6,7 +6,7 @@ pub struct OwnerSlotBinding {
     pub source: String,
     pub imported: String,
     pub class_prop: String,
-    pub prepared_prop: String,
+    pub prepared_prop: Option<String>,
 }
 #[napi(object)]
 pub struct OwnerSlotSite {
@@ -41,8 +41,10 @@ pub fn inspect_owner_class_slots(
             target.source.is_empty()
                 || !identifier(&target.imported)
                 || !identifier(&target.class_prop)
-                || !identifier(&target.prepared_prop)
-                || target.class_prop == target.prepared_prop
+                || target
+                    .prepared_prop
+                    .as_deref()
+                    .is_some_and(|prop| !identifier(prop) || prop == target.class_prop)
                 || !unique.insert((&target.source, &target.imported, &target.class_prop))
         })
     {

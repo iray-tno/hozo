@@ -1771,7 +1771,7 @@ pub(super) fn render_node(
             });
             crate::class_route::static_callback(node.primitive, "className", &style_array_parts)
         } else {
-            let mut params: Vec<String> = if owner_view_callback {
+            let mut params: Vec<String> = if !cx.owner_inputs.events.is_empty() {
                 cx.owner_inputs
                     .events
                     .iter()

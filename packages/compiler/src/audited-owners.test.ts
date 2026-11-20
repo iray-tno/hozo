@@ -24,12 +24,14 @@ export function Screen() {
   assert.doesNotMatch(lowered.code, /className="flex flex-col gap-4"/)
   assert.doesNotMatch(lowered.code, /className="p-4 hover:bg-\[#223344\]"/)
   assert.doesNotMatch(lowered.code, /className="px-4 py-2 text-\[#ffffff\] disabled:opacity-50"/)
-  // Web-only activeClassName stays untouched until a contract covers it.
-  assert.match(lowered.code, /activeClassName="border-red-500"/)
+  // Web-only activeClassName compiles on Web and emits CSS after FileDropzone.root.
+  assert.doesNotMatch(lowered.code, /activeClassName="border-red-500"/)
+  assert.match(lowered.code, /activeClassName=\{"hozo-owner-/)
   assert.match(lowered.code, /className=\{"hozo-owner-/)
   assert.match(lowered.css, /gap:\s*16px/)
   assert.match(lowered.css, /padding:\s*16px|padding-top:\s*16px/)
   assert.match(lowered.css, /opacity:\s*(?:0?\.5|50%)/)
+  assert.match(lowered.css, /border-color:/)
 })
 
 test('ordinary Web lowering composes audited form owners beside @hozo/core primitives and retains dynamic/spread sites', () => {
@@ -197,6 +199,7 @@ export function Screen() {
   assert.match(lowered.code, /sheetClassName="p-4"/)
   assert.match(lowered.code, /scrimClassName="bg-\[#000000\]"/)
   assert.match(lowered.code, /optionClassName="px-2"/)
+  assert.doesNotMatch(lowered.css, /#000000|rgb\(0,\s*0,\s*0\)/)
   assert.match(lowered.css, /\[aria-invalid="true"\]/)
   assert.match(lowered.css, /\[aria-required="true"\]/)
 })

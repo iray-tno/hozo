@@ -55,17 +55,42 @@ interface OwnerCallerOptions {
   planPrefix?: string
 }
 
+function explicitNativeEvents(shape: OwnerShape): OwnerShape['events'] | undefined {
+  if (
+    (shape.nativeHost === 'View' && shape.events.length > 0) ||
+    (shape.nativeHost === 'Pressable' && shape.events.length > 0 && shape.events.length < 4)
+  )
+    return shape.events
+  return undefined
+}
+
+function syntheticPrimitiveFor(shape: OwnerShape, web: boolean): string {
+  if (!web) return shape.nativeHost!
+  if (shape.nativeHost !== null) return shape.nativeHost
+  switch (shape.webHost) {
+    case 'button':
+    case 'select':
+    case 'td':
+      return 'Pressable'
+    case 'label':
+    case 'span':
+      return 'Text'
+    case 'textarea':
+      return 'TextInput'
+    default:
+      return 'View'
+  }
+}
+
 function preparationOptions(shape: OwnerShape): NativeCompileOptions {
+  const ownerEvents = explicitNativeEvents(shape)
   return {
     ownerStyle: true,
     ...(shape.inputs && {
       ownerFacts: shape.inputs.facts,
       ownerText: shape.inputs.splitText ? ('split' as const) : undefined,
     }),
-    ...(shape.nativeHost === 'View' &&
-      shape.events.length > 0 && {
-        ownerEvents: shape.events,
-      }),
+    ...(ownerEvents && { ownerEvents }),
   }
 }
 
@@ -169,21 +194,29 @@ function collectOwnerLiteralCallers(
   const imported = typeof options.imported === 'string' ? [options.imported] : [...options.imported]
   if (!imported.length || imported.length > 8 || new Set(imported).size !== imported.length)
     throw new Error('OWNER_CALLER_ALIAS_BUDGET_OR_DUPLICATE')
-  const targets = imported.map((name) => ({
-    source: options.source,
-    imported: name,
-    classProp: contract.classProp,
-    preparedProp: contract.abi.nativePreparedProp,
-  }))
-  const inspection = inspectOwnerClassSlots(source, targets, options.sourceFile)
   const result: OwnerCallerPreview = {
     scope: 'explicit-direct-compiler-preview',
     code: source,
     ...(web && { css: '' }),
     edits: [],
-    diagnostics: inspection.diagnostics,
+    diagnostics: [],
     findings: [],
   }
+  // A single-platform contract has no host or carrier on the absent platform.
+  // Skip without parsing, emitting dead CSS, or fabricating a host.
+  if (
+    (web && contract.abi.webClassProp === null) ||
+    (!web && contract.abi.nativePreparedProp === null)
+  )
+    return () => result
+  const targets = imported.map((name) => ({
+    source: options.source,
+    imported: name,
+    classProp: contract.classProp,
+    ...(contract.abi.nativePreparedProp && { preparedProp: contract.abi.nativePreparedProp }),
+  }))
+  const inspection = inspectOwnerClassSlots(source, targets, options.sourceFile)
+  result.diagnostics = inspection.diagnostics
   if (result.diagnostics.length) return () => result
   const partial = !web ? contract.abi.nativePartial : undefined
   const partialSites = partial
@@ -206,13 +239,16 @@ function collectOwnerLiteralCallers(
     if (site.reason || site.classes == null || collected.has(site.classes)) continue
     collected.set(
       site.classes,
-      contract.shapes.map((shape) => ({
-        shape,
-        emit: prepare(
-          `import {${shape.nativeHost}} from '@hozo/primitives'; export function Plan(){return <${shape.nativeHost} className={${JSON.stringify(site.classes)}}/>}`,
+      contract.shapes.map((shape) => {
+        const primitive = syntheticPrimitiveFor(shape, web)
+        return {
           shape,
-        ),
-      })),
+          emit: prepare(
+            `import {${primitive}} from '@hozo/primitives'; export function Plan(){return <${primitive} className={${JSON.stringify(site.classes)}}/>}`,
+            shape,
+          ),
+        }
+      }),
     )
   }
 

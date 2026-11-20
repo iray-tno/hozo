@@ -38,13 +38,18 @@ export function nativeOwnerCarrier(
   ].filter((d) => !isDeclaredOwnerDataAttribute(d, shape))
   const notes = messages.map((d) => `${shape.id}: ${d.code}: ${d.message}`)
   const stateful = shape.events.length > 0 || (shape.inputs?.facts.length ?? 0) > 0
+  const expectedEvents =
+    (shape.nativeHost === 'View' && shape.events.length > 0) ||
+    (shape.nativeHost === 'Pressable' && shape.events.length > 0 && shape.events.length < 4)
+      ? shape.events
+      : []
   const valid =
+    shape.nativeHost !== null &&
     module.components.length === 1 &&
     !!root?.ownerStyle &&
     (root.ownerStyle.splitText ?? false) === (shape.inputs?.splitText ?? false) &&
     JSON.stringify(root.ownerStyle.facts ?? []) === JSON.stringify(shape.inputs?.facts ?? []) &&
-    JSON.stringify(root.ownerStyle.events ?? []) ===
-      JSON.stringify(shape.nativeHost === 'View' && shape.events.length > 0 ? shape.events : []) &&
+    JSON.stringify(root.ownerStyle.events ?? []) === JSON.stringify(expectedEvents) &&
     (stateful ||
       (root.ownerStyle.literalResting &&
         !root.ownerStyle.callback &&

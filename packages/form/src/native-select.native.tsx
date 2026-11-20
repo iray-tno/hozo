@@ -75,6 +75,14 @@ export interface HozoNativeSelectProps {
   textStyle?: StyleProp<TextStyle>
   /** @internal Complete prepared select control class contribution (RFC 010). */
   hozoSelectStyle?: (state: SelectControlClassFacts) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared indicator class contribution (RFC 010). */
+  hozoIndicatorStyle?: (state: SelectControlClassFacts) => StyleProp<ViewStyle>
+  /** @internal Complete prepared fallback sheet class contribution (RFC 010). */
+  hozoSheetStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared fallback scrim class contribution (RFC 010). */
+  hozoScrimStyle?: () => StyleProp<ViewStyle>
+  /** @internal Complete prepared fallback option class contribution (RFC 010). */
+  hozoOptionStyle?: (state: SelectOptionClassFacts) => StyleProp<ViewStyle | TextStyle>
   sheetStyle?: StyleProp<ViewStyle>
   scrimStyle?: StyleProp<ViewStyle>
   optionStyle?: StyleProp<ViewStyle>
@@ -194,12 +202,24 @@ export function HozoNativeSelect({
   style,
   textStyle,
   hozoSelectStyle,
+  hozoIndicatorStyle,
+  hozoSheetStyle,
+  hozoScrimStyle,
+  hozoOptionStyle,
   testID,
   onBlur,
   onFocus,
 }: HozoNativeSelectProps) {
   if (hozoSelectStyle && className !== undefined)
     throw new Error('Prepared NativeSelect styles must consume className')
+  if (hozoIndicatorStyle && indicatorClassName !== undefined)
+    throw new Error('Prepared NativeSelect styles must consume indicatorClassName')
+  if (hozoSheetStyle && sheetClassName !== undefined)
+    throw new Error('Prepared NativeSelect styles must consume sheetClassName')
+  if (hozoScrimStyle && scrimClassName !== undefined)
+    throw new Error('Prepared NativeSelect styles must consume scrimClassName')
+  if (hozoOptionStyle && optionClassName !== undefined)
+    throw new Error('Prepared NativeSelect styles must consume optionClassName')
   // A string from the prop, then the project's i18n, then English;
   // `locale` the same way (decision 008).
   const message = useHozoMessage()
@@ -243,7 +263,7 @@ export function HozoNativeSelect({
   const sheet = open
     ? hozoSplitTextStyle(
         StyleSheet.flatten([
-          hozoClasses(sheetClassName, nonControlClassFacts),
+          hozoSheetStyle ? hozoSheetStyle() : hozoClasses(sheetClassName, nonControlClassFacts),
           hozoAuthoredStyle(sheetStyle),
         ]) ?? {},
       )
@@ -251,20 +271,23 @@ export function HozoNativeSelect({
   // The fallback's Native-only rows expose the same disabled/selected
   // facts they announce, not the trigger's state or a Web option attribute.
   // RN supplies press snapshots. Omit unmeasured focus/hover facts.
-  const optionLook = (option: HozoNativeSelectOption, pressed: boolean) =>
-    hozoSplitTextStyle(
+  const optionLook = (option: HozoNativeSelectOption, pressed: boolean) => {
+    const optionFacts = {
+      ...selectOptionClassConstants,
+      pressed: !option.disabled && pressed,
+      disabled: Boolean(option.disabled),
+      enabled: !option.disabled,
+      'aria-selected': option.value === current,
+      'aria-disabled': Boolean(option.disabled),
+    } satisfies SelectOptionClassFacts
+    return hozoSplitTextStyle(
       StyleSheet.flatten([
-        hozoClasses(optionClassName, {
-          ...selectOptionClassConstants,
-          pressed: !option.disabled && pressed,
-          disabled: Boolean(option.disabled),
-          enabled: !option.disabled,
-          'aria-selected': option.value === current,
-          'aria-disabled': Boolean(option.disabled),
-        } satisfies SelectOptionClassFacts),
+        hozoOptionStyle ? hozoOptionStyle(optionFacts) : hozoClasses(optionClassName, optionFacts),
         hozoAuthoredStyle(optionStyle),
       ]) ?? {},
     )
+  }
+  const hasIndicator = Boolean(hozoIndicatorStyle || indicatorClassName)
 
   const choosable = useMemo(() => options.filter((option) => !option.disabled), [options])
 
@@ -318,9 +341,7 @@ export function HozoNativeSelect({
         accessibilityState={{ disabled: Boolean(disabled), expanded: open }}
         disabled={disabled}
         testID={testID}
-        style={
-          indicatorClassName ? [WITH_INDICATOR, controlBox as ViewStyle] : (controlBox as ViewStyle)
-        }
+        style={hasIndicator ? [WITH_INDICATOR, controlBox as ViewStyle] : (controlBox as ViewStyle)}
         onPress={openPicker}
         onHoverIn={handlers.hoverIn}
         onHoverOut={handlers.hoverOut}
@@ -339,16 +360,20 @@ export function HozoNativeSelect({
           onFocus?.()
         }}
       >
-        <Text style={[indicatorClassName ? VALUE : null, controlText as TextStyle, textStyle]}>
+        <Text style={[hasIndicator ? VALUE : null, controlText as TextStyle, textStyle]}>
           {shown}
         </Text>
-        {indicatorClassName ? (
+        {hasIndicator ? (
           <View
             accessible={false}
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
             pointerEvents="none"
-            style={hozoClasses(indicatorClassName, facts)}
+            style={
+              hozoIndicatorStyle
+                ? hozoIndicatorStyle(facts)
+                : hozoClasses(indicatorClassName, facts)
+            }
           />
         ) : null}
       </Pressable>
@@ -369,7 +394,10 @@ export function HozoNativeSelect({
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           style={[
-            open && hozoClasses(scrimClassName, nonControlClassFacts),
+            open &&
+              (hozoScrimStyle
+                ? hozoScrimStyle()
+                : hozoClasses(scrimClassName, nonControlClassFacts)),
             // An unused system/presenter scrim must not eagerly read its author.
             open ? hozoAuthoredStyle(scrimStyle) : scrimStyle,
           ]}

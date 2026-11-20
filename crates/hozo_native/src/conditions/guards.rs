@@ -149,7 +149,9 @@ pub(super) fn resolve(
                     condition_suffix(condition).unwrap_or_default(),
                 ));
             }
-            if node.primitive == Primitive::View && !target.owner_events.is_empty() {
+            if matches!(node.primitive, Primitive::View | Primitive::Pressable)
+                && !target.owner_events.is_empty()
+            {
                 let event = match condition {
                     Condition::Pressed => OwnerEvent::Pressed,
                     Condition::Hover => OwnerEvent::Hovered,
@@ -166,7 +168,7 @@ pub(super) fn resolve(
                     Ok(Guard::Interactive(state.to_string()))
                 } else {
                     Err(format!(
-                        "`{}:` is not declared in this View owner's delivered events on Native.",
+                        "`{}:` is not declared in this owner's delivered events on Native.",
                         condition_suffix(condition).unwrap_or_default(),
                     ))
                 };

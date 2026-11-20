@@ -391,6 +391,11 @@ export const formComponents = {
       gate: 'always',
       composition: 'prepared-owner-contract; split-box-text',
     },
+    activeClassName: {
+      owner: 'file-dropzone-drag-active',
+      gate: 'web-drag-active',
+      composition: 'prepared-owner-contract; web-only',
+    },
   }),
   Form: formSlots('className', 'className', {
     className: {
@@ -414,6 +419,26 @@ export const formComponents = {
         owner: 'native-select-control',
         gate: 'always',
         composition: 'prepared-owner-contract; split-box-text',
+      },
+      indicatorClassName: {
+        owner: 'native-select-indicator',
+        gate: 'native-indicator-present',
+        composition: 'prepared-owner-contract; native-only',
+      },
+      sheetClassName: {
+        owner: 'native-select-sheet',
+        gate: 'native-fallback-open',
+        composition: 'prepared-owner-contract; native-only; split-box-text',
+      },
+      scrimClassName: {
+        owner: 'native-select-scrim',
+        gate: 'native-fallback-open',
+        composition: 'prepared-owner-contract; native-only',
+      },
+      optionClassName: {
+        owner: 'native-select-option',
+        gate: 'native-fallback-open',
+        composition: 'prepared-owner-contract; native-only; split-box-text',
       },
     },
   ),
@@ -1128,6 +1153,23 @@ export const ownerShadow = {
       ],
     },
     {
+      owner: 'FileDropzone.active',
+      classProp: 'activeClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: null, webClassProp: 'activeClassName' },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'active',
+          when: { eq: ['present', true] },
+          nativeHost: null,
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+        },
+      ],
+    },
+    {
       owner: 'Field.root',
       classProp: 'className',
       audit: 'audited',
@@ -1286,6 +1328,86 @@ export const ownerShadow = {
           events: ['pressed', 'hovered', 'focused', 'focusVisible'],
           inputs: {
             facts: ['disabled', 'aria-invalid', 'aria-required'],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'NativeSelect.indicator',
+      classProp: 'indicatorClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoIndicatorStyle', webClassProp: null },
+      authoredStyles: [],
+      shapes: [
+        {
+          id: 'indicator',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: null,
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: {
+            facts: ['disabled', 'aria-invalid', 'aria-required'],
+            splitText: false,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'NativeSelect.sheet',
+      classProp: 'sheetClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSheetStyle', webClassProp: null },
+      authoredStyles: [{ prop: 'sheetStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'sheet',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: null,
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'NativeSelect.scrim',
+      classProp: 'scrimClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoScrimStyle', webClassProp: null },
+      authoredStyles: [{ prop: 'scrimStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'scrim',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: null,
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'NativeSelect.option',
+      classProp: 'optionClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoOptionStyle', webClassProp: null },
+      authoredStyles: [
+        { prop: 'optionStyle', order: 0 },
+        { prop: 'textStyle', order: 1 },
+      ],
+      shapes: [
+        {
+          id: 'option',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: null,
+          events: ['pressed'],
+          inputs: {
+            facts: ['disabled', 'aria-selected', 'aria-disabled'],
             splitText: true,
           },
         },
@@ -1539,6 +1661,11 @@ export const ownerPublications = [
     exports: ['FileDropzone', 'HozoFileDropzone'],
   },
   {
+    owner: 'FileDropzone.active',
+    package: '@hozo/form',
+    exports: ['FileDropzone', 'HozoFileDropzone'],
+  },
+  {
     owner: 'Field.root',
     package: '@hozo/form',
     exports: ['Field', 'HozoField'],
@@ -1580,6 +1707,26 @@ export const ownerPublications = [
   },
   {
     owner: 'NativeSelect.root',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
+  },
+  {
+    owner: 'NativeSelect.indicator',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
+  },
+  {
+    owner: 'NativeSelect.sheet',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
+  },
+  {
+    owner: 'NativeSelect.scrim',
+    package: '@hozo/form',
+    exports: ['NativeSelect', 'HozoNativeSelect'],
+  },
+  {
+    owner: 'NativeSelect.option',
     package: '@hozo/form',
     exports: ['NativeSelect', 'HozoNativeSelect'],
   },
