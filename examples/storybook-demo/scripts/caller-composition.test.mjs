@@ -32,7 +32,7 @@ import {
   TextArea,
   TimePicker,
 } from '@hozo/form'
-import { Chip } from '@hozo/patterns'
+import { Chip, Drawer, Popover, RadioGroup, Tree } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -7489,6 +7489,583 @@ export function Screen() {
       backgroundColor: 'rgb(51, 102, 153)',
       borderTopColor: 'rgb(0, 85, 170)',
     })
+  } finally {
+    await page.close()
+  }
+})
+
+test('Drawer delivers prepared scrim and panel markers on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Drawer } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <Drawer
+        open
+        portal={false}
+        accessibilityLabel="Menu"
+        scrimClassName="bg-[#121212] opacity-50"
+        panelClassName="pt-6 bg-[#fafafa] text-[#112233]"
+      >
+        Body
+      </Drawer>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Drawer }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Drawer') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Drawer: 'Drawer' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+  assert.equal(nativeProps.scrimClassName, undefined)
+  assert.equal(nativeProps.panelClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeScrim = flat(nativeProps.hozoScrimStyle())
+  const nativePanel = flat(nativeProps.hozoPanelStyle())
+
+  const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const scrim = document.querySelector('#wrap [aria-hidden="true"]')
+      const panel = document.querySelector('#wrap [role="dialog"]')
+      return {
+        scrimBg: getComputedStyle(scrim).backgroundColor,
+        scrimOpacity: parseFloat(getComputedStyle(scrim).opacity),
+        panelPaddingTop: parseFloat(getComputedStyle(panel).paddingTop),
+        panelBg: getComputedStyle(panel).backgroundColor,
+        panelColor: getComputedStyle(panel).color,
+      }
+    })
+    assert.deepEqual(markers, {
+      scrimBg: hexToRgb(nativeScrim.backgroundColor),
+      scrimOpacity: nativeScrim.opacity,
+      panelPaddingTop: nativePanel.paddingTop,
+      panelBg: hexToRgb(nativePanel.backgroundColor),
+      panelColor: hexToRgb(nativePanel.color),
+    })
+  } finally {
+    await page.close()
+  }
+})
+
+test('Popover delivers prepared trigger and panel markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Popover } from '@hozo/patterns'
+export function Screen({ open, disabled }: { open?: boolean; disabled?: boolean }) {
+  return (
+    <div id="wrap">
+      <Popover
+        open={open}
+        disabled={disabled}
+        accessibilityLabel="Options"
+        trigger="Open"
+        triggerClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] border aria-expanded:bg-[#555555] disabled:bg-[#666666] text-[#eeeeee] disabled:text-[#999999]"
+        panelClassName="pt-4 bg-[#fafafa] text-[#112233]"
+      >
+        Details
+      </Popover>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Popover }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Popover') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Popover: 'Popover' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ open: true, disabled: false })
+  assert.equal(nativeProps.triggerClassName, undefined)
+  assert.equal(nativeProps.panelClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const triggerNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoTriggerStyle({
+        hovered: false,
+        pressed: false,
+        focused: false,
+        focusVisible: false,
+        disabled: false,
+        'aria-expanded': false,
+        'data-hozo-disabled': false,
+        ...overrides,
+      }),
+    )
+  const nativePanel = flat(nativeProps.hozoPanelStyle())
+
+  const page = await browser.newPage()
+  try {
+    // Closed interactive states: rest, hover, active, focus-visible
+    const closedHtml = renderToStaticMarkup(createElement(webMod.exports.Screen, { open: false }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${closedHtml}`)
+    const trigger = page.locator('#wrap button')
+    const readTrigger = () =>
+      trigger.evaluate((el) => ({
+        bg: getComputedStyle(el).backgroundColor,
+        color: getComputedStyle(el).color,
+        borderColor: getComputedStyle(el).borderTopColor,
+      }))
+
+    assert.equal((await readTrigger()).bg, hexToRgb(triggerNative().backgroundColor))
+    assert.equal((await readTrigger()).color, hexToRgb(triggerNative().color))
+
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap button').matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readTrigger()).borderColor,
+      hexToRgb(triggerNative({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    await page.evaluate(() => document.activeElement?.blur())
+    await trigger.hover()
+    await page.waitForFunction(() => document.querySelector('#wrap button').matches(':hover'))
+    assert.equal(
+      (await readTrigger()).bg,
+      hexToRgb(triggerNative({ hovered: true }).backgroundColor),
+    )
+
+    await page.mouse.down()
+    try {
+      await page.waitForFunction(() => document.querySelector('#wrap button').matches(':active'))
+      assert.equal(
+        (await readTrigger()).bg,
+        hexToRgb(triggerNative({ hovered: true, pressed: true }).backgroundColor),
+      )
+    } finally {
+      await page.mouse.up()
+    }
+
+    // Open state: aria-expanded on trigger + panel markers
+    const openHtml = renderToStaticMarkup(createElement(webMod.exports.Screen, { open: true }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${openHtml}`)
+    const openMarkers = await page.evaluate(() => {
+      const btn = document.querySelector('#wrap button')
+      const panel = document.querySelector('#wrap [role="dialog"]')
+      return {
+        triggerBg: getComputedStyle(btn).backgroundColor,
+        panelPaddingTop: parseFloat(getComputedStyle(panel).paddingTop),
+        panelBg: getComputedStyle(panel).backgroundColor,
+        panelColor: getComputedStyle(panel).color,
+      }
+    })
+    assert.deepEqual(openMarkers, {
+      triggerBg: hexToRgb(triggerNative({ 'aria-expanded': true }).backgroundColor),
+      panelPaddingTop: nativePanel.paddingTop,
+      panelBg: hexToRgb(nativePanel.backgroundColor),
+      panelColor: hexToRgb(nativePanel.color),
+    })
+
+    // Disabled state: disabled: and data-[hozo-disabled]: on trigger
+    const disabledHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { open: false, disabled: true }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${disabledHtml}`)
+    const disabledMarkers = await page.evaluate(() => {
+      const btn = document.querySelector('#wrap button')
+      return {
+        bg: getComputedStyle(btn).backgroundColor,
+        color: getComputedStyle(btn).color,
+      }
+    })
+    const nativeDisabled = triggerNative({ disabled: true, 'data-hozo-disabled': true })
+    assert.deepEqual(disabledMarkers, {
+      bg: hexToRgb(nativeDisabled.backgroundColor),
+      color: hexToRgb(nativeDisabled.color),
+    })
+  } finally {
+    await page.close()
+  }
+})
+
+test('RadioGroup delivers prepared option markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { RadioGroup } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <RadioGroup
+        value="b"
+        accessibilityLabel="Size"
+        options={[
+          { value: 'a', label: 'Alpha' },
+          { value: 'b', label: 'Beta' },
+          { value: 'c', label: 'Gamma', disabled: true },
+        ]}
+        optionClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] border aria-checked:bg-[#555555] aria-disabled:bg-[#666666] text-[#eeeeee] aria-disabled:text-[#999999]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { RadioGroup }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'RadioGroup') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { RadioGroup: 'RadioGroup' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+  assert.equal(nativeProps.optionClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const optionNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoOptionStyle({
+        hovered: false,
+        pressed: false,
+        focused: false,
+        focusVisible: false,
+        'aria-checked': false,
+        'aria-disabled': false,
+        ...overrides,
+      }),
+    )
+
+  const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const readOption = (index) =>
+      page
+        .locator('#wrap [role="radio"]')
+        .nth(index)
+        .evaluate((el) => ({
+          bg: getComputedStyle(el).backgroundColor,
+          color: getComputedStyle(el).color,
+          borderColor: getComputedStyle(el).borderTopColor,
+        }))
+
+    // Unchecked, checked, and disabled rest states
+    assert.equal((await readOption(0)).bg, hexToRgb(optionNative().backgroundColor))
+    assert.equal((await readOption(0)).color, hexToRgb(optionNative().color))
+    assert.equal(
+      (await readOption(1)).bg,
+      hexToRgb(optionNative({ 'aria-checked': true }).backgroundColor),
+    )
+    assert.equal(
+      (await readOption(2)).bg,
+      hexToRgb(optionNative({ 'aria-disabled': true }).backgroundColor),
+    )
+    assert.equal(
+      (await readOption(2)).color,
+      hexToRgb(optionNative({ 'aria-disabled': true }).color),
+    )
+
+    // Keyboard Tab focuses the checked option (tabIndex=0) with :focus-visible
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#wrap [role="radio"]')[1].matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readOption(1)).borderColor,
+      hexToRgb(
+        optionNative({ focused: true, focusVisible: true, 'aria-checked': true }).borderColor,
+      ),
+    )
+
+    // Hover and active on unchecked option
+    await page.evaluate(() => document.activeElement?.blur())
+    const first = page.locator('#wrap [role="radio"]').nth(0)
+    await first.hover()
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#wrap [role="radio"]')[0].matches(':hover'),
+    )
+    assert.equal(
+      (await readOption(0)).bg,
+      hexToRgb(optionNative({ hovered: true }).backgroundColor),
+    )
+
+    await page.mouse.down()
+    try {
+      await page.waitForFunction(() =>
+        document.querySelectorAll('#wrap [role="radio"]')[0].matches(':active'),
+      )
+      assert.equal(
+        (await readOption(0)).bg,
+        hexToRgb(optionNative({ hovered: true, pressed: true }).backgroundColor),
+      )
+    } finally {
+      await page.mouse.up()
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('Tree delivers prepared row markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Tree } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <Tree
+        selectedId="child"
+        defaultExpanded={['branch-open']}
+        accessibilityLabel="Files"
+        nodes={[
+          { id: 'leaf', label: 'Leaf' },
+          { id: 'branch-open', label: 'Open', children: [{ id: 'child', label: 'Child' }] },
+          { id: 'branch-closed', label: 'Closed', children: [{ id: 'hidden', label: 'Hidden' }] },
+          { id: 'disabled', label: 'Disabled', disabled: true },
+        ]}
+        rowClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] border border-[#aaaaaa] focus-visible:border-[#444444] aria-selected:bg-[#555555] aria-expanded:border-[#666666] aria-disabled:bg-[#777777] text-[#eeeeee] aria-disabled:text-[#999999]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Tree }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Tree') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Tree: 'Tree' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+  assert.equal(nativeProps.rowClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const rowNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoRowStyle({
+        hovered: false,
+        pressed: false,
+        focused: false,
+        focusVisible: false,
+        'aria-selected': false,
+        'aria-expanded': false,
+        'aria-disabled': false,
+        ...overrides,
+      }),
+    )
+
+  const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const readRow = (index) =>
+      page
+        .locator('#wrap [role="treeitem"]')
+        .nth(index)
+        .evaluate((el) => ({
+          bg: getComputedStyle(el).backgroundColor,
+          color: getComputedStyle(el).color,
+          borderColor: getComputedStyle(el).borderTopColor,
+        }))
+
+    // [0: leaf, 1: branch-open, 2: child (selected), 3: branch-closed, 4: disabled]
+    assert.equal((await readRow(0)).bg, hexToRgb(rowNative().backgroundColor))
+    assert.equal((await readRow(0)).color, hexToRgb(rowNative().color))
+    assert.equal((await readRow(0)).borderColor, hexToRgb(rowNative().borderColor))
+    assert.equal(
+      (await readRow(1)).borderColor,
+      hexToRgb(rowNative({ 'aria-expanded': true }).borderColor),
+    )
+    assert.equal(
+      (await readRow(2)).bg,
+      hexToRgb(rowNative({ 'aria-selected': true }).backgroundColor),
+    )
+    assert.equal((await readRow(3)).borderColor, hexToRgb(rowNative().borderColor))
+    assert.equal(
+      (await readRow(4)).bg,
+      hexToRgb(rowNative({ 'aria-disabled': true }).backgroundColor),
+    )
+    assert.equal((await readRow(4)).color, hexToRgb(rowNative({ 'aria-disabled': true }).color))
+
+    // Keyboard Tab focuses the selected row (index 2, tabIndex=0) with :focus-visible
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#wrap [role="treeitem"]')[2].matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readRow(2)).borderColor,
+      hexToRgb(rowNative({ focused: true, focusVisible: true, 'aria-selected': true }).borderColor),
+    )
+
+    // Hover and active on resting leaf row (index 0)
+    await page.evaluate(() => document.activeElement?.blur())
+    const leaf = page.locator('#wrap [role="treeitem"]').nth(0)
+    await leaf.hover()
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#wrap [role="treeitem"]')[0].matches(':hover'),
+    )
+    assert.equal((await readRow(0)).bg, hexToRgb(rowNative({ hovered: true }).backgroundColor))
+
+    await page.mouse.down()
+    try {
+      await page.waitForFunction(() =>
+        document.querySelectorAll('#wrap [role="treeitem"]')[0].matches(':active'),
+      )
+      assert.equal(
+        (await readRow(0)).bg,
+        hexToRgb(rowNative({ hovered: true, pressed: true }).backgroundColor),
+      )
+    } finally {
+      await page.mouse.up()
+    }
   } finally {
     await page.close()
   }

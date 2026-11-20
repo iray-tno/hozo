@@ -692,6 +692,7 @@ export interface NativeCompileOptions extends CompileEvidence {
     | 'disabled'
     | 'readOnly'
     | 'aria-selected'
+    | 'aria-checked'
     | 'aria-disabled'
     | 'aria-invalid'
     | 'aria-required'

@@ -295,3 +295,121 @@ export function Screen() {
   assert.match(lowered.css, /\[data-hozo-step="increase"\]/)
   assert.match(lowered.css, /\[data-hozo-step="decrease"\]/)
 })
+
+test('ordinary Web lowering compiles Drawer scrimClassName and panelClassName by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Drawer } from '@hozo/patterns'
+export function Screen({ extra, dynamic }: { extra: Record<string, unknown>; dynamic: string }) {
+  return (
+    <>
+      <Drawer
+        open
+        portal={false}
+        accessibilityLabel="Menu"
+        scrimClassName="bg-[#000000]"
+        panelClassName="pt-6 text-[#112233] bg-[#ffffff]"
+      >
+        Body
+      </Drawer>
+      <Drawer open {...extra} scrimClassName="bg-[#111111]" panelClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /scrimClassName="bg-\[#000000\]"/)
+  assert.doesNotMatch(lowered.code, /panelClassName="pt-6 text-\[#112233\]/)
+  assert.match(lowered.code, /scrimClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /panelClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /scrimClassName="bg-\[#111111\]"/)
+  assert.match(lowered.code, /panelClassName=\{dynamic\}/)
+  assert.match(lowered.css, /padding-top:\s*24px/)
+  assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
+})
+
+test('ordinary Web lowering compiles Popover triggerClassName and panelClassName by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Popover } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <Popover
+        open
+        trigger="Open"
+        triggerClassName="px-4 bg-[#111111] hover:bg-[#222222] aria-expanded:bg-[#333333] disabled:opacity-50 text-[#eeeeee]"
+        panelClassName="p-4 bg-[#fafafa] text-[#112233]"
+      >
+        Details
+      </Popover>
+      <Popover {...spread} trigger="Keep" triggerClassName="bg-[#444444]" panelClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /triggerClassName="px-4 bg-\[#111111\]/)
+  assert.doesNotMatch(lowered.code, /panelClassName="p-4 bg-\[#fafafa\]/)
+  assert.match(lowered.code, /triggerClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /panelClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /triggerClassName="bg-\[#444444\]"/)
+  assert.match(lowered.code, /panelClassName=\{dynamic\}/)
+  assert.match(lowered.css, /aria-expanded="true"/)
+  assert.match(lowered.css, /#fafafa|rgb\(250,\s*250,\s*250\)/)
+})
+
+test('ordinary Web lowering compiles RadioGroup optionClassName by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { RadioGroup } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  const options = [{ value: 'a', label: 'A' }]
+  return (
+    <>
+      <RadioGroup
+        options={options}
+        optionClassName="py-2 bg-[#111111] hover:bg-[#222222] aria-checked:bg-[#333333] aria-disabled:text-[#777777]"
+      />
+      <RadioGroup {...spread} options={options} optionClassName="bg-[#444444]" />
+      <RadioGroup options={options} optionClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /optionClassName="py-2 bg-\[#111111\]/)
+  assert.match(lowered.code, /optionClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /optionClassName="bg-\[#444444\]"/)
+  assert.match(lowered.code, /optionClassName=\{dynamic\}/)
+  assert.match(lowered.css, /aria-checked="true"/)
+  assert.match(lowered.css, /aria-disabled="true"/)
+})
+
+test('ordinary Web lowering compiles Tree rowClassName by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Tree } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  const nodes = [{ id: 'a', label: 'A' }]
+  return (
+    <>
+      <Tree
+        nodes={nodes}
+        rowClassName="p-2 bg-[#111111] hover:bg-[#222222] aria-selected:bg-[#333333] aria-expanded:border-[#444444] aria-disabled:text-[#777777]"
+      />
+      <Tree {...spread} nodes={nodes} rowClassName="bg-[#555555]" />
+      <Tree nodes={nodes} rowClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /rowClassName="p-2 bg-\[#111111\]/)
+  assert.match(lowered.code, /rowClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /rowClassName="bg-\[#555555\]"/)
+  assert.match(lowered.code, /rowClassName=\{dynamic\}/)
+  assert.match(lowered.css, /aria-selected="true"/)
+  assert.match(lowered.css, /aria-expanded="true"/)
+  assert.match(lowered.css, /aria-disabled="true"/)
+})

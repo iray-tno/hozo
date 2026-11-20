@@ -69,6 +69,7 @@ pub(super) fn resolve(
             Condition::Disabled | Condition::Enabled => Some(OwnerFact::Disabled),
             Condition::FormState(FormState::ReadOnly) => Some(OwnerFact::ReadOnly),
             Condition::Aria(state) if state == "selected" => Some(OwnerFact::AriaSelected),
+            Condition::Aria(state) if state == "checked" => Some(OwnerFact::AriaChecked),
             Condition::Aria(state) if state == "disabled" => Some(OwnerFact::AriaDisabled),
             Condition::Aria(state) if state == "invalid" => Some(OwnerFact::AriaInvalid),
             Condition::Aria(state) if state == "required" => Some(OwnerFact::AriaRequired),

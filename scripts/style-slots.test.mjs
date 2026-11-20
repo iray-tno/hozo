@@ -256,8 +256,15 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
   const rendered = outputs()
   assert.deepEqual(JSON.parse(rendered['scripts/style-slots/owner-shadow.json']), ownerShadow)
   const allComponents = { ...components, ...formComponents }
+  const pendingSpikes = new Set(['Tabs.Tab', 'BottomSheet.handle', 'Toolbar.root'])
   const auditedOwners = new Set([
     'Tabs.Tab',
+    'Drawer.scrim',
+    'Drawer.panel',
+    'Popover.trigger',
+    'Popover.panel',
+    'RadioGroup.option',
+    'Tree.row',
     'Form.root',
     'SubmitButton.root',
     'FileDropzone.root',
@@ -296,7 +303,7 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
     const [component] = contract.owner.split('.')
     const slot = allComponents[component].find((slot) => slot.classProp === contract.classProp)
     assert.ok(slot, 'a shadow contribution must refer to an inventoried class prop')
-    if (Object.hasOwn(components, component)) assert.equal(slot.owner, 'pending-audit')
+    if (pendingSpikes.has(contract.owner)) assert.equal(slot.owner, 'pending-audit')
     else assert.notEqual(slot.owner, 'pending-audit')
     assert.equal(contract.audit, auditedOwners.has(contract.owner) ? 'audited' : 'unknown')
     assert.equal(slot.callback, undefined, 'shadow data must not add a Primitive callback route')

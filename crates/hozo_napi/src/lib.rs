@@ -769,6 +769,7 @@ impl NativeCompileOptions {
                 "disabled" => hozo_native::OwnerFact::Disabled,
                 "readOnly" => hozo_native::OwnerFact::ReadOnly,
                 "aria-selected" => hozo_native::OwnerFact::AriaSelected,
+                "aria-checked" => hozo_native::OwnerFact::AriaChecked,
                 "aria-disabled" => hozo_native::OwnerFact::AriaDisabled,
                 "aria-invalid" => hozo_native::OwnerFact::AriaInvalid,
                 "aria-required" => hozo_native::OwnerFact::AriaRequired,

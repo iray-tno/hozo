@@ -667,7 +667,20 @@ export const components = {
       className: { scrollYProp: 'hozoScrollY', backdropStyleProp: 'hozoBackdropStyle' },
     },
   }),
-  Drawer: slots('className scrimClassName panelClassName'),
+  Drawer: slots('className scrimClassName panelClassName', {
+    overrides: {
+      scrimClassName: {
+        owner: 'drawer-scrim',
+        gate: 'open',
+        composition: 'prepared-owner-contract',
+      },
+      panelClassName: {
+        owner: 'drawer-panel',
+        gate: 'open',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Listbox: slots('className optionClassName', {
     secondary: true,
     overrides: {
@@ -769,8 +782,29 @@ export const components = {
       },
     },
   ),
-  Popover: slots('className triggerClassName panelClassName'),
-  RadioGroup: slots('className optionClassName'),
+  Popover: slots('className triggerClassName panelClassName', {
+    overrides: {
+      triggerClassName: {
+        owner: 'popover-trigger',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      panelClassName: {
+        owner: 'popover-panel',
+        gate: 'open',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
+  RadioGroup: slots('className optionClassName', {
+    overrides: {
+      optionClassName: {
+        owner: 'radio-group-option',
+        gate: 'each-option',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Slider: slots('className thumbClassName fillClassName railClassName'),
   Stepper: slots(
     'className stepClassName completedStepClassName currentStepClassName errorStepClassName indicatorClassName completedIndicatorClassName currentIndicatorClassName errorIndicatorClassName descriptionClassName',
@@ -825,7 +859,15 @@ export const components = {
   Tabs: slots('className tabListClassName tabClassName panelClassName'),
   Toolbar: slots('className'),
   Tooltip: slots('className'),
-  Tree: slots('className rowClassName'),
+  Tree: slots('className rowClassName', {
+    overrides: {
+      rowClassName: {
+        owner: 'tree-row',
+        gate: 'each-visible-row',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
 }
 
 const calendarDayFacts = [
@@ -1096,6 +1138,113 @@ export const ownerShadow = {
           nativeHost: 'View',
           webHost: 'div',
           events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Drawer.scrim',
+      classProp: 'scrimClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoScrimStyle', webClassProp: 'scrimClassName' },
+      authoredStyles: [{ prop: 'scrimStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'scrim',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Drawer.panel',
+      classProp: 'panelClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPanelStyle', webClassProp: 'panelClassName' },
+      authoredStyles: [{ prop: 'panelStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'panel',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Popover.trigger',
+      classProp: 'triggerClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTriggerStyle', webClassProp: 'triggerClassName' },
+      authoredStyles: [{ prop: 'triggerStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'trigger',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['disabled', 'aria-expanded', 'data-hozo-disabled'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Popover.panel',
+      classProp: 'panelClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPanelStyle', webClassProp: 'panelClassName' },
+      authoredStyles: [{ prop: 'panelStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'panel',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'RadioGroup.option',
+      classProp: 'optionClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoOptionStyle', webClassProp: 'optionClassName' },
+      authoredStyles: [{ prop: 'optionStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'option',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'div',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['aria-checked', 'aria-disabled'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Tree.row',
+      classProp: 'rowClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoRowStyle', webClassProp: 'rowClassName' },
+      authoredStyles: [{ prop: 'rowStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'row',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'div',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['aria-selected', 'aria-expanded', 'aria-disabled'], splitText: true },
         },
       ],
     },
@@ -1644,6 +1793,36 @@ export const ownerPublications = [
     owner: 'Tabs.Tab',
     package: '@hozo/patterns',
     exports: ['Tabs', 'HozoTabs'],
+  },
+  {
+    owner: 'Drawer.scrim',
+    package: '@hozo/patterns',
+    exports: ['Drawer', 'HozoDrawer'],
+  },
+  {
+    owner: 'Drawer.panel',
+    package: '@hozo/patterns',
+    exports: ['Drawer', 'HozoDrawer'],
+  },
+  {
+    owner: 'Popover.trigger',
+    package: '@hozo/patterns',
+    exports: ['Popover', 'HozoPopover'],
+  },
+  {
+    owner: 'Popover.panel',
+    package: '@hozo/patterns',
+    exports: ['Popover', 'HozoPopover'],
+  },
+  {
+    owner: 'RadioGroup.option',
+    package: '@hozo/patterns',
+    exports: ['RadioGroup', 'HozoRadioGroup'],
+  },
+  {
+    owner: 'Tree.row',
+    package: '@hozo/patterns',
+    exports: ['Tree', 'HozoTree'],
   },
   {
     owner: 'Form.root',

@@ -365,6 +365,115 @@ test('single-platform contracts declare null host/carrier on the absent platform
     entry.shapes[0]!.events = ['pressed', 'hovered']
   }, /full control snapshot/)
 })
+test('Drawer scrim and panel contracts declare stateless box and split-text View hosts (#2046)', () => {
+  const scrim = parsed().contracts.find((row) => row.owner === 'Drawer.scrim')!
+  assert.equal(scrim.audit, 'audited')
+  assert.deepEqual(scrim.abi, {
+    nativePreparedProp: 'hozoScrimStyle',
+    webClassProp: 'scrimClassName',
+  })
+  assert.deepEqual(scrim.authoredStyles, [{ prop: 'scrimStyle', order: 0 }])
+  assert.deepEqual(scrim.shapes, [
+    {
+      id: 'scrim',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: [],
+    },
+  ])
+  const panel = parsed().contracts.find((row) => row.owner === 'Drawer.panel')!
+  assert.equal(panel.audit, 'audited')
+  assert.deepEqual(panel.abi, {
+    nativePreparedProp: 'hozoPanelStyle',
+    webClassProp: 'panelClassName',
+  })
+  assert.deepEqual(panel.authoredStyles, [{ prop: 'panelStyle', order: 0 }])
+  assert.deepEqual(panel.shapes, [
+    {
+      id: 'panel',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: [],
+      inputs: { facts: [], splitText: true },
+    },
+  ])
+})
+test('Popover trigger and panel contracts declare Pressable facts and split-text View (#2046)', () => {
+  const trigger = parsed().contracts.find((row) => row.owner === 'Popover.trigger')!
+  assert.equal(trigger.audit, 'audited')
+  assert.deepEqual(trigger.abi, {
+    nativePreparedProp: 'hozoTriggerStyle',
+    webClassProp: 'triggerClassName',
+  })
+  assert.deepEqual(trigger.authoredStyles, [{ prop: 'triggerStyle', order: 0 }])
+  assert.deepEqual(trigger.shapes, [
+    {
+      id: 'trigger',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'button',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['disabled', 'aria-expanded', 'data-hozo-disabled'], splitText: true },
+    },
+  ])
+  const panel = parsed().contracts.find((row) => row.owner === 'Popover.panel')!
+  assert.equal(panel.audit, 'audited')
+  assert.deepEqual(panel.abi, {
+    nativePreparedProp: 'hozoPanelStyle',
+    webClassProp: 'panelClassName',
+  })
+  assert.deepEqual(panel.authoredStyles, [{ prop: 'panelStyle', order: 0 }])
+  assert.deepEqual(panel.shapes, [
+    {
+      id: 'panel',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: [],
+      inputs: { facts: [], splitText: true },
+    },
+  ])
+})
+test('RadioGroup option contract declares Pressable div host and aria-checked/aria-disabled facts (#2046)', () => {
+  const option = parsed().contracts.find((row) => row.owner === 'RadioGroup.option')!
+  assert.equal(option.audit, 'audited')
+  assert.deepEqual(option.abi, {
+    nativePreparedProp: 'hozoOptionStyle',
+    webClassProp: 'optionClassName',
+  })
+  assert.deepEqual(option.authoredStyles, [{ prop: 'optionStyle', order: 0 }])
+  assert.deepEqual(option.shapes, [
+    {
+      id: 'option',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'div',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['aria-checked', 'aria-disabled'], splitText: true },
+    },
+  ])
+})
+test('Tree row contract declares Pressable div host and aria-selected/expanded/disabled facts (#2046)', () => {
+  const row = parsed().contracts.find((entry) => entry.owner === 'Tree.row')!
+  assert.equal(row.audit, 'audited')
+  assert.deepEqual(row.abi, {
+    nativePreparedProp: 'hozoRowStyle',
+    webClassProp: 'rowClassName',
+  })
+  assert.deepEqual(row.authoredStyles, [{ prop: 'rowStyle', order: 0 }])
+  assert.deepEqual(row.shapes, [
+    {
+      id: 'row',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'div',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['aria-selected', 'aria-expanded', 'aria-disabled'], splitText: true },
+    },
+  ])
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)
@@ -520,7 +629,7 @@ test('unsupported host/event declarations remain errors rather than invented dec
     Object.assign(value.contracts[0]!.shapes[0]!, { nativeHost: 'Text' })
   }, /host/)
   rejects((value) => {
-    value.contracts[0]!.shapes[0]!.webHost = 'div'
+    value.contracts[0]!.shapes[0]!.webHost = 'form'
   }, /host/)
   rejects((value) => {
     Object.assign(value.contracts[0]!.shapes[0]!, { events: ['selected'] })

@@ -35,6 +35,14 @@ export interface HozoTreeProps {
   className?: string
   /** The class list for each row, resolved like `className`. */
   rowClassName?: string
+  /** @internal Complete prepared row class contribution (RFC 010). */
+  hozoRowStyle?: (
+    state: InteractionState & {
+      'aria-selected': boolean
+      'aria-expanded': boolean
+      'aria-disabled': boolean
+    },
+  ) => StyleProp<ViewStyle | TextStyle>
   nodes: readonly TreeNode[]
   defaultExpanded?: readonly string[]
   selectedId?: string
@@ -95,6 +103,7 @@ export interface HozoTreeProps {
 export function HozoTree({
   className,
   rowClassName,
+  hozoRowStyle,
   nodes,
   defaultExpanded = [],
   selectedId,
@@ -106,6 +115,8 @@ export function HozoTree({
   rowLook,
   toggleOn = 'row',
 }: HozoTreeProps) {
+  if (hozoRowStyle && rowClassName !== undefined)
+    throw new Error('Prepared Tree styles must consume rowClassName')
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set(defaultExpanded))
   const rows = visibleRows(nodes, expanded)
 
@@ -122,18 +133,27 @@ export function HozoTree({
     <View
       accessibilityRole="list"
       accessibilityLabel={accessibilityLabel}
-      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
+      style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}
     >
       {rows.map((row) => {
         const look = (interaction: InteractionState) =>
           splitTextStyle(
-            hozoClasses(rowClassName, {
-              ...interaction,
-              disabled: Boolean(row.disabled),
-              'aria-selected': row.id === selectedId,
-              'aria-expanded': row.branch && row.expanded,
-              'aria-disabled': Boolean(row.disabled),
-            }),
+            hozoRowStyle
+              ? hozoRowStyle({
+                  ...interaction,
+                  'aria-selected': row.id === selectedId,
+                  'aria-expanded': row.branch && row.expanded,
+                  'aria-disabled': Boolean(row.disabled),
+                })
+              : rowClassName
+                ? hozoClasses(rowClassName, {
+                    ...interaction,
+                    disabled: Boolean(row.disabled),
+                    'aria-selected': row.id === selectedId,
+                    'aria-expanded': row.branch && row.expanded,
+                    'aria-disabled': Boolean(row.disabled),
+                  })
+                : undefined,
           )
         return (
           <Pressable
