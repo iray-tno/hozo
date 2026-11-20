@@ -78,7 +78,12 @@ async function packedPackage(t, name) {
   const tarball = path.join(packed, archive)
   const unpacked = path.join(work, 'unpacked')
   mkdirSync(unpacked)
-  execFileSync('tar', ['-xzf', tarball, '-C', unpacked], { timeout: 15000 })
+  // Relative paths from `work`: GNU tar (Git for Windows) reads a drive-letter path
+  // such as `E:/...` as `host:path` and tries to reach a remote host named `E`.
+  execFileSync('tar', ['-xzf', path.relative(work, tarball), '-C', 'unpacked'], {
+    cwd: work,
+    timeout: 15000,
+  })
   const instance = realpathSync(path.join(unpacked, 'package'))
   const json = JSON.parse(readFileSync(path.join(instance, 'package.json'), 'utf8'))
   assert.equal(json.name, `@hozo/${name}`)
