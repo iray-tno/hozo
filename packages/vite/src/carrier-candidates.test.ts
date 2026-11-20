@@ -1,6 +1,6 @@
 // #2047 on Vite: package manifests captured at buildStart supply candidates,
 // a module loaded from an uncaptured package with a manifest fails the build,
-// and an incomplete capture keeps the whole build on the ordinary route.
+// and so does an incomplete capture (decision 012 point 4, as amended).
 
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -139,13 +139,26 @@ test('loading a package with a manifest outside the capture fails the build', as
   )
 })
 
-test('an incomplete capture keeps the whole build on the ordinary route', async (t) => {
-  const root = fixture(t, { kit: '1', broken: '1' }, ['kit', 'late'])
+test('an incomplete capture fails the build before output, naming the package', async (t) => {
+  const root = fixture(t, { kit: '1', broken: '1' }, ['kit'])
   install(root, 'kit', 'gap-7')
   install(root, 'broken', 'gap-5', './gone.json')
-  install(root, 'late', 'gap-9')
-  // No guard, so `late` loads; and not even the complete carrier's candidates.
-  const warnings = await tinyBuild(root)
-  assert.doesNotMatch(candidates(root), /gap-7/)
-  assert.ok(warnings.some((message) => /package manifests incomplete/.test(message)))
+  await assert.rejects(
+    tinyBuild(root),
+    /manifests captured at startup are incomplete.*missing-manifest: broken/s,
+  )
+})
+
+test('a v1 manifest, as hozo manifest writes it, contributes no candidates and is no error', async (t) => {
+  const root = fixture(t, { kit: '1', legacy: '1' }, ['kit', 'legacy'])
+  install(root, 'kit', 'gap-7')
+  install(root, 'legacy', 'gap-5')
+  writeFileSync(
+    path.join(root, 'node_modules', 'legacy', 'hozo.manifest.json'),
+    serializeManifest({ version: 1, textForwarding: {} }),
+  )
+  // `legacy` loads: it is a captured carrier, with nothing to contribute.
+  await tinyBuild(root)
+  assert.match(candidates(root), /gap-7/)
+  assert.doesNotMatch(candidates(root), /gap-5/)
 })

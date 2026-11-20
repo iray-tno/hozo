@@ -284,17 +284,19 @@ function manifest(root: string, dependencies: Record<string, string>): void {
   writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'app', dependencies }))
 }
 
-test('a Hozo package the project depends on is scanned, though it is in node_modules', () => {
+test('a package in node_modules is scanned when content.packages names it, and only then', () => {
   // #649: a library that ships TSX for this build to compile contributed
   // nothing, because both routes into the candidate set reject node_modules.
-  // Its components rendered with class names that had no rules behind them.
+  // Until #2047 every `@hozo/` dependency was walked by default; now a
+  // package with a manifest contributes from that, and a walk is asked for.
   const root = project()
   try {
     const own = source(root, 'src/app.tsx')
     manifest(root, { '@hozo/ui': '^0.1.0' })
     installed(root, '@hozo/ui', { 'src/button.tsx': 'export const B = "bg-hozo-accent"' })
 
-    const found = discoverSources(root)
+    assert.deepEqual(discoverSources(root), [own], 'no default walk')
+    const found = discoverSources(root, { packages: ['@hozo/ui'] })
     assert.equal(found.length, 2)
     assert.ok(found.includes(own))
     assert.ok(
@@ -322,9 +324,9 @@ test('a package the project does not depend on is left alone', () => {
   }
 })
 
-test('naming packages replaces the default rather than adding to it', () => {
-  // Which is what makes "none of them" expressible as `[]`, and what a
-  // project listing a third-party library has to know: list both.
+test('naming packages walks exactly those', () => {
+  // A project listing a third-party library gets that library's source and
+  // nothing else, and `[]` is none of them.
   const root = project()
   try {
     source(root, 'src/app.tsx')
@@ -360,7 +362,7 @@ test("a package's own dist and nested dependencies stay out", () => {
       'node_modules/nested/index.js': 'export const N = "b"',
     })
 
-    const found = discoverSources(root)
+    const found = discoverSources(root, { packages: ['@hozo/ui'] })
     assert.equal(found.length, 2)
     assert.ok(!found.some((file) => file.includes('dist')))
     assert.ok(!found.some((file) => file.includes('nested')))
@@ -391,10 +393,11 @@ test('dependency test fixtures stay out, without restricting app-owned sources',
       'src/button.spec.js': 'export const fixture = "gap-96"',
       'src/button.bench.mjs': 'export const fixture = "m-96"',
     })
-    const found = discoverSources(root)
+    const content = { packages: ['@hozo/ui'] }
+    const found = discoverSources(root, content)
     assert.ok(found.includes(appTest))
     assert.equal(found.length, 2)
-    const scanned = scanProject(root)
+    const scanned = scanProject(root, content)
     assert.ok(scanned.cache.candidates().includes('bg-hozo-accent'))
     for (const utility of ['p-96', 'gap-96', 'm-96']) {
       assert.ok(!scanned.cache.candidates().includes(utility))

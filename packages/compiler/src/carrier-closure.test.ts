@@ -9,6 +9,7 @@ import {
   carrierGuard,
   carrierSources,
   carrierTripMessage,
+  requireCarrierClosure,
 } from './carrier-closure.ts'
 import { buildPackageManifest, serializeManifest } from './manifest.ts'
 import { carrierSourceFiles } from './project.ts'
@@ -257,6 +258,33 @@ test('carrier sources of a real app: @hozo/ui, the one package that ships only s
     carrierSourceFiles(closure).map((file) => path.relative(repo, file).split(path.sep)[1]),
   )
   assert.deepEqual([...owners], ['ui'])
+})
+
+test('requireCarrierClosure: nothing to capture, a named package list, or a failure', () => {
+  fixture((app) => {
+    // No package.json: no dependencies to read, and no error.
+    assert.equal(requireCarrierClosure(app, undefined, options), undefined)
+    install(app, 'kit', {}, 'p-4')
+    install(app, 'broken', { hozo: { manifest: './gone.json' } })
+    writeFileSync(
+      path.join(app, 'package.json'),
+      JSON.stringify({ name: 'app', dependencies: { kit: '1', broken: '1' } }),
+    )
+    // An explicit content.packages names its own sources instead.
+    assert.equal(requireCarrierClosure(app, { packages: [] }, options), undefined)
+    assert.throws(
+      () => requireCarrierClosure(app, {}, options),
+      /incomplete.*missing-manifest: broken/s,
+    )
+    writeFileSync(
+      path.join(app, 'package.json'),
+      JSON.stringify({ name: 'app', dependencies: { kit: '1' } }),
+    )
+    assert.deepEqual(
+      requireCarrierClosure(app, {}, options)?.carriers.map((row) => row.name),
+      ['kit'],
+    )
+  })
 })
 
 test('the guard passes every resolution a real app makes into its own packages', () => {

@@ -25,6 +25,7 @@ import {
   discoverTransformedSources,
   type HozoProjectOptions,
   preflightCssPath,
+  requireCarrierClosure,
   scanProject,
   scanSummary,
   webBaseCssFor,
@@ -198,7 +199,18 @@ const MDX_LOADER = /[\\/]@next[\\/]mdx[\\/]|[\\/]@mdx-js[\\/]loader/
  * stylesheet the first module didn't import.
  */
 function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptions {
-  const project = scanProject(root, options.content, options.sources)
+  // Packages contribute candidates from their manifests, captured here
+  // (#2047); an incomplete capture fails the build before anything is written.
+  const carriers = requireCarrierClosure(root, options.content, {
+    platform: 'web',
+    epoch: 'next-carriers-0',
+  })
+  const project = scanProject(
+    root,
+    options.content,
+    options.sources,
+    carriers?.carriers.length ? carriers.contributions : undefined,
+  )
   const candidateCssPath = path.join(project.dir, 'candidates.css')
   const preflightPath = preflightCssPath(project.dir)
   // Rendered with no theme: the theme is loaded asynchronously and this

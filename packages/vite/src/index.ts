@@ -42,7 +42,6 @@ import {
   CACHE_DIR,
   type CarrierClosure,
   type CarrierTrip,
-  captureCarrierClosure,
   carrierGuard,
   carrierSourceFiles,
   carrierSources,
@@ -57,6 +56,7 @@ import {
   isTransformedSource,
   type OwnerContractRequest,
   preflightCssPath,
+  requireCarrierClosure,
   resolveClassHelpers,
   resolveStylexRequests,
   type StylexModuleCache,
@@ -139,32 +139,6 @@ export function hozoWithDiscoveredOwnerCallers(
   if (!['strict', 'ordinary-fallback'].includes(preflight))
     throw new Error('[hozo] invalid owner preflight policy')
   return configureHozo(options, undefined, [], true, true, preflight)
-}
-
-/**
- * The packages with a Hozo manifest this app can reach, whose manifests'
- * candidates stand in for scanning their sources (#2047). Incomplete means
- * the ordinary route for the whole build, before any output: the source
- * scan, and no guard. Decision 012 point 4.
- */
-function completeCarrierClosure(
-  root: string,
-  warn: (message: string) => void,
-): CarrierClosure | undefined {
-  // No manifest of its own to read dependencies from: nothing to capture.
-  if (!existsSync(path.join(root, 'package.json'))) return undefined
-  let closure: CarrierClosure
-  try {
-    closure = captureCarrierClosure(root, { platform: 'web', epoch: 'vite-carriers-0' })
-  } catch (error) {
-    warn(`[hozo] package manifests not captured; scanning sources: ${error}`)
-    return undefined
-  }
-  if (closure.contributions.status === 'complete') return closure
-  warn(
-    `[hozo] package manifests incomplete (${closure.contributions.reasons.join(', ')}); scanning sources`,
-  )
-  return undefined
 }
 
 function configureHozo(
@@ -891,13 +865,18 @@ function configureHozo(
         // The whole project, not just what the bundler happens to reach: a
         // class can be produced by a module the graph never resolves
         // statically.
-        // Captured here, before any module is resolved; the experimental owner
-        // paths above bring their own. An explicit `content.packages` already
-        // says which packages contribute, so it keeps the scan it names.
+        // The packages with a Hozo manifest this app can reach (#2047),
+        // captured before any module is resolved. Their manifests' candidates
+        // are the only ones packages contribute, and an incomplete capture
+        // throws before any output. The experimental owner paths above bring
+        // their own; an explicit `content.packages` names sources to scan.
         carriers =
-          ownerPlan || discoverOwnerSources || options.content?.packages !== undefined
+          ownerPlan || discoverOwnerSources
             ? undefined
-            : completeCarrierClosure(root, (message) => this.warn(message))
+            : requireCarrierClosure(root, options.content, {
+                platform: 'web',
+                epoch: 'vite-carriers-0',
+              })
         guard = carriers && carrierGuard(carriers)
         carrierSource = carriers ? carrierSources(carriers) : () => false
         const project =

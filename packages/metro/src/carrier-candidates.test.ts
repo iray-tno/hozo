@@ -1,6 +1,6 @@
 // #2047: a package's manifest supplies its candidates at config load, a late
-// package with a manifest fails the build before output, and an incomplete
-// capture leaves the whole build on the ordinary route.
+// package with a manifest fails the build before output, and so does an
+// incomplete capture (decision 012 point 4, as amended).
 
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -115,20 +115,53 @@ test('a resolution into a package with a manifest outside the capture fails the 
   )
 })
 
-test('an incomplete capture keeps the whole build on the ordinary route', async () => {
+test('an incomplete capture fails at config load, naming the package', async () => {
+  await assert.rejects(
+    project(
+      { kit: '1', broken: '1' },
+      (root) => {
+        install(root, 'kit', 'gap-7')
+        install(root, 'broken', 'gap-5', './gone.json')
+      },
+      () => assert.fail('a build with part of the candidates'),
+    ),
+    /manifests captured at startup are incomplete.*missing-manifest: broken/s,
+  )
+})
+
+test('a v1 manifest, as hozo manifest writes it, contributes no candidates and is no error', async () => {
   await project(
-    { kit: '1', broken: '1' },
+    { kit: '1', legacy: '1' },
     (root) => {
       install(root, 'kit', 'gap-7')
-      install(root, 'broken', 'gap-5', './gone.json')
-      install(root, 'late', 'gap-9')
+      install(root, 'legacy', 'gap-5')
+      writeFileSync(
+        path.join(root, 'node_modules', 'legacy', 'hozo.manifest.json'),
+        serializeManifest({ version: 1, textForwarding: {} }),
+      )
     },
     (root, config) => {
-      // Not even the complete carrier's candidates: whole or not at all.
-      assert.doesNotMatch(candidates(root), /"gap-7"/)
-      // And no guard, since nothing was frozen to guard.
-      const late = path.join(root, 'node_modules', 'late', 'index.js')
-      assert.deepEqual(resolveInto(config, root, late), { type: 'sourceFile', filePath: late })
+      assert.match(candidates(root), /"gap-7"/)
+      // Still a carrier: captured, so loading it does not trip the guard.
+      const legacy = path.join(root, 'node_modules', 'legacy', 'index.js')
+      assert.deepEqual(resolveInto(config, root, legacy), { type: 'sourceFile', filePath: legacy })
     },
+  )
+})
+
+test('a v1 manifest from an @hozo package is a mismatched release, and fails', async () => {
+  await assert.rejects(
+    project(
+      { '@hozo/old': '1' },
+      (root) => {
+        install(root, '@hozo/old', 'gap-5')
+        writeFileSync(
+          path.join(root, 'node_modules', '@hozo', 'old', 'hozo.manifest.json'),
+          serializeManifest({ version: 1, textForwarding: {} }),
+        )
+      },
+      () => assert.fail('an @hozo package silently without candidates'),
+    ),
+    /package-channels-unavailable: @hozo\/old.*same version/s,
   )
 })
