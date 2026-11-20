@@ -42,6 +42,19 @@ jobs:
       - name: Build release APK
         working-directory: examples/three-native-probe/android
         run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
+      - name: Verify R8 ran with the Expo GL keep rules
+        shell: bash
+        run: |
+          mapping=examples/three-native-probe/android/app/build/outputs/mapping/release
+          mkdir -p artifacts/three-native-gpu
+          receipt=artifacts/three-native-gpu/r8-keep-rules.txt
+          test -s "$mapping/mapping.txt"
+          {
+            grep -F -A 2 -- '-keepclassmembers class expo.modules.gl.GLView' "$mapping/configuration.txt"
+            grep -F -A 2 -- '-keepclassmembers class expo.modules.gl.GLContext' "$mapping/configuration.txt"
+          } | tee "$receipt"
+          grep -Eq 'public <init>\(android\.content\.Context, *expo\.modules\.kotlin\.AppContext\);' "$receipt"
+          grep -Fq 'public void flush();' "$receipt"
       - name: Build TalkBack speech logger
         run: examples/native-demo/android/gradlew -p examples/native-demo/speech-log assembleDebug --no-daemon
       - name: Enable KVM

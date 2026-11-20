@@ -28,6 +28,9 @@ for _ in $(seq 1 90); do
 done
 grep -q '\[hozo-three-native\].*"event":"first_frame"' "$artifacts/logcat.txt"
 grep -q '\[hozo-three-native\].*"event":"lifecycle_listener_ready"' "$artifacts/logcat.txt"
+# The frame event is emitted by R3F, not an acknowledgement of presented pixels.
+# Retain the screen while the renderer is still mounted for visual inspection.
+adb exec-out screencap -p > "$artifacts/initial-render.png"
 
 # Exercise the real Android Activity lifecycle before accepting the frame
 # sample. AppState alone is not evidence of GPU recovery: the fixture also
@@ -52,6 +55,7 @@ for _ in $(seq 1 45); do
 done
 grep -q '\[hozo-three-native\].*"event":"app_resumed"' "$artifacts/logcat.txt"
 grep -q '\[hozo-three-native\].*"event":"frame_after_resume"' "$artifacts/logcat.txt"
+adb exec-out screencap -p > "$artifacts/resumed-render.png"
 
 # The R3F Native event manager owns this touch. The scene does not unmount
 # until the tap raycasts the cube, so a missing event cannot be hidden by a
