@@ -531,3 +531,121 @@ export function Fallback() {
     /Prepared RadioGroup styles must consume optionClassName/,
   )
 })
+
+test('Native Tree delivers prepared row styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Tree } from '@hozo/patterns'
+export function Screen({ selectedId }: { selectedId?: string }) {
+  return (
+    <Tree
+      selectedId={selectedId}
+      defaultExpanded={['branch-open']}
+      nodes={[
+        { id: 'leaf', label: 'Leaf' },
+        { id: 'branch-open', label: 'Open', children: [{ id: 'child', label: 'Child' }] },
+        { id: 'branch-closed', label: 'Closed', children: [{ id: 'hidden', label: 'Hidden' }] },
+        { id: 'disabled', label: 'Disabled', disabled: true },
+      ]}
+      rowClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] aria-selected:bg-[#555555] aria-expanded:border-[#666666] aria-disabled:bg-[#777777] text-[#eeeeee] aria-disabled:text-[#999999]"
+    />
+  )
+}
+export function Fallback() {
+  return <Tree nodes={[{ id: 'a', label: 'A' }]} rowClassName="disabled:opacity-50" />
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoRowStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /rowClassName="bg-\[#111111\]/)
+  // Web <div role="treeitem"> has no HTML disabled attribute; disabled: stays on the runtime path.
+  assert.match(transformed, /rowClassName="disabled:opacity-50"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const treeMod = loadNativePatternModule('tree.native.tsx', { hozoClasses: spyHozoClasses })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ selectedId?: string }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Tree: treeMod.exports.Tree }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    selectedId: string,
+    interaction: {
+      hovered?: boolean
+      pressed?: boolean
+      focused?: boolean
+      focusVisible?: boolean
+    } = {},
+  ) => {
+    treeMod.captured.length = 0
+    treeMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: false,
+      focusVisible: false,
+      ...interaction,
+    })
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { selectedId }))
+    return {
+      rows: treeMod.captured
+        .filter((entry) => entry.host === 'Pressable')
+        .map((entry) => flattenStyle(entry.props.style)),
+      texts: treeMod.captured
+        .filter((entry) => entry.host === 'Text')
+        .map((entry) => flattenStyle(entry.props.style)),
+    }
+  }
+
+  // Visible rows order: [0: leaf, 1: branch-open, 2: child (selected), 3: branch-closed, 4: disabled]
+  const rest = renderCase('child')
+  assert.equal(rest.rows.length, 5)
+  assert.equal(rest.rows[0]!.backgroundColor, '#111111')
+  assert.equal(rest.rows[1]!.borderColor, '#666666')
+  assert.equal(rest.rows[2]!.backgroundColor, '#555555')
+  assert.equal(rest.rows[3]!.borderColor, undefined)
+  assert.equal(rest.rows[4]!.backgroundColor, '#777777')
+  assert.equal(rest.texts[0]!.color, '#eeeeee')
+  assert.equal(rest.texts[4]!.color, '#999999')
+
+  assert.equal(renderCase('child', { hovered: true }).rows[0]!.backgroundColor, '#222222')
+  assert.equal(renderCase('child', { pressed: true }).rows[0]!.backgroundColor, '#333333')
+  assert.equal(
+    renderCase('child', { focused: true, focusVisible: true }).rows[0]!.borderColor,
+    '#444444',
+  )
+
+  assert.equal(classResolverCalls, 0, 'prepared Tree literals must never call hozoClasses')
+
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(treeMod.exports.Tree as React.ComponentType<Record<string, unknown>>, {
+          nodes: [{ id: 'a', label: 'A' }],
+          rowClassName: 'pt-2',
+          hozoRowStyle: () => ({}),
+        }),
+      ),
+    /Prepared Tree styles must consume rowClassName/,
+  )
+})

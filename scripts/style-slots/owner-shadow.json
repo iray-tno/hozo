@@ -350,6 +350,51 @@
       ]
     },
     {
+      "owner": "Tree.row",
+      "classProp": "rowClassName",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoRowStyle",
+        "webClassProp": "rowClassName"
+      },
+      "authoredStyles": [
+        {
+          "prop": "rowStyle",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "row",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "Pressable",
+          "webHost": "div",
+          "events": [
+            "pressed",
+            "hovered",
+            "focused",
+            "focusVisible"
+          ],
+          "inputs": {
+            "facts": [
+              "aria-selected",
+              "aria-expanded",
+              "aria-disabled"
+            ],
+            "splitText": true
+          }
+        }
+      ]
+    },
+    {
       "owner": "Form.root",
       "classProp": "className",
       "audit": "audited",

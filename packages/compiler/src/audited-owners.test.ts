@@ -385,3 +385,31 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.css, /aria-checked="true"/)
   assert.match(lowered.css, /aria-disabled="true"/)
 })
+
+test('ordinary Web lowering compiles Tree rowClassName by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Tree } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  const nodes = [{ id: 'a', label: 'A' }]
+  return (
+    <>
+      <Tree
+        nodes={nodes}
+        rowClassName="p-2 bg-[#111111] hover:bg-[#222222] aria-selected:bg-[#333333] aria-expanded:border-[#444444] aria-disabled:text-[#777777]"
+      />
+      <Tree {...spread} nodes={nodes} rowClassName="bg-[#555555]" />
+      <Tree nodes={nodes} rowClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /rowClassName="p-2 bg-\[#111111\]/)
+  assert.match(lowered.code, /rowClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /rowClassName="bg-\[#555555\]"/)
+  assert.match(lowered.code, /rowClassName=\{dynamic\}/)
+  assert.match(lowered.css, /aria-selected="true"/)
+  assert.match(lowered.css, /aria-expanded="true"/)
+  assert.match(lowered.css, /aria-disabled="true"/)
+})

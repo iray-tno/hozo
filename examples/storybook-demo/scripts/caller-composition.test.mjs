@@ -32,7 +32,7 @@ import {
   TextArea,
   TimePicker,
 } from '@hozo/form'
-import { Chip, Drawer, Popover, RadioGroup } from '@hozo/patterns'
+import { Chip, Drawer, Popover, RadioGroup, Tree } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -7908,6 +7908,160 @@ export function Screen() {
       assert.equal(
         (await readOption(0)).bg,
         hexToRgb(optionNative({ hovered: true, pressed: true }).backgroundColor),
+      )
+    } finally {
+      await page.mouse.up()
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('Tree delivers prepared row markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Tree } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <Tree
+        selectedId="child"
+        defaultExpanded={['branch-open']}
+        accessibilityLabel="Files"
+        nodes={[
+          { id: 'leaf', label: 'Leaf' },
+          { id: 'branch-open', label: 'Open', children: [{ id: 'child', label: 'Child' }] },
+          { id: 'branch-closed', label: 'Closed', children: [{ id: 'hidden', label: 'Hidden' }] },
+          { id: 'disabled', label: 'Disabled', disabled: true },
+        ]}
+        rowClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] border border-[#aaaaaa] focus-visible:border-[#444444] aria-selected:bg-[#555555] aria-expanded:border-[#666666] aria-disabled:bg-[#777777] text-[#eeeeee] aria-disabled:text-[#999999]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Tree }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Tree') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Tree: 'Tree' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+  assert.equal(nativeProps.rowClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const rowNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoRowStyle({
+        hovered: false,
+        pressed: false,
+        focused: false,
+        focusVisible: false,
+        'aria-selected': false,
+        'aria-expanded': false,
+        'aria-disabled': false,
+        ...overrides,
+      }),
+    )
+
+  const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const readRow = (index) =>
+      page
+        .locator('#wrap [role="treeitem"]')
+        .nth(index)
+        .evaluate((el) => ({
+          bg: getComputedStyle(el).backgroundColor,
+          color: getComputedStyle(el).color,
+          borderColor: getComputedStyle(el).borderTopColor,
+        }))
+
+    // [0: leaf, 1: branch-open, 2: child (selected), 3: branch-closed, 4: disabled]
+    assert.equal((await readRow(0)).bg, hexToRgb(rowNative().backgroundColor))
+    assert.equal((await readRow(0)).color, hexToRgb(rowNative().color))
+    assert.equal((await readRow(0)).borderColor, hexToRgb(rowNative().borderColor))
+    assert.equal(
+      (await readRow(1)).borderColor,
+      hexToRgb(rowNative({ 'aria-expanded': true }).borderColor),
+    )
+    assert.equal(
+      (await readRow(2)).bg,
+      hexToRgb(rowNative({ 'aria-selected': true }).backgroundColor),
+    )
+    assert.equal((await readRow(3)).borderColor, hexToRgb(rowNative().borderColor))
+    assert.equal(
+      (await readRow(4)).bg,
+      hexToRgb(rowNative({ 'aria-disabled': true }).backgroundColor),
+    )
+    assert.equal((await readRow(4)).color, hexToRgb(rowNative({ 'aria-disabled': true }).color))
+
+    // Keyboard Tab focuses the selected row (index 2, tabIndex=0) with :focus-visible
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#wrap [role="treeitem"]')[2].matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readRow(2)).borderColor,
+      hexToRgb(rowNative({ focused: true, focusVisible: true, 'aria-selected': true }).borderColor),
+    )
+
+    // Hover and active on resting leaf row (index 0)
+    await page.evaluate(() => document.activeElement?.blur())
+    const leaf = page.locator('#wrap [role="treeitem"]').nth(0)
+    await leaf.hover()
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#wrap [role="treeitem"]')[0].matches(':hover'),
+    )
+    assert.equal((await readRow(0)).bg, hexToRgb(rowNative({ hovered: true }).backgroundColor))
+
+    await page.mouse.down()
+    try {
+      await page.waitForFunction(() =>
+        document.querySelectorAll('#wrap [role="treeitem"]')[0].matches(':active'),
+      )
+      assert.equal(
+        (await readRow(0)).bg,
+        hexToRgb(rowNative({ hovered: true, pressed: true }).backgroundColor),
       )
     } finally {
       await page.mouse.up()

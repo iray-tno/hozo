@@ -455,6 +455,25 @@ test('RadioGroup option contract declares Pressable div host and aria-checked/ar
     },
   ])
 })
+test('Tree row contract declares Pressable div host and aria-selected/expanded/disabled facts (#2046)', () => {
+  const row = parsed().contracts.find((entry) => entry.owner === 'Tree.row')!
+  assert.equal(row.audit, 'audited')
+  assert.deepEqual(row.abi, {
+    nativePreparedProp: 'hozoRowStyle',
+    webClassProp: 'rowClassName',
+  })
+  assert.deepEqual(row.authoredStyles, [{ prop: 'rowStyle', order: 0 }])
+  assert.deepEqual(row.shapes, [
+    {
+      id: 'row',
+      when: { eq: ['present', true] },
+      nativeHost: 'Pressable',
+      webHost: 'div',
+      events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['aria-selected', 'aria-expanded', 'aria-disabled'], splitText: true },
+    },
+  ])
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

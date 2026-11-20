@@ -859,7 +859,15 @@ export const components = {
   Tabs: slots('className tabListClassName tabClassName panelClassName'),
   Toolbar: slots('className'),
   Tooltip: slots('className'),
-  Tree: slots('className rowClassName'),
+  Tree: slots('className rowClassName', {
+    overrides: {
+      rowClassName: {
+        owner: 'tree-row',
+        gate: 'each-visible-row',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
 }
 
 const calendarDayFacts = [
@@ -1219,6 +1227,24 @@ export const ownerShadow = {
           webHost: 'div',
           events: ['pressed', 'hovered', 'focused', 'focusVisible'],
           inputs: { facts: ['aria-checked', 'aria-disabled'], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Tree.row',
+      classProp: 'rowClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoRowStyle', webClassProp: 'rowClassName' },
+      authoredStyles: [{ prop: 'rowStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'row',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'div',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['aria-selected', 'aria-expanded', 'aria-disabled'], splitText: true },
         },
       ],
     },
@@ -1792,6 +1818,11 @@ export const ownerPublications = [
     owner: 'RadioGroup.option',
     package: '@hozo/patterns',
     exports: ['RadioGroup', 'HozoRadioGroup'],
+  },
+  {
+    owner: 'Tree.row',
+    package: '@hozo/patterns',
+    exports: ['Tree', 'HozoTree'],
   },
   {
     owner: 'Form.root',

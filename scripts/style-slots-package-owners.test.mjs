@@ -22,6 +22,8 @@ const exports = [
   'HozoTabs',
   'Toolbar',
   'HozoToolbar',
+  'Tree',
+  'HozoTree',
 ]
 const patternsShadow = {
   schema: ownerShadow.schema,
@@ -43,13 +45,15 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'HozoRadioGroup', owners: ['RadioGroup.option'] },
     { name: 'HozoTabs', owners: ['Tabs.Tab'] },
     { name: 'HozoToolbar', owners: ['Toolbar.root'] },
+    { name: 'HozoTree', owners: ['Tree.row'] },
     { name: 'Other', owners: [] },
     { name: 'Popover', owners: ['Popover.panel', 'Popover.trigger'] },
     { name: 'RadioGroup', owners: ['RadioGroup.option'] },
     { name: 'Tabs', owners: ['Tabs.Tab'] },
     { name: 'Toolbar', owners: ['Toolbar.root'] },
+    { name: 'Tree', owners: ['Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 8)
+  assert.equal(result.owners.contracts.length, 9)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
@@ -61,6 +65,7 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['Popover.trigger', 'audited'],
       ['Popover.panel', 'audited'],
       ['RadioGroup.option', 'audited'],
+      ['Tree.row', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
