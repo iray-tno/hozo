@@ -224,7 +224,8 @@ const PROBE_CONTEXTS = [
       `      <View className="${candidate}">x</View>\n      <View>c</View>\n    </View>\n  )\n}\n`,
   },
   {
-    // The last of three: `nth-3:`, `last:`, `odd:` past the first.
+    // `nth-3:`. The first child below is also an only child, so it already
+    // answers `odd:` and `last:`.
     name: 'third child',
     render: (candidate: string) =>
       `import { View } from '@hozo/core'\n` +
