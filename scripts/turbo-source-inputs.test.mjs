@@ -117,6 +117,9 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'packages/patterns/src/windowed-table.tsx',
+    'packages/patterns/src/windowed-table.native.tsx',
+    'packages/patterns/src/windowed-table-types.ts',
     'crates/hozo_web/src/css.rs',
     'packages/patterns/src/toolbar.tsx',
     'scripts/style-slots/vite-owner-publication.mjs',
@@ -356,6 +359,8 @@ const reads = {
     'scripts/diagnostic-catalog.mjs',
     'packages/compiler/diagnostics.json',
     'packages/patterns/src/toolbar.native.tsx',
+    'packages/patterns/src/windowed-table.native.tsx',
+    'packages/patterns/src/windowed-table-types.ts',
     'packages/behaviors/src/text-child.native.tsx',
     'scripts/style-slots/owner-input-cases.mjs',
     'packages/patterns/hozo.manifest.json',

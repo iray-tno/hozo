@@ -88,4 +88,5 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   useHozoSafeArea: '@hozo/core/generated/safe-area',
   useHozoViewport: '@hozo/core/generated/environment',
   useHozoWidthAtLeast: '@hozo/core/generated/environment',
+  WindowedTable: '@hozo/core/generated/windowed-table',
 }

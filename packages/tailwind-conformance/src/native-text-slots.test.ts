@@ -163,6 +163,10 @@ const EXCUSED = new Map([
   ['form/field:description', 'As label.'],
   ['form/field:error', 'As label.'],
   ['patterns/pagination:content', 'An internal parameter of a cell, given the page number.'],
+  [
+    'patterns/windowed-table:content',
+    'Internal cell content: windowed-table host tests render getText and renderCell strings inside Text.',
+  ],
 ])
 
 function inText(tree: Tree | Tree[] | string | null, under = false): boolean[] {

@@ -5,6 +5,56 @@ Accessible stateful widgets for Hozo: `Dialog`, `Tabs`, `Menu`, `Listbox`, `Comb
 `BottomSheet`, `Drawer`, `Chip`, `Avatar`, `Pagination`, `Stepper`, `OtpInput`, `CommandPalette` and `ColorPicker`. Each carries its WAI-ARIA
 keyboard contract on the Web and the matching accessibility semantics on React Native.
 
+`WindowedTable` is a separate data-based table for declared column widths and
+fixed-height, noninteractive cells. Native uses HozoFlatList; Web keeps every
+row in a semantic HTML table, including offscreen rows for browser find and
+selection. Ordinary `Table` retains its JSX and automatic column sizing.
+
+```tsx
+import { WindowedTable, type WindowedTableColumn } from '@hozo/core'
+
+type Order = { id: string; item: string }
+const columns: WindowedTableColumn<Order>[] = [
+  { key: 'id', header: 'ID', width: 80, getText: (order) => order.id },
+  { key: 'item', header: 'Item', width: 240, getText: (order) => order.item },
+]
+const getRowKey = (order: Order) => order.id
+
+function Orders({ orders }: { orders: readonly Order[] }) {
+  return (
+    <WindowedTable
+      data={orders}
+      getRowKey={getRowKey}
+      columns={columns}
+      rowHeight={40}
+      maxHeight={320}
+      accessibilityLabel="Orders"
+    />
+  )
+}
+```
+
+Supply immutable data/columns and stable, nonempty, unique row/column keys.
+Sizes must be finite and positive; invalid keys and sizes throw. `rowHeight`
+includes the cell's four-pixel padding on each side. Increase it for the
+user's font scale; cells clip rather than growing independently. The full
+`getText` value remains the accessible name, prefixed by its header on Native.
+Native formats and decorates only rows requested by the list, while key
+validation scans the data without formatting it. Optional
+`renderCell(text, row)` supports noninteractive decoration and must return
+elements appropriate for the platform. It does not replace the accessible
+text. There is no natural-width measurement in this component.
+
+Offscreen Native rows are absent from the accessibility tree until scrolled
+into the window. Android cells carry absolute two-dimensional item indices;
+the unsafe collection-count prop remains disabled ([#525](https://github.com/iray-tno/hozo/issues/525)).
+iOS exposes header/value names without collection indices. Neither platform
+claims native table navigation or a total-count announcement; a caller may
+include counts in its localized `accessibilityLabel`. Real TalkBack/VoiceOver
+verification remains tracked separately from host-structure tests in
+[RFC 014](../../docs/rfcs/014-windowed-table.md). Interactive cells, automatic
+widths, variable row heights and Web windowing are outside this first slice.
+
 `Checkbox` and `Switch` are one control with two roles, and choosing between them chooses what a
 person hears: a checkbox is "checked" or "not checked" and can also be "partially checked", while
 a switch is "on" or "off" and ARIA gives its role no third value. The checkbox is a `<button role="checkbox">`

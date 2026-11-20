@@ -1,8 +1,9 @@
 # RFC 014: Windowed Table
 
-- **Status**: Draft; declared-width measurement and API proposal ready for review
+- **Status**: Declared-width implementation in progress; release-emulator proof pending
 - **Authors**: codex-2
 - **Tracking issue**: [#1373](https://github.com/iray-tno/hozo/issues/1373)
+- **Implementation**: [#2130](https://github.com/iray-tno/hozo/issues/2130) (at most two merged PRs)
 - **Target packages**: `@hozo/patterns`, `@hozo/core`; existing `@hozo/semantics` Table and `@hozo/primitives` FlatList
 - **Baseline**: main `1b655da6`; measurement source and run recorded below
 
@@ -25,7 +26,7 @@ It does not implement the proposed component's table accessibility contract.
 
 ## 2. Data and width contract
 
-The first production slice has this shape (a proposal, not an available API):
+The first production slice has this shape:
 
 ```tsx
 import type { ReactNode } from 'react'
@@ -133,12 +134,12 @@ Use the existing safe FlatList wrapper and retain the upstream restriction.
 
 | Surface | Required proof before production completion | Present evidence |
 | --- | --- | --- |
-| Web markup | Header associations, total rows/columns, unchanged full-row rendering | Existing Table covers the baseline; new API pending |
-| Native structure | Absolute indices, full header/value labels, row-key recycling | New API pending |
+| Web markup | Header associations, total rows/columns, unchanged full-row rendering | WindowedTable SSR test: all 1,000 rows, column widths and header associations |
+| Native structure | Absolute indices, full header/value labels, row-key recycling | WindowedTable host test: lazy callbacks, absolute indices across row 0/999/return, stable keys after reorder; device recycling pending |
 | Android TalkBack | First/last visible row, jump past one window, return to a focused control | Not measured by this performance probe |
 | iOS VoiceOver | Header/value naming and navigation across recycled rows | Not measured |
 | Window bounds | Initial mount stays bounded as data grows; later scroll/jump/return also stays bounded | Initial mount diagnostic below; later recycling pending |
-| Sizing | Fixed columns cause zero natural-width reports; later widths grow once per epoch and reset deliberately | Fixed-width diagnostic below; later sizing pending |
+| Sizing | Fixed columns cause zero natural-width reports; later widths grow once per epoch and reset deliberately | Public source: Chromium and Yoga agree at widths 1/8/64 and row heights 1/4/32/64, without natural-width probes; release window bounds pending; later sizing deferred |
 
 No screen-reader or physical-device approval is inferred from release-emulator
 mount measurements. Offscreen Native rows are absent from the accessibility
@@ -212,5 +213,6 @@ documented in [the showcase README](../../examples/native-showcase/README.md#tab
 This RFC and its diagnostic close the design/measurement task #1373 when
 reviewed and merged. They do not ship WindowedTable. Production work starts
 in [#2130](https://github.com/iray-tno/hozo/issues/2130), with declared
-widths/fixed heights and the accessibility checks above. Text
-estimation/growth follows with its own measurement and recycling tests.
+widths/fixed heights and the accessibility checks above. Any text
+estimation/growth implementation is separate work with its own measurement
+and recycling tests; it is not required to close #2130.

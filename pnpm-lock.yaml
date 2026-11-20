@@ -1128,6 +1128,9 @@ importers:
       '@hozo/engine':
         specifier: workspace:^
         version: link:../engine
+      '@hozo/primitives':
+        specifier: workspace:^
+        version: link:../primitives
       '@hozo/typography':
         specifier: workspace:^
         version: link:../typography

@@ -118,6 +118,9 @@ export {
   type SplitterProps,
   type SplitterSide,
   type TreeNode,
+  WindowedTable,
+  type WindowedTableColumn,
+  type WindowedTableProps,
 } from '@hozo/patterns'
 export * from '@hozo/primitives'
 // Resolve the primitives/typography overlap at the facade boundary. Besides
