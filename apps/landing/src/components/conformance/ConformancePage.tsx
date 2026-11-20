@@ -121,10 +121,17 @@ export function TailwindNative() {
         {native.refused} refused with a diagnostic, {native.noOp} a deliberate no-op (
         <Code>whitespace-normal</Code>, which React Native already does), {native.silent} silent.
       </Stat>
-      <Stat label="Variants" value={`${n(nativeVariants.covered)} / ${n(nativeVariants.total)}`}>
-        {n(nativeVariants.refused)} refused, {nativeVariants.silent} silent.{' '}
-        {n(nativeVariants.restricted)} of the covered ones work only on some elements, such as a
-        state variant on a Pressable; using one elsewhere is a build error.
+      <Stat
+        label="Variants"
+        value={`${n(nativeVariants.covered)} / ${n(nativeVariants.total - nativeVariants.noCounterpart)}`}
+      >
+        Out of {n(nativeVariants.total)} single and stacked variants. The other{' '}
+        {n(nativeVariants.noCounterpart)} use one with nothing to be on React Native, such as{' '}
+        <Code>print:</Code>, <Code>visited:</Code> or <Code>before:</Code>, and are refused with a
+        diagnostic. Of the rest, {n(nativeVariants.refused - nativeVariants.noCounterpart)} are
+        refused and {nativeVariants.silent} silent. {n(nativeVariants.restricted)} of the covered
+        ones work only on some elements, such as a state variant on a Pressable; using one elsewhere
+        is a build error.
       </Stat>
       <Stat
         label="Arbitrary values"
