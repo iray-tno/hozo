@@ -669,4 +669,40 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.code, /className="bg-\[#777777\]"/)
   assert.match(lowered.code, /lineClassName=\{dynamic\}/)
   assert.match(lowered.css, /data-code-mark="ins"/)
+  assert.equal(lowered.needsClientBoundary, true)
+})
+
+test('static CSS-only CodeBlock slots keep a static module out of the client boundary (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { View } from '@hozo/core'
+import { CodeBlock } from '@hozo/patterns'
+export function StaticListing() {
+  return (
+    <View className="p-2">
+      <CodeBlock
+        title="Example"
+        lines="const x = 1"
+        wrap
+        className="text-xs"
+        captionClassName="sr-only"
+        lineClassName="px-2"
+        gutterClassName="pr-2"
+        insClassName="bg-[#002200]"
+        delClassName="bg-[#220000]"
+        markClassName="bg-[#222200]"
+      />
+    </View>
+  )
+}
+`
+  const lowered = lowerModule(
+    source,
+    '/app/StaticListing.tsx',
+    '/app/StaticListing.tsx',
+    compiler,
+    '/app',
+  )
+  assert.ok(lowered)
+  assert.equal(lowered.needsClientBoundary, false)
+  assert.match(lowered.code, /captionClassName=\{"hozo-owner-/)
 })

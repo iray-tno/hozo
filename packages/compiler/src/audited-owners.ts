@@ -9,7 +9,26 @@ import {
   prepareOwnerLiteralCallers,
   previewOwnerLiteralCallers,
 } from './owner-caller-plan.ts'
+import { parseOwnerContractShadow } from './owner-contract.ts'
 import type { SourceEdit, SourceProvenance } from './source-provenance.ts'
+
+export type AuditedOwnerPreview = OwnerCallerPreview & {
+  /** Whether any declared shape on the matched owner contract carries interactive events. */
+  interactive?: boolean
+}
+
+const interactiveByOwner = new Map<string, boolean>()
+
+function contractHasInteractiveShape(contract: AuditedOwnerContract): boolean {
+  let interactive = interactiveByOwner.get(contract.owner)
+  if (interactive === undefined) {
+    interactive = parseOwnerContractShadow(contract.shadow).contracts.some((entry) =>
+      entry.shapes.some((shape) => shape.events.length > 0),
+    )
+    interactiveByOwner.set(contract.owner, interactive)
+  }
+  return interactive
+}
 
 export function matchingAuditedOwners(source: string): readonly AuditedOwnerContract[] {
   if (!AUDITED_OWNER_CONTRACTS.length) return []
@@ -24,11 +43,11 @@ export function previewAuditedOwnerBatch(
   compiler: Compiler,
   target: 'web' | 'native',
   sourceFile?: string,
-): OwnerCallerPreview[] {
+): AuditedOwnerPreview[] {
   const contracts = matchingAuditedOwners(source)
   if (!contracts.length) return []
-  return contracts.map((contract, index) =>
-    previewOwnerLiteralCallers(source, compiler, {
+  return contracts.map((contract, index) => ({
+    ...previewOwnerLiteralCallers(source, compiler, {
       target,
       source: contract.package,
       imported: contract.exports,
@@ -36,7 +55,8 @@ export function previewAuditedOwnerBatch(
       sourceFile,
       planPrefix: `${index}_`,
     }),
-  )
+    interactive: contractHasInteractiveShape(contract),
+  }))
 }
 
 export function prepareAuditedOwnerBatch(
@@ -44,18 +64,18 @@ export function prepareAuditedOwnerBatch(
   compiler: Compiler,
   target: 'web' | 'native',
   sourceFile?: string,
-): PreparedModule<OwnerCallerPreview[]> | undefined {
+): PreparedModule<AuditedOwnerPreview[]> | undefined {
   const contracts = matchingAuditedOwners(source)
   if (!contracts.length) return undefined
-  const prepared: PreparedModule<OwnerCallerPreview>[] = []
+  const prepared: { module: PreparedModule<OwnerCallerPreview>; interactive: boolean }[] = []
   const dispose = () => {
-    for (const module of prepared.splice(0)) module.dispose()
+    for (const entry of prepared.splice(0)) entry.module.dispose()
   }
   try {
     for (let index = 0; index < contracts.length; index++) {
       const contract = contracts[index]!
-      prepared.push(
-        prepareOwnerLiteralCallers(source, compiler, {
+      prepared.push({
+        module: prepareOwnerLiteralCallers(source, compiler, {
           target,
           source: contract.package,
           imported: contract.exports,
@@ -63,13 +83,16 @@ export function prepareAuditedOwnerBatch(
           sourceFile,
           planPrefix: `${index}_`,
         }),
-      )
+        interactive: contractHasInteractiveShape(contract),
+      })
     }
   } catch (error) {
     dispose()
     throw error
   }
-  const candidates = Object.freeze([...new Set(prepared.flatMap((m) => m.candidates))].sort())
+  const candidates = Object.freeze(
+    [...new Set(prepared.flatMap((m) => m.module.candidates))].sort(),
+  )
   let active = true
   return {
     candidates,
@@ -77,7 +100,10 @@ export function prepareAuditedOwnerBatch(
       if (!active) throw new Error('Audited owner batch has already been emitted or disposed')
       active = false
       try {
-        return prepared.map((module) => module.emit(context))
+        return prepared.map((entry) => ({
+          ...entry.module.emit(context),
+          interactive: entry.interactive,
+        }))
       } finally {
         dispose()
       }
@@ -96,11 +122,12 @@ export function applyWebOwnerPreviews(
   file: string,
   lowered: LoweredModule | undefined,
   provenance: SourceProvenance,
-  previews: readonly OwnerCallerPreview[],
+  previews: readonly AuditedOwnerPreview[],
 ): LoweredModule | undefined {
   const output = lowered?.code ?? source
   const edits: SourceEdit[] = []
   let css = ''
+  let interactive = false
   for (const preview of previews) {
     if (!preview.edits.length) continue
     for (const edit of preview.edits) {
@@ -108,6 +135,7 @@ export function applyWebOwnerPreviews(
       if (!range) return lowered
       edits.push({ ...range, replacement: edit.replacement })
     }
+    if (preview.interactive) interactive = true
     css += preview.css ?? ''
   }
   if (!edits.length) return lowered
@@ -121,7 +149,9 @@ export function applyWebOwnerPreviews(
   return {
     ...base,
     code,
-    needsClientBoundary: true,
+    // Rewriting a purely static CSS-only slot (events: []) emits no client script,
+    // so it must not pull a static SSR/Astro module across a client boundary.
+    needsClientBoundary: base.needsClientBoundary || interactive,
     css: base.css + css,
   }
 }
