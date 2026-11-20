@@ -110,10 +110,14 @@ test('fully ranked Native namespaces emit only compact order, not a second owner
   const specificity = (name: string) => name.split(':').length
   const expected = (await tailwindOrder(names)).sort((a, b) => specificity(a) - specificity(b))
   const builtin = cache.renderNativeModulePlan(prepareBuiltinTailwindContext(cache.candidates()))
+  // `text-brand` below is an unassessed object only while the theme defines
+  // `brand`; otherwise the map refuses it as no colour (#2127).
+  const theme = { colors: [{ token: 'brand', oklch: 'oklch(40% 0.1 250)', hex: '#123456' }] }
   const captured = async () => {
     const prepared = await prepareTailwindOrder(CSS, tailwindPackageDir(), cache.candidates())
     return cache.renderNativeModulePlan(
       prepareFinalTailwindContext(JSON.stringify(prepared.snapshot)),
+      theme,
     )
   }
   for (const plan of [builtin, await captured()]) {

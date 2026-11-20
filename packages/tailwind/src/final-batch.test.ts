@@ -233,6 +233,9 @@ test('an unassessed object keeps its position without discarding adjacent restin
       ],
       runtime: { expected: [row], contributions: [row] },
       prepare: order,
+      // The barrier is a colour the theme defines but Tailwind's stylesheet
+      // here does not; with no theme the map refuses it (#2127).
+      theme: { colors: [{ token: 'brand', oklch: 'oklch(40% 0.1 250)', hex: '#123456' }] },
     })
     const web = result.modules.find(({ id }) => id === 'w')!.output
     const native = result.modules.find(({ id }) => id === 'n')!.output
