@@ -229,6 +229,7 @@ PR or issue if one seems missing.
 | `direction` | Where the project is going; no owner yet |
 | `blocked-upstream` | Waiting on a fix or feature outside this repository (React Native, WebKit, a dependency); the issue says what to do when it lands |
 | `flaky` | A test that fails or passes without a code change; one issue per test, listed in [`docs/flaky-tests.md`](docs/flaky-tests.md) |
+| `verifying` | A fix has merged and the issue waits for enough runs to show it holds; a comment says how many, and the issue closes when they pass |
 
 ## Writing
 
