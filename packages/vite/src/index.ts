@@ -50,6 +50,7 @@ import {
   classesMissingFromRuntimeMap,
   discoverOwnerPackageCallers,
   discoverSources,
+  type FileFactStore,
   findClassHelpers,
   type HozoProjectOptions,
   importSpecifier,
@@ -160,6 +161,9 @@ function configureHozo(
   let carrierSource: (file: string) => boolean = () => false
   let cache: CandidateCache
   let stylexModules: StylexModuleCache
+  // Decision 014's per-file records, from buildStart's scan. Undefined until
+  // then, and for a transform with no scan, which then reads as before.
+  let facts: FileFactStore | undefined
   let candidateCssPath = ''
   let preflightPath = ''
   let includedFiles = new Set<string>()
@@ -476,6 +480,8 @@ function configureHozo(
             return resolved?.external ? undefined : resolved?.id
           },
           (dependency) => this.addWatchFile(dependency),
+          // The helper files' records from the scan, re-read only on change.
+          facts,
         )
         compiler.setClassHelpers(resolveClassHelpers(options.classHelpers, helpers))
         checkRequest()
@@ -891,6 +897,7 @@ function configureHozo(
           ? withOwnerPackageCandidates(project, owners.contributions, options.sources)
           : project.cache
         stylexModules = project.stylexModules
+        facts = project.facts
         orderingSources.clear()
         // Ordering names from the scan's own records, not a second read
         // (decision 014). Only the experimental inventory still wants source.

@@ -18,8 +18,6 @@ import {
   type FontAvailability,
   openCandidateCache,
   type StylexExternalBinding,
-  summarizeClassHelperMerges,
-  summarizeClassHelpers,
   type TextForwardingModule,
 } from './index.ts'
 import { buildManifest, textForwardingModule } from './manifest.ts'
@@ -409,21 +407,9 @@ function mergeConfigForEntry(file: string | undefined, onDependency?: (file: str
   }
   return undefined
 }
-const summaries = new Map<string, { modifiedMs: number; exports: string[]; merges: Set<string> }>()
-
-/** What a helper file exports as joiners, read again only when it changes. */
-function helperExports(file: string): { exports: string[]; merges: Set<string> } {
-  const modifiedMs = statSync(file, { throwIfNoEntry: false })?.mtimeMs
-  if (modifiedMs === undefined) return { exports: [], merges: new Set() }
-  const cached = summaries.get(file)
-  if (cached?.modifiedMs === modifiedMs) return cached
-  const content = readFileSync(file, 'utf8')
-  const exports = summarizeClassHelpers(content)
-  const merges = new Set(summarizeClassHelperMerges(content))
-  const entry = { modifiedMs, exports, merges }
-  summaries.set(file, entry)
-  return entry
-}
+// Helper files' records for a caller that has no project store: read again
+// only when a file changes, as the in-process cache this replaced was.
+const processFacts = new FileFactStore()
 
 /**
  * The project's own class-joining functions this file calls, found by
@@ -434,12 +420,17 @@ function helperExports(file: string): { exports: string[]; merges: Set<string> }
  * bundler that can re-transform this file when one changes (Vite's
  * `addWatchFile`) does. The result goes through `resolveClassHelpers` with
  * the project's declarations, which win.
+ *
+ * `source` is the module as the bundler holds it, which is what its own
+ * imports are read from. What a helper file exports comes from its record
+ * (decision 014): the project's, when the bundler has one.
  */
 export async function findClassHelpers(
   source: string,
   importer: string,
   resolve: (specifier: string, importer: string) => Promise<string | undefined>,
   onDependency?: (file: string) => void,
+  facts: FileFactStore = processFacts,
 ): Promise<ClassHelper[]> {
   const found: ClassHelper[] = []
   for (const { specifier, imported } of classHelperCandidates(source)) {
@@ -454,10 +445,10 @@ export async function findClassHelpers(
     if (!resolved || !path.isAbsolute(resolved) || /[?#]/.test(resolved) || !SCRIPT.test(resolved))
       continue
     onDependency?.(resolved)
-    const summary = helperExports(resolved)
-    if (summary.exports.includes(imported)) {
+    const summary = facts.get(resolved)
+    if (summary?.helperExports.includes(imported)) {
       const helper: ClassHelper = { module: specifier, name: imported }
-      if (summary.merges.has(imported)) {
+      if (summary.helperMerges.includes(imported)) {
         helper.merge = true
         const config = mergeConfigForEntry(await resolve(TW_MERGE_MODULE, resolved), onDependency)
         if (config) helper.mergeConfig = config

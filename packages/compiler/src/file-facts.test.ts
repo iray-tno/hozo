@@ -20,6 +20,7 @@ import {
 } from './index.ts'
 import {
   FILE_FACTS_FILE,
+  findClassHelpers,
   projectClassHelpers,
   projectTextForwarding,
   scanProject,
@@ -112,6 +113,20 @@ test('class helpers and project text forwarding come from the scan records, with
   // The same answers as reading each file here, which is what no store gives.
   assert.deepEqual(projectClassHelpers(root, project.files), helpers)
   assert.deepEqual(projectTextForwarding(root, project.files), forwarding)
+})
+
+test("a bundler's per-transform helper lookup reads the helper's record, not the file", async (t) => {
+  const { root, caller } = app(t)
+  const project = scanProject(root)
+  const resolve = async (specifier: string) =>
+    specifier === './lib/cn' ? path.join(root, 'src', 'lib', 'cn.ts') : undefined
+  // The module's own imports come from the code the bundler holds.
+  const code = readFileSync(caller, 'utf8')
+  const found = await findClassHelpers(code, caller, resolve, undefined, project.facts)
+  assert.deepEqual(found, [{ module: './lib/cn', name: 'cn' }])
+  assert.equal(project.facts.reads, 0)
+  // Without a store, the same answer, read here.
+  assert.deepEqual(await findClassHelpers(code, caller, resolve), found)
 })
 
 test('records persist with the scan, so an unchanged project reads nothing', (t) => {

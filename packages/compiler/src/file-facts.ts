@@ -6,9 +6,10 @@
 // project text forwarding -- are derived from these records, never by
 // reading source again. A new cross-file fact is a new field on `FileFacts`.
 //
-// Candidate facts and StyleX summaries still have their own stores
-// (`candidates.json`, `stylex-modules.json`); folding them in is #1307's
-// next step, together with one Rust call for all of a file's facts.
+// Candidate facts and StyleX summaries keep their own stores
+// (`candidates.json`, `stylex-modules.json`): they come from the same read,
+// are keyed the same way, and other processes open them directly. Decision
+// 014 records why one Rust parse for every fact was not worth taking.
 
 import { createHash } from 'node:crypto'
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
