@@ -612,7 +612,16 @@ export const components = {
       },
     },
   ),
-  Alert: slots('className'),
+  Alert: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'alert-root',
+        gate: 'always',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Avatar: slots('className imageClassName fallbackClassName statusClassName', {
     secondary: true,
     overrides: {
@@ -1026,7 +1035,16 @@ export const components = {
     },
   }),
   Toolbar: slots('className'),
-  Tooltip: slots('className'),
+  Tooltip: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'tooltip-root',
+        gate: 'when-open',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Tree: slots('className rowClassName', {
     overrides: {
       rowClassName: {
@@ -1969,6 +1987,42 @@ export const ownerShadow = {
       ],
     },
     {
+      owner: 'Alert.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoAlertStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Tooltip.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTooltipStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
       owner: 'Form.root',
       classProp: 'className',
       audit: 'audited',
@@ -2678,6 +2732,16 @@ export const ownerPublications = [
     owner: 'Switch.root',
     package: '@hozo/patterns',
     exports: ['Switch', 'HozoSwitch'],
+  },
+  {
+    owner: 'Alert.root',
+    package: '@hozo/patterns',
+    exports: ['Alert', 'HozoAlert'],
+  },
+  {
+    owner: 'Tooltip.root',
+    package: '@hozo/patterns',
+    exports: ['Tooltip'],
   },
   {
     owner: 'Form.root',

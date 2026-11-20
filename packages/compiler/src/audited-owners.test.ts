@@ -740,3 +740,31 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.css, /data-hozo-state="mixed"/)
   assert.match(lowered.css, /aria-checked="true"/)
 })
+
+test('ordinary Web lowering compiles Alert and Tooltip root className by default (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Alert, Tooltip } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <Alert live="polite" className="p-3 bg-[#112233] text-[#ffffff]">Saved</Alert>
+      <Tooltip open portal={false} content="Help" className="px-2 py-1 bg-[#223344] text-[#eeeeee]">
+        <span>?</span>
+      </Tooltip>
+      <Alert {...spread} className="bg-[#444444]">Spread</Alert>
+      <Tooltip open portal={false} content="Dyn" className={dynamic}><span>?</span></Tooltip>
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.equal(lowered.needsClientBoundary, false)
+  assert.doesNotMatch(lowered.code, /className="p-3 bg-\[#112233\]/)
+  assert.doesNotMatch(lowered.code, /className="px-2 py-1 bg-\[#223344\]/)
+  assert.match(lowered.code, /className=\{"hozo-owner-/)
+  assert.match(lowered.code, /className="bg-\[#444444\]"/)
+  assert.match(lowered.code, /className=\{dynamic\}/)
+  assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
+  assert.match(lowered.css, /#223344|rgb\(34,\s*51,\s*68\)/)
+})

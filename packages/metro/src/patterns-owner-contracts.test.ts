@@ -77,6 +77,8 @@ function loadNativePatternModule(
     Easing: { out: (fn: unknown) => fn, quad: (n: number) => n },
     PanResponder: { create: () => ({ panHandlers: {} }) },
     I18nManager: { isRTL: false },
+    Platform: { OS: 'android' },
+    AccessibilityInfo: { announceForAccessibility: () => {} },
     StyleSheet: {
       create: <T>(styles: T) => styles,
       flatten: flattenStyle,
@@ -135,7 +137,11 @@ function loadNativePatternModule(
           done: () => {},
         }),
         Portal: ({ children }: { children?: React.ReactNode }) => children ?? null,
-        FloatingPositioner: ({ children }: { children?: React.ReactNode }) => children ?? null,
+        FloatingPositioner: host('FloatingPositioner'),
+        useHoverTrigger: ({ open }: { open?: boolean }) => ({
+          isOpen: Boolean(open),
+          triggerProps: { onHoverIn: () => {}, onHoverOut: () => {}, onLongPress: () => {} },
+        }),
         useDrag1D: () => ({ dragging: draggingState, handlers: {} }),
       }
     }
@@ -1829,5 +1835,112 @@ export function Screen({
         ),
       ),
     /Prepared Switch styles must consume className/,
+  )
+})
+
+test('Native Alert and Tooltip deliver prepared box and label styles without calling hozoClasses (#2137)', () => {
+  const compiler = createCompiler()
+  const source = `import { Alert, Tooltip } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <>
+      <Alert live="polite" className="pt-3 bg-[#112233] text-[#ffffff]">
+        Saved
+      </Alert>
+      <Tooltip open portal={false} content="Hint" className="pt-2 bg-[#223344] text-[#eeeeee]">
+        Trigger
+      </Tooltip>
+    </>
+  )
+}
+export function Unsupported() {
+  return <Alert className="hover:bg-[#333333]">No hover</Alert>
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoAlertStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTooltipStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="pt-3/)
+  assert.doesNotMatch(transformed, /className="pt-2/)
+  assert.match(transformed, /className="hover:bg-\[#333333\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const alertMod = loadNativePatternModule('alert.native.tsx', { hozoClasses: spyHozoClasses })
+  const tooltipMod = loadNativePatternModule('tooltip.native.tsx', { hozoClasses: spyHozoClasses })
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return { Alert: alertMod.exports.Alert, Tooltip: tooltipMod.exports.Tooltip }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  alertMod.captured.length = 0
+  tooltipMod.captured.length = 0
+  renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+  const alertView = flattenStyle(alertMod.captured.find((e) => e.host === 'View')!.props.style)
+  const alertText = flattenStyle(alertMod.captured.find((e) => e.host === 'Text')!.props.style)
+  assert.equal(alertView.backgroundColor, '#112233')
+  assert.equal(alertView.paddingTop, 12)
+  assert.equal(alertText.color, '#ffffff')
+
+  const tooltipBox = flattenStyle(
+    tooltipMod.captured.find((e) => e.host === 'FloatingPositioner')!.props.style,
+  )
+  const tooltipText = flattenStyle(tooltipMod.captured.find((e) => e.host === 'Text')!.props.style)
+  assert.equal(tooltipBox.backgroundColor, '#223344')
+  assert.equal(tooltipBox.paddingTop, 8)
+  assert.equal(tooltipText.color, '#eeeeee')
+  assert.equal(
+    classResolverCalls,
+    0,
+    'prepared Alert and Tooltip literals must never call hozoClasses',
+  )
+
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          alertMod.exports.Alert as React.ComponentType<Record<string, unknown>>,
+          { className: 'pt-2', hozoAlertStyle: () => ({}) },
+        ),
+      ),
+    /Prepared Alert styles must consume className/,
+  )
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          tooltipMod.exports.Tooltip as React.ComponentType<Record<string, unknown>>,
+          {
+            open: true,
+            portal: false,
+            content: 'x',
+            className: 'pt-2',
+            hozoTooltipStyle: () => ({}),
+          },
+        ),
+      ),
+    /Prepared Tooltip styles must consume className/,
   )
 })

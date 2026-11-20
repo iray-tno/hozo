@@ -34,6 +34,7 @@ import {
 } from '@hozo/form'
 import {
   Accordion,
+  Alert,
   BottomSheet,
   Checkbox,
   Chip,
@@ -47,6 +48,7 @@ import {
   Splitter,
   Switch,
   Tabs,
+  Tooltip,
   Tree,
 } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
@@ -9504,6 +9506,117 @@ export function Screen({
         await page.mouse.up()
       }
     }
+  } finally {
+    await page.close()
+  }
+})
+
+test('Alert and Tooltip deliver prepared root box and text styles on Web Chromium and Native (#2137)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Alert, Tooltip } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <Alert live="polite" className="pt-3 bg-[#112233] text-[#ffffff]">
+        Saved
+      </Alert>
+      <Tooltip open portal={false} content="Hint" className="pt-2 bg-[#223344] text-[#eeeeee]">
+        <span>?</span>
+      </Tooltip>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  assert.match(web.code, /className=\{"hozo-owner-/)
+
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Alert, Tooltip }
+      throw new Error(`Unexpected web require: ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const nativeProps = {}
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props, ...children) => {
+      if (type === 'Alert' || type === 'Tooltip') nativeProps[type] = props
+      return { type, props, children }
+    },
+    require: (id) => {
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (id === '@hozo/patterns') return { Alert: 'Alert', Tooltip: 'Tooltip' }
+      throw new Error(`Unexpected native require: ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+  assert.equal(typeof nativeProps.Alert.hozoAlertStyle, 'function')
+  assert.equal(nativeProps.Alert.className, undefined)
+  assert.equal(typeof nativeProps.Tooltip.hozoTooltipStyle, 'function')
+  assert.equal(nativeProps.Tooltip.className, undefined)
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const alertNative = flat(nativeProps.Alert.hozoAlertStyle())
+  const tooltipNative = flat(nativeProps.Tooltip.hozoTooltipStyle())
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const alertEl = document.querySelector('#wrap [role="status"]')
+      const tooltipInner = document.querySelector('#wrap [role="tooltip"]')
+      const tooltipBox = tooltipInner.parentElement
+      const alertStyle = getComputedStyle(alertEl)
+      const tooltipBoxStyle = getComputedStyle(tooltipBox)
+      const tooltipTextStyle = getComputedStyle(tooltipInner)
+      return {
+        alertTag: alertEl.tagName,
+        alertBg: alertStyle.backgroundColor,
+        alertColor: alertStyle.color,
+        alertPaddingTop: parseFloat(alertStyle.paddingTop),
+        tooltipTag: tooltipBox.tagName,
+        tooltipBg: tooltipBoxStyle.backgroundColor,
+        tooltipColor: tooltipTextStyle.color,
+        tooltipPaddingTop: parseFloat(tooltipBoxStyle.paddingTop),
+      }
+    })
+    assert.deepEqual(markers, {
+      alertTag: 'DIV',
+      alertBg: hexToRgb(alertNative.backgroundColor),
+      alertColor: hexToRgb(alertNative.color),
+      alertPaddingTop: alertNative.paddingTop,
+      tooltipTag: 'DIV',
+      tooltipBg: hexToRgb(tooltipNative.backgroundColor),
+      tooltipColor: hexToRgb(tooltipNative.color),
+      tooltipPaddingTop: tooltipNative.paddingTop,
+    })
   } finally {
     await page.close()
   }

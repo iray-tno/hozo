@@ -1420,6 +1420,78 @@
       ]
     },
     {
+      "owner": "Alert.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoAlertStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": [],
+          "inputs": {
+            "facts": [],
+            "splitText": true
+          }
+        }
+      ]
+    },
+    {
+      "owner": "Tooltip.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoTooltipStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "root",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": [],
+          "inputs": {
+            "facts": [],
+            "splitText": true
+          }
+        }
+      ]
+    },
+    {
       "owner": "Form.root",
       "classProp": "className",
       "audit": "audited",

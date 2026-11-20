@@ -1495,15 +1495,15 @@ test('inventory stays separate from scoped evidence and missing global measures 
   assert.deepEqual(report.inventory, {
     components: 27,
     slots: 100,
-    pendingOwners: 21,
-    componentManaged: 35,
+    pendingOwners: 19,
+    componentManaged: 37,
     componentManagedPending: 0,
     formComponents: 11,
     formSlots: 52,
     formPendingOwners: 0,
-    shadowContributions: 88,
+    shadowContributions: 90,
     shadowAuditUnknown: 1,
-    shadowAuditDeclared: 87,
+    shadowAuditDeclared: 89,
   })
   assert.equal(report.observations[0].status, 'measured')
   assert.equal(report.observations[0].matchedPairs, 5)

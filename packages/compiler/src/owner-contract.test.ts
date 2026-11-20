@@ -770,6 +770,24 @@ test('CodeBlock contracts declare figure root, figcaption text, copy button, and
       },
     },
   ])
+  for (const [owner, prop] of [
+    ['Alert.root', 'hozoAlertStyle'],
+    ['Tooltip.root', 'hozoTooltipStyle'],
+  ]) {
+    const entry = parsed().contracts.find((row) => row.owner === owner)!
+    assert.equal(entry.audit, 'audited')
+    assert.equal(entry.abi.nativePreparedProp, prop)
+    assert.deepEqual(entry.shapes, [
+      {
+        id: 'root',
+        when: { eq: ['present', true] },
+        nativeHost: 'View',
+        webHost: 'div',
+        events: [],
+        inputs: { facts: [], splitText: true },
+      },
+    ])
+  }
 })
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()

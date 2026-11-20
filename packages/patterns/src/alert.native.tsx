@@ -25,6 +25,7 @@ import {
   Platform,
   type StyleProp,
   Text,
+  type TextStyle,
   View,
   type ViewStyle,
 } from 'react-native'
@@ -38,10 +39,25 @@ export interface HozoAlertProps {
   className?: string
   /** After the class list, as every pattern's `*Style` prop is. */
   style?: StyleProp<ViewStyle>
+  /** @internal Prepared root class contribution compiled by the owner contract. */
+  hozoAlertStyle?: () => StyleProp<ViewStyle | TextStyle>
 }
 
-export function HozoAlert({ children, live = false, className, style }: HozoAlertProps) {
-  const [box, text] = splitTextStyle(hozoClasses(className))
+export function HozoAlert({
+  children,
+  live = false,
+  className,
+  style,
+  hozoAlertStyle,
+}: HozoAlertProps) {
+  if (hozoAlertStyle && className !== undefined)
+    throw new Error('Prepared Alert styles must consume className')
+  const resolved = hozoAlertStyle
+    ? hozoAlertStyle()
+    : className
+      ? hozoClasses(className)
+      : undefined
+  const [box, text] = resolved ? splitTextStyle(resolved) : [{}, {}]
   const spoken =
     typeof children === 'string' || typeof children === 'number' ? String(children) : undefined
 
