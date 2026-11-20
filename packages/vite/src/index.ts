@@ -27,7 +27,7 @@
 // Rust owns scanning, staleness, and persistence.
 
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { type CandidateCache, scanTailwindOrderCandidates } from '@hozo/compiler'
 import { formatDiagnostic, reportDiagnostics } from '@hozo/compiler/diagnostics'

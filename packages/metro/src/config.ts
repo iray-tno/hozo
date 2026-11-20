@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url'
 import type { ClassHelper, TextForwardingModule } from '@hozo/compiler'
 import {
   CACHE_DIR,
-  type CarrierClosure,
   carrierGuard,
   carrierTripMessage,
   type HozoProjectOptions,
