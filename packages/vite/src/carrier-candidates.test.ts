@@ -9,6 +9,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { build } from 'vite'
 import { buildPackageManifest, serializeManifest } from '../../compiler/src/manifest.ts'
+import { runManifestCli } from '../../compiler/src/manifest-command.ts'
 import { type HozoOptions, hozo } from './index.ts'
 
 function manifest(classes: string, compiledByConsumer = true) {
@@ -149,7 +150,37 @@ test('an incomplete capture fails the build before output, naming the package', 
   )
 })
 
-test('a v1 manifest, as hozo manifest writes it, contributes no candidates and is no error', async (t) => {
+test('a manifest from `hozo manifest --sources` contributes candidates and compiles its source, with no content.packages', async (t) => {
+  // #2112: a third-party author's own command, on the source they publish.
+  const root = fixture(t, { kit: '1' }, ['kit'])
+  const dir = path.join(root, 'node_modules', 'kit')
+  mkdirSync(path.join(dir, 'src'), { recursive: true })
+  writeFileSync(
+    path.join(dir, 'src', 'index.tsx'),
+    "import {View} from '@hozo/core';const tone = 'gap-7';" +
+      'export const Kit=()=> <View className="gap-9"/>;export const t = tone',
+  )
+  writeFileSync(
+    path.join(dir, 'package.json'),
+    JSON.stringify({
+      name: 'kit',
+      type: 'module',
+      main: 'src/index.tsx',
+      hozo: { manifest: './hozo.manifest.json' },
+    }),
+  )
+  const io = { log() {}, error: (message: string) => assert.fail(message) }
+  assert.equal(
+    runManifestCli([dir, '--sources', 'src/**/*.tsx', '--compiled-by-consumer'], root, io),
+    0,
+  )
+  await tinyBuild(root)
+  // From the manifest's candidates, and from compiling the source it admits.
+  assert.match(candidates(root), /gap-7/)
+  assert.match(emittedCss(), /gap:36px/)
+})
+
+test('a v1 manifest, as hozo manifest writes it without --sources, contributes no candidates and is no error', async (t) => {
   const root = fixture(t, { kit: '1', legacy: '1' }, ['kit', 'legacy'])
   install(root, 'kit', 'gap-7')
   install(root, 'legacy', 'gap-5')

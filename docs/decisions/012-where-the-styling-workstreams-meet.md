@@ -146,7 +146,9 @@ is its measurement.
   - An `@hozo/*` package has a v1 manifest.
   - A v1 manifest from any other package is **not** incomplete. It is what
     `hozo manifest` still writes: text forwarding, and no candidates. That
-    package contributes none, as before #2047.
+    package contributes none, as before #2047. (Since #2112, `hozo manifest
+    --sources` writes v2, so an author can ship candidates; without the
+    option it still writes v1.)
 - **What does not change.** The principle: no build ever uses part of the
   candidates.
 - **What still walks sources.**

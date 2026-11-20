@@ -188,7 +188,7 @@ test('producer rejects incomplete declarations and source/candidate budgets rath
           },
         ],
       }),
-    /list budget/,
+    /candidate budget exceeded: 513 classes, at most 512/,
   )
 })
 

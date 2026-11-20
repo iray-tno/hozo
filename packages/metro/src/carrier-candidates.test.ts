@@ -9,6 +9,7 @@ import path from 'node:path'
 import test from 'node:test'
 
 import { buildPackageManifest, serializeManifest } from '../../compiler/src/manifest.ts'
+import { runManifestCli } from '../../compiler/src/manifest-command.ts'
 import { withHozo } from './config.ts'
 
 const APP = `import { View } from '@hozo/core'\nexport const App = () => <View className="p-4" />\n`
@@ -129,7 +130,33 @@ test('an incomplete capture fails at config load, naming the package', async () 
   )
 })
 
-test('a v1 manifest, as hozo manifest writes it, contributes no candidates and is no error', async () => {
+test('a manifest from `hozo manifest --sources` contributes its candidates, with no content.packages', async () => {
+  // #2112: a third-party author's own command, on the built output they publish.
+  await project(
+    { kit: '1' },
+    (root) => {
+      const dir = path.join(root, 'node_modules', 'kit')
+      mkdirSync(path.join(dir, 'dist'), { recursive: true })
+      writeFileSync(path.join(dir, 'dist', 'index.js'), 'exports.tone = "gap-9 rounded-3xl"\n')
+      writeFileSync(
+        path.join(dir, 'package.json'),
+        JSON.stringify({
+          name: 'kit',
+          main: 'dist/index.js',
+          hozo: { manifest: './hozo.manifest.json' },
+        }),
+      )
+      const io = { log() {}, error: (message: string) => assert.fail(message) }
+      assert.equal(runManifestCli([dir, '--sources', 'dist/**/*.js'], root, io), 0)
+    },
+    (root) => {
+      assert.match(candidates(root), /"gap-9"/)
+      assert.match(candidates(root), /"rounded-3xl"/)
+    },
+  )
+})
+
+test('a v1 manifest, as hozo manifest writes it without --sources, contributes no candidates and is no error', async () => {
   await project(
     { kit: '1', legacy: '1' },
     (root) => {
