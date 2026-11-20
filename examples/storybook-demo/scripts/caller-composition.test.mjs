@@ -41,6 +41,8 @@ import {
   Chip,
   CodeBlock,
   CodeClipboardProvider,
+  ColorPicker,
+  Dialog,
   Drawer,
   Pagination,
   Popover,
@@ -10052,6 +10054,136 @@ export function Screen() {
       assert.deepEqual(markers[key], {
         tag,
         bg: hexToRgb(nativeStyles[key].backgroundColor),
+        paddingTop: nativeStyles[key].paddingTop,
+        paddingLeft: nativeStyles[key].paddingStart,
+        paddingBottom: nativeStyles[key].paddingBottom,
+        borderRadius: nativeStyles[key].borderRadius,
+        opacity: 1,
+        marginTop: 0,
+      })
+      assert.equal(nativeStyles[key].borderRadius, 8)
+      assert.equal(nativeStyles[key].opacity, undefined)
+      assert.equal(nativeStyles[key].marginTop, undefined)
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('ColorPicker root/slider and Dialog root match NonControl facts on Web Chromium and Native (#2149)', async () => {
+  const compiler = createCompiler()
+  const classes =
+    'pt-2 bg-[#112233] read-only:rounded-lg not-disabled:px-2 not-enabled:py-1 disabled:opacity-25 enabled:pb-8 aria-selected:mt-8'
+  const source = `import { ColorPicker, Dialog } from '@hozo/core'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <div id="picker">
+        <ColorPicker accessibilityLabel="Theme" className="${classes}" sliderClassName="${classes}" />
+      </div>
+      <div id="dialog">
+        <Dialog open onClose={() => {}} accessibilityLabel="Confirm" className="${classes}">Body</Dialog>
+      </div>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  assert.doesNotMatch(web.css, /data-hozo-disabled/)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/core/generated/color-picker') return { HozoColorPicker: ColorPicker }
+      if (id === '@hozo/core/generated/dialog') return { HozoDialog: Dialog }
+      throw new Error(`Unexpected web require: ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const nativeProps = {}
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props, ...children) => {
+      if (['HozoColorPicker', 'HozoDialog'].includes(type)) nativeProps[type] = props
+      return { type, props, children }
+    },
+    require: (id) => {
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (id === '@hozo/core/generated/color-picker') return { HozoColorPicker: 'HozoColorPicker' }
+      if (id === '@hozo/core/generated/dialog') return { HozoDialog: 'HozoDialog' }
+      if (id === '@hozo/core/generated/inherited-leaves')
+        return new Proxy({}, { get: () => (value) => value })
+      throw new Error(`Unexpected native require: ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeStyles = {
+    pickerRoot: flat(nativeProps.HozoColorPicker.style),
+    pickerSlider: flat(nativeProps.HozoColorPicker.sliderStyle),
+    dialog: flat(nativeProps.HozoDialog.style),
+  }
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+    await page.setContent(
+      `<!doctype html><style>dialog { display: block; margin: 0; border: 0; }${web.css}</style>${html}`,
+    )
+    const markers = await page.evaluate(() => {
+      const read = (sel) => {
+        const el = document.querySelector(sel)
+        const cs = getComputedStyle(el)
+        return {
+          tag: el.tagName,
+          bg: cs.backgroundColor,
+          paddingTop: parseFloat(cs.paddingTop),
+          paddingLeft: parseFloat(cs.paddingLeft),
+          paddingBottom: parseFloat(cs.paddingBottom),
+          borderRadius: parseFloat(cs.borderTopLeftRadius),
+          opacity: parseFloat(cs.opacity),
+          marginTop: parseFloat(cs.marginTop),
+        }
+      }
+      return {
+        pickerRoot: read('#picker > [role="group"]'),
+        pickerSlider: read('#picker [data-hozo-orientation]'),
+        dialog: read('#dialog > dialog'),
+      }
+    })
+    for (const [key, tag] of [
+      ['pickerRoot', 'DIV'],
+      ['pickerSlider', 'DIV'],
+      ['dialog', 'DIALOG'],
+    ]) {
+      assert.deepEqual(markers[key], {
+        tag,
+        bg:
+          key === 'pickerSlider' ? 'rgba(0, 0, 0, 0)' : hexToRgb(nativeStyles[key].backgroundColor),
         paddingTop: nativeStyles[key].paddingTop,
         paddingLeft: nativeStyles[key].paddingStart,
         paddingBottom: nativeStyles[key].paddingBottom,

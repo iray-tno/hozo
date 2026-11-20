@@ -3061,8 +3061,7 @@ fn color_picker_semantics_belong_to_each_radio_not_the_group() {
             output.diagnostics
         );
     }
-    // The thumb and hex field have audited absent checked state; the group
-    // and track still have no semantic owner contract.
+    // Every non-swatch slot has audited absent checked state on its own owner.
     for slot in [
         "className",
         "sliderClassName",
@@ -3075,21 +3074,15 @@ fn color_picker_semantics_belong_to_each_radio_not_the_group() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        if slot == "inputClassName" || slot == "thumbClassName" {
-            assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-            assert!(
-                !output.jsx.contains("_ariachecked"),
-                "the field/thumb is never a checked radio: {}",
-                output.jsx
-            );
-            continue;
-        }
         assert!(
-            output.diagnostics.iter().any(
-                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
-            ),
+            output.diagnostics.is_empty(),
             "{slot}: {:?}",
             output.diagnostics
+        );
+        assert!(
+            !output.jsx.contains("_ariachecked"),
+            "{slot} is never a checked radio: {}",
+            output.jsx
         );
     }
 }
@@ -3269,6 +3262,11 @@ fn audited_container_primitive_roots_resolve_non_control_facts_and_reject_events
         ("Avatar", r#"name="Ada""#),
         ("Pagination", "pageCount={3}"),
         ("Stepper", "steps={steps} activeStep={0}"),
+        ("ColorPicker", r#"accessibilityLabel="Theme""#),
+        (
+            "Dialog",
+            r#"open={showing} onClose={dismiss} accessibilityLabel="Confirm""#,
+        ),
     ] {
         let static_src = format!(
             "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className=\"pt-2 read-only:rounded-lg not-disabled:px-2 not-enabled:py-1 disabled:opacity-25 enabled:pb-4 aria-selected:mt-8 aria-disabled:mb-8 aria-checked:ml-8\" />"
@@ -3326,4 +3324,24 @@ fn audited_container_primitive_roots_resolve_non_control_facts_and_reject_events
             out.jsx
         );
     }
+    // ColorPicker.sliderClassName and Dialog scroll/backdrop layers retain their own contracts.
+    let slider_src = r#"import { ColorPicker } from '@hozo/core'
+const el = <ColorPicker accessibilityLabel="Theme" sliderClassName="pt-2 read-only:rounded-lg not-disabled:px-2 disabled:opacity-25 aria-selected:mt-8" />"#;
+    let parsed = hozo_parser::parse_tsx(slider_src);
+    let out = lower(&parsed.roots[0].node, slider_src, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("_readonly"), "{}", out.jsx);
+    assert!(out.jsx.contains("_notdisabled"), "{}", out.jsx);
+    assert!(!out.jsx.contains("_disabled"), "{}", out.jsx);
+    assert!(!out.jsx.contains("_ariaselected"), "{}", out.jsx);
+
+    let dialog_src = r#"import { Dialog } from '@hozo/core'
+const el = <Dialog open={showing} onClose={dismiss} accessibilityLabel="Confirm" className="overflow-y-auto backdrop:bg-black/50 read-only:rounded-lg disabled:opacity-25">Body</Dialog>"#;
+    let parsed = hozo_parser::parse_tsx(dialog_src);
+    let out = lower(&parsed.roots[0].node, dialog_src, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("hozoScrollY"), "{}", out.jsx);
+    assert!(out.jsx.contains("hozoBackdropStyle="), "{}", out.jsx);
+    assert!(out.jsx.contains("hozo0_readonly"), "{}", out.jsx);
+    assert!(!out.jsx.contains("hozo0_disabled"), "{}", out.jsx);
 }

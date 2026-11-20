@@ -3510,6 +3510,11 @@ fn audited_container_primitive_roots_use_real_dom_predicates_and_slot_owner_mark
         ("Avatar", r#"name="Ada""#),
         ("Pagination", "pageCount={3}"),
         ("Stepper", "steps={steps} activeStep={0}"),
+        ("ColorPicker", r#"accessibilityLabel="Theme""#),
+        (
+            "Dialog",
+            r#"open={showing} onClose={dismiss} accessibilityLabel="Confirm""#,
+        ),
     ] {
         let static_src = format!(
             "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className=\"pt-2 read-only:rounded-lg disabled:opacity-25 enabled:pb-4 not-disabled:px-2\" />"

@@ -389,10 +389,37 @@ test('only the first valid matching preset owns checked semantics on Web and com
   }
 })
 
-test('full ColorPicker lowering keeps unsupported semantic owners and predicates diagnosed', () => {
+test('full ColorPicker lowering resolves decorative owners from their own known non-control facts', () => {
+  for (const slot of ['className', 'sliderClassName']) {
+    // Neither the group wrapper nor the slider track is a radio or editable
+    // control. Their known non-control facts are supported, not unknown facts
+    // that need a diagnostic.
+    assert.doesNotThrow(
+      () =>
+        loadNativeModule(`import { ColorPicker } from '@hozo/core'
+      export function C() {return <ColorPicker accessibilityLabel="Theme" ${slot}="aria-checked:opacity-50 not-aria-checked:border-2 aria-disabled:mt-4 disabled:opacity-25 read-only:rounded-lg" />}`),
+      slot,
+    )
+    for (const classes of [
+      'aria-expanded:opacity-50',
+      'hover:opacity-50',
+      'not-focus:opacity-50',
+    ]) {
+      assert.throws(
+        () =>
+          loadNativeModule(`import { ColorPicker } from '@hozo/core'
+      export function C() {return <ColorPicker accessibilityLabel="Theme" ${slot}="${classes}" />}`),
+        /NOT_WIRED_ON_NATIVE/,
+        `${slot}: ${classes}`,
+      )
+    }
+  }
+})
+
+test('full ColorPicker lowering keeps unsupported semantic predicates diagnosed', () => {
   for (const [slot, classes] of [
-    ['className', 'aria-checked:opacity-50'],
-    ['sliderClassName', 'not-aria-checked:opacity-50'],
+    ['className', 'aria-expanded:opacity-50'],
+    ['sliderClassName', 'not-aria-expanded:opacity-50'],
     ['thumbClassName', 'aria-checked:hover:opacity-50'],
     ['inputClassName', 'aria-expanded:opacity-50'],
     ['swatchClassName', 'aria-expanded:opacity-50'],

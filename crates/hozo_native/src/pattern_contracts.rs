@@ -21,6 +21,16 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "disabled" => Some("false"),
             _ => None,
         },
+        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        (Primitive::ColorPicker, "className" | "sliderClassName") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if state == "disabled" => Some("false"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        },
         // Each radio owns checked/disabled; Native announcements do not create absent Web attributes.
         (Primitive::ColorPicker, "swatchClassName" | "selectedSwatchClassName") => match condition {
             Condition::Disabled => Some("__hozoSlotDisabled"),
@@ -109,6 +119,16 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Enabled => Some("false"),
             Condition::Aria(state) if state == "disabled" => Some("__hozoSlotAriaDisabled"),
             Condition::Aria(state) if state == "selected" => Some("__hozoSlotAriaSelected"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        },
+        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        (Primitive::Dialog, "className") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if state == "disabled" => Some("false"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
             Condition::Aria(state) if state == "checked" => Some("false"),
             _ => None,
         },
@@ -276,11 +296,14 @@ pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool
         |         (Primitive::Avatar, "imageClassName")
         |         (Primitive::Avatar, "fallbackClassName")
         |         (Primitive::Avatar, "statusClassName")
+        |         (Primitive::ColorPicker, "className")
+        |         (Primitive::ColorPicker, "sliderClassName")
         |         (Primitive::Combobox, "className")
         |         (Primitive::Combobox, "listClassName")
         |         (Primitive::CommandPalette, "groupHeadingClassName")
         |         (Primitive::CommandPalette, "shortcutClassName")
         |         (Primitive::CommandPalette, "emptyClassName")
+        |         (Primitive::Dialog, "className")
         |         (Primitive::Listbox, "className")
         |         (Primitive::Menu, "className")
         |         (Primitive::Menu, "menuClassName")
@@ -301,11 +324,14 @@ pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&
         (Primitive::Avatar, "imageClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Avatar, "fallbackClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Avatar, "statusClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::ColorPicker, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::ColorPicker, "sliderClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Combobox, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Combobox, "listClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "groupHeadingClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "shortcutClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "emptyClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Dialog, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Listbox, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Menu, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Menu, "menuClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),

@@ -513,7 +513,7 @@ test('audited decorative slots supply the same constant facts without inventing 
   const decorative = Object.values(components)
     .flat()
     .filter((slot) => slot.profile === 'NonControl')
-  assert.equal(decorative.length, 20)
+  assert.equal(decorative.length, 23)
   assert.deepEqual(
     components.Avatar.filter((slot) => slot.profile === 'NonControl').map((slot) => slot.classProp),
     ['className', 'imageClassName', 'fallbackClassName', 'statusClassName'],

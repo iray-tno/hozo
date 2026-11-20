@@ -19,6 +19,7 @@ import { HozoSlider, type SliderThumbState } from './slider.native.tsx'
 import {
   type ColorPickerSlotFacts,
   colorPickerSlotConstants,
+  nonControlSlotConstants as nonControlSlotFacts,
   type TextInputSlotFacts,
   textInputSlotConstants,
 } from './slot-facts.native.ts'
@@ -153,7 +154,7 @@ export function HozoColorPicker({
   const slider = (track: string) =>
     [
       { backgroundImage: track },
-      hozoClasses(sliderClassName),
+      hozoClasses(sliderClassName, nonControlSlotFacts),
       hozoAuthoredStyle(sliderStyle),
     ] as StyleProp<ViewStyle>
   // Slider owns thumb classes and focus. Keep the author intact until that
@@ -177,7 +178,12 @@ export function HozoColorPicker({
   return (
     <View
       accessibilityLabel={accessibilityLabel}
-      style={[hozoClasses(className), hozoAuthoredStyle(style)] as StyleProp<ViewStyle>}
+      style={
+        [
+          hozoClasses(className, nonControlSlotFacts),
+          hozoAuthoredStyle(style),
+        ] as StyleProp<ViewStyle>
+      }
       testID={testID}
     >
       {presets && presets.length > 0 ? (

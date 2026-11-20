@@ -1493,7 +1493,7 @@ test('inventory stays separate from scoped evidence and missing global measures 
   assert.deepEqual(report.inventory, {
     components: 27,
     slots: 100,
-    pendingOwners: 7,
+    pendingOwners: 4,
     componentManaged: 46,
     componentManagedPending: 0,
     formComponents: 11,

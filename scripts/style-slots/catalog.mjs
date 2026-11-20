@@ -714,6 +714,20 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        className: {
+          owner: 'non-control-group-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'always',
+          composition: 'classes/explicit-style',
+        },
+        sliderClassName: {
+          owner: 'non-control-slider-track-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'each-channel-slider',
+          composition: 'track gradient; classes/explicit-style',
+        },
         thumbClassName: owned('adjustable-slider-thumb', 'SliderThumb', 'hozoThumbStyle', {
           pointer: false,
           composition:
@@ -816,7 +830,15 @@ export const components = {
   ),
   Dialog: slots('className', {
     overrides: {
-      className: { scrollYProp: 'hozoScrollY', backdropStyleProp: 'hozoBackdropStyle' },
+      className: {
+        owner: 'non-control-dialog',
+        scrollYProp: 'hozoScrollY',
+        backdropStyleProp: 'hozoBackdropStyle',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'open',
+        composition: 'classes/explicit-style; split-box-text; scroll-y and backdrop layers',
+      },
     },
   }),
   Drawer: slots('className scrimClassName panelClassName', {

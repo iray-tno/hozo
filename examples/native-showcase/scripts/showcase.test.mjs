@@ -517,6 +517,15 @@ test('Native Dialog isolates its modal without combining descendant controls', (
       new Function('require', 'module', code)(load, helper)
       return helper.exports
     }
+    if (name === './slot-facts.native.ts') {
+      const helper = { exports: {} }
+      const { code } = transformSync(
+        readFileSync(path.join(root, '../../packages/patterns/src/slot-facts.native.ts'), 'utf8'),
+        { loader: 'ts', format: 'cjs' },
+      )
+      new Function('require', 'module', code)(load, helper)
+      return helper.exports
+    }
     // A caller's string goes through the text wrapper with the dialog's text
     // classes (#1205); identity is enough for what this probe inspects.
     if (name === './text-style.native.ts') return { splitTextStyle: () => [{}, {}] }
