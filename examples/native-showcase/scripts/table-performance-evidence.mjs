@@ -54,6 +54,11 @@ export function verifyTableSample(sample, { mode, count, sourceHash }) {
     )
     assert.ok(sample.mountedRows >= sample.peakRows && sample.mountedRows < count)
     assert.ok(sample.distinctLaidOutCells >= 32)
+    assert.equal(
+      sample.distinctLaidOutCells,
+      sample.peakRows * 4,
+      'mounted cells did not all lay out',
+    )
     assert.ok(sample.cellLayouts >= sample.distinctLaidOutCells)
   }
 }

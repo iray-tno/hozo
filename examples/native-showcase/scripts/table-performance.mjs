@@ -45,6 +45,8 @@ const evidence = {
     windowSize: 3,
     initialNumToRender: 8,
     maxToRenderPerBatch: 8,
+    removeClippedSubviews: false,
+    accessibleNativeCells: true,
   },
 }
 const persist = () => save('evidence.json', `${JSON.stringify(evidence, null, 2)}\n`)
@@ -154,6 +156,15 @@ try {
     persist()
     verifyTableSample(record, { mode, count, sourceHash: evidence.sourceHash })
     Object.assign(entry, record, { name, warmup, round })
+    adb('shell', 'uiautomator', 'dump', '/sdcard/table-probe.xml')
+    const xml = read('exec-out', 'cat', '/sdcard/table-probe.xml')
+    save(`${name}-uiautomator.xml`, xml)
+    const nodes = parseNodes(xml)
+    for (const header of ['ID', 'Name', 'Region', 'Total']) {
+      const node = nodes.find((node) => matchLabel(node, header))
+      assert.ok(node, `missing visible header ${header}: ${name}`)
+      centre(node)
+    }
     save(`${name}.png`, adb('exec-out', 'screencap', '-p'))
     persist()
     console.log(

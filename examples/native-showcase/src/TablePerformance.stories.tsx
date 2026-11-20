@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-native'
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native'
 import {
   HozoTable,
@@ -23,6 +23,8 @@ function WindowRow({ item }: { item: Row }) {
       {item.cells.map((text, column) => (
         <View
           key={HEADERS[column]}
+          accessible
+          collapsable={false}
           style={{ width: WIDTHS[column], padding: 4 }}
           onLayout={() => tablePerformanceProbe.cellLayout(`${item.id}:${column}`)}
         >
@@ -37,7 +39,7 @@ function WindowRow({ item }: { item: Row }) {
 
 // A measurement-only fixed-width control. This deliberately does not claim a
 // public WindowedTable API or accessible table semantics for FlatList's Views.
-function WindowedControl({ rows }: { rows: Row[] }) {
+const WindowedControl = memo(function WindowedControl({ rows }: { rows: Row[] }) {
   useLayoutEffect(() => tablePerformanceProbe.resolved(), [])
   return (
     <FlatList
@@ -49,12 +51,13 @@ function WindowedControl({ rows }: { rows: Row[] }) {
       initialNumToRender={8}
       maxToRenderPerBatch={8}
       windowSize={3}
+      removeClippedSubviews={false}
       getItemLayout={(_, index) => ({ length: HEIGHT, offset: HEIGHT * (index + 1), index })}
     />
   )
-}
+})
 
-function NormalControl({ rows }: { rows: Row[] }) {
+const NormalControl = memo(function NormalControl({ rows }: { rows: Row[] }) {
   return (
     <ScrollView style={{ height: VIEWPORT, flexGrow: 0 }}>
       <HozoTable>
@@ -74,7 +77,7 @@ function NormalControl({ rows }: { rows: Row[] }) {
       </HozoTable>
     </ScrollView>
   )
-}
+})
 
 function TablePerformance() {
   // Fixture allocation is outside the measured input handler for both modes.

@@ -105,6 +105,11 @@ declared widths `[64, 96, 96, 96]`, 32dp rows, eight initial rows, batches of
 eight and `windowSize=3`. Its cell layout callbacks are counted separately
 from natural-width probes, of which it has none. This control does not yet
 provide accessible table semantics or estimated/growing column widths.
+Each control cell is a retained Native View, as in the baseline, with clipped
+subview removal disabled. Header presence/bounds are checked after the timing
+window and the accessibility tree is saved alongside each screenshot. Both
+controls are memoized so updating the diagnostic status does not re-render
+the measured table after the quiet boundary.
 
 `hozo-native-showcase-android-table-evidence` retains the APK/source hashes,
 release build identity, emulator/display properties, every timing record,
