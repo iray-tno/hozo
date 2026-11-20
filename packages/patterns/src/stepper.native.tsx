@@ -116,7 +116,7 @@ export function HozoStepper({
         : status === 'error'
           ? error
           : undefined
-  const [box, listText] = splitTextStyle(styled(className, style))
+  const [box, listText] = splitTextStyle(styled(className, style, nonControlSlotFacts))
 
   return (
     <View style={box} testID={testID}>

@@ -3261,3 +3261,69 @@ fn a_pressable_with_an_unseen_label_forwards_its_text_styles() {
         output.diagnostics
     );
 }
+
+#[test]
+fn audited_container_primitive_roots_resolve_non_control_facts_and_reject_events() {
+    let expected_facts = "{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }";
+    for (name, attrs) in [
+        ("Avatar", r#"name="Ada""#),
+        ("Pagination", "pageCount={3}"),
+        ("Stepper", "steps={steps} activeStep={0}"),
+    ] {
+        let static_src = format!(
+            "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className=\"pt-2 read-only:rounded-lg not-disabled:px-2 not-enabled:py-1 disabled:opacity-25 enabled:pb-4 aria-selected:mt-8 aria-disabled:mb-8 aria-checked:ml-8\" />"
+        );
+        let parsed = hozo_parser::parse_tsx(&static_src);
+        let out = lower(&parsed.roots[0].node, &static_src, &Theme::default());
+        assert!(out.diagnostics.is_empty(), "{name}: {:?}", out.diagnostics);
+        assert!(out.jsx.contains("hozo0_readonly"), "{name}: {}", out.jsx);
+        assert!(out.jsx.contains("hozo0_notdisabled"), "{name}: {}", out.jsx);
+        assert!(out.jsx.contains("hozo0_notenabled"), "{name}: {}", out.jsx);
+        assert!(!out.jsx.contains("hozo0_disabled"), "{name}: {}", out.jsx);
+        assert!(!out.jsx.contains("hozo0_enabled"), "{name}: {}", out.jsx);
+        assert!(
+            !out.jsx.contains("hozo0_ariaselected"),
+            "{name}: {}",
+            out.jsx
+        );
+        assert!(
+            !out.jsx.contains("hozo0_ariadisabled"),
+            "{name}: {}",
+            out.jsx
+        );
+        assert!(
+            !out.jsx.contains("hozo0_ariachecked"),
+            "{name}: {}",
+            out.jsx
+        );
+
+        for variant in ["hover", "active", "focus", "focus-visible", "not-hover"] {
+            let bad_src = format!(
+                "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className=\"{variant}:opacity-50\" />"
+            );
+            let parsed = hozo_parser::parse_tsx(&bad_src);
+            let out = lower(&parsed.roots[0].node, &bad_src, &Theme::default());
+            assert!(
+                out.diagnostics.iter().any(|d| {
+                    d.code == DiagnosticCode::NotWiredOnNative
+                        && d.severity == Severity::Error
+                        && d.message.contains("decorative class owner")
+                }),
+                "{name} {variant}: {:?}",
+                out.diagnostics
+            );
+        }
+
+        let dynamic_src = format!(
+            "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className={{classes}} />"
+        );
+        let parsed = hozo_parser::parse_tsx(&dynamic_src);
+        let out = lower(&parsed.roots[0].node, &dynamic_src, &Theme::default());
+        assert!(
+            out.jsx
+                .contains(&format!("hozoClasses(classes, {expected_facts})")),
+            "{name}: {}",
+            out.jsx
+        );
+    }
+}

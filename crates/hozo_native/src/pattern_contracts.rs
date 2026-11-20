@@ -3,7 +3,7 @@
 pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition: &Condition) -> Option<&'static str> {
     match (primitive, class_prop) {
         // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
-        (Primitive::Avatar, "imageClassName" | "fallbackClassName" | "statusClassName") => match condition {
+        (Primitive::Avatar, "className" | "imageClassName" | "fallbackClassName" | "statusClassName") => match condition {
             Condition::Disabled => Some("false"),
             Condition::Enabled => Some("false"),
             Condition::FormState(FormState::ReadOnly) => Some("true"),
@@ -183,6 +183,16 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "checked" => Some("false"),
             _ => None,
         },
+        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        (Primitive::Pagination, "className" | "ellipsisClassName") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if state == "disabled" => Some("false"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        },
         // Disabled Web buttons use :disabled, links use aria-disabled; aria-current is not aria-selected.
         (Primitive::Pagination, "itemClassName" | "currentItemClassName" | "disabledItemClassName") => match condition {
             Condition::Disabled => Some("__hozoSlotDisabled"),
@@ -192,7 +202,7 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             _ => None,
         },
         // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
-        (Primitive::Pagination, "ellipsisClassName") => match condition {
+        (Primitive::Stepper, "className" | "indicatorClassName" | "completedIndicatorClassName" | "currentIndicatorClassName" | "errorIndicatorClassName" | "descriptionClassName") => match condition {
             Condition::Disabled => Some("false"),
             Condition::Enabled => Some("false"),
             Condition::FormState(FormState::ReadOnly) => Some("true"),
@@ -207,16 +217,6 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Enabled => Some("__hozoSlotEnabled"),
             Condition::Aria(state) if state == "selected" => Some("false"),
             Condition::Aria(state) if state == "disabled" => Some("false"),
-            _ => None,
-        },
-        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
-        (Primitive::Stepper, "indicatorClassName" | "completedIndicatorClassName" | "currentIndicatorClassName" | "errorIndicatorClassName" | "descriptionClassName") => match condition {
-            Condition::Disabled => Some("false"),
-            Condition::Enabled => Some("false"),
-            Condition::FormState(FormState::ReadOnly) => Some("true"),
-            Condition::Aria(state) if state == "disabled" => Some("false"),
-            Condition::Aria(state) if state == "selected" => Some("false"),
-            Condition::Aria(state) if state == "checked" => Some("false"),
             _ => None,
         },
         _ => None,
@@ -272,7 +272,8 @@ pub(super) fn interaction_slot(primitive: Primitive, class_prop: &str) -> Option
 
 pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool {
     matches!((primitive, class_prop),
-        (Primitive::Avatar, "imageClassName")
+        (Primitive::Avatar, "className")
+        |         (Primitive::Avatar, "imageClassName")
         |         (Primitive::Avatar, "fallbackClassName")
         |         (Primitive::Avatar, "statusClassName")
         |         (Primitive::Combobox, "className")
@@ -283,7 +284,9 @@ pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool
         |         (Primitive::Listbox, "className")
         |         (Primitive::Menu, "className")
         |         (Primitive::Menu, "menuClassName")
+        |         (Primitive::Pagination, "className")
         |         (Primitive::Pagination, "ellipsisClassName")
+        |         (Primitive::Stepper, "className")
         |         (Primitive::Stepper, "indicatorClassName")
         |         (Primitive::Stepper, "completedIndicatorClassName")
         |         (Primitive::Stepper, "currentIndicatorClassName")
@@ -294,6 +297,7 @@ pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool
 
 pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
     match (primitive, class_prop) {
+        (Primitive::Avatar, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Avatar, "imageClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Avatar, "fallbackClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Avatar, "statusClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
@@ -305,7 +309,9 @@ pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&
         (Primitive::Listbox, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Menu, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Menu, "menuClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Pagination, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Pagination, "ellipsisClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Stepper, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Stepper, "indicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Stepper, "completedIndicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Stepper, "currentIndicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),

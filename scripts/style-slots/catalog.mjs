@@ -631,6 +631,14 @@ export const components = {
   Avatar: slots('className imageClassName fallbackClassName statusClassName', {
     secondary: true,
     overrides: {
+      className: {
+        owner: 'non-control-avatar-span',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'always',
+        composition:
+          'classes/explicit-style; split-box-text inheritance; radius forwarded to image',
+      },
       imageClassName: {
         owner: 'non-control-image-img',
         profile: 'NonControl',
@@ -915,6 +923,13 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        className: {
+          owner: 'non-control-list-ul',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'always',
+          composition: 'classes/explicit-style; split-box-text inheritance',
+        },
         ellipsisClassName: {
           owner: 'non-control-ellipsis-li',
           profile: 'NonControl',
@@ -997,6 +1012,13 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        className: {
+          owner: 'non-control-list-ol',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'always',
+          composition: 'classes/explicit-style; split-box-text inheritance',
+        },
         ...Object.fromEntries(
           ['step', 'completedStep', 'currentStep', 'errorStep'].map((name) => [
             `${name}ClassName`,
