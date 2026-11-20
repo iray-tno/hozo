@@ -186,6 +186,7 @@ test('missing, truncated, zero-work and unfinished observations cannot pass as c
 test('collector-only diagnostic reuse rejects all application, generator, dependency and workflow changes', () => {
   assertReusableTableInputs([
     'examples/native-showcase/scripts/table-performance-evidence.mjs',
+    'packages/patterns/README.md',
     'docs/rfcs/014-windowed-table.md',
   ])
   for (const path of [
@@ -237,6 +238,30 @@ test('populated accessibility nodes cannot conceal blank header or first-row pix
   assert.throws(
     () =>
       verifyTablePixels(PNG.sync.write(image), last, { index: 998, columns: [3], headers: false }),
+    /missing unique Table row anchor/,
+  )
+})
+
+test('repeated Region labels must belong to the uniquely anchored row, not clipped overscan', () => {
+  const image = new PNG({ width: 80, height: 40 })
+  image.data.fill(0)
+  for (let at = 3; at < image.data.length; at += 4) image.data[at] = 255
+  const total = { 'content-desc': 'Total, 16983', rect: [60, 20, 78, 30] }
+  const clipped = { 'content-desc': 'Region, West', rect: [40, 20, 58, 4] }
+  const earlier = { 'content-desc': 'Region, West', rect: [40, 0, 58, 10] }
+  const current = { 'content-desc': 'Region, West', rect: [40, 20, 58, 30] }
+  const options = { index: 999, columns: [2, 3], headers: false }
+  const result = verifyTablePixels(
+    PNG.sync.write(image),
+    [clipped, earlier, current, total],
+    options,
+  )
+  assert.deepEqual(
+    result.map((cell) => cell.rect),
+    [current.rect, total.rect],
+  )
+  assert.throws(
+    () => verifyTablePixels(PNG.sync.write(image), [clipped, earlier, total], options),
     /missing Table node/,
   )
 })

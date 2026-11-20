@@ -45,8 +45,9 @@ validation scans the data without formatting it. Optional
 elements appropriate for the platform. It does not replace the accessible
 text. There is no natural-width measurement in this component.
 
-Offscreen Native rows are absent from the accessibility tree until scrolled
-into the window. Android cells carry absolute two-dimensional item indices;
+Rows unmounted by FlatList are absent from the accessibility tree. Overscan
+and the initial render batch can remain mounted outside the viewport; Android
+can expose their clipped bounds in its tree. Android cells carry absolute two-dimensional item indices;
 the unsafe collection-count prop remains disabled ([#525](https://github.com/iray-tno/hozo/issues/525)).
 iOS exposes header/value names without collection indices. Neither platform
 claims native table navigation or a total-count announcement; a caller may

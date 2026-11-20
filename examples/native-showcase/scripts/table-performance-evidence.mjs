@@ -42,14 +42,34 @@ export function verifyTablePixels(
     assert.ok(inkPixels >= 10, `Table text has empty pixels: ${label}`)
     return { label, rect: node.rect, inkPixels }
   }
-  if (!headers)
+  if (!headers) {
+    // Region repeats across rows, including clipped overscan nodes. Tie its
+    // pixels to a unique ID/Name/Total from the requested fixture row.
+    const anchor = columns
+      .filter((column) => column !== 2)
+      .flatMap((column) =>
+        nodes.filter(
+          (node) =>
+            matches(node, `${labels[column]}, ${values[column]}`) &&
+            node.rect &&
+            node.rect[2] > node.rect[0] &&
+            node.rect[3] > node.rect[1],
+        ),
+      )[0]
+    assert.ok(anchor, `missing unique Table row anchor: ${index}`)
     return columns.map((column) => {
       const label = `${labels[column]}, ${values[column]}`
       return read(
-        nodes.find((node) => matches(node, label)),
+        nodes.find(
+          (node) =>
+            matches(node, label) &&
+            node.rect?.[1] === anchor.rect[1] &&
+            node.rect?.[3] === anchor.rect[3],
+        ),
         label,
       )
     })
+  }
   const headerNodes = labels.map((label) => nodes.find((node) => matches(node, label)))
   const evidence = headerNodes.map((node, index) => read(node, labels[index]))
   for (let column = 0; column < labels.length; column++) {
@@ -87,6 +107,7 @@ export function assertReusableTableInputs(changed) {
     'examples/native-showcase/scripts/table-performance-evidence.mjs',
     'examples/native-showcase/scripts/table-performance.test.mjs',
     'examples/native-showcase/README.md',
+    'packages/patterns/README.md',
   ])
   for (const path of changed) {
     assert.ok(

@@ -142,9 +142,11 @@ Use the existing safe FlatList wrapper and retain the upstream restriction.
 | Sizing | Fixed columns cause zero natural-width reports; later widths grow once per epoch and reset deliberately | Public source: Chromium and Yoga agree at widths 1/8/64 and row heights 1/4/32/64, without natural-width probes; release window bounds pending; later sizing deferred |
 
 No screen-reader or physical-device approval is inferred from release-emulator
-mount measurements. Offscreen Native rows are absent from the accessibility
-tree, as in FlatList; document that reachability limitation and test scrolling
-to them. Interactive cells require focused-row retention before supported.
+mount measurements. Unmounted Native rows are absent from the accessibility
+tree. Overscan and the initial render batch can remain mounted outside the
+viewport, and Android can expose clipped/inverted bounds for those nodes.
+Document that reachability limitation and test scrolling to real visible
+rows. Interactive cells require focused-row retention before supported.
 
 ## 5. Measurement
 
