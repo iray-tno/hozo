@@ -1,5 +1,58 @@
 # Native development bundle allowance
 
+## 550,000: refresh after runtime and owner-contract changes
+
+Measured on Windows on 2026-11-20 after synchronizing to main `1b655da6`,
+with one logical CPU at Normal priority, a rebuilt native addon and fresh
+workspace builds. The Table diagnostic lives in another example and is not
+in this Native demo's bundle. The development check rejected **547,285**
+against 545,000. Following the maintainer's standing allowance to accept
+measured growth, the ceiling increases by 5,000 to **550,000**, leaving 2,715.
+The original `module.length` metric is preserved (UTF-16 code units).
+
+This is +9,574 against the recorded 537,711 default below, across 155 current
+Hozo modules. Since that baseline, the runtime has changed for owner
+contracts, authored/spread style edges and development diagnostics. One
+new leaf present in this bundle, `engine/inline-edges`, contributes 840;
+the remainder of the aggregate change is in existing leaves. No historical
+bundle was rebuilt for this observation, so this is not a per-change cost
+attribution. The separate no-facade-barrel check passed before changing the
+ceiling. The matched production-screen limit remains 8,000 raw / 3,000 gzip.
+
+| Current package | Development metric |
+| --- | ---: |
+| patterns | 127,672 |
+| form | 110,560 |
+| engine | 88,352 |
+| primitives | 75,241 |
+| behaviors | 59,430 |
+| semantics | 37,481 |
+| core | 18,060 |
+| typography | 16,096 |
+| rn-compat | 9,432 |
+| native | 4,961 |
+| **Total** | **547,285** |
+
+Retained locally in `artifacts/table-windowing/development-module-census.json`
+and `native-demo-synced.log`. The complete Native demo check then passed,
+including its Canvas bundle and unchanged production increment gate:
+
+| Android production output | Raw bytes | gzip bytes |
+| --- | ---: | ---: |
+| Application | 1,107,546 | 273,288 |
+| Matched Hozo screen | 895,192 | 216,335 |
+| Matched React Native screen | 889,194 | 215,004 |
+| **Hozo increment** | **5,998** | **1,331** |
+
+The theme check now examines the complete compiled App module. An unused
+candidate-map entry, `border-box` with `hozo-unresolved:box`, had made the
+whole-bundle negative check fail while the App's styles were fully resolved.
+The positive spacing/brand checks are scoped to the App too; a candidate
+elsewhere cannot conceal a missing App style. Regression tests retain both
+failure directions and the earlier long-module case. Candidate provenance
+and cleanup remain [#2127](https://github.com/iray-tno/hozo/issues/2127).
+Full output is retained in `artifacts/table-windowing/native-demo-verified.log`.
+
 ## 545,000: Native text inheritance by default (#2049)
 
 Measured on Windows on 2026-11-18. The maintainer approved raising the
