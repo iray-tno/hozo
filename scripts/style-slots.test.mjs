@@ -513,7 +513,7 @@ test('audited decorative slots supply the same constant facts without inventing 
   const decorative = Object.values(components)
     .flat()
     .filter((slot) => slot.profile === 'NonControl')
-  assert.equal(decorative.length, 23)
+  assert.equal(decorative.length, 27)
   assert.deepEqual(
     components.Avatar.filter((slot) => slot.profile === 'NonControl').map((slot) => slot.classProp),
     ['className', 'imageClassName', 'fallbackClassName', 'statusClassName'],
@@ -522,7 +522,15 @@ test('audited decorative slots supply the same constant facts without inventing 
     components.CommandPalette.filter((slot) => slot.profile === 'NonControl').map(
       (slot) => slot.classProp,
     ),
-    ['groupHeadingClassName', 'shortcutClassName', 'emptyClassName'],
+    [
+      'className',
+      'scrimClassName',
+      'panelClassName',
+      'listClassName',
+      'groupHeadingClassName',
+      'shortcutClassName',
+      'emptyClassName',
+    ],
   )
   assert.ok(
     decorative.every(
@@ -547,7 +555,7 @@ test('the contract checks run outside Turbo cached tests and keep pending owners
   const pending = Object.values(components)
     .flat()
     .filter((slot) => slot.owner === 'pending-audit')
-  assert.ok(pending.length > 0, 'inventory is not a blanket parity certification')
+  assert.equal(pending.length, 0, 'all catalog slots are now audited')
   assert.ok(pending.every((slot) => !slot.callback && !slot.profile))
   const unused = components.ColorPicker.find((slot) => slot.classProp === 'eyeDropperClassName')
   assert.equal(unused.lowering, 'web-only')

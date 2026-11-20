@@ -2862,32 +2862,15 @@ fn command_option_semantics_are_not_native_button_pseudo_classes() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        if [
-            "inputClassName",
-            "shortcutClassName",
-            "groupHeadingClassName",
-            "emptyClassName",
-        ]
-        .contains(&slot)
-        {
-            assert!(
-                output.diagnostics.is_empty(),
-                "{slot}: {:?}",
-                output.diagnostics
-            );
-            assert!(
-                !output.jsx.contains("_ariaselected"),
-                "this owner is never selected: {}",
-                output.jsx
-            );
-            continue;
-        }
         assert!(
-            output.diagnostics.iter().any(
-                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
-            ),
+            output.diagnostics.is_empty(),
             "{slot}: {:?}",
             output.diagnostics
+        );
+        assert!(
+            !output.jsx.contains("_ariaselected"),
+            "this owner is never selected: {}",
+            output.jsx
         );
     }
 }
@@ -3267,6 +3250,7 @@ fn audited_container_primitive_roots_resolve_non_control_facts_and_reject_events
             "Dialog",
             r#"open={showing} onClose={dismiss} accessibilityLabel="Confirm""#,
         ),
+        ("CommandPalette", "open commands={commands}"),
     ] {
         let static_src = format!(
             "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className=\"pt-2 read-only:rounded-lg not-disabled:px-2 not-enabled:py-1 disabled:opacity-25 enabled:pb-4 aria-selected:mt-8 aria-disabled:mb-8 aria-checked:ml-8\" />"
@@ -3344,4 +3328,42 @@ const el = <Dialog open={showing} onClose={dismiss} accessibilityLabel="Confirm"
     assert!(out.jsx.contains("hozoBackdropStyle="), "{}", out.jsx);
     assert!(out.jsx.contains("hozo0_readonly"), "{}", out.jsx);
     assert!(!out.jsx.contains("hozo0_disabled"), "{}", out.jsx);
+
+    // CommandPalette scrim/panel/list share NonControl facts and retain scroll-y on list.
+    for slot in ["scrimClassName", "panelClassName", "listClassName"] {
+        let scroll = if slot == "listClassName" {
+            "overflow-y-auto "
+        } else {
+            ""
+        };
+        let palette_src = format!(
+            r#"import {{ CommandPalette }} from '@hozo/core'
+const el = <CommandPalette open commands={{commands}} {slot}="{scroll}pt-2 read-only:rounded-lg not-disabled:px-2 disabled:opacity-25 aria-selected:mt-8" />"#
+        );
+        let parsed = hozo_parser::parse_tsx(&palette_src);
+        let out = lower(&parsed.roots[0].node, &palette_src, &Theme::default());
+        assert!(out.diagnostics.is_empty(), "{slot}: {:?}", out.diagnostics);
+        assert!(out.jsx.contains("_readonly"), "{slot}: {}", out.jsx);
+        assert!(out.jsx.contains("_notdisabled"), "{slot}: {}", out.jsx);
+        assert!(!out.jsx.contains("_disabled"), "{slot}: {}", out.jsx);
+        assert!(!out.jsx.contains("_ariaselected"), "{slot}: {}", out.jsx);
+        if slot == "listClassName" {
+            assert!(out.jsx.contains("hozoListScrollY"), "{slot}: {}", out.jsx);
+        }
+        let bad_src = format!(
+            r#"import {{ CommandPalette }} from '@hozo/core'
+const el = <CommandPalette open commands={{commands}} {slot}="hover:opacity-50" />"#
+        );
+        let parsed = hozo_parser::parse_tsx(&bad_src);
+        let out = lower(&parsed.roots[0].node, &bad_src, &Theme::default());
+        assert!(
+            out.diagnostics.iter().any(|d| {
+                d.code == DiagnosticCode::NotWiredOnNative
+                    && d.severity == Severity::Error
+                    && d.message.contains("decorative class owner")
+            }),
+            "{slot}: {:?}",
+            out.diagnostics
+        );
+    }
 }

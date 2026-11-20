@@ -4114,7 +4114,11 @@ test('Native CommandPalette current item and shortcut receive host facts indepen
   await act(() => input().props.onSubmitEditing())
   assert.deepEqual(selected, ['alpha', 'beta'])
   await act(() => hosts()[0].props.onHoverIn({}))
-  assert.equal(flat(hosts()[0].props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(
+    flat(hosts()[0].props.style).backgroundColor,
+    undefined,
+    'scrim is a decorative non-control owner and does not borrow Pressable hover',
+  )
   assert.equal(flat(hosts()[0].props.style).position, 'absolute')
   await press(hosts()[0])
   assert.deepEqual(changes, [false, false, false])

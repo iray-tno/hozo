@@ -92,6 +92,16 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "checked" => Some("false"),
             _ => None,
         },
+        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        (Primitive::CommandPalette, "className" | "scrimClassName" | "panelClassName" | "listClassName" | "groupHeadingClassName" | "shortcutClassName" | "emptyClassName") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if state == "disabled" => Some("false"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        },
         // The real command search input is always editable and expanded while mounted on Web; options do not own its focus.
         (Primitive::CommandPalette, "inputClassName") => match condition {
             Condition::Disabled => Some("false"),
@@ -101,16 +111,6 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "selected" => Some("false"),
             Condition::Aria(state) if state == "checked" => Some("false"),
             Condition::Aria(state) if state == "expanded" => Some("true"),
-            _ => None,
-        },
-        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
-        (Primitive::CommandPalette, "groupHeadingClassName" | "shortcutClassName" | "emptyClassName") => match condition {
-            Condition::Disabled => Some("false"),
-            Condition::Enabled => Some("false"),
-            Condition::FormState(FormState::ReadOnly) => Some("true"),
-            Condition::Aria(state) if state == "disabled" => Some("false"),
-            Condition::Aria(state) if state == "selected" => Some("false"),
-            Condition::Aria(state) if state == "checked" => Some("false"),
             _ => None,
         },
         // Option divs are neither disabled nor enabled controls. The Web input keeps focus, not its active option.
@@ -300,6 +300,10 @@ pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool
         |         (Primitive::ColorPicker, "sliderClassName")
         |         (Primitive::Combobox, "className")
         |         (Primitive::Combobox, "listClassName")
+        |         (Primitive::CommandPalette, "className")
+        |         (Primitive::CommandPalette, "scrimClassName")
+        |         (Primitive::CommandPalette, "panelClassName")
+        |         (Primitive::CommandPalette, "listClassName")
         |         (Primitive::CommandPalette, "groupHeadingClassName")
         |         (Primitive::CommandPalette, "shortcutClassName")
         |         (Primitive::CommandPalette, "emptyClassName")
@@ -328,6 +332,10 @@ pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&
         (Primitive::ColorPicker, "sliderClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Combobox, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Combobox, "listClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::CommandPalette, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::CommandPalette, "scrimClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::CommandPalette, "panelClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::CommandPalette, "listClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "groupHeadingClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "shortcutClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "emptyClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),

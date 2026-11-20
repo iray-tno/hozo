@@ -791,6 +791,27 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        className: {
+          owner: 'non-control-overlay-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'open',
+          composition: 'fill-geometry; classes/explicit-style; split-box-text inheritance',
+        },
+        scrimClassName: {
+          owner: 'non-control-scrim-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'open',
+          composition: 'fill-absolute; classes/explicit-style',
+        },
+        panelClassName: {
+          owner: 'non-control-dialog-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'open',
+          composition: 'root-text inheritance; classes/explicit-style; split-box-text',
+        },
         inputClassName: {
           ...owned('real-search-input', 'CommandInput', 'hozoInputStyle', {
             pointer: false,
@@ -798,7 +819,14 @@ export const components = {
           }),
           placeholderColorProp: 'hozoInputPlaceholderTextColor',
         },
-        listClassName: { scrollYProp: 'hozoListScrollY' },
+        listClassName: {
+          owner: 'non-control-listbox-div',
+          scrollYProp: 'hozoListScrollY',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'open',
+          composition: 'classes/explicit-style; scroll-y container',
+        },
         groupHeadingClassName: {
           owner: 'non-control-group-heading-div',
           profile: 'NonControl',

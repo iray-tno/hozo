@@ -3515,6 +3515,7 @@ fn audited_container_primitive_roots_use_real_dom_predicates_and_slot_owner_mark
             "Dialog",
             r#"open={showing} onClose={dismiss} accessibilityLabel="Confirm""#,
         ),
+        ("CommandPalette", "open commands={commands}"),
     ] {
         let static_src = format!(
             "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className=\"pt-2 read-only:rounded-lg disabled:opacity-25 enabled:pb-4 not-disabled:px-2\" />"
