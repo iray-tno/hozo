@@ -64,6 +64,15 @@ build, and `scripts/ios-probe.sh`. Generated Android and iOS projects are intent
 configuration in `app.json` is the source of truth, and CI proves prebuild rather than a checked-in
 native project.
 
+The Android probe enables R8. Until a published Expo GL Android library includes
+[Expo's consumer keep rules](https://github.com/expo/expo/pull/51951), this fixture supplies
+the same two rules via Expo prebuild: the reflective `GLView(Context, AppContext)`
+constructor and the JNI `GLContext.flush()` method. CI requires a release mapping and
+retains the two rules from the merged R8 configuration, plus screenshots taken with the
+renderer still mounted at startup and after resume. The screenshots are inspection
+artifacts, not timed presentation or automated pixel comparisons. This does not change
+the separate Native Showcase build (#1598).
+
 This is a measurement fixture, not a supported `@hozo/three` entry point. Expo GL and React Three
 Fiber remain dependencies of this private example only.
 
