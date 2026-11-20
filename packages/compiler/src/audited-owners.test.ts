@@ -553,3 +553,156 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.css, /aria-expanded="true"/)
   assert.match(lowered.css, /data-hozo-state="open"/)
 })
+
+test('ordinary Web lowering compiles Tabs tabList, tab and panel slots by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Tabs } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  const tabs = [{ label: 'One', content: 'Body' }]
+  return (
+    <>
+      <Tabs
+        tabs={tabs}
+        tabListClassName="bg-[#010101]"
+        tabClassName="px-3 bg-[#111111] hover:bg-[#222222] aria-selected:bg-[#333333] disabled:opacity-50 text-[#eeeeee]"
+        panelClassName="p-4 bg-[#fafafa] text-[#223344]"
+      />
+      <Tabs {...spread} tabs={tabs} tabListClassName="bg-[#555555]" />
+      <Tabs tabs={tabs} tabClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /tabListClassName="bg-\[#010101\]"/)
+  assert.doesNotMatch(lowered.code, /tabClassName="px-3/)
+  assert.doesNotMatch(lowered.code, /panelClassName="p-4/)
+  assert.match(lowered.code, /tabListClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /tabClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /panelClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /tabListClassName="bg-\[#555555\]"/)
+  assert.match(lowered.code, /tabClassName=\{dynamic\}/)
+  assert.match(lowered.css, /aria-selected="true"/)
+})
+
+test('ordinary Web lowering compiles BottomSheet scrim, sheet, handle and handleBar slots by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { BottomSheet } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <BottomSheet
+        open
+        detents={[0.5, 1]}
+        scrimClassName="bg-[#010101]"
+        sheetClassName="pt-4 bg-[#fafafa] text-[#223344]"
+        handleClassName="py-2 bg-[#111111] hover:bg-[#222222]"
+        handleBarClassName="w-8 h-1 bg-[#333333]"
+      >
+        Body
+      </BottomSheet>
+      <BottomSheet {...spread} open scrimClassName="bg-[#555555]">
+        Spread
+      </BottomSheet>
+      <BottomSheet open sheetClassName={dynamic}>
+        Dynamic
+      </BottomSheet>
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /scrimClassName="bg-\[#010101\]"/)
+  assert.doesNotMatch(lowered.code, /sheetClassName="pt-4/)
+  assert.doesNotMatch(lowered.code, /handleClassName="py-2/)
+  assert.doesNotMatch(lowered.code, /handleBarClassName="w-8/)
+  assert.match(lowered.code, /scrimClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /sheetClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /handleClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /handleBarClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /scrimClassName="bg-\[#555555\]"/)
+  assert.match(lowered.code, /sheetClassName=\{dynamic\}/)
+})
+
+test('ordinary Web lowering compiles all eight CodeBlock slots by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { CodeBlock } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  const lines = [{ tokens: 'const x = 1', mark: 'ins' as const }]
+  return (
+    <>
+      <CodeBlock
+        title="Example"
+        lines={lines}
+        lineNumbers
+        copy
+        className="p-2 bg-[#010101] text-[#111111]"
+        lineClassName="px-2 data-[code-mark]:border-[#222222]"
+        gutterClassName="pr-2 data-[code-mark=ins]:text-[#333333]"
+        insClassName="bg-[#002200]"
+        delClassName="bg-[#220000]"
+        markClassName="bg-[#222200]"
+        copyClassName="px-2 bg-[#444444] hover:bg-[#555555] text-[#eeeeee]"
+        captionClassName="text-[#666666]"
+      />
+      <CodeBlock {...spread} lines={lines} className="bg-[#777777]" />
+      <CodeBlock lines={lines} lineClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  for (const prop of [
+    'className',
+    'lineClassName',
+    'gutterClassName',
+    'insClassName',
+    'delClassName',
+    'markClassName',
+    'copyClassName',
+    'captionClassName',
+  ])
+    assert.match(lowered.code, new RegExp(`${prop}=\\{"hozo-owner-`))
+  assert.match(lowered.code, /className="bg-\[#777777\]"/)
+  assert.match(lowered.code, /lineClassName=\{dynamic\}/)
+  assert.match(lowered.css, /data-code-mark="ins"/)
+  assert.equal(lowered.needsClientBoundary, true)
+})
+
+test('static CSS-only CodeBlock slots keep a static module out of the client boundary (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { View } from '@hozo/core'
+import { CodeBlock } from '@hozo/patterns'
+export function StaticListing() {
+  return (
+    <View className="p-2">
+      <CodeBlock
+        title="Example"
+        lines="const x = 1"
+        wrap
+        className="text-xs"
+        captionClassName="sr-only"
+        lineClassName="px-2"
+        gutterClassName="pr-2"
+        insClassName="bg-[#002200]"
+        delClassName="bg-[#220000]"
+        markClassName="bg-[#222200]"
+      />
+    </View>
+  )
+}
+`
+  const lowered = lowerModule(
+    source,
+    '/app/StaticListing.tsx',
+    '/app/StaticListing.tsx',
+    compiler,
+    '/app',
+  )
+  assert.ok(lowered)
+  assert.equal(lowered.needsClientBoundary, false)
+  assert.match(lowered.code, /captionClassName=\{"hozo-owner-/)
+})

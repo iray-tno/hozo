@@ -2,6 +2,8 @@ import { useHozoMessage } from '@hozo/behaviors'
 import { HozoTextSizeContext } from '@hozo/engine'
 import { hozoClasses } from '@hozo/engine/project'
 import {
+  CODE_MARK_FACTS,
+  type CodeMarkFacts,
   codeRowKey,
   useCodeLineRows,
   useNormalizedCodeLines,
@@ -25,6 +27,7 @@ import {
   codeLineStart,
 } from './code-block-types.ts'
 import { CodeCopy } from './code-copy.native.tsx'
+import type { InteractionState } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 type CodeStyle = StyleProp<ViewStyle | TextStyle>
@@ -37,6 +40,22 @@ export interface CodeBlockProps extends CodeBlockOptions {
   markClassName?: string
   copyClassName?: string
   captionClassName?: string
+  /** @internal Complete prepared root class contribution (RFC 010). */
+  hozoCodeBlockStyle?: () => CodeStyle
+  /** @internal Complete prepared line class contribution (RFC 010). */
+  hozoLineStyle?: (facts: CodeMarkFacts) => CodeStyle
+  /** @internal Complete prepared gutter class contribution (RFC 010). */
+  hozoGutterStyle?: (facts: CodeMarkFacts) => CodeStyle
+  /** @internal Complete prepared inserted-line class contribution (RFC 010). */
+  hozoInsStyle?: (facts: CodeMarkFacts) => CodeStyle
+  /** @internal Complete prepared deleted-line class contribution (RFC 010). */
+  hozoDelStyle?: (facts: CodeMarkFacts) => CodeStyle
+  /** @internal Complete prepared highlighted-line class contribution (RFC 010). */
+  hozoMarkStyle?: (facts: CodeMarkFacts) => CodeStyle
+  /** @internal Complete prepared copy button class contribution (RFC 010). */
+  hozoCopyStyle?: (state: InteractionState) => CodeStyle
+  /** @internal Complete prepared caption class contribution (RFC 010). */
+  hozoCaptionStyle?: () => StyleProp<TextStyle>
   style?: CodeStyle
   lineStyle?: CodeStyle
   gutterStyle?: CodeStyle
@@ -48,6 +67,22 @@ export interface CodeBlockProps extends CodeBlockOptions {
 }
 
 export function CodeBlock(props: CodeBlockProps) {
+  if (props.hozoCodeBlockStyle && props.className !== undefined)
+    throw new Error('Prepared CodeBlock styles must consume className')
+  if (props.hozoLineStyle && props.lineClassName !== undefined)
+    throw new Error('Prepared CodeBlock styles must consume lineClassName')
+  if (props.hozoGutterStyle && props.gutterClassName !== undefined)
+    throw new Error('Prepared CodeBlock styles must consume gutterClassName')
+  if (props.hozoInsStyle && props.insClassName !== undefined)
+    throw new Error('Prepared CodeBlock styles must consume insClassName')
+  if (props.hozoDelStyle && props.delClassName !== undefined)
+    throw new Error('Prepared CodeBlock styles must consume delClassName')
+  if (props.hozoMarkStyle && props.markClassName !== undefined)
+    throw new Error('Prepared CodeBlock styles must consume markClassName')
+  if (props.hozoCopyStyle && props.copyClassName !== undefined)
+    throw new Error('Prepared CodeBlock styles must consume copyClassName')
+  if (props.hozoCaptionStyle && props.captionClassName !== undefined)
+    throw new Error('Prepared CodeBlock styles must consume captionClassName')
   const message = useHozoMessage()
   const inheritedSize = useContext(HozoTextSizeContext)
   const { title, name } = codeBlockLabels(props, message('hozo.code.label'))
@@ -55,12 +90,22 @@ export function CodeBlock(props: CodeBlockProps) {
   const start = codeLineStart(props.lineNumbers)
   const hasMarks = lines.some((line) => line.mark)
   const gutter = Boolean(props.lineNumbers || hasMarks)
-  const [box, text] = splitTextStyle([hozoClasses(props.className), props.style])
+  const rootClassStyle = props.hozoCodeBlockStyle
+    ? props.hozoCodeBlockStyle()
+    : props.className
+      ? hozoClasses(props.className)
+      : undefined
+  const [box, text] = splitTextStyle([rootClassStyle, props.style])
   const fontSize = text.fontSize ?? inheritedSize
   const lineHeight = text.lineHeight ?? fontSize * 1.5
   const width =
     ((props.lineNumbers ? String(start + lines.length - 1).length : 0) + (hasMarks ? 2 : 0) + 1) *
     fontSize
+  const preparedMarks = {
+    ins: props.hozoInsStyle,
+    del: props.hozoDelStyle,
+    mark: props.hozoMarkStyle,
+  }
   const rows = useCodeLineRows({
     lines,
     tabSize: props.tabSize,
@@ -70,6 +115,10 @@ export function CodeBlock(props: CodeBlockProps) {
     insClassName: props.insClassName,
     delClassName: props.delClassName,
     markClassName: props.markClassName,
+    hozoLineStyle: props.hozoLineStyle,
+    hozoInsStyle: props.hozoInsStyle,
+    hozoDelStyle: props.hozoDelStyle,
+    hozoMarkStyle: props.hozoMarkStyle,
     lineStyle: props.lineStyle,
     insStyle: props.insStyle,
     delStyle: props.delStyle,
@@ -84,20 +133,34 @@ export function CodeBlock(props: CodeBlockProps) {
         fontSize,
         lineHeight,
         StyleSheet.flatten(props.gutterStyle),
+        ...[props.hozoGutterStyle, props.hozoInsStyle, props.hozoDelStyle, props.hozoMarkStyle].map(
+          (prepared) =>
+            prepared ? CODE_MARK_FACTS.map((facts) => StyleSheet.flatten(prepared(facts))) : null,
+        ),
       ],
       [props.gutterClassName, props.insClassName, props.delClassName, props.markClassName],
     ),
     renderGutter: gutter
       ? (line, index) => {
-          const facts = {
+          const facts: CodeMarkFacts = {
             'data-code-mark': Boolean(line.mark),
             'data-code-mark=ins': line.mark === 'ins',
             'data-code-mark=del': line.mark === 'del',
             'data-code-mark=mark': line.mark === 'mark',
           }
+          const markPrepared = line.mark ? preparedMarks[line.mark] : undefined
+          const markClassName = line.mark ? props[`${line.mark}ClassName`] : undefined
           const [gutterBox, gutterText] = splitTextStyle([
-            hozoClasses(props.gutterClassName, facts),
-            line.mark ? hozoClasses(props[`${line.mark}ClassName`], facts) : undefined,
+            props.hozoGutterStyle
+              ? props.hozoGutterStyle(facts)
+              : props.gutterClassName
+                ? hozoClasses(props.gutterClassName, facts)
+                : undefined,
+            markPrepared
+              ? markPrepared(facts)
+              : markClassName
+                ? hozoClasses(markClassName, facts)
+                : undefined,
             props.gutterStyle,
           ])
           return (
@@ -158,7 +221,17 @@ export function CodeBlock(props: CodeBlockProps) {
       style={box}
     >
       <Text
-        style={[text, StyleSheet.flatten(hozoClasses(props.captionClassName)), props.captionStyle]}
+        style={[
+          text,
+          StyleSheet.flatten(
+            props.hozoCaptionStyle
+              ? props.hozoCaptionStyle()
+              : props.captionClassName
+                ? hozoClasses(props.captionClassName)
+                : undefined,
+          ),
+          props.captionStyle,
+        ]}
       >
         {title}
       </Text>
@@ -186,6 +259,7 @@ export function CodeBlock(props: CodeBlockProps) {
         <CodeCopy
           text={typeof props.copy === 'object' ? props.copy.text : codeText(props.lines)}
           className={props.copyClassName}
+          hozoStyle={props.hozoCopyStyle}
           style={props.copyStyle}
         />
       ) : null}

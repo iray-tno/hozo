@@ -151,10 +151,12 @@ export function transformHozoSourceOrPrepare(
   stylexModules?: StylexModuleCache,
   observe?: NativeRewriteObserver,
   textInheritance: NativeTextInheritance = 'unified',
+  skipAuditedOwners = false,
 ): TailwindModuleAttempt<string | null> {
-  const ownerBatch = semanticModuleEligible(filename, 'native')
-    ? prepareAuditedOwnerBatch(code, compiler, 'native', filename)
-    : undefined
+  const ownerBatch =
+    !skipAuditedOwners && semanticModuleEligible(filename, 'native')
+      ? prepareAuditedOwnerBatch(code, compiler, 'native', filename)
+      : undefined
   if (ownerBatch && ownerBatch.candidates.length === 0) ownerBatch.dispose()
   const activeOwners = ownerBatch && ownerBatch.candidates.length > 0 ? ownerBatch : undefined
   const provenance = activeOwners ? new SourceProvenance(code) : undefined

@@ -454,7 +454,7 @@ test('the built patterns tarball preserves scoped owner facts for both selected 
   )
 
   const contract = manifest.owners.contracts.find((row) => row.owner === 'BottomSheet.handle')
-  assert.equal(contract.audit, 'unknown')
+  assert.equal(contract.audit, 'audited')
   assert.equal(selectOwnerShape(contract, { present: false }).status, 'absent')
   for (const resizable of [false, true]) {
     const selection = selectOwnerShape(contract, { present: true, resizable })
@@ -463,7 +463,7 @@ test('the built patterns tarball preserves scoped owner facts for both selected 
     assert.equal(selection.shape.webHost, resizable ? 'button' : 'div')
   }
 
-  // Explicit compiler preview only: do not install this unknown-audit contract
+  // Explicit compiler preview only: do not install this contract directly
   // in an adapter or silently rewrite a UI/core facade based on its name.
   const compiler = createCompiler(undefined, [...DEFAULT_PRIMITIVE_SOURCES])
   const ordinarySource = `import {BottomSheet} from '@hozo/patterns'; import {Text} from '@hozo/primitives';
@@ -478,7 +478,12 @@ export const App=()=> <BottomSheet open handleClassName="p-[8px]"><Text classNam
     'publication must not activate experimental owner lowering',
   )
   for (const imported of ['BottomSheet', 'HozoBottomSheet']) {
-    assert.deepEqual(manifest.exports.find((row) => row.name === imported).owners, [contract.owner])
+    assert.deepEqual(manifest.exports.find((row) => row.name === imported).owners, [
+      'BottomSheet.handle',
+      'BottomSheet.handleBar',
+      'BottomSheet.scrim',
+      'BottomSheet.sheet',
+    ])
     const source = `import {${imported} as Sheet} from '@hozo/patterns';
 export const App=()=> <Sheet open handleClassName="p-[8px] opacity-50" handleStyle={authored}/>`
     const options = {

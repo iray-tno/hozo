@@ -145,6 +145,7 @@ export class MetroTailwindWorker {
         stylexModules,
         (input, edits) => provenance.apply(input, edits),
         'compiled',
+        true,
       )
       let owner: ReturnType<typeof prepareInstanceOwnerCallers>
       try {

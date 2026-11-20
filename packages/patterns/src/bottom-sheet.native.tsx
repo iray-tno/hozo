@@ -4,7 +4,14 @@ import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { useHozoProvidedSafeArea } from '@hozo/engine/generated/safe-area'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { type LayoutChangeEvent, Modal, type StyleProp, View, type ViewStyle } from 'react-native'
+import {
+  type LayoutChangeEvent,
+  Modal,
+  type StyleProp,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { insetPadding } from './safe-area-padding.native.ts'
 import {
@@ -46,14 +53,19 @@ export interface HozoBottomSheetProps {
   sheetStyle?: StyleProp<ViewStyle>
   handleStyle?: StyleProp<ViewStyle>
   handleBarStyle?: StyleProp<ViewStyle>
+  /** @internal Complete prepared scrim class contribution (RFC 010). */
+  hozoScrimStyle?: () => StyleProp<ViewStyle>
+  /** @internal Complete prepared sheet class contribution (RFC 010). */
+  hozoSheetStyle?: () => StyleProp<ViewStyle | TextStyle>
   /**
    * @internal Complete prepared class contribution for the handle (#1458).
    * The real pressable supplies its state; decoration supplies no state.
    * A producer must consume handleClassName, including any opaque residual,
    * rather than resolving the same input again through both routes.
-   * Ordinary compiler output does not emit this experimental carrier yet.
    */
   hozoHandleStyle?: (state: InteractionState | undefined) => StyleProp<ViewStyle>
+  /** @internal Complete prepared handle bar class contribution (RFC 010). */
+  hozoHandleBarStyle?: () => StyleProp<ViewStyle>
   /**
    * @internal Experimental partial carrier. Consumes the complete class
    * contribution on the resizable host only; decoration still resolves
@@ -114,15 +126,24 @@ export function HozoBottomSheet({
   sheetStyle,
   handleStyle,
   handleBarStyle,
+  hozoScrimStyle,
+  hozoSheetStyle,
   hozoHandleStyle,
+  hozoHandleBarStyle,
   hozoInteractiveHandleStyle,
   testID,
   children,
 }: HozoBottomSheetProps) {
+  if (hozoScrimStyle && scrimClassName !== undefined)
+    throw new Error('Prepared BottomSheet scrim styles must consume scrimClassName')
+  if (hozoSheetStyle && sheetClassName !== undefined)
+    throw new Error('Prepared BottomSheet sheet styles must consume sheetClassName')
   if (hozoHandleStyle && hozoInteractiveHandleStyle)
     throw new Error('BottomSheet handle styles cannot use both prepared carriers')
   if (hozoHandleStyle && handleClassName !== undefined)
     throw new Error('Prepared BottomSheet handle styles must consume handleClassName')
+  if (hozoHandleBarStyle && handleBarClassName !== undefined)
+    throw new Error('Prepared BottomSheet handleBar styles must consume handleBarClassName')
   const interactiveHandleStyle = hozoInteractiveHandleStyle ?? hozoHandleStyle
   // A string from the prop, then the project's i18n, then English;
   // `locale` the same way (decision 008).
@@ -184,9 +205,29 @@ export function HozoBottomSheet({
 
   const resizable = stops.length > 1
   const bar =
-    handleBarClassName || handleBarStyle ? (
-      <View style={[hozoClasses(handleBarClassName), hozoAuthoredStyle(handleBarStyle)]} />
+    handleBarClassName || handleBarStyle || hozoHandleBarStyle ? (
+      <View
+        style={[
+          hozoHandleBarStyle
+            ? hozoHandleBarStyle()
+            : handleBarClassName
+              ? hozoClasses(handleBarClassName)
+              : undefined,
+          hozoAuthoredStyle(handleBarStyle),
+        ]}
+      />
     ) : null
+  const rootClassStyle = className ? hozoClasses(className) : undefined
+  const sheetClassStyle = hozoSheetStyle
+    ? hozoSheetStyle()
+    : sheetClassName
+      ? hozoClasses(sheetClassName)
+      : undefined
+  const authoredSheetStyle = hozoAuthoredStyle(sheetStyle)
+  const [sheetBox, sheetText] =
+    sheetClassStyle !== undefined || authoredSheetStyle !== undefined
+      ? splitTextStyle([sheetClassStyle, authoredSheetStyle])
+      : [undefined, undefined]
 
   // The root is the layer over the window: `fixed inset-0` on the Web. React
   // Native has no `fixed` and drops it, which left `inset-0` on a relative
@@ -198,14 +239,14 @@ export function HozoBottomSheet({
       <View
         style={[
           { flex: 1 },
-          hozoClasses(className),
+          rootClassStyle,
           hozoAuthoredStyle(style),
           // A landscape notch is on the left or the right, and the sheet is
           // centred with a maximum width: whether it reaches that edge depends
           // on the screen. Keeping the root's content off the inset holds the
           // sheet clear either way, and the scrim is absolute, so it still
           // covers the strip under the notch.
-          insetPadding([hozoClasses(className), style], insets, ['left', 'right']),
+          insetPadding([rootClassStyle, style], insets, ['left', 'right']),
         ]}
       >
         {/*
@@ -219,7 +260,11 @@ export function HozoBottomSheet({
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           style={(interaction) => [
-            hozoClasses(scrimClassName, { ...interaction }),
+            hozoScrimStyle
+              ? hozoScrimStyle()
+              : scrimClassName
+                ? hozoClasses(scrimClassName, { ...interaction })
+                : undefined,
             hozoAuthoredStyle(scrimStyle),
           ]}
           onPress={onClose}
@@ -238,9 +283,8 @@ export function HozoBottomSheet({
           testID={testID}
           onLayout={onLayout}
           style={[
-            hozoClasses(sheetClassName),
-            hozoAuthoredStyle(sheetStyle),
-            insetPadding([hozoClasses(sheetClassName), sheetStyle], insets, ['bottom']),
+            sheetBox,
+            insetPadding([sheetClassStyle, sheetStyle], insets, ['bottom']),
             { transform: [{ translateY: travelFor(fraction, height) }] },
           ]}
         >
@@ -251,7 +295,9 @@ export function HozoBottomSheet({
               style={(interaction) => [
                 interactiveHandleStyle
                   ? interactiveHandleStyle(interaction)
-                  : hozoClasses(handleClassName, { ...interaction }),
+                  : handleClassName
+                    ? hozoClasses(handleClassName, { ...interaction })
+                    : undefined,
                 hozoAuthoredStyle(handleStyle),
               ]}
               onPress={() => {
@@ -272,7 +318,7 @@ export function HozoBottomSheet({
               {bar}
             </DecorativeHandle>
           )}
-          {hozoTextChildren(children, splitTextStyle([hozoClasses(sheetClassName), sheetStyle])[1])}
+          {hozoTextChildren(children, sheetText)}
         </View>
       </View>
     </Modal>
@@ -300,7 +346,11 @@ function DecorativeHandle({
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       style={[
-        hozoHandleStyle ? hozoHandleStyle(undefined) : hozoClasses(handleClassName),
+        hozoHandleStyle
+          ? hozoHandleStyle(undefined)
+          : handleClassName
+            ? hozoClasses(handleClassName)
+            : undefined,
         hozoAuthoredStyle(handleStyle),
       ]}
       {...handlers}

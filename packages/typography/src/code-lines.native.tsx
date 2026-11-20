@@ -24,6 +24,13 @@ import { codeKey, useCodeRows, useNormalizedCodeLines } from './code/reuse.ts'
 export { useNormalizedCodeLines }
 
 type CodeStyle = StyleProp<ViewStyle | TextStyle>
+export type CodeMarkFacts = Readonly<{
+  'data-code-mark': boolean
+  'data-code-mark=ins': boolean
+  'data-code-mark=del': boolean
+  'data-code-mark=mark': boolean
+}>
+
 export interface CodeLinesProps {
   lines: readonly CodeLine[] | string
   tabSize?: number
@@ -34,6 +41,14 @@ export interface CodeLinesProps {
   insClassName?: string
   delClassName?: string
   markClassName?: string
+  /** @internal Complete prepared line class contribution (RFC 010). */
+  hozoLineStyle?: (facts: CodeMarkFacts) => CodeStyle
+  /** @internal Complete prepared inserted-line class contribution (RFC 010). */
+  hozoInsStyle?: (facts: CodeMarkFacts) => CodeStyle
+  /** @internal Complete prepared deleted-line class contribution (RFC 010). */
+  hozoDelStyle?: (facts: CodeMarkFacts) => CodeStyle
+  /** @internal Complete prepared highlighted-line class contribution (RFC 010). */
+  hozoMarkStyle?: (facts: CodeMarkFacts) => CodeStyle
   style?: CodeStyle
   lineStyle?: CodeStyle
   insStyle?: CodeStyle
@@ -48,12 +63,14 @@ export interface CodeLinesProps {
   gutterKey?: string
 }
 
-const MARK_FACTS = [undefined, 'ins', 'del', 'mark'].map((mark) => ({
-  'data-code-mark': Boolean(mark),
-  'data-code-mark=ins': mark === 'ins',
-  'data-code-mark=del': mark === 'del',
-  'data-code-mark=mark': mark === 'mark',
-}))
+export const CODE_MARK_FACTS: readonly CodeMarkFacts[] = [undefined, 'ins', 'del', 'mark'].map(
+  (mark) => ({
+    'data-code-mark': Boolean(mark),
+    'data-code-mark=ins': mark === 'ins',
+    'data-code-mark=del': mark === 'del',
+    'data-code-mark=mark': mark === 'mark',
+  }),
+)
 
 /**
  * @internal One string for everything a row is drawn from besides its line
@@ -67,7 +84,9 @@ export function codeRowKey(
 ): string | undefined {
   return codeKey([
     values,
-    classNames.map((name) => MARK_FACTS.map((facts) => hozoClasses(name, facts))),
+    classNames.map((name) =>
+      name ? CODE_MARK_FACTS.map((facts) => hozoClasses(name, facts)) : null,
+    ),
   ])
 }
 
@@ -108,7 +127,10 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
   const inheritedSize = useContext(HozoTextSizeContext)
   const theme = props.theme ?? (dark ? 'dark' : 'light')
   const lines = useNormalizedCodeLines(props.lines, props.tabSize)
-  const [box, text] = split([hozoClasses(props.className), props.style])
+  const [box, text] = split([
+    props.className ? hozoClasses(props.className) : undefined,
+    props.style,
+  ])
   const labels: Record<CodeMark, string> = {
     ins: message('hozo.code.added'),
     del: message('hozo.code.removed'),
@@ -116,6 +138,11 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
   }
   const fontSize = typeof text.fontSize === 'number' ? text.fontSize : inheritedSize
   const lineHeight = text.lineHeight ?? fontSize * 1.5
+  const preparedMarks: Record<CodeMark, ((facts: CodeMarkFacts) => CodeStyle) | undefined> = {
+    ins: props.hozoInsStyle,
+    del: props.hozoDelStyle,
+    mark: props.hozoMarkStyle,
+  }
   const key =
     props.renderGutter && props.gutterKey === undefined
       ? undefined
@@ -131,20 +158,38 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
             ...[props.lineStyle, props.insStyle, props.delStyle, props.markStyle].map((style) =>
               StyleSheet.flatten(style),
             ),
+            ...[
+              props.hozoLineStyle,
+              props.hozoInsStyle,
+              props.hozoDelStyle,
+              props.hozoMarkStyle,
+            ].map((prepared) =>
+              prepared ? CODE_MARK_FACTS.map((facts) => StyleSheet.flatten(prepared(facts))) : null,
+            ),
           ],
           [props.lineClassName, props.insClassName, props.delClassName, props.markClassName],
         )
   const renderLine = useCodeRows(lines, key, drawLine)
   function drawLine(line: NormalizedCodeLine, index: number) {
-    const facts = {
+    const facts: CodeMarkFacts = {
       'data-code-mark': Boolean(line.mark),
       'data-code-mark=ins': line.mark === 'ins',
       'data-code-mark=del': line.mark === 'del',
       'data-code-mark=mark': line.mark === 'mark',
     }
+    const markPrepared = line.mark ? preparedMarks[line.mark] : undefined
+    const markClassName = line.mark ? props[`${line.mark}ClassName`] : undefined
     const [lineBox, lineText] = split([
-      hozoClasses(props.lineClassName, facts),
-      line.mark ? hozoClasses(props[`${line.mark}ClassName`], facts) : undefined,
+      props.hozoLineStyle
+        ? props.hozoLineStyle(facts)
+        : props.lineClassName
+          ? hozoClasses(props.lineClassName, facts)
+          : undefined,
+      markPrepared
+        ? markPrepared(facts)
+        : markClassName
+          ? hozoClasses(markClassName, facts)
+          : undefined,
       props.lineStyle,
       line.mark ? props[`${line.mark}Style`] : undefined,
     ])

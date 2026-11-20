@@ -635,9 +635,16 @@ test('bounded handle evidence is visible without upgrading its audit declaration
     nativeStates: domain('native-handle-direct-carrier-states', 24),
     nativePartial: { ...domain('native-handle-published-partial', 6), platforms: 2 },
   }
+  const unknownShadow = {
+    schema: ownerShadow.schema,
+    contracts: ownerShadow.contracts.map((row) =>
+      row.owner === owner ? { ...row, audit: 'unknown' } : row,
+    ),
+  }
   const assess = (value, trackedChanges = false) =>
     stylingFactStatus({
       commit,
+      shadow: unknownShadow,
       expectedManifestSha256: manifestSha256,
       trackedChanges,
       receipts: [value],
@@ -1139,9 +1146,9 @@ function inputReceipts() {
 
 const patternsShadow = {
   schema: ownerShadow.schema,
-  contracts: ownerShadow.contracts.filter((row) =>
-    ['BottomSheet.handle', 'Tabs.Tab', 'Toolbar.root'].includes(row.owner),
-  ),
+  contracts: ownerShadow.contracts
+    .filter((row) => ['BottomSheet.handle', 'Tabs.Tab', 'Toolbar.root'].includes(row.owner))
+    .map((row) => ({ ...row, audit: row.owner === 'Tabs.Tab' ? 'audited' : 'unknown' })),
 }
 
 test('every declared audited shadow contract needs its own current independent host proof', () => {
@@ -1488,15 +1495,15 @@ test('inventory stays separate from scoped evidence and missing global measures 
   assert.deepEqual(report.inventory, {
     components: 27,
     slots: 100,
-    pendingOwners: 38,
+    pendingOwners: 23,
     componentManaged: 33,
-    componentManagedPending: 15,
+    componentManagedPending: 0,
     formComponents: 11,
     formSlots: 52,
     formPendingOwners: 0,
-    shadowContributions: 73,
-    shadowAuditUnknown: 2,
-    shadowAuditDeclared: 71,
+    shadowContributions: 86,
+    shadowAuditUnknown: 1,
+    shadowAuditDeclared: 85,
   })
   assert.equal(report.observations[0].status, 'measured')
   assert.equal(report.observations[0].matchedPairs, 5)

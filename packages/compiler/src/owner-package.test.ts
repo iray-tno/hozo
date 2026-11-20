@@ -29,7 +29,7 @@ function example() {
 }
 test('package channels keep aliases, finite candidates, helper exports and readable v1 text facts as data', () => {
   const value = parseOwnerPackageShadow(JSON.stringify(example()))
-  assert.equal(value.owners!.contracts[0]!.audit, 'unknown')
+  assert.equal(value.owners!.contracts[0]!.audit, 'audited')
   assert.equal(value.exports[0]!.name, 'Sheet')
   assert.deepEqual(value.helpers, ['cn'])
   assert.equal(textForwardingModule('kit', value.textForwarding).components[0]!.name, 'Sheet')

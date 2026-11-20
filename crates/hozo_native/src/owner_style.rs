@@ -50,6 +50,10 @@ pub enum OwnerFact {
     DataCollapsed,
     DataHozoStateOpen,
     DataHozoStateClosed,
+    DataCodeMark,
+    DataCodeMarkIns,
+    DataCodeMarkDel,
+    DataCodeMarkMark,
 }
 
 impl OwnerFact {
@@ -75,6 +79,10 @@ impl OwnerFact {
             Self::DataCollapsed => "data-collapsed",
             Self::DataHozoStateOpen => "data-hozo-state=open",
             Self::DataHozoStateClosed => "data-hozo-state=closed",
+            Self::DataCodeMark => "data-code-mark",
+            Self::DataCodeMarkIns => "data-code-mark=ins",
+            Self::DataCodeMarkDel => "data-code-mark=del",
+            Self::DataCodeMarkMark => "data-code-mark=mark",
         }
     }
 
@@ -100,6 +108,10 @@ impl OwnerFact {
             Self::DataCollapsed => "__hozoOwnerDataCollapsed",
             Self::DataHozoStateOpen => "__hozoOwnerDataHozoStateOpen",
             Self::DataHozoStateClosed => "__hozoOwnerDataHozoStateClosed",
+            Self::DataCodeMark => "__hozoOwnerDataCodeMark",
+            Self::DataCodeMarkIns => "__hozoOwnerDataCodeMarkIns",
+            Self::DataCodeMarkDel => "__hozoOwnerDataCodeMarkDel",
+            Self::DataCodeMarkMark => "__hozoOwnerDataCodeMarkMark",
         }
     }
 
@@ -121,6 +133,10 @@ impl OwnerFact {
             "data-collapsed" => Some(Self::DataCollapsed),
             "data-hozo-state=open" => Some(Self::DataHozoStateOpen),
             "data-hozo-state=closed" => Some(Self::DataHozoStateClosed),
+            "data-code-mark" => Some(Self::DataCodeMark),
+            "data-code-mark=ins" => Some(Self::DataCodeMarkIns),
+            "data-code-mark=del" => Some(Self::DataCodeMarkDel),
+            "data-code-mark=mark" => Some(Self::DataCodeMarkMark),
             _ => None,
         }
     }
@@ -140,6 +156,10 @@ impl OwnerFact {
                 | Self::DataCollapsed
                 | Self::DataHozoStateOpen
                 | Self::DataHozoStateClosed
+                | Self::DataCodeMark
+                | Self::DataCodeMarkIns
+                | Self::DataCodeMarkDel
+                | Self::DataCodeMarkMark
         )
     }
 }
@@ -1044,5 +1064,36 @@ mod tests {
         assert!(output.styles.contains("hozo0_data_hozo_state_eq_closed:"));
         assert!(!carrier.expression.contains("pressed"));
         assert!(!carrier.expression.contains("hovered"));
+    }
+
+    #[test]
+    fn data_only_view_owner_compiles_code_mark_facts_with_distinct_keys() {
+        let source = "const el=<View className=\"bg-[#111111] data-[code-mark]:border-[#222222] data-[code-mark=ins]:bg-[#333333] data-[code-mark=del]:bg-[#444444] data-[code-mark=mark]:bg-[#555555]\"/>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let facts = [
+            OwnerFact::DataCodeMark,
+            OwnerFact::DataCodeMarkIns,
+            OwnerFact::DataCodeMarkDel,
+            OwnerFact::DataCodeMarkMark,
+        ];
+        let (output, carrier) = lower_owner_style_with_inputs(
+            &parsed.roots[0].node,
+            &[],
+            source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &facts,
+                events: &[],
+                split_text: true,
+            },
+        );
+        let carrier = carrier.expect("data-only code-mark View compiles");
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(carrier.callback && carrier.split_text);
+        assert!(output.styles.contains("hozo0_data_code_mark:"));
+        assert!(output.styles.contains("hozo0_data_code_mark_eq_ins:"));
+        assert!(output.styles.contains("hozo0_data_code_mark_eq_del:"));
+        assert!(output.styles.contains("hozo0_data_code_mark_eq_mark:"));
+        assert!(!carrier.expression.contains("pressed"));
     }
 }

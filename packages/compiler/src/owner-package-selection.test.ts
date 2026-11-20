@@ -62,7 +62,7 @@ test('same-name exports select only their exact edge, entry, instance and conten
   assert.notEqual(first.identity.manifestSha256, second.identity.manifestSha256)
   assert.equal(JSON.parse(first.shadow).contracts[0].abi.nativePreparedProp, 'hozoHandleStyle')
   assert.equal(JSON.parse(second.shadow).contracts[0].abi.nativePreparedProp, 'hozoSecondStyle')
-  assert.equal(JSON.parse(first.shadow).contracts[0].audit, 'unknown')
+  assert.equal(JSON.parse(first.shadow).contracts[0].audit, 'audited')
   assert.ok(Object.isFrozen(first) && Object.isFrozen(first.identity))
   assert.deepEqual(selectOwnerPackageContract(lease, { ...request, entry: '/two/native.js' }), {
     status: 'unassessed',

@@ -35,7 +35,7 @@ test('only complete observations can freeze; equal rechecks retain original immu
   assert.equal(lease.capture, first)
   assert.ok(Object.isFrozen(lease))
   assert.equal(await epoch.run(({ capture }) => capture), first)
-  assert.equal(lease.capture.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'unknown')
+  assert.equal(lease.capture.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'audited')
 })
 
 test('changed bytes, entries, context or incomplete sets permanently retire the old epoch', () => {

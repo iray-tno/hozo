@@ -256,9 +256,23 @@ test('the owner shadow replaces spike JSON without promoting pending catalog slo
   const rendered = outputs()
   assert.deepEqual(JSON.parse(rendered['scripts/style-slots/owner-shadow.json']), ownerShadow)
   const allComponents = { ...components, ...formComponents }
-  const pendingSpikes = new Set(['Tabs.Tab', 'BottomSheet.handle', 'Toolbar.root'])
+  const pendingSpikes = new Set(['Toolbar.root'])
   const auditedOwners = new Set([
+    'BottomSheet.handle',
+    'BottomSheet.scrim',
+    'BottomSheet.sheet',
+    'BottomSheet.handleBar',
+    'CodeBlock.root',
+    'CodeBlock.line',
+    'CodeBlock.gutter',
+    'CodeBlock.ins',
+    'CodeBlock.del',
+    'CodeBlock.mark',
+    'CodeBlock.copy',
+    'CodeBlock.caption',
     'Tabs.Tab',
+    'Tabs.tabList',
+    'Tabs.panel',
     'Drawer.scrim',
     'Drawer.panel',
     'Popover.trigger',

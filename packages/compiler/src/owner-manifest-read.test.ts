@@ -1,16 +1,14 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { captureOwnerManifests } from './owner-manifest-capture.ts'
 import { readResolvedOwnerManifest } from './owner-manifest-read.ts'
 
-const text = readFileSync(
-  new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url),
-  'utf8',
-)
+const text = ownerFixtureShadow('BottomSheet.handle')
 const edge = { importer: 'App.tsx', specifier: 'example-kit' }
 const options = { platform: 'native', epoch: 'test' }
 function fixture(t) {

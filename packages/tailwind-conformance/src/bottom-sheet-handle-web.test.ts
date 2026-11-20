@@ -14,7 +14,7 @@ const contract = parseOwnerContractShadow(
 ).contracts[0]!
 
 test('backend Web class carriers reach both real handle shapes without generated JSX extraction', () => {
-  assert.equal(contract.audit, 'unknown', 'a transport probe is not a complete contract audit')
+  assert.equal(contract.audit, 'audited')
   assert.equal(contract.abi.webClassProp, 'handleClassName')
   const compiler = createCompiler()
   for (const shape of contract.shapes) {

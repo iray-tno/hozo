@@ -2,18 +2,20 @@ import { useAnnounce, useHozoMessage } from '@hozo/behaviors'
 import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { useContext, useEffect, useRef, useState } from 'react'
-import { type StyleProp, Text, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, type TextStyle, type ViewStyle } from 'react-native'
 import { CodeClipboardContext } from './code-clipboard.tsx'
-import { Pressable } from './pressable.native.tsx'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 export function CodeCopy({
   text,
   className,
+  hozoStyle,
   style,
 }: {
   text: string
   className?: string
+  hozoStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
 }) {
   const provider = useContext(CodeClipboardContext)
@@ -36,7 +38,10 @@ export function CodeCopy({
       accessibilityRole="button"
       accessibilityLabel={message('hozo.code.copy')}
       style={(state) =>
-        splitTextStyle([hozoClasses(className, { ...state }), hozoAuthoredStyle(style)])[0]
+        splitTextStyle([
+          hozoStyle ? hozoStyle(state) : hozoClasses(className, { ...state }),
+          hozoAuthoredStyle(style),
+        ])[0]
       }
       onPress={async () => {
         const operation = ++serial.current
@@ -56,7 +61,14 @@ export function CodeCopy({
       }}
     >
       {(state) => (
-        <Text style={splitTextStyle([hozoClasses(className, { ...state }), style])[1]}>
+        <Text
+          style={
+            splitTextStyle([
+              hozoStyle ? hozoStyle(state) : hozoClasses(className, { ...state }),
+              style,
+            ])[1]
+          }
+        >
           {message(copied === text ? 'hozo.code.copied' : 'hozo.code.copy')}
         </Text>
       )}

@@ -46,13 +46,16 @@ export interface HozoTabsProps {
   style?: StyleProp<ViewStyle>
   tabListStyle?: StyleProp<ViewStyle>
   tabStyle?: StyleProp<ViewStyle>
+  /** @internal Complete prepared tab list class contribution (RFC 010). */
+  hozoTabListStyle?: () => StyleProp<ViewStyle>
   /**
    * @internal Complete prepared tab class contribution (RFC010).
    * Each existing Pressable supplies its own live facts. A producer consumes
    * tabClassName, including any residual, rather than applying both routes.
-   * Ordinary compiler output does not emit this experimental carrier yet.
    */
   hozoTabStyle?: (state: TabOwnerState) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared panel class contribution (RFC 010). */
+  hozoPanelStyle?: () => StyleProp<ViewStyle | TextStyle>
   panelStyle?: StyleProp<ViewStyle>
 }
 
@@ -69,11 +72,17 @@ export function HozoTabs({
   style,
   tabListStyle,
   tabStyle,
+  hozoTabListStyle,
   hozoTabStyle,
+  hozoPanelStyle,
   panelStyle,
 }: HozoTabsProps) {
+  if (hozoTabListStyle && tabListClassName !== undefined)
+    throw new Error('Prepared Tabs tabList styles must consume tabListClassName')
   if (hozoTabStyle && tabClassName !== undefined)
     throw new Error('Prepared Tabs tab styles must consume tabClassName')
+  if (hozoPanelStyle && panelClassName !== undefined)
+    throw new Error('Prepared Tabs panel styles must consume panelClassName')
   const [uncontrolled, setUncontrolled] = useState(defaultIndex)
   const selected = index ?? uncontrolled
 
@@ -97,21 +106,40 @@ export function HozoTabs({
       'aria-selected': at === selected,
       'aria-disabled': Boolean(tab.disabled),
     }
-    return splitTextStyle(hozoTabStyle ? hozoTabStyle(facts) : hozoClasses(tabClassName, facts))
+    return splitTextStyle(
+      hozoTabStyle
+        ? hozoTabStyle(facts)
+        : tabClassName
+          ? hozoClasses(tabClassName, facts)
+          : undefined,
+    )
   }
 
   // The panel's box and its text, split for the same reason as a tab's.
-  const [panelBox, panelText] = splitTextStyle([
-    hozoClasses(panelClassName),
-    hozoAuthoredStyle(panelStyle),
-  ])
+  const panelClassStyle = hozoPanelStyle
+    ? hozoPanelStyle()
+    : panelClassName
+      ? hozoClasses(panelClassName)
+      : undefined
+  const authoredPanelStyle = hozoAuthoredStyle(panelStyle)
+  const [panelBox, panelText] =
+    panelClassStyle !== undefined || authoredPanelStyle !== undefined
+      ? splitTextStyle([panelClassStyle, authoredPanelStyle])
+      : [undefined, undefined]
 
   return (
-    <View style={[hozoClasses(className), hozoAuthoredStyle(style)]}>
+    <View style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}>
       <View
         accessibilityRole="tablist"
         accessibilityLabel={accessibilityLabel}
-        style={[hozoClasses(tabListClassName), hozoAuthoredStyle(tabListStyle)]}
+        style={[
+          hozoTabListStyle
+            ? hozoTabListStyle()
+            : tabListClassName
+              ? hozoClasses(tabListClassName)
+              : undefined,
+          hozoAuthoredStyle(tabListStyle),
+        ]}
       >
         {tabs.map((tab, at) => (
           <Pressable

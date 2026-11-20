@@ -786,6 +786,10 @@ impl NativeCompileOptions {
                 "data-collapsed" => hozo_native::OwnerFact::DataCollapsed,
                 "data-hozo-state=open" => hozo_native::OwnerFact::DataHozoStateOpen,
                 "data-hozo-state=closed" => hozo_native::OwnerFact::DataHozoStateClosed,
+                "data-code-mark" => hozo_native::OwnerFact::DataCodeMark,
+                "data-code-mark=ins" => hozo_native::OwnerFact::DataCodeMarkIns,
+                "data-code-mark=del" => hozo_native::OwnerFact::DataCodeMarkDel,
+                "data-code-mark=mark" => hozo_native::OwnerFact::DataCodeMarkMark,
                 _ => {
                     return Err(napi::Error::from_reason(format!(
                         "Unsupported owner fact: {key}"

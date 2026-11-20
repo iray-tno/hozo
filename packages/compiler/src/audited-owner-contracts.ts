@@ -9,6 +9,20 @@ export interface AuditedOwnerContract {
 
 export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
   {
+    owner: 'BottomSheet.handle',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.handle","classProp":"handleClassName","audit":"audited","bindings":["present","resizable"],"abi":{"nativePreparedProp":"hozoHandleStyle","webClassProp":"handleClassName","nativePartial":{"prop":"hozoInteractiveHandleStyle","shape":"resizable"}},"authoredStyles":[{"prop":"handleStyle","order":0}],"shapes":[{"id":"resizable","when":{"all":[{"eq":["present",true]},{"eq":["resizable",true]}]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":[],"splitText":false}},{"id":"decorative","when":{"all":[{"eq":["present",true]},{"eq":["resizable",false]}]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Tabs.Tab',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.Tab","classProp":"tabClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTabStyle","webClassProp":"tabClassName"},"authoredStyles":[{"prop":"tabStyle","order":0}],"shapes":[{"id":"tab","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-selected","aria-disabled"],"splitText":true}}]}]}',
+  },
+  {
     owner: 'Drawer.scrim',
     package: '@hozo/patterns',
     exports: ['Drawer', 'HozoDrawer'],
@@ -133,6 +147,97 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     exports: ['Accordion', 'HozoAccordion'],
     shadow:
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Accordion.panelContent","classProp":"panelContentClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPanelContentStyle","webClassProp":"panelContentClassName"},"authoredStyles":[{"prop":"panelContentStyle","order":0}],"shapes":[{"id":"panelContent","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Tabs.tabList',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.tabList","classProp":"tabListClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTabListStyle","webClassProp":"tabListClassName"},"authoredStyles":[{"prop":"tabListStyle","order":0}],"shapes":[{"id":"tabList","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Tabs.panel',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.panel","classProp":"panelClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPanelStyle","webClassProp":"panelClassName"},"authoredStyles":[{"prop":"panelStyle","order":0}],"shapes":[{"id":"panel","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'BottomSheet.scrim',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.scrim","classProp":"scrimClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoScrimStyle","webClassProp":"scrimClassName"},"authoredStyles":[{"prop":"scrimStyle","order":0}],"shapes":[{"id":"scrim","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'BottomSheet.sheet',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.sheet","classProp":"sheetClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSheetStyle","webClassProp":"sheetClassName"},"authoredStyles":[{"prop":"sheetStyle","order":0}],"shapes":[{"id":"sheet","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'BottomSheet.handleBar',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.handleBar","classProp":"handleBarClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoHandleBarStyle","webClassProp":"handleBarClassName"},"authoredStyles":[{"prop":"handleBarStyle","order":0}],"shapes":[{"id":"handleBar","when":{"eq":["present",true]},"nativeHost":"View","webHost":"span","events":[]}]}]}',
+  },
+  {
+    owner: 'CodeBlock.root',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"CodeBlock.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCodeBlockStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"root","when":{"eq":["present",true]},"nativeHost":"View","webHost":"figure","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'CodeBlock.line',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"CodeBlock.line","classProp":"lineClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoLineStyle","webClassProp":"lineClassName"},"authoredStyles":[{"prop":"lineStyle","order":0}],"shapes":[{"id":"line","when":{"eq":["present",true]},"nativeHost":"View","webHost":"span","events":[],"inputs":{"facts":["data-code-mark","data-code-mark=ins","data-code-mark=del","data-code-mark=mark"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'CodeBlock.gutter',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"CodeBlock.gutter","classProp":"gutterClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoGutterStyle","webClassProp":"gutterClassName"},"authoredStyles":[{"prop":"gutterStyle","order":0}],"shapes":[{"id":"gutter","when":{"eq":["present",true]},"nativeHost":"View","webHost":"span","events":[],"inputs":{"facts":["data-code-mark","data-code-mark=ins","data-code-mark=del","data-code-mark=mark"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'CodeBlock.ins',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"CodeBlock.ins","classProp":"insClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoInsStyle","webClassProp":"insClassName"},"authoredStyles":[{"prop":"insStyle","order":0}],"shapes":[{"id":"ins","when":{"eq":["present",true]},"nativeHost":"View","webHost":"span","events":[],"inputs":{"facts":["data-code-mark","data-code-mark=ins","data-code-mark=del","data-code-mark=mark"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'CodeBlock.del',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"CodeBlock.del","classProp":"delClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoDelStyle","webClassProp":"delClassName"},"authoredStyles":[{"prop":"delStyle","order":0}],"shapes":[{"id":"del","when":{"eq":["present",true]},"nativeHost":"View","webHost":"span","events":[],"inputs":{"facts":["data-code-mark","data-code-mark=ins","data-code-mark=del","data-code-mark=mark"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'CodeBlock.mark',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"CodeBlock.mark","classProp":"markClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoMarkStyle","webClassProp":"markClassName"},"authoredStyles":[{"prop":"markStyle","order":0}],"shapes":[{"id":"mark","when":{"eq":["present",true]},"nativeHost":"View","webHost":"span","events":[],"inputs":{"facts":["data-code-mark","data-code-mark=ins","data-code-mark=del","data-code-mark=mark"],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'CodeBlock.copy',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"CodeBlock.copy","classProp":"copyClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCopyStyle","webClassProp":"copyClassName"},"authoredStyles":[{"prop":"copyStyle","order":0}],"shapes":[{"id":"copy","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'CodeBlock.caption',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"CodeBlock.caption","classProp":"captionClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoCaptionStyle","webClassProp":"captionClassName"},"authoredStyles":[{"prop":"captionStyle","order":0}],"shapes":[{"id":"caption","when":{"eq":["present",true]},"nativeHost":"Text","webHost":"figcaption","events":[]}]}]}',
   },
   {
     owner: 'Form.root',

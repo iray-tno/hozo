@@ -63,6 +63,7 @@ function loadNativePatternModule(
     TextInput: host('TextInput'),
     Modal: host('Modal'),
     ScrollView: host('ScrollView'),
+    FlatList: host('FlatList'),
     Animated: {
       View: AnimatedView,
       Value: class {
@@ -94,9 +95,10 @@ function loadNativePatternModule(
     if (specifier === '@hozo/engine/generated/animated')
       return { HozoAnimated: rn.View, PresenceContext: React.createContext(null) }
     if (specifier === '@hozo/engine/generated/environment')
-      return { useHozoEnvironment: () => false }
+      return { useHozoEnvironment: () => false, useHozoDark: () => false }
     if (specifier === '@hozo/engine') {
       return {
+        HozoTextSizeContext: React.createContext(14),
         createClassTransitions: () => () => undefined,
         hozoSplitTextStyle: (style: Record<string, unknown>) => {
           const textKeys = new Set([
@@ -126,6 +128,7 @@ function loadNativePatternModule(
             : children,
         useHozoMessage: () => (key: string) => key,
         useHozoI18n: () => ({ locale: 'en-US', dir: 'ltr' }),
+        useAnnounce: () => () => {},
         usePresence: (open: boolean) => ({
           mounted: open,
           state: open ? 'open' : 'closed',
@@ -154,8 +157,7 @@ function loadNativePatternModule(
         }),
       }
     }
-    if (specifier.startsWith('.')) {
-      const target = path.resolve(path.dirname(fullPath), specifier)
+    const loadTsFile = (target: string) => {
       if (cache.has(target)) return cache.get(target)
       const depCode = esbuild.transformSync(readFileSync(target, 'utf8'), {
         loader: target.endsWith('.tsx') ? 'tsx' : 'ts',
@@ -173,20 +175,25 @@ function loadNativePatternModule(
         React,
         require: (nested: string) =>
           nested.startsWith('.')
-            ? localRequire(
-                `./${path.relative(path.dirname(fullPath), path.resolve(path.dirname(target), nested)).replaceAll('\\', '/')}`,
-              )
+            ? loadTsFile(path.resolve(path.dirname(target), nested))
             : localRequire(nested),
       })
       cache.set(target, depMod.exports)
       return depMod.exports
     }
+    if (specifier === '@hozo/typography/code/lines/native')
+      return loadTsFile(path.join(root, 'packages/typography/src/code-lines.native.tsx'))
+    if (specifier === '@hozo/typography/code/model')
+      return loadTsFile(path.join(root, 'packages/typography/src/code/model.ts'))
+    if (specifier.startsWith('.'))
+      return loadTsFile(path.resolve(path.dirname(fullPath), specifier))
     throw new Error(`Unexpected require in ${relativeFile}: ${specifier}`)
   }
   const mod = { exports: {} as Record<string, unknown> }
   runInNewContext(code, { module: mod, exports: mod.exports, React, require: localRequire })
   return {
     exports: mod.exports,
+    require: localRequire,
     captured,
     setInteraction(next: Partial<typeof interactionState>) {
       interactionState = { ...interactionState, ...next }
@@ -1176,6 +1183,463 @@ export function Fallback() {
           ),
         ),
       new RegExp(`Prepared Accordion styles must consume ${classProp}`),
+    )
+  }
+})
+
+test('Native Tabs delivers prepared tabList, tab and panel styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Tabs } from '@hozo/patterns'
+export function Screen({ index }: { index?: number }) {
+  return (
+    <Tabs
+      index={index}
+      tabs={[
+        { label: 'One', content: 'First body' },
+        { label: 'Two', content: 'Second body' },
+        { label: 'Three', content: 'Third body', disabled: true },
+      ]}
+      tabListClassName="bg-[#010101]"
+      tabClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] aria-selected:bg-[#555555] disabled:bg-[#666666] text-[#eeeeee] aria-selected:text-[#ffffff] disabled:text-[#999999]"
+      panelClassName="p-4 bg-[#fafafa] text-[#223344]"
+    />
+  )
+}
+export function UnsupportedTabs() {
+  return <Tabs tabs={[{ label: 'One', content: 'First' }]} tabListClassName="hover:bg-[#777777]" />
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoTabListStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTabStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPanelStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /tabListClassName="bg-\[#010101\]"/)
+  assert.doesNotMatch(transformed, /tabClassName="bg-\[#111111\]/)
+  assert.doesNotMatch(transformed, /panelClassName="p-4/)
+  // Stateless View tabList has no hover events; hover: stays on the runtime path.
+  assert.match(transformed, /tabListClassName="hover:bg-\[#777777\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const tabsMod = loadNativePatternModule('tabs.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ index?: number }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Tabs: tabsMod.exports.Tabs }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    index: number,
+    interaction: Partial<{
+      hovered: boolean
+      pressed: boolean
+      focused: boolean
+      focusVisible: boolean
+    }> = {},
+  ) => {
+    tabsMod.captured.length = 0
+    tabsMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: false,
+      focusVisible: false,
+      ...interaction,
+    })
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { index }))
+    return {
+      views: tabsMod.captured
+        .filter((entry) => entry.host === 'View')
+        .map((entry) => flattenStyle(entry.props.style)),
+      tabs: tabsMod.captured
+        .filter((entry) => entry.host === 'Pressable')
+        .map((entry) => flattenStyle(entry.props.style)),
+      texts: tabsMod.captured
+        .filter((entry) => entry.host === 'Text')
+        .map((entry) => flattenStyle(entry.props.style)),
+    }
+  }
+
+  // Views: [0: root, 1: tabList, 2: panel]; Texts: [0: tab0, 1: tab1, 2: tab2, 3: panelText]
+  const initial = renderCase(0)
+  assert.equal(initial.views[1]!.backgroundColor, '#010101')
+  assert.equal(initial.tabs[0]!.backgroundColor, '#555555')
+  assert.equal(initial.tabs[1]!.backgroundColor, '#111111')
+  assert.equal(initial.tabs[2]!.backgroundColor, '#666666')
+  assert.equal(initial.texts[0]!.color, '#ffffff')
+  assert.equal(initial.texts[1]!.color, '#eeeeee')
+  assert.equal(initial.texts[2]!.color, '#999999')
+  assert.equal(initial.views[2]!.backgroundColor, '#fafafa')
+  assert.equal(initial.views[2]!.paddingTop, 16)
+  assert.equal(initial.texts[3]!.color, '#223344')
+
+  assert.equal(renderCase(0, { hovered: true }).tabs[1]!.backgroundColor, '#222222')
+  assert.equal(renderCase(0, { pressed: true }).tabs[1]!.backgroundColor, '#333333')
+  assert.equal(renderCase(0, { focused: true, focusVisible: true }).tabs[1]!.borderColor, '#444444')
+  assert.equal(renderCase(1).tabs[1]!.backgroundColor, '#555555')
+
+  assert.equal(classResolverCalls, 0, 'prepared Tabs literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp, label] of [
+    ['tabListClassName', 'hozoTabListStyle', 'tabList'],
+    ['tabClassName', 'hozoTabStyle', 'tab'],
+    ['panelClassName', 'hozoPanelStyle', 'panel'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            tabsMod.exports.Tabs as React.ComponentType<Record<string, unknown>>,
+            {
+              tabs: [{ label: 'One', content: 'Body' }],
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+            },
+          ),
+        ),
+      new RegExp(`Prepared Tabs ${label} styles must consume ${classProp}`),
+    )
+  }
+})
+
+test('Native BottomSheet delivers prepared scrim, sheet, handle and handleBar styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { BottomSheet } from '@hozo/patterns'
+export function Screen({ detents }: { detents?: readonly number[] }) {
+  return (
+    <BottomSheet
+      open
+      detents={detents}
+      scrimClassName="bg-[#010101]"
+      sheetClassName="pt-4 bg-[#fafafa] text-[#223344]"
+      handleClassName="py-2 bg-[#111111]"
+      handleBarClassName="w-8 h-1 bg-[#333333]"
+    >
+      Sheet body
+    </BottomSheet>
+  )
+}
+export function StatefulHandle() {
+  return (
+    <BottomSheet open detents={[0.5, 1]} handleClassName="py-2 hover:bg-[#444444]">
+      Body
+    </BottomSheet>
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoScrimStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoSheetStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoHandleStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoHandleBarStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /scrimClassName="bg-\[#010101\]"/)
+  assert.doesNotMatch(transformed, /sheetClassName="pt-4/)
+  assert.doesNotMatch(transformed, /handleClassName="py-2 bg-\[#111111\]"/)
+  assert.doesNotMatch(transformed, /handleBarClassName="w-8/)
+  // Two-shape BottomSheet.handle retains stateful literals when decorative shape lacks hover:.
+  assert.match(transformed, /handleClassName="py-2 hover:bg-\[#444444\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const sheetMod = loadNativePatternModule('bottom-sheet.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = {
+    exports: {} as { Screen: React.ComponentType<{ detents?: readonly number[] }> },
+  }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { BottomSheet: sheetMod.exports.BottomSheet }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (detents: readonly number[]) => {
+    sheetMod.captured.length = 0
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { detents }))
+    return {
+      views: sheetMod.captured
+        .filter((entry) => entry.host === 'View')
+        .map((entry) => flattenStyle(entry.props.style)),
+      pressables: sheetMod.captured
+        .filter((entry) => entry.host === 'Pressable')
+        .map((entry) => flattenStyle(entry.props.style)),
+      texts: sheetMod.captured
+        .filter((entry) => entry.host === 'Text')
+        .map((entry) => flattenStyle(entry.props.style)),
+    }
+  }
+
+  // Resizable shape: Pressables [0: scrim, 1: handle]; Views [0: root, 1: sheet, 2: handleBar]
+  const resizable = renderCase([0.5, 1])
+  assert.equal(resizable.pressables[0]!.backgroundColor, '#010101')
+  assert.equal(resizable.views[1]!.backgroundColor, '#fafafa')
+  assert.equal(resizable.views[1]!.paddingTop, 16)
+  assert.equal(resizable.pressables[1]!.backgroundColor, '#111111')
+  assert.equal(resizable.pressables[1]!.paddingVertical ?? resizable.pressables[1]!.paddingTop, 8)
+  assert.equal(resizable.views[2]!.backgroundColor, '#333333')
+  assert.equal(resizable.views[2]!.width, 32)
+  assert.equal(resizable.texts[0]!.color, '#223344')
+
+  // Decorative shape: Pressables [0: scrim]; Views [0: root, 1: sheet, 2: decorativeHandle, 3: handleBar]
+  const decorative = renderCase([1])
+  assert.equal(decorative.pressables[0]!.backgroundColor, '#010101')
+  assert.equal(decorative.views[1]!.backgroundColor, '#fafafa')
+  assert.equal(decorative.views[2]!.backgroundColor, '#111111')
+  assert.equal(decorative.views[3]!.backgroundColor, '#333333')
+  assert.equal(decorative.texts[0]!.color, '#223344')
+
+  assert.equal(classResolverCalls, 0, 'prepared BottomSheet literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp, label] of [
+    ['scrimClassName', 'hozoScrimStyle', 'scrim'],
+    ['sheetClassName', 'hozoSheetStyle', 'sheet'],
+    ['handleClassName', 'hozoHandleStyle', 'handle'],
+    ['handleBarClassName', 'hozoHandleBarStyle', 'handleBar'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            sheetMod.exports.BottomSheet as React.ComponentType<Record<string, unknown>>,
+            {
+              open: true,
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+            },
+          ),
+        ),
+      new RegExp(`Prepared BottomSheet ${label} styles must consume ${classProp}`),
+    )
+  }
+})
+
+test('Native CodeBlock delivers all eight prepared slot styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { CodeBlock, CodeClipboardProvider } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <CodeClipboardProvider value={{ writeText: async () => {} }}>
+      <CodeBlock
+        title="Diff"
+        lineNumbers
+        copy
+        lines={[
+          { tokens: 'plain' },
+          { tokens: 'added', mark: 'ins' },
+          { tokens: 'removed', mark: 'del' },
+          { tokens: 'marked', mark: 'mark' },
+        ]}
+        className="p-2 bg-[#010101] text-[#111111]"
+        lineClassName="bg-[#101010] data-[code-mark]:border-[#202020] text-[#121212]"
+        gutterClassName="bg-[#303030] data-[code-mark=ins]:text-[#313131] data-[code-mark=del]:text-[#323232] data-[code-mark=mark]:text-[#333333] text-[#343434]"
+        insClassName="bg-[#002200] text-[#00ee00]"
+        delClassName="bg-[#220000] text-[#ee0000]"
+        markClassName="bg-[#222200] text-[#eeee00]"
+        copyClassName="bg-[#404040] hover:bg-[#414141] active:bg-[#424242] focus-visible:border-[#434343] text-[#f0f0f0]"
+        captionClassName="pt-1 text-[#505050]"
+      />
+    </CodeClipboardProvider>
+  )
+}
+export function UnsupportedCodeBlock() {
+  return <CodeBlock lines="x" lineClassName="hover:bg-[#606060]" />
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  for (const prop of [
+    'hozoCodeBlockStyle',
+    'hozoLineStyle',
+    'hozoGutterStyle',
+    'hozoInsStyle',
+    'hozoDelStyle',
+    'hozoMarkStyle',
+    'hozoCopyStyle',
+    'hozoCaptionStyle',
+  ])
+    assert.match(transformed, new RegExp(`${prop}=\\{__hozoOwner\\d+_Plan\\d+\\}`))
+  assert.doesNotMatch(transformed, /className="p-2 bg-\[#010101\]/)
+  assert.doesNotMatch(transformed, /captionClassName="pt-1/)
+  // Data-only line View has no hover events; hover: stays on the runtime path.
+  assert.match(transformed, /lineClassName="hover:bg-\[#606060\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const codeBlockMod = loadNativePatternModule('code-block.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const clipboardMod = codeBlockMod.require('./code-clipboard.tsx') as {
+    CodeClipboardProvider: React.ComponentType<Record<string, unknown>>
+  }
+  const screenMod = { exports: {} as { Screen: React.ComponentType } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns')
+        return {
+          CodeBlock: codeBlockMod.exports.CodeBlock,
+          CodeClipboardProvider: clipboardMod.CodeClipboardProvider,
+        }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    interaction: Partial<{
+      hovered: boolean
+      pressed: boolean
+      focused: boolean
+      focusVisible: boolean
+    }> = {},
+  ) => {
+    codeBlockMod.captured.length = 0
+    codeBlockMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: false,
+      focusVisible: false,
+      ...interaction,
+    })
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
+    return {
+      figure: flattenStyle(
+        codeBlockMod.captured.find((e) => e.host === 'View' && e.props.role === 'figure')!.props
+          .style,
+      ),
+      caption: flattenStyle(
+        codeBlockMod.captured.find((e) => e.host === 'Text' && e.props.children === 'Diff')!.props
+          .style,
+      ),
+      lines: codeBlockMod.captured
+        .filter((e) => e.host === 'View' && flattenStyle(e.props.style).flexDirection === 'row')
+        .map((e) => flattenStyle(e.props.style)),
+      gutters: codeBlockMod.captured
+        .filter((e) => e.host === 'View' && e.props.accessibilityElementsHidden === true)
+        .map((e) => flattenStyle(e.props.style)),
+      gutterTexts: codeBlockMod.captured
+        .filter((e) => e.host === 'Text' && flattenStyle(e.props.style).textAlign === 'right')
+        .map((e) => flattenStyle(e.props.style)),
+      lineTexts: codeBlockMod.captured
+        .filter((e) => e.host === 'Text' && e.props.accessible === true)
+        .map((e) => flattenStyle(e.props.style)),
+      copyBox: flattenStyle(codeBlockMod.captured.find((e) => e.host === 'Pressable')!.props.style),
+      copyText: flattenStyle(
+        codeBlockMod.captured.find(
+          (e) => e.host === 'Text' && e.props.children === 'hozo.code.copy',
+        )!.props.style,
+      ),
+    }
+  }
+
+  const rest = renderCase()
+  assert.equal(rest.figure.backgroundColor, '#010101')
+  assert.equal(rest.figure.paddingTop ?? rest.figure.padding, 8)
+  assert.equal(rest.caption.color, '#505050')
+  assert.equal(rest.caption.paddingTop, 4)
+  // Lines: [0: plain, 1: ins, 2: del, 3: mark]
+  assert.equal(rest.lines[0]!.backgroundColor, '#101010')
+  assert.equal(rest.lines[0]!.borderColor, undefined)
+  assert.equal(rest.lines[1]!.backgroundColor, '#002200')
+  assert.equal(rest.lines[1]!.borderColor, '#202020')
+  assert.equal(rest.lines[2]!.backgroundColor, '#220000')
+  assert.equal(rest.lines[3]!.backgroundColor, '#222200')
+  assert.equal(rest.lineTexts[0]!.color, '#121212')
+  assert.equal(rest.lineTexts[1]!.color, '#00ee00')
+  assert.equal(rest.lineTexts[2]!.color, '#ee0000')
+  assert.equal(rest.lineTexts[3]!.color, '#eeee00')
+  assert.equal(rest.gutters[0]!.backgroundColor, '#303030')
+  assert.equal(rest.gutters[1]!.backgroundColor, '#002200')
+  assert.equal(rest.gutterTexts[0]!.color, '#343434')
+  assert.equal(rest.gutterTexts[1]!.color, '#00ee00')
+  assert.equal(rest.gutterTexts[2]!.color, '#ee0000')
+  assert.equal(rest.gutterTexts[3]!.color, '#eeee00')
+  assert.equal(rest.copyBox.backgroundColor, '#404040')
+  assert.equal(rest.copyText.color, '#f0f0f0')
+
+  assert.equal(renderCase({ hovered: true }).copyBox.backgroundColor, '#414141')
+  assert.equal(renderCase({ pressed: true }).copyBox.backgroundColor, '#424242')
+  assert.equal(renderCase({ focused: true, focusVisible: true }).copyBox.borderColor, '#434343')
+  assert.equal(classResolverCalls, 0, 'prepared CodeBlock literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp] of [
+    ['className', 'hozoCodeBlockStyle'],
+    ['lineClassName', 'hozoLineStyle'],
+    ['gutterClassName', 'hozoGutterStyle'],
+    ['insClassName', 'hozoInsStyle'],
+    ['delClassName', 'hozoDelStyle'],
+    ['markClassName', 'hozoMarkStyle'],
+    ['copyClassName', 'hozoCopyStyle'],
+    ['captionClassName', 'hozoCaptionStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            codeBlockMod.exports.CodeBlock as React.ComponentType<Record<string, unknown>>,
+            {
+              lines: 'x',
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+            },
+          ),
+        ),
+      new RegExp(`Prepared CodeBlock styles must consume ${classProp}`),
     )
   }
 })

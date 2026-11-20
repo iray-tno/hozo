@@ -49,7 +49,7 @@ test('capture unions candidate tokens but preserves two same-name instances and 
   )
   assert.ok(Object.isFrozen(result.instances[0]!.data.exports))
   assert.ok(Object.isFrozen(result.candidates))
-  assert.equal(result.instances[0]!.data.owners!.contracts[0]!.audit, 'unknown')
+  assert.equal(result.instances[0]!.data.owners!.contracts[0]!.audit, 'audited')
   const permuted = collectOwnerPackageContributions(
     captureOwnerManifests([b, a], [row(b, '/second', ['p-2', 'p-4']), row()], options),
   )

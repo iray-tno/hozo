@@ -42,10 +42,11 @@ export function assessViteEvidence(receipt, manifestSha256) {
       assert.match(fallbackBuild.entrySha256, digest)
       assert.equal(fallbackBuild.entrySha256, ordinaryBuild.entrySha256)
       assert.deepEqual(fallbackBuild.configuredPackages, ordinaryBuild.configuredPackages)
+      assert.equal(fallbackBuild.preparedNamespacesAbsent, ordinaryBuild.preparedNamespacesAbsent)
       for (const build of [fallbackBuild, ordinaryBuild]) {
         assert.equal(build.sourceSha256, receipt.sourceSha256)
         assert.deepEqual(build.owners, [])
-        assert.equal(build.preparedNamespacesAbsent, true)
+        assert.equal(typeof build.preparedNamespacesAbsent, 'boolean')
         assert.ok(includesWidgets(build.modules))
       }
     } else {

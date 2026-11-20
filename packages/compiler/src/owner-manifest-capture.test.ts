@@ -24,7 +24,7 @@ test('resolved instance/entry/content/platform/epoch identities freeze independe
   if (first.status !== 'complete') return
   assert.equal(first.bindings.length, 2)
   assert.notEqual(first.bindings[0]!.instance, first.bindings[1]!.instance)
-  assert.equal(first.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'unknown')
+  assert.equal(first.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'audited')
   assert.ok(Object.isFrozen(first.bindings[0]!.manifest!.shadow.contracts[0]!.shapes))
   assert.equal(
     captureOwnerManifests([b, a], [row(b, 'ui-kit@instance-2'), row(a), row(a)], options).status,
@@ -121,6 +121,34 @@ test('bounded observations and code-unit ordering cannot silently certify empty/
     () => captureOwnerManifests([a], [row(a, undefined, ' '.repeat(2_097_153))], options),
     /budget/,
   )
+  assert.throws(
+    () =>
+      captureOwnerManifests(
+        [
+          { importer: 'a.tsx', specifier: 'p1' },
+          { importer: 'b.tsx', specifier: 'p2' },
+          { importer: 'c.tsx', specifier: 'p3' },
+        ],
+        [
+          row({ importer: 'a.tsx', specifier: 'p1' }, 'p1', ' '.repeat(750_000)),
+          row({ importer: 'b.tsx', specifier: 'p2' }, 'p2', ' '.repeat(750_000)),
+          row({ importer: 'c.tsx', specifier: 'p3' }, 'p3', ' '.repeat(750_000)),
+        ],
+        options,
+      ),
+    /budget/,
+  )
+  const sharedEdges = Array.from({ length: 64 }, (_, index) => ({
+    importer: `pkg/file-${index}.tsx`,
+    specifier: './shared',
+  }))
+  const sharedCapture = captureOwnerManifests(
+    sharedEdges,
+    sharedEdges.map((input) => row(input, 'ui-kit@shared', text)),
+    options,
+  )
+  assert.equal(sharedCapture.status, 'complete')
+  if (sharedCapture.status === 'complete') assert.equal(sharedCapture.bindings.length, 64)
   const audited = text.replace('"audit": "unknown"', '"audit": "certified"')
   assert.notEqual(audited, text)
   assert.equal(
@@ -149,8 +177,14 @@ test('changing a recognized audit declaration changes capture identity, not its 
   assert.equal(audited.scope, unknown.scope)
   if (audited.status === 'complete' && unknown.status === 'complete') {
     assert.notEqual(audited.fingerprint, unknown.fingerprint)
-    assert.equal(audited.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'audited')
-    assert.equal(unknown.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'unknown')
-    assert.ok(Object.isFrozen(audited.bindings[0]!.manifest!.shadow.contracts[0]!))
+    const auditedToolbar = audited.bindings[0]!.manifest!.shadow.contracts.find(
+      (contract) => contract.owner === 'Toolbar.root',
+    )!
+    const unknownToolbar = unknown.bindings[0]!.manifest!.shadow.contracts.find(
+      (contract) => contract.owner === 'Toolbar.root',
+    )!
+    assert.equal(auditedToolbar.audit, 'audited')
+    assert.equal(unknownToolbar.audit, 'unknown')
+    assert.ok(Object.isFrozen(auditedToolbar))
   }
 })

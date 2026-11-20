@@ -502,7 +502,49 @@ export const components = {
   CodeBlock: slots(
     'className lineClassName gutterClassName insClassName delClassName markClassName copyClassName captionClassName',
     {
-      overrides: { className: { lowering: 'component-managed' } },
+      overrides: {
+        className: {
+          lowering: 'component-managed',
+          owner: 'code-block-root',
+          gate: 'always',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        lineClassName: {
+          owner: 'code-block-line',
+          gate: 'each-line',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        gutterClassName: {
+          owner: 'code-block-gutter',
+          gate: 'when-gutter',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        insClassName: {
+          owner: 'code-block-ins',
+          gate: 'when-ins-line',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        delClassName: {
+          owner: 'code-block-del',
+          gate: 'when-del-line',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        markClassName: {
+          owner: 'code-block-mark',
+          gate: 'when-mark-line',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        copyClassName: {
+          owner: 'code-block-copy',
+          gate: 'when-copy',
+          composition: 'prepared-owner-contract; split-box-text',
+        },
+        captionClassName: {
+          owner: 'code-block-caption',
+          gate: 'always',
+          composition: 'prepared-owner-contract',
+        },
+      },
     },
   ),
   Splitter: slots('className', {
@@ -597,7 +639,30 @@ export const components = {
       },
     },
   }),
-  BottomSheet: slots('className scrimClassName sheetClassName handleClassName handleBarClassName'),
+  BottomSheet: slots('className scrimClassName sheetClassName handleClassName handleBarClassName', {
+    overrides: {
+      scrimClassName: {
+        owner: 'bottom-sheet-scrim',
+        gate: 'when-mounted',
+        composition: 'prepared-owner-contract',
+      },
+      sheetClassName: {
+        owner: 'bottom-sheet-sheet',
+        gate: 'when-mounted',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      handleClassName: {
+        owner: 'bottom-sheet-handle',
+        gate: 'when-mounted',
+        composition: 'prepared-owner-contract',
+      },
+      handleBarClassName: {
+        owner: 'bottom-sheet-handle-bar',
+        gate: 'when-handle-bar',
+        composition: 'prepared-owner-contract',
+      },
+    },
+  }),
   Checkbox: slots('className'),
   Chip: slots('className removeClassName', {
     secondary: true,
@@ -923,7 +988,25 @@ export const components = {
     },
   ),
   Switch: slots('className'),
-  Tabs: slots('className tabListClassName tabClassName panelClassName'),
+  Tabs: slots('className tabListClassName tabClassName panelClassName', {
+    overrides: {
+      tabListClassName: {
+        owner: 'tabs-tab-list',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+      tabClassName: {
+        owner: 'tabs-tab',
+        gate: 'each-tab',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      panelClassName: {
+        owner: 'tabs-panel',
+        gate: 'active-panel',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Toolbar: slots('className'),
   Tooltip: slots('className'),
   Tree: slots('className rowClassName', {
@@ -1142,7 +1225,7 @@ export const ownerShadow = {
     {
       owner: 'BottomSheet.handle',
       classProp: 'handleClassName',
-      audit: 'unknown',
+      audit: 'audited',
       // A closed iOS Modal / exiting Web presence may still paint the owner.
       // `present` is actual rendered lifetime, not the author's `open` request.
       bindings: ['present', 'resizable'],
@@ -1539,6 +1622,276 @@ export const ownerShadow = {
           webHost: 'div',
           events: [],
           inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Tabs.tabList',
+      classProp: 'tabListClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTabListStyle', webClassProp: 'tabListClassName' },
+      authoredStyles: [{ prop: 'tabListStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'tabList',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Tabs.panel',
+      classProp: 'panelClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPanelStyle', webClassProp: 'panelClassName' },
+      authoredStyles: [{ prop: 'panelStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'panel',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'BottomSheet.scrim',
+      classProp: 'scrimClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoScrimStyle', webClassProp: 'scrimClassName' },
+      authoredStyles: [{ prop: 'scrimStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'scrim',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'BottomSheet.sheet',
+      classProp: 'sheetClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSheetStyle', webClassProp: 'sheetClassName' },
+      authoredStyles: [{ prop: 'sheetStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'sheet',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'BottomSheet.handleBar',
+      classProp: 'handleBarClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoHandleBarStyle', webClassProp: 'handleBarClassName' },
+      authoredStyles: [{ prop: 'handleBarStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'handleBar',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCodeBlockStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'figure',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.line',
+      classProp: 'lineClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoLineStyle', webClassProp: 'lineClassName' },
+      authoredStyles: [{ prop: 'lineStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'line',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+          inputs: {
+            facts: [
+              'data-code-mark',
+              'data-code-mark=ins',
+              'data-code-mark=del',
+              'data-code-mark=mark',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.gutter',
+      classProp: 'gutterClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoGutterStyle', webClassProp: 'gutterClassName' },
+      authoredStyles: [{ prop: 'gutterStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'gutter',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+          inputs: {
+            facts: [
+              'data-code-mark',
+              'data-code-mark=ins',
+              'data-code-mark=del',
+              'data-code-mark=mark',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.ins',
+      classProp: 'insClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoInsStyle', webClassProp: 'insClassName' },
+      authoredStyles: [{ prop: 'insStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'ins',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+          inputs: {
+            facts: [
+              'data-code-mark',
+              'data-code-mark=ins',
+              'data-code-mark=del',
+              'data-code-mark=mark',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.del',
+      classProp: 'delClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoDelStyle', webClassProp: 'delClassName' },
+      authoredStyles: [{ prop: 'delStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'del',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+          inputs: {
+            facts: [
+              'data-code-mark',
+              'data-code-mark=ins',
+              'data-code-mark=del',
+              'data-code-mark=mark',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.mark',
+      classProp: 'markClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoMarkStyle', webClassProp: 'markClassName' },
+      authoredStyles: [{ prop: 'markStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'mark',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'span',
+          events: [],
+          inputs: {
+            facts: [
+              'data-code-mark',
+              'data-code-mark=ins',
+              'data-code-mark=del',
+              'data-code-mark=mark',
+            ],
+            splitText: true,
+          },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.copy',
+      classProp: 'copyClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCopyStyle', webClassProp: 'copyClassName' },
+      authoredStyles: [{ prop: 'copyStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'copy',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'CodeBlock.caption',
+      classProp: 'captionClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoCaptionStyle', webClassProp: 'captionClassName' },
+      authoredStyles: [{ prop: 'captionStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'caption',
+          when: { eq: ['present', true] },
+          nativeHost: 'Text',
+          webHost: 'figcaption',
+          events: [],
         },
       ],
     },
@@ -2177,6 +2530,71 @@ export const ownerPublications = [
     owner: 'Accordion.panelContent',
     package: '@hozo/patterns',
     exports: ['Accordion', 'HozoAccordion'],
+  },
+  {
+    owner: 'Tabs.tabList',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+  },
+  {
+    owner: 'Tabs.panel',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+  },
+  {
+    owner: 'BottomSheet.scrim',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+  },
+  {
+    owner: 'BottomSheet.sheet',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+  },
+  {
+    owner: 'BottomSheet.handleBar',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+  },
+  {
+    owner: 'CodeBlock.root',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.line',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.gutter',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.ins',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.del',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.mark',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.copy',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
+  },
+  {
+    owner: 'CodeBlock.caption',
+    package: '@hozo/patterns',
+    exports: ['CodeBlock'],
   },
   {
     owner: 'Form.root',
