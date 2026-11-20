@@ -505,7 +505,16 @@ export const components = {
       overrides: { className: { lowering: 'component-managed' } },
     },
   ),
-  Splitter: slots('className', { overrides: { className: { lowering: 'component-managed' } } }),
+  Splitter: slots('className', {
+    overrides: {
+      className: {
+        lowering: 'component-managed',
+        owner: 'splitter-handle',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+    },
+  }),
   ResizablePane: slots('className paneClassName handleClassName', {
     overrides: { className: { lowering: 'component-managed' } },
   }),
@@ -1249,6 +1258,24 @@ export const ownerShadow = {
       ],
     },
     {
+      owner: 'Splitter.root',
+      classProp: 'className',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoSplitterStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'handle',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: ['hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['data-dragging', 'data-collapsed'], splitText: false },
+        },
+      ],
+    },
+    {
       owner: 'Form.root',
       classProp: 'className',
       audit: 'audited',
@@ -1823,6 +1850,11 @@ export const ownerPublications = [
     owner: 'Tree.row',
     package: '@hozo/patterns',
     exports: ['Tree', 'HozoTree'],
+  },
+  {
+    owner: 'Splitter.root',
+    package: '@hozo/patterns',
+    exports: ['Splitter'],
   },
   {
     owner: 'Form.root',

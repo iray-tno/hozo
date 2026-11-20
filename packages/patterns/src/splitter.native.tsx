@@ -15,12 +15,22 @@ import {
 
 export type { SplitterSide } from './splitter-state.ts'
 
+export interface SplitterHandleState {
+  hovered: boolean
+  focused: boolean
+  focusVisible: boolean
+  'data-dragging': boolean
+  'data-collapsed': boolean
+}
+
 export interface SplitterProps extends SplitterSizeProps {
   label: string
   controls: string
   side?: SplitterSide
   orientation?: 'vertical' | 'horizontal'
   className?: string
+  /** @internal Complete prepared handle class contribution (RFC 010). */
+  hozoSplitterStyle?: (state: SplitterHandleState) => StyleProp<ViewStyle>
   style?: StyleProp<ViewStyle>
 }
 
@@ -41,11 +51,13 @@ function Handle({
   side,
   label,
   className,
+  hozoStyle,
   style,
   valueText,
 }: {
   state: SplitterState
   side: SplitterSide
+  hozoStyle?: (state: SplitterHandleState) => StyleProp<ViewStyle>
 } & Pick<SplitterProps, 'label' | 'className' | 'style' | 'valueText'>) {
   const message = useHozoMessage()
   const { state: interaction, handlers } = usePressableInteraction({
@@ -107,7 +119,21 @@ function Handle({
       // never reaches past the parent's bounds, so on the surface's side of
       // the pane it is cut off there whatever the order. Before the classes,
       // so an explicit class or style can still say otherwise.
-      style={[{ zIndex: 1 }, hozoClasses(className, facts), hozoAuthoredStyle(style)]}
+      style={[
+        { zIndex: 1 },
+        hozoStyle
+          ? hozoStyle({
+              hovered: interaction.hovered,
+              focused: interaction.focused,
+              focusVisible: interaction.focusVisible,
+              'data-dragging': drag.dragging,
+              'data-collapsed': state.collapsed,
+            })
+          : className
+            ? hozoClasses(className, facts)
+            : undefined,
+        hozoAuthoredStyle(style),
+      ]}
       onFocus={handlers.focus}
       onBlur={handlers.blur}
       onPointerEnter={handlers.hoverIn}
@@ -119,10 +145,13 @@ function Handle({
 }
 
 export function Splitter(props: SplitterProps) {
+  if (props.hozoSplitterStyle && props.className !== undefined)
+    throw new Error('Prepared Splitter styles must consume className')
   const state = useSplitterState(props)
   return (
     <Handle
       {...props}
+      hozoStyle={props.hozoSplitterStyle}
       state={state}
       side={props.side ?? (props.orientation === 'horizontal' ? 'top' : 'start')}
     />

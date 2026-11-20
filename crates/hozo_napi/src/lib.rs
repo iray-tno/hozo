@@ -782,6 +782,8 @@ impl NativeCompileOptions {
                 "data-hozo-step" => hozo_native::OwnerFact::DataHozoStep,
                 "data-hozo-step=increase" => hozo_native::OwnerFact::DataHozoStepIncrease,
                 "data-hozo-step=decrease" => hozo_native::OwnerFact::DataHozoStepDecrease,
+                "data-dragging" => hozo_native::OwnerFact::DataDragging,
+                "data-collapsed" => hozo_native::OwnerFact::DataCollapsed,
                 _ => {
                     return Err(napi::Error::from_reason(format!(
                         "Unsupported owner fact: {key}"

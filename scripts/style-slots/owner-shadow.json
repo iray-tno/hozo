@@ -395,6 +395,49 @@
       ]
     },
     {
+      "owner": "Splitter.root",
+      "classProp": "className",
+      "audit": "audited",
+      "bindings": [
+        "present"
+      ],
+      "abi": {
+        "nativePreparedProp": "hozoSplitterStyle",
+        "webClassProp": "className"
+      },
+      "authoredStyles": [
+        {
+          "prop": "style",
+          "order": 0
+        }
+      ],
+      "shapes": [
+        {
+          "id": "handle",
+          "when": {
+            "eq": [
+              "present",
+              true
+            ]
+          },
+          "nativeHost": "View",
+          "webHost": "div",
+          "events": [
+            "hovered",
+            "focused",
+            "focusVisible"
+          ],
+          "inputs": {
+            "facts": [
+              "data-dragging",
+              "data-collapsed"
+            ],
+            "splitText": false
+          }
+        }
+      ]
+    },
+    {
       "owner": "Form.root",
       "classProp": "className",
       "audit": "audited",

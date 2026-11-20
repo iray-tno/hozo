@@ -40,6 +40,7 @@ function loadNativePatternModule(
   })
   const captured: { host: string; props: Record<string, unknown> }[] = []
   let interactionState = { hovered: false, pressed: false, focused: false, focusVisible: false }
+  let draggingState = false
   const host = (name: string) => (props: Record<string, unknown>) => {
     const resolvedProps = {
       ...props,
@@ -131,6 +132,7 @@ function loadNativePatternModule(
         }),
         Portal: ({ children }: { children?: React.ReactNode }) => children ?? null,
         FloatingPositioner: ({ children }: { children?: React.ReactNode }) => children ?? null,
+        useDrag1D: () => ({ dragging: draggingState, handlers: {} }),
       }
     }
     if (specifier === '@hozo/behaviors/pressable-interaction') {
@@ -187,6 +189,9 @@ function loadNativePatternModule(
     captured,
     setInteraction(next: Partial<typeof interactionState>) {
       interactionState = { ...interactionState, ...next }
+    },
+    setDragging(next: boolean) {
+      draggingState = next
     },
   }
 }
@@ -647,5 +652,119 @@ export function Fallback() {
         }),
       ),
     /Prepared Tree styles must consume rowClassName/,
+  )
+})
+
+test('Native Splitter delivers prepared handle styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Splitter } from '@hozo/patterns'
+export function Screen({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <Splitter
+      label="Sidebar"
+      controls="nav"
+      min={100}
+      max={400}
+      collapsible
+      collapsed={collapsed}
+      className="w-1 bg-[#111111] hover:bg-[#222222] focus-visible:border-[#333333] data-[dragging]:bg-[#444444] data-[collapsed]:bg-[#555555]"
+    />
+  )
+}
+export function Fallback() {
+  return (
+    <Splitter
+      label="Keep"
+      controls="nav"
+      min={100}
+      max={400}
+      className="active:bg-[#666666]"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoSplitterStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /className="w-1 bg-\[#111111\]/)
+  // Interactive View handle has no Pressable press responder; active: stays on the runtime path.
+  assert.match(transformed, /className="active:bg-\[#666666\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const splitterMod = loadNativePatternModule('splitter.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ collapsed?: boolean }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Splitter: splitterMod.exports.Splitter }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    options: {
+      collapsed?: boolean
+      dragging?: boolean
+      hovered?: boolean
+      focused?: boolean
+      focusVisible?: boolean
+    } = {},
+  ) => {
+    splitterMod.captured.length = 0
+    splitterMod.setDragging(Boolean(options.dragging))
+    splitterMod.setInteraction({
+      hovered: Boolean(options.hovered),
+      pressed: false,
+      focused: Boolean(options.focused),
+      focusVisible: Boolean(options.focusVisible),
+    })
+    renderToStaticMarkup(
+      React.createElement(screenMod.exports.Screen, { collapsed: options.collapsed }),
+    )
+    return flattenStyle(splitterMod.captured.find((entry) => entry.host === 'View')!.props.style)
+  }
+
+  assert.equal(renderCase().backgroundColor, '#111111')
+  assert.equal(renderCase({ hovered: true }).backgroundColor, '#222222')
+  assert.equal(renderCase({ focused: true, focusVisible: true }).borderColor, '#333333')
+  assert.equal(renderCase({ dragging: true }).backgroundColor, '#444444')
+  assert.equal(renderCase({ collapsed: true }).backgroundColor, '#555555')
+  assert.equal(classResolverCalls, 0, 'prepared Splitter literals must never call hozoClasses')
+
+  assert.throws(
+    () =>
+      renderToStaticMarkup(
+        React.createElement(
+          splitterMod.exports.Splitter as React.ComponentType<Record<string, unknown>>,
+          {
+            label: 'Sidebar',
+            controls: 'nav',
+            min: 100,
+            max: 400,
+            className: 'w-1',
+            hozoSplitterStyle: () => ({}),
+          },
+        ),
+      ),
+    /Prepared Splitter styles must consume className/,
   )
 })

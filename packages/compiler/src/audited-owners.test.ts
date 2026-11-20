@@ -413,3 +413,32 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.css, /aria-expanded="true"/)
   assert.match(lowered.css, /aria-disabled="true"/)
 })
+
+test('ordinary Web lowering compiles Splitter className by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Splitter } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  return (
+    <>
+      <Splitter
+        label="Sidebar"
+        controls="nav"
+        min={100}
+        max={400}
+        className="w-1 bg-[#111111] hover:bg-[#222222] data-[dragging]:bg-[#333333] data-[collapsed]:bg-[#444444]"
+      />
+      <Splitter {...spread} label="Keep" controls="nav" min={100} max={400} className="bg-[#555555]" />
+      <Splitter label="Dyn" controls="nav" min={100} max={400} className={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /className="w-1 bg-\[#111111\]/)
+  assert.match(lowered.code, /className=\{"hozo-owner-/)
+  assert.match(lowered.code, /className="bg-\[#555555\]"/)
+  assert.match(lowered.code, /className=\{dynamic\}/)
+  assert.match(lowered.css, /\[data-dragging\]/)
+  assert.match(lowered.css, /\[data-collapsed\]/)
+})

@@ -20,6 +20,8 @@ export type OwnerFact =
   | 'data-hozo-step'
   | 'data-hozo-step=increase'
   | 'data-hozo-step=decrease'
+  | 'data-dragging'
+  | 'data-collapsed'
 
 export interface OwnerShape {
   id: string
@@ -320,6 +322,8 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
               'data-hozo-step',
               'data-hozo-step=increase',
               'data-hozo-step=decrease',
+              'data-dragging',
+              'data-collapsed',
             ].includes(fact),
           )
         )
@@ -347,8 +351,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
           facts.length === 0 &&
           events.length === 0
         const interactiveViewReady =
-          shape.nativeHost === 'View' &&
-          ((supplied.splitText && interactiveViewEvents) || nativeOnlyInteractiveView)
+          shape.nativeHost === 'View' && (interactiveViewEvents || nativeOnlyInteractiveView)
         if (!pressableReady && !textInputReady && !splitTextViewReady && !interactiveViewReady)
           fail(`${at}.shape inputs need the full control snapshot`)
         inputs = { facts, splitText: supplied.splitText }

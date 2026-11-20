@@ -51,6 +51,13 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tree.row","classProp":"rowClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoRowStyle","webClassProp":"rowClassName"},"authoredStyles":[{"prop":"rowStyle","order":0}],"shapes":[{"id":"row","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"div","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["aria-selected","aria-expanded","aria-disabled"],"splitText":true}}]}]}',
   },
   {
+    owner: 'Splitter.root',
+    package: '@hozo/patterns',
+    exports: ['Splitter'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Splitter.root","classProp":"className","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoSplitterStyle","webClassProp":"className"},"authoredStyles":[{"prop":"style","order":0}],"shapes":[{"id":"handle","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":["hovered","focused","focusVisible"],"inputs":{"facts":["data-dragging","data-collapsed"],"splitText":false}}]}]}',
+  },
+  {
     owner: 'Form.root',
     package: '@hozo/form',
     exports: ['Form', 'HozoForm'],

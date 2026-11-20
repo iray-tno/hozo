@@ -285,7 +285,7 @@ test('TimePicker contracts declare interactive spinbutton View and data-hozo-ste
   }, /decoration events\/host/)
   rejects((doc) => {
     const entry = doc.contracts.find((row) => row.owner === 'TimePicker.value')!
-    entry.shapes[0]!.inputs!.splitText = false
+    entry.shapes[0]!.events = []
   }, /full control snapshot/)
 })
 test('single-platform contracts declare null host/carrier on the absent platform (#2095)', () => {
@@ -471,6 +471,25 @@ test('Tree row contract declares Pressable div host and aria-selected/expanded/d
       webHost: 'div',
       events: ['pressed', 'hovered', 'focused', 'focusVisible'],
       inputs: { facts: ['aria-selected', 'aria-expanded', 'aria-disabled'], splitText: true },
+    },
+  ])
+})
+test('Splitter root contract declares interactive View div host and drag/collapse facts (#2046)', () => {
+  const splitter = parsed().contracts.find((entry) => entry.owner === 'Splitter.root')!
+  assert.equal(splitter.audit, 'audited')
+  assert.deepEqual(splitter.abi, {
+    nativePreparedProp: 'hozoSplitterStyle',
+    webClassProp: 'className',
+  })
+  assert.deepEqual(splitter.authoredStyles, [{ prop: 'style', order: 0 }])
+  assert.deepEqual(splitter.shapes, [
+    {
+      id: 'handle',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: ['hovered', 'focused', 'focusVisible'],
+      inputs: { facts: ['data-dragging', 'data-collapsed'], splitText: false },
     },
   ])
 })

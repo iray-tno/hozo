@@ -32,7 +32,7 @@ import {
   TextArea,
   TimePicker,
 } from '@hozo/form'
-import { Chip, Drawer, Popover, RadioGroup, Tree } from '@hozo/patterns'
+import { Chip, Drawer, Popover, RadioGroup, Splitter, Tree } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -8066,6 +8066,136 @@ export function Screen() {
     } finally {
       await page.mouse.up()
     }
+  } finally {
+    await page.close()
+  }
+})
+
+test('Splitter delivers prepared handle markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Splitter } from '@hozo/patterns'
+export function Screen({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <div id="wrap">
+      <Splitter
+        label="Sidebar"
+        controls="nav"
+        min={100}
+        max={400}
+        collapsible
+        collapsed={collapsed}
+        className="w-4 h-12 bg-[#111111] hover:bg-[#222222] border border-[#aaaaaa] focus-visible:border-[#333333] data-[dragging]:bg-[#444444] data-[collapsed]:bg-[#555555]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Splitter }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Splitter') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Splitter: 'Splitter' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ collapsed: false })
+  assert.equal(nativeProps.className, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const handleNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoSplitterStyle({
+        hovered: false,
+        focused: false,
+        focusVisible: false,
+        'data-dragging': false,
+        'data-collapsed': false,
+        ...overrides,
+      }),
+    )
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen, { collapsed: false }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const sep = page.locator('#wrap [role="separator"]')
+    const readSep = () =>
+      sep.evaluate((el) => ({
+        bg: getComputedStyle(el).backgroundColor,
+        borderColor: getComputedStyle(el).borderTopColor,
+      }))
+
+    assert.equal((await readSep()).bg, hexToRgb(handleNative().backgroundColor))
+
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap [role="separator"]').matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readSep()).borderColor,
+      hexToRgb(handleNative({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    await page.evaluate(() => document.activeElement?.blur())
+    await sep.hover()
+    await page.waitForFunction(() =>
+      document.querySelector('#wrap [role="separator"]').matches(':hover'),
+    )
+    assert.equal((await readSep()).bg, hexToRgb(handleNative({ hovered: true }).backgroundColor))
+
+    // Dragging attribute written by useDrag1D during an active drag
+    await sep.evaluate((el) => el.setAttribute('data-dragging', ''))
+    assert.equal(
+      (await readSep()).bg,
+      hexToRgb(handleNative({ hovered: true, 'data-dragging': true }).backgroundColor),
+    )
+
+    // Collapsed state rendered by Splitter collapsible collapsed
+    const collapsedHtml = renderToStaticMarkup(
+      createElement(webMod.exports.Screen, { collapsed: true }),
+    )
+    await page.setContent(`<!doctype html><style>${web.css}</style>${collapsedHtml}`)
+    assert.equal(
+      (await readSep()).bg,
+      hexToRgb(handleNative({ 'data-collapsed': true }).backgroundColor),
+    )
   } finally {
     await page.close()
   }

@@ -705,6 +705,8 @@ export interface NativeCompileOptions extends CompileEvidence {
     | 'data-hozo-step'
     | 'data-hozo-step=increase'
     | 'data-hozo-step=decrease'
+    | 'data-dragging'
+    | 'data-collapsed'
   )[]
   /** @internal Explicit interaction events for interactive View owners (e.g. spinbutton). */
   ownerEvents?: readonly ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]

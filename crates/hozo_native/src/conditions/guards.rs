@@ -80,21 +80,15 @@ pub(super) fn resolve(
                 ))
             }
             Condition::DataAttribute(selector) => {
-                match crate::candidate::data_fact_key(selector).as_deref() {
-                    Some("data-hozo-outside") => Some(OwnerFact::DataHozoOutside),
-                    Some("data-hozo-disabled") => Some(OwnerFact::DataHozoDisabled),
-                    Some("data-hozo-range-start") => Some(OwnerFact::DataHozoRangeStart),
-                    Some("data-hozo-range-end") => Some(OwnerFact::DataHozoRangeEnd),
-                    Some("data-hozo-in-range") => Some(OwnerFact::DataHozoInRange),
-                    Some("data-hozo-step") => Some(OwnerFact::DataHozoStep),
-                    Some("data-hozo-step=increase") => Some(OwnerFact::DataHozoStepIncrease),
-                    Some("data-hozo-step=decrease") => Some(OwnerFact::DataHozoStepDecrease),
-                    _ => {
-                        return Err(format!(
+                let Some(fact) = crate::candidate::data_fact_key(selector)
+                    .as_deref()
+                    .and_then(OwnerFact::from_data_key)
+                else {
+                    return Err(format!(
                         "Owner preparation has no declared data attribute fact for `{selector}`."
-                    ))
-                    }
-                }
+                    ));
+                };
+                Some(fact)
             }
             _ => None,
         };
