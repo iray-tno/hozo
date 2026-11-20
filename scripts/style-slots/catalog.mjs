@@ -923,7 +923,25 @@ export const components = {
     },
   ),
   Switch: slots('className'),
-  Tabs: slots('className tabListClassName tabClassName panelClassName'),
+  Tabs: slots('className tabListClassName tabClassName panelClassName', {
+    overrides: {
+      tabListClassName: {
+        owner: 'tabs-tab-list',
+        gate: 'always',
+        composition: 'prepared-owner-contract',
+      },
+      tabClassName: {
+        owner: 'tabs-tab',
+        gate: 'each-tab',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+      panelClassName: {
+        owner: 'tabs-panel',
+        gate: 'active-panel',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Toolbar: slots('className'),
   Tooltip: slots('className'),
   Tree: slots('className rowClassName', {
@@ -1534,6 +1552,41 @@ export const ownerShadow = {
       shapes: [
         {
           id: 'panelContent',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
+        },
+      ],
+    },
+    {
+      owner: 'Tabs.tabList',
+      classProp: 'tabListClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTabListStyle', webClassProp: 'tabListClassName' },
+      authoredStyles: [{ prop: 'tabListStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'tabList',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Tabs.panel',
+      classProp: 'panelClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPanelStyle', webClassProp: 'panelClassName' },
+      authoredStyles: [{ prop: 'panelStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'panel',
           when: { eq: ['present', true] },
           nativeHost: 'View',
           webHost: 'div',
@@ -2177,6 +2230,16 @@ export const ownerPublications = [
     owner: 'Accordion.panelContent',
     package: '@hozo/patterns',
     exports: ['Accordion', 'HozoAccordion'],
+  },
+  {
+    owner: 'Tabs.tabList',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+  },
+  {
+    owner: 'Tabs.panel',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
   },
   {
     owner: 'Form.root',

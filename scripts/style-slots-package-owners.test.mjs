@@ -70,7 +70,7 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.trigger'] },
     { name: 'HozoRadioGroup', owners: ['RadioGroup.option'] },
     { name: 'HozoSlider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
-    { name: 'HozoTabs', owners: ['Tabs.Tab'] },
+    { name: 'HozoTabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.tabList'] },
     { name: 'HozoToolbar', owners: ['Toolbar.root'] },
     { name: 'HozoTree', owners: ['Tree.row'] },
     { name: 'Other', owners: [] },
@@ -82,11 +82,11 @@ test('catalog publication owns the contract once and attaches only actual packag
     },
     { name: 'Slider', owners: ['Slider.fill', 'Slider.rail', 'Slider.thumb'] },
     { name: 'Splitter', owners: ['Splitter.root'] },
-    { name: 'Tabs', owners: ['Tabs.Tab'] },
+    { name: 'Tabs', owners: ['Tabs.Tab', 'Tabs.panel', 'Tabs.tabList'] },
     { name: 'Toolbar', owners: ['Toolbar.root'] },
     { name: 'Tree', owners: ['Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 21)
+  assert.equal(result.owners.contracts.length, 23)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
@@ -111,6 +111,8 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['Accordion.trigger', 'audited'],
       ['Accordion.panel', 'audited'],
       ['Accordion.panelContent', 'audited'],
+      ['Tabs.tabList', 'audited'],
+      ['Tabs.panel', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')

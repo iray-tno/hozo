@@ -173,7 +173,9 @@
     {
       "name": "HozoTabs",
       "owners": [
-        "Tabs.Tab"
+        "Tabs.Tab",
+        "Tabs.panel",
+        "Tabs.tabList"
       ]
     },
     {
@@ -259,7 +261,9 @@
     {
       "name": "Tabs",
       "owners": [
-        "Tabs.Tab"
+        "Tabs.Tab",
+        "Tabs.panel",
+        "Tabs.tabList"
       ]
     },
     {
@@ -1187,6 +1191,74 @@
         "shapes": [
           {
             "id": "panelContent",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": [],
+            "inputs": {
+              "facts": [],
+              "splitText": true
+            }
+          }
+        ]
+      },
+      {
+        "owner": "Tabs.tabList",
+        "classProp": "tabListClassName",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoTabListStyle",
+          "webClassProp": "tabListClassName"
+        },
+        "authoredStyles": [
+          {
+            "prop": "tabListStyle",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "tabList",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "Tabs.panel",
+        "classProp": "panelClassName",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoPanelStyle",
+          "webClassProp": "panelClassName"
+        },
+        "authoredStyles": [
+          {
+            "prop": "panelStyle",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "panel",
             "when": {
               "eq": [
                 "present",

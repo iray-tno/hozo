@@ -644,6 +644,8 @@ export interface LowerModuleOptions {
   unloweredReactNativeJsx?: UnloweredReactNativeJsxPolicy
   /** Analysis observes the real pipeline, rather than compiling it a second time. */
   observe?: (stage: LowerModuleStage) => void
+  /** @internal Explicit owner-caller pipelines disable default audited-owner lowering so spans are not rewritten twice. */
+  skipAuditedOwners?: boolean
 }
 
 export interface LowerModuleStage {
@@ -738,7 +740,10 @@ export function lowerModule(
   stylexModules?: StylexModuleCache,
   options: LowerModuleOptions = {},
 ): LoweredModule | undefined {
-  const hasOwners = semanticModuleEligible(file, 'web') && matchingAuditedOwners(code).length > 0
+  const hasOwners =
+    !options.skipAuditedOwners &&
+    semanticModuleEligible(file, 'web') &&
+    matchingAuditedOwners(code).length > 0
   if (!hasOwners) {
     const lowered = lowerModuleUnchecked(code, id, file, compiler, root, stylexModules, options)
     return completeModuleResolution(lowered, root, file, options)
@@ -900,9 +905,10 @@ export function lowerModuleOrPrepare(
   // The caller may reuse/mutate its options while preparation awaits. Capture
   // observer identity and policy just as the native handle captures parse facts.
   const captured = { ...options }
-  const ownerBatch = semanticModuleEligible(file, 'web')
-    ? prepareAuditedOwnerBatch(code, compiler, 'web', file)
-    : undefined
+  const ownerBatch =
+    !captured.skipAuditedOwners && semanticModuleEligible(file, 'web')
+      ? prepareAuditedOwnerBatch(code, compiler, 'web', file)
+      : undefined
   if (ownerBatch && ownerBatch.candidates.length === 0) ownerBatch.dispose()
   const activeOwners = ownerBatch && ownerBatch.candidates.length > 0 ? ownerBatch : undefined
   const provenance = activeOwners ? new SourceProvenance(code) : undefined

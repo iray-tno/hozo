@@ -41,6 +41,7 @@ import {
   ResizablePane,
   Slider,
   Splitter,
+  Tabs,
   Tree,
 } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
@@ -8689,6 +8690,197 @@ export function Screen({ expanded }: { expanded?: string | null }) {
       contentPaddingTop: nativeContent.paddingTop,
       contentColor: hexToRgb(nativeContent.color),
     })
+  } finally {
+    await page.close()
+  }
+})
+
+test('Tabs delivers prepared tabList, tab and panel markers across states on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Tabs } from '@hozo/patterns'
+export function Screen({ index }: { index?: number }) {
+  return (
+    <div id="wrap">
+      <Tabs
+        index={index}
+        tabs={[
+          { label: 'One', content: 'First body' },
+          { label: 'Two', content: 'Second body' },
+          { label: 'Three', content: 'Third body', disabled: true },
+        ]}
+        tabListClassName="bg-[#010101]"
+        tabClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] border border-[#aaaaaa] focus-visible:border-[#444444] aria-selected:bg-[#555555] disabled:bg-[#666666] text-[#eeeeee] aria-selected:text-[#ffffff] disabled:text-[#999999]"
+        panelClassName="pt-4 bg-[#fafafa] text-[#223344]"
+      />
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  assert.match(web.code, /tabListClassName=\{"hozo-owner-/)
+  assert.match(web.code, /tabClassName=\{"hozo-owner-/)
+  assert.match(web.code, /panelClassName=\{"hozo-owner-/)
+
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Tabs }
+      throw new Error(`Unexpected web require: ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  assert.match(nativeCode, /hozoTabListStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(nativeCode, /hozoTabStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(nativeCode, /hozoPanelStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Tabs') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      if (id === '@hozo/patterns') return { Tabs: 'Tabs' }
+      throw new Error(`Unexpected native require: ${id}`)
+    },
+  })
+  nativeMod.exports.Screen({ index: 0 })
+  assert.equal(typeof nativeProps.hozoTabListStyle, 'function')
+  assert.equal(typeof nativeProps.hozoTabStyle, 'function')
+  assert.equal(typeof nativeProps.hozoPanelStyle, 'function')
+  assert.equal(nativeProps.tabListClassName, undefined)
+  assert.equal(nativeProps.tabClassName, undefined)
+  assert.equal(nativeProps.panelClassName, undefined)
+
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeTabList = flat(nativeProps.hozoTabListStyle())
+  const nativePanel = flat(nativeProps.hozoPanelStyle())
+  const tabNative = (overrides = {}) =>
+    flat(
+      nativeProps.hozoTabStyle({
+        hovered: false,
+        pressed: false,
+        focused: false,
+        focusVisible: false,
+        disabled: false,
+        'aria-selected': false,
+        'aria-disabled': false,
+        ...overrides,
+      }),
+    )
+
+  const page = await browser.newPage()
+  try {
+    const html = renderToStaticMarkup(createElement(webMod.exports.Screen, { index: 0 }))
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const tabs = page.locator('#wrap [role="tab"]')
+    const readTab = (locator) =>
+      locator.evaluate((el) => ({
+        bg: getComputedStyle(el).backgroundColor,
+        color: getComputedStyle(el).color,
+        borderColor: getComputedStyle(el).borderTopColor,
+      }))
+
+    const parts = await page.evaluate(() => {
+      const list = document.querySelector('#wrap [role="tablist"]')
+      const panel = document.querySelector('#wrap [role="tabpanel"]:not([hidden])')
+      return {
+        listBg: getComputedStyle(list).backgroundColor,
+        panelBg: getComputedStyle(panel).backgroundColor,
+        panelPaddingTop: parseFloat(getComputedStyle(panel).paddingTop),
+        panelColor: getComputedStyle(panel).color,
+      }
+    })
+    assert.deepEqual(parts, {
+      listBg: hexToRgb(nativeTabList.backgroundColor),
+      panelBg: hexToRgb(nativePanel.backgroundColor),
+      panelPaddingTop: nativePanel.paddingTop,
+      panelColor: hexToRgb(nativePanel.color),
+    })
+
+    // Selected tab (0), unselected resting tab (1), disabled tab (2)
+    assert.equal(
+      (await readTab(tabs.nth(0))).bg,
+      hexToRgb(tabNative({ 'aria-selected': true }).backgroundColor),
+    )
+    assert.equal(
+      (await readTab(tabs.nth(0))).color,
+      hexToRgb(tabNative({ 'aria-selected': true }).color),
+    )
+    assert.equal((await readTab(tabs.nth(1))).bg, hexToRgb(tabNative().backgroundColor))
+    assert.equal((await readTab(tabs.nth(1))).color, hexToRgb(tabNative().color))
+    assert.equal(
+      (await readTab(tabs.nth(2))).bg,
+      hexToRgb(tabNative({ disabled: true, 'aria-disabled': true }).backgroundColor),
+    )
+    assert.equal(
+      (await readTab(tabs.nth(2))).color,
+      hexToRgb(tabNative({ disabled: true, 'aria-disabled': true }).color),
+    )
+
+    // Keyboard focus-visible before mouse events
+    await page.evaluate(() =>
+      document.querySelector('#wrap [role="tab"]').setAttribute('tabindex', '-1'),
+    )
+    await page.evaluate(() =>
+      document.querySelectorAll('#wrap [role="tab"]')[1].setAttribute('tabindex', '0'),
+    )
+    await page.keyboard.press('Tab')
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#wrap [role="tab"]')[1].matches(':focus-visible'),
+    )
+    assert.equal(
+      (await readTab(tabs.nth(1))).borderColor,
+      hexToRgb(tabNative({ focused: true, focusVisible: true }).borderColor),
+    )
+
+    await page.evaluate(() => document.activeElement?.blur())
+    await tabs.nth(1).hover()
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#wrap [role="tab"]')[1].matches(':hover'),
+    )
+    assert.equal(
+      (await readTab(tabs.nth(1))).bg,
+      hexToRgb(tabNative({ hovered: true }).backgroundColor),
+    )
+
+    await page.mouse.down()
+    try {
+      await page.waitForFunction(() =>
+        document.querySelectorAll('#wrap [role="tab"]')[1].matches(':active'),
+      )
+      assert.equal(
+        (await readTab(tabs.nth(1))).bg,
+        hexToRgb(tabNative({ hovered: true, pressed: true }).backgroundColor),
+      )
+    } finally {
+      await page.mouse.up()
+    }
   } finally {
     await page.close()
   }

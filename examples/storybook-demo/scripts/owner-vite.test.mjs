@@ -63,9 +63,15 @@ test('source-observed Vite fixture bundles actual widgets without compiler tooli
   )
 })
 
-test('fallback and ordinary Vite widget fixtures retain source-scanned classes without prepared namespaces', async () => {
-  for (const route of ['fallback', 'ordinary']) {
-    const fixture = await buildViteOwnerPublication(route)
+test('fallback and ordinary Vite widget fixtures agree without captured owner delivery', async () => {
+  const [fallback, ordinary] = await Promise.all([
+    buildViteOwnerPublication('fallback'),
+    buildViteOwnerPublication('ordinary'),
+  ])
+  const stripTempDir = (text) => text.replaceAll(/hozo-owner-vite-[^/]+/g, 'hozo-owner-vite-<tmp>')
+  assert.equal(stripTempDir(fallback.code), stripTempDir(ordinary.code))
+  assert.equal(fallback.css, ordinary.css)
+  for (const fixture of [fallback, ordinary]) {
     assert.deepEqual(fixture.owners, [])
     assert.equal(fixture.capture, undefined)
     assert.deepEqual(fixture.configuredPackages, ['owner-consumer'])

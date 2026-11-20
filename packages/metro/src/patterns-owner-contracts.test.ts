@@ -1179,3 +1179,139 @@ export function Fallback() {
     )
   }
 })
+
+test('Native Tabs delivers prepared tabList, tab and panel styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Tabs } from '@hozo/patterns'
+export function Screen({ index }: { index?: number }) {
+  return (
+    <Tabs
+      index={index}
+      tabs={[
+        { label: 'One', content: 'First body' },
+        { label: 'Two', content: 'Second body' },
+        { label: 'Three', content: 'Third body', disabled: true },
+      ]}
+      tabListClassName="bg-[#010101]"
+      tabClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] aria-selected:bg-[#555555] disabled:bg-[#666666] text-[#eeeeee] aria-selected:text-[#ffffff] disabled:text-[#999999]"
+      panelClassName="p-4 bg-[#fafafa] text-[#223344]"
+    />
+  )
+}
+export function UnsupportedTabs() {
+  return <Tabs tabs={[{ label: 'One', content: 'First' }]} tabListClassName="hover:bg-[#777777]" />
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoTabListStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTabStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPanelStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /tabListClassName="bg-\[#010101\]"/)
+  assert.doesNotMatch(transformed, /tabClassName="bg-\[#111111\]/)
+  assert.doesNotMatch(transformed, /panelClassName="p-4/)
+  // Stateless View tabList has no hover events; hover: stays on the runtime path.
+  assert.match(transformed, /tabListClassName="hover:bg-\[#777777\]"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const tabsMod = loadNativePatternModule('tabs.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ index?: number }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Tabs: tabsMod.exports.Tabs }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    index: number,
+    interaction: Partial<{
+      hovered: boolean
+      pressed: boolean
+      focused: boolean
+      focusVisible: boolean
+    }> = {},
+  ) => {
+    tabsMod.captured.length = 0
+    tabsMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: false,
+      focusVisible: false,
+      ...interaction,
+    })
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { index }))
+    return {
+      views: tabsMod.captured
+        .filter((entry) => entry.host === 'View')
+        .map((entry) => flattenStyle(entry.props.style)),
+      tabs: tabsMod.captured
+        .filter((entry) => entry.host === 'Pressable')
+        .map((entry) => flattenStyle(entry.props.style)),
+      texts: tabsMod.captured
+        .filter((entry) => entry.host === 'Text')
+        .map((entry) => flattenStyle(entry.props.style)),
+    }
+  }
+
+  // Views: [0: root, 1: tabList, 2: panel]; Texts: [0: tab0, 1: tab1, 2: tab2, 3: panelText]
+  const initial = renderCase(0)
+  assert.equal(initial.views[1]!.backgroundColor, '#010101')
+  assert.equal(initial.tabs[0]!.backgroundColor, '#555555')
+  assert.equal(initial.tabs[1]!.backgroundColor, '#111111')
+  assert.equal(initial.tabs[2]!.backgroundColor, '#666666')
+  assert.equal(initial.texts[0]!.color, '#ffffff')
+  assert.equal(initial.texts[1]!.color, '#eeeeee')
+  assert.equal(initial.texts[2]!.color, '#999999')
+  assert.equal(initial.views[2]!.backgroundColor, '#fafafa')
+  assert.equal(initial.views[2]!.paddingTop, 16)
+  assert.equal(initial.texts[3]!.color, '#223344')
+
+  assert.equal(renderCase(0, { hovered: true }).tabs[1]!.backgroundColor, '#222222')
+  assert.equal(renderCase(0, { pressed: true }).tabs[1]!.backgroundColor, '#333333')
+  assert.equal(renderCase(0, { focused: true, focusVisible: true }).tabs[1]!.borderColor, '#444444')
+  assert.equal(renderCase(1).tabs[1]!.backgroundColor, '#555555')
+
+  assert.equal(classResolverCalls, 0, 'prepared Tabs literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp, label] of [
+    ['tabListClassName', 'hozoTabListStyle', 'tabList'],
+    ['tabClassName', 'hozoTabStyle', 'tab'],
+    ['panelClassName', 'hozoPanelStyle', 'panel'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            tabsMod.exports.Tabs as React.ComponentType<Record<string, unknown>>,
+            {
+              tabs: [{ label: 'One', content: 'Body' }],
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+            },
+          ),
+        ),
+      new RegExp(`Prepared Tabs ${label} styles must consume ${classProp}`),
+    )
+  }
+})

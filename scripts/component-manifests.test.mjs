@@ -117,7 +117,11 @@ test('patterns publishes its catalog-owned contract without cloning it onto the 
       'BottomSheet.handle',
     ])
   for (const name of ['Tabs', 'HozoTabs'])
-    assert.deepEqual(manifest.exports.find((row) => row.name === name).owners, ['Tabs.Tab'])
+    assert.deepEqual(manifest.exports.find((row) => row.name === name).owners, [
+      'Tabs.Tab',
+      'Tabs.panel',
+      'Tabs.tabList',
+    ])
   assert.equal(manifest.compiledByConsumer, false)
   assert.deepEqual(manifest.textForwarding, {})
   const compiler = createCompiler()

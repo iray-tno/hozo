@@ -76,6 +76,7 @@ export function prepareOwnerLowerModule(
       )
     ordinary = prepareLowerModule(source, id, file, compiler, root, stylexModules, {
       ...options,
+      skipAuditedOwners: true,
       observe(event) {
         if (event.edits && event.source !== undefined) provenance.apply(event.source, event.edits)
         observe?.(event)

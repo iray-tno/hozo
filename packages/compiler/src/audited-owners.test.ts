@@ -553,3 +553,35 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.css, /aria-expanded="true"/)
   assert.match(lowered.css, /data-hozo-state="open"/)
 })
+
+test('ordinary Web lowering compiles Tabs tabList, tab and panel slots by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Tabs } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  const tabs = [{ label: 'One', content: 'Body' }]
+  return (
+    <>
+      <Tabs
+        tabs={tabs}
+        tabListClassName="bg-[#010101]"
+        tabClassName="px-3 bg-[#111111] hover:bg-[#222222] aria-selected:bg-[#333333] disabled:opacity-50 text-[#eeeeee]"
+        panelClassName="p-4 bg-[#fafafa] text-[#223344]"
+      />
+      <Tabs {...spread} tabs={tabs} tabListClassName="bg-[#555555]" />
+      <Tabs tabs={tabs} tabClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /tabListClassName="bg-\[#010101\]"/)
+  assert.doesNotMatch(lowered.code, /tabClassName="px-3/)
+  assert.doesNotMatch(lowered.code, /panelClassName="p-4/)
+  assert.match(lowered.code, /tabListClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /tabClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /panelClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /tabListClassName="bg-\[#555555\]"/)
+  assert.match(lowered.code, /tabClassName=\{dynamic\}/)
+  assert.match(lowered.css, /aria-selected="true"/)
+})

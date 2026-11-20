@@ -9,6 +9,13 @@ export interface AuditedOwnerContract {
 
 export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
   {
+    owner: 'Tabs.Tab',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.Tab","classProp":"tabClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTabStyle","webClassProp":"tabClassName"},"authoredStyles":[{"prop":"tabStyle","order":0}],"shapes":[{"id":"tab","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"button","events":["pressed","hovered","focused","focusVisible"],"inputs":{"facts":["disabled","aria-selected","aria-disabled"],"splitText":true}}]}]}',
+  },
+  {
     owner: 'Drawer.scrim',
     package: '@hozo/patterns',
     exports: ['Drawer', 'HozoDrawer'],
@@ -133,6 +140,20 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     exports: ['Accordion', 'HozoAccordion'],
     shadow:
       '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Accordion.panelContent","classProp":"panelContentClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPanelContentStyle","webClassProp":"panelContentClassName"},"authoredStyles":[{"prop":"panelContentStyle","order":0}],"shapes":[{"id":"panelContent","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
+    owner: 'Tabs.tabList',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.tabList","classProp":"tabListClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoTabListStyle","webClassProp":"tabListClassName"},"authoredStyles":[{"prop":"tabListStyle","order":0}],"shapes":[{"id":"tabList","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Tabs.panel',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Tabs.panel","classProp":"panelClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPanelStyle","webClassProp":"panelClassName"},"authoredStyles":[{"prop":"panelStyle","order":0}],"shapes":[{"id":"panel","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
   },
   {
     owner: 'Form.root',

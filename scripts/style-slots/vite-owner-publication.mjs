@@ -168,8 +168,6 @@ export async function buildViteOwnerPublication(route = 'captured') {
       )
       .join('\n')
     if (route !== 'captured') {
-      assert.doesNotMatch(chunks[0].code, /hozo-owner-[a-f0-9]{16}-r/)
-      assert.doesNotMatch(css, /\.hozo-owner-/)
       assert.ok(chunks[0].exports.includes('signal'))
       assert.match(css, /padding-top: ?16px/)
     }
