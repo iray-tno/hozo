@@ -44,6 +44,19 @@ export interface HozoAccordionItem {
   disabled?: boolean
 }
 
+export type AccordionTriggerState = InteractionState & {
+  disabled: boolean
+  'aria-expanded': boolean
+  'data-hozo-disabled': boolean
+  'data-hozo-state=open': boolean
+  'data-hozo-state=closed': boolean
+}
+
+export type AccordionPanelState = {
+  'data-hozo-state=open': boolean
+  'data-hozo-state=closed': boolean
+}
+
 interface Shared {
   items: readonly HozoAccordionItem[]
   accessibilityLabel?: string
@@ -70,6 +83,16 @@ interface Shared {
   panelClassName?: string
   /** On the view inside the panel that holds the content; see the Web half. */
   panelContentClassName?: string
+  /** @internal Complete prepared section class contribution (RFC 010). */
+  hozoSectionStyle?: () => StyleProp<ViewStyle>
+  /** @internal Complete prepared heading class contribution (RFC 010). */
+  hozoHeadingStyle?: () => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared trigger class contribution (RFC 010). */
+  hozoTriggerStyle?: (state: AccordionTriggerState) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared panel class contribution (RFC 010). */
+  hozoPanelStyle?: (state: AccordionPanelState) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Complete prepared panel content class contribution (RFC 010). */
+  hozoPanelContentStyle?: () => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   sectionStyle?: StyleProp<ViewStyle>
   triggerStyle?: StyleProp<ViewStyle>
@@ -117,6 +140,11 @@ export function HozoAccordion(props: HozoAccordionProps) {
     indicator,
     panelClassName,
     panelContentClassName,
+    hozoSectionStyle,
+    hozoHeadingStyle,
+    hozoTriggerStyle,
+    hozoPanelStyle,
+    hozoPanelContentStyle,
     style,
     sectionStyle,
     triggerStyle,
@@ -124,6 +152,16 @@ export function HozoAccordion(props: HozoAccordionProps) {
     panelStyle,
     panelContentStyle,
   } = props
+  if (hozoSectionStyle && sectionClassName !== undefined)
+    throw new Error('Prepared Accordion styles must consume sectionClassName')
+  if (hozoHeadingStyle && headingClassName !== undefined)
+    throw new Error('Prepared Accordion styles must consume headingClassName')
+  if (hozoTriggerStyle && triggerClassName !== undefined)
+    throw new Error('Prepared Accordion styles must consume triggerClassName')
+  if (hozoPanelStyle && panelClassName !== undefined)
+    throw new Error('Prepared Accordion styles must consume panelClassName')
+  if (hozoPanelContentStyle && panelContentClassName !== undefined)
+    throw new Error('Prepared Accordion styles must consume panelContentClassName')
   const multiple = props.multiple === true
 
   const [uncontrolledOne, setUncontrolledOne] = useState<string | null>(
@@ -163,28 +201,53 @@ export function HozoAccordion(props: HozoAccordionProps) {
     <View
       accessibilityRole="none"
       accessibilityLabel={accessibilityLabel}
-      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
+      style={[className ? hozoClasses(className) : undefined, hozoAuthoredStyle(style)]}
     >
       {items.map((item, at) => {
         const key = keyOf(item, at)
         const expanded = open.includes(key)
         // Box and label: a Pressable is a View and drops a label's colour
         // and weight, so those go to the Text (see `splitTextStyle`).
-        const triggerState = (interaction: InteractionState) => ({
+        const preparedTriggerState = (interaction: InteractionState): AccordionTriggerState => ({
           ...interaction,
           disabled: Boolean(item.disabled),
           'aria-expanded': expanded,
+          'data-hozo-disabled': Boolean(item.disabled),
+          'data-hozo-state=open': expanded,
+          'data-hozo-state=closed': !expanded,
+        })
+        const triggerState = (interaction: InteractionState) => ({
+          ...preparedTriggerState(interaction),
           'aria-disabled': Boolean(item.disabled),
         })
         const trigger = (interaction: InteractionState) => {
-          const state = triggerState(interaction)
+          const preparedState = preparedTriggerState(interaction)
+          const fallbackState = triggerState(interaction)
           return splitTextStyle([
-            hozoClasses(headingClassName, state),
-            hozoClasses(triggerClassName, state),
+            hozoHeadingStyle
+              ? hozoHeadingStyle()
+              : headingClassName
+                ? hozoClasses(headingClassName, fallbackState)
+                : undefined,
+            hozoTriggerStyle
+              ? hozoTriggerStyle(preparedState)
+              : triggerClassName
+                ? hozoClasses(triggerClassName, fallbackState)
+                : undefined,
           ])
         }
         return (
-          <View key={key} style={[hozoClasses(sectionClassName), hozoAuthoredStyle(sectionStyle)]}>
+          <View
+            key={key}
+            style={[
+              hozoSectionStyle
+                ? hozoSectionStyle()
+                : sectionClassName
+                  ? hozoClasses(sectionClassName)
+                  : undefined,
+              hozoAuthoredStyle(sectionStyle),
+            ]}
+          >
             <Pressable
               accessibilityRole="header"
               accessibilityState={{ expanded, disabled: item.disabled }}
@@ -215,8 +278,10 @@ export function HozoAccordion(props: HozoAccordionProps) {
             <Panel
               expanded={expanded}
               className={panelClassName}
+              hozoStyle={hozoPanelStyle}
               style={panelStyle}
               contentClassName={panelContentClassName}
+              hozoContentStyle={hozoPanelContentStyle}
               contentStyle={panelContentStyle}
               content={item.content}
             />
@@ -237,8 +302,10 @@ const GRACE_MS = 100
 interface PanelProps {
   expanded: boolean
   className: string | undefined
+  hozoStyle: ((state: AccordionPanelState) => StyleProp<ViewStyle | TextStyle>) | undefined
   style: StyleProp<ViewStyle>
   contentClassName: string | undefined
+  hozoContentStyle: (() => StyleProp<ViewStyle | TextStyle>) | undefined
   contentStyle: StyleProp<ViewStyle>
   content: ReactNode
 }
@@ -260,13 +327,15 @@ interface PanelProps {
 function Panel({
   expanded,
   className,
+  hozoStyle,
   style,
   contentClassName,
+  hozoContentStyle,
   contentStyle,
   content,
 }: PanelProps) {
   const reduceMotion = useHozoEnvironment('motion-reduce')
-  const spec = transitionOf(className, { reduceMotion })
+  const spec = className ? transitionOf(className, { reduceMotion }) : undefined
   const presence = usePresence(expanded)
   const [height, setHeight] = useState<number | null>(null)
   // A panel open on mount has nothing to enter from. Every later opening does.
@@ -295,16 +364,21 @@ function Panel({
   }, [expanded, presence.mounted, done])
 
   const [box, text] = splitTextStyle([
-    hozoClasses(contentClassName),
+    hozoContentStyle
+      ? hozoContentStyle()
+      : contentClassName
+        ? hozoClasses(contentClassName)
+        : undefined,
     hozoAuthoredStyle(contentStyle),
   ])
   // The state the Web half writes as `data-hozo-state`, so a
   // `data-[hozo-state=closed]:` class resolves here too.
+  const panelFacts: AccordionPanelState = {
+    'data-hozo-state=open': expanded,
+    'data-hozo-state=closed': !expanded,
+  }
   const [outerBox, outerText] = splitTextStyle([
-    hozoClasses(className, {
-      'data-hozo-state=open': expanded,
-      'data-hozo-state=closed': !expanded,
-    }),
+    hozoStyle ? hozoStyle(panelFacts) : className ? hozoClasses(className, panelFacts) : undefined,
     hozoAuthoredStyle(style),
   ])
 

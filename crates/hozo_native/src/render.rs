@@ -1777,6 +1777,8 @@ pub(super) fn render_node(
                     .iter()
                     .map(|event| event.key().to_string())
                     .collect()
+            } else if owner_view_callback {
+                Vec::new()
             } else {
                 let fields = if needs_focus_visible {
                     "pressed, hovered, focused, focusVisible"

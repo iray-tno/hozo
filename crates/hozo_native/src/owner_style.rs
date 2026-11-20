@@ -48,6 +48,8 @@ pub enum OwnerFact {
     DataHozoStepDecrease,
     DataDragging,
     DataCollapsed,
+    DataHozoStateOpen,
+    DataHozoStateClosed,
 }
 
 impl OwnerFact {
@@ -71,6 +73,8 @@ impl OwnerFact {
             Self::DataHozoStepDecrease => "data-hozo-step=decrease",
             Self::DataDragging => "data-dragging",
             Self::DataCollapsed => "data-collapsed",
+            Self::DataHozoStateOpen => "data-hozo-state=open",
+            Self::DataHozoStateClosed => "data-hozo-state=closed",
         }
     }
 
@@ -94,6 +98,8 @@ impl OwnerFact {
             Self::DataHozoStepDecrease => "__hozoOwnerDataHozoStepDecrease",
             Self::DataDragging => "__hozoOwnerDataDragging",
             Self::DataCollapsed => "__hozoOwnerDataCollapsed",
+            Self::DataHozoStateOpen => "__hozoOwnerDataHozoStateOpen",
+            Self::DataHozoStateClosed => "__hozoOwnerDataHozoStateClosed",
         }
     }
 
@@ -113,8 +119,28 @@ impl OwnerFact {
             "data-hozo-step=decrease" => Some(Self::DataHozoStepDecrease),
             "data-dragging" => Some(Self::DataDragging),
             "data-collapsed" => Some(Self::DataCollapsed),
+            "data-hozo-state=open" => Some(Self::DataHozoStateOpen),
+            "data-hozo-state=closed" => Some(Self::DataHozoStateClosed),
             _ => None,
         }
+    }
+
+    pub(crate) fn is_data_fact(self) -> bool {
+        matches!(
+            self,
+            Self::DataHozoOutside
+                | Self::DataHozoDisabled
+                | Self::DataHozoRangeStart
+                | Self::DataHozoRangeEnd
+                | Self::DataHozoInRange
+                | Self::DataHozoStep
+                | Self::DataHozoStepIncrease
+                | Self::DataHozoStepDecrease
+                | Self::DataDragging
+                | Self::DataCollapsed
+                | Self::DataHozoStateOpen
+                | Self::DataHozoStateClosed
+        )
     }
 }
 
@@ -261,7 +287,9 @@ pub fn lower_owner_style_with_inputs(
             _ => false,
         }
     }
-    let interactive_view = root.primitive == Primitive::View && !inputs.events.is_empty();
+    let interactive_view = root.primitive == Primitive::View
+        && (!inputs.events.is_empty()
+            || (!facts.is_empty() && facts.iter().all(|fact| fact.is_data_fact())));
     let eligible = matches!(
         root.primitive,
         Primitive::View | Primitive::Pressable | Primitive::Text | Primitive::TextInput
@@ -985,5 +1013,36 @@ mod tests {
         assert!(output.styles.contains("hozo0_data_dragging:"));
         assert!(output.styles.contains("hozo0_data_collapsed:"));
         assert!(!carrier.expression.contains("pressed"));
+    }
+
+    #[test]
+    fn data_only_view_owner_compiles_hozo_state_without_inventing_events() {
+        let source = "const el=<View className=\"bg-[#111111] text-[#222222] data-[hozo-state=open]:bg-[#333333] data-[hozo-state=closed]:bg-[#444444]\"/>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let facts = [OwnerFact::DataHozoStateOpen, OwnerFact::DataHozoStateClosed];
+        let (output, carrier) = lower_owner_style_with_inputs(
+            &parsed.roots[0].node,
+            &[],
+            source,
+            &Theme::default(),
+            OwnerStyleInputs {
+                facts: &facts,
+                events: &[],
+                split_text: true,
+            },
+        );
+        let carrier = carrier.expect("data-only split-text View compiles");
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(carrier.callback && carrier.split_text);
+        assert!(carrier
+            .expression
+            .contains("\"data-hozo-state=open\": __hozoOwnerDataHozoStateOpen"));
+        assert!(carrier
+            .expression
+            .contains("\"data-hozo-state=closed\": __hozoOwnerDataHozoStateClosed"));
+        assert!(output.styles.contains("hozo0_data_hozo_state_eq_open:"));
+        assert!(output.styles.contains("hozo0_data_hozo_state_eq_closed:"));
+        assert!(!carrier.expression.contains("pressed"));
+        assert!(!carrier.expression.contains("hovered"));
     }
 }

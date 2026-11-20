@@ -22,6 +22,8 @@ export type OwnerFact =
   | 'data-hozo-step=decrease'
   | 'data-dragging'
   | 'data-collapsed'
+  | 'data-hozo-state=open'
+  | 'data-hozo-state=closed'
 
 export interface OwnerShape {
   id: string
@@ -38,6 +40,7 @@ export interface OwnerShape {
     | 'table'
     | 'td'
     | 'section'
+    | 'heading'
     | null
   events: ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
   /** Explicit preparation inputs, not inferred from a synthetic host. */
@@ -218,6 +221,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       'table',
       'td',
       'section',
+      'heading',
     ]
     const shapes = list(contract.shapes, 16, `${at}.shapes`).map((value): OwnerShape => {
       const shape = object(
@@ -267,7 +271,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       if (dualPlatform) {
         if (
           shape.nativeHost === 'View' &&
-          (!['div', 'form', 'table', 'section'].includes(shape.webHost as string) ||
+          (!['div', 'form', 'table', 'section', 'heading'].includes(shape.webHost as string) ||
             (events.length !== 0 && !interactiveViewEvents))
         )
           fail(`${at}.decoration events/host`)
@@ -296,7 +300,9 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
           fail(`${at}.input events/host`)
       } else if (webOnly) {
         if (
-          ['label', 'span', 'form', 'table', 'section'].includes(shape.webHost as string) &&
+          ['label', 'span', 'form', 'table', 'section', 'heading'].includes(
+            shape.webHost as string,
+          ) &&
           events.length !== 0
         )
           fail(`${at}.decoration events/host`)
@@ -340,6 +346,8 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
               'data-hozo-step=decrease',
               'data-dragging',
               'data-collapsed',
+              'data-hozo-state=open',
+              'data-hozo-state=closed',
             ].includes(fact),
           )
         )
@@ -366,9 +374,21 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
           supplied.splitText &&
           facts.length === 0 &&
           events.length === 0
+        const dataOnlyViewReady =
+          shape.nativeHost === 'View' &&
+          shape.webHost === 'div' &&
+          events.length === 0 &&
+          facts.length > 0 &&
+          facts.every((fact) => fact.startsWith('data-'))
         const interactiveViewReady =
           shape.nativeHost === 'View' && (interactiveViewEvents || nativeOnlyInteractiveView)
-        if (!pressableReady && !textInputReady && !splitTextViewReady && !interactiveViewReady)
+        if (
+          !pressableReady &&
+          !textInputReady &&
+          !splitTextViewReady &&
+          !dataOnlyViewReady &&
+          !interactiveViewReady
+        )
           fail(`${at}.shape inputs need the full control snapshot`)
         inputs = { facts, splitText: supplied.splitText }
       }

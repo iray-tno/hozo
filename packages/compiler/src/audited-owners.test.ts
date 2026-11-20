@@ -514,3 +514,42 @@ export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<st
   assert.match(lowered.code, /fillClassName=\{dynamic\}/)
   assert.match(lowered.css, /aria-disabled="true"/)
 })
+
+test('ordinary Web lowering compiles all five Accordion slots by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Accordion } from '@hozo/patterns'
+export function Screen({ dynamic, spread }: { dynamic: string; spread: Record<string, unknown> }) {
+  const items = [{ id: 'a', header: 'A', content: 'Body' }]
+  return (
+    <>
+      <Accordion
+        items={items}
+        sectionClassName="border-[#010101]"
+        headingClassName="m-0"
+        triggerClassName="px-4 bg-[#111111] hover:bg-[#222222] aria-expanded:bg-[#333333] disabled:opacity-50 text-[#eeeeee]"
+        panelClassName="bg-[#fafafa] data-[hozo-state=open]:border-[#444444]"
+        panelContentClassName="p-4 text-[#112233]"
+      />
+      <Accordion {...spread} items={items} sectionClassName="bg-[#555555]" />
+      <Accordion items={items} triggerClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /sectionClassName="border-\[#010101\]"/)
+  assert.doesNotMatch(lowered.code, /headingClassName="m-0"/)
+  assert.doesNotMatch(lowered.code, /triggerClassName="px-4/)
+  assert.doesNotMatch(lowered.code, /panelClassName="bg-\[#fafafa\]/)
+  assert.doesNotMatch(lowered.code, /panelContentClassName="p-4/)
+  assert.match(lowered.code, /sectionClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /headingClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /triggerClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /panelClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /panelContentClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /sectionClassName="bg-\[#555555\]"/)
+  assert.match(lowered.code, /triggerClassName=\{dynamic\}/)
+  assert.match(lowered.css, /aria-expanded="true"/)
+  assert.match(lowered.css, /data-hozo-state="open"/)
+})

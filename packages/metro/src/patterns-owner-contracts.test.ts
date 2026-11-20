@@ -91,7 +91,8 @@ function loadNativePatternModule(
       return { hozoAuthoredStyle: (s: unknown) => s }
     if (specifier === '@hozo/engine/generated/safe-area')
       return { useHozoProvidedSafeArea: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }
-    if (specifier === '@hozo/engine/generated/animated') return { HozoAnimated: rn.View }
+    if (specifier === '@hozo/engine/generated/animated')
+      return { HozoAnimated: rn.View, PresenceContext: React.createContext(null) }
     if (specifier === '@hozo/engine/generated/environment')
       return { useHozoEnvironment: () => false }
     if (specifier === '@hozo/engine') {
@@ -1019,6 +1020,162 @@ export function Fallback() {
           ),
         ),
       new RegExp(`Prepared Slider styles must consume ${classProp}`),
+    )
+  }
+})
+
+test('Native Accordion delivers all five prepared slot styles without calling hozoClasses (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Accordion } from '@hozo/patterns'
+export function Screen({ expanded }: { expanded?: string | null }) {
+  return (
+    <Accordion
+      expanded={expanded}
+      items={[
+        { id: 'a', header: 'Shipping', content: 'Two days.' },
+        { id: 'b', header: 'Disabled', content: 'Hidden.', disabled: true },
+      ]}
+      sectionClassName="bg-[#010101]"
+      headingClassName="mt-2"
+      triggerClassName="bg-[#111111] hover:bg-[#222222] active:bg-[#333333] focus-visible:border-[#444444] aria-expanded:bg-[#555555] disabled:bg-[#666666] data-[hozo-state=open]:border-[#777777] text-[#eeeeee] disabled:text-[#999999]"
+      panelClassName="bg-[#fafafa] data-[hozo-state=open]:border-[#888888] text-[#112233]"
+      panelContentClassName="pt-4 text-[#223344]"
+    />
+  )
+}
+export function Fallback() {
+  return (
+    <Accordion
+      items={[{ id: 'a', header: 'A', content: 'B' }]}
+      panelClassName="transition-[height] duration-200 bg-[#fafafa]"
+      sectionClassName="hover:opacity-50"
+    />
+  )
+}
+`
+  const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(transformed)
+  assert.match(transformed, /hozoSectionStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoHeadingStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoTriggerStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPanelStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.match(transformed, /hozoPanelContentStyle=\{__hozoOwner\d+_Plan\d+\}/)
+  assert.doesNotMatch(transformed, /sectionClassName="bg-\[#010101\]"/)
+  assert.doesNotMatch(transformed, /headingClassName="mt-2"/)
+  assert.doesNotMatch(transformed, /triggerClassName="bg-\[#111111\]/)
+  assert.doesNotMatch(transformed, /panelClassName="bg-\[#fafafa\]/)
+  assert.doesNotMatch(transformed, /panelContentClassName="pt-4/)
+  // Transition panel and interactive section stay on the runtime path.
+  assert.match(transformed, /panelClassName="transition-\[height\] duration-200 bg-\[#fafafa\]"/)
+  assert.match(transformed, /sectionClassName="hover:opacity-50"/)
+
+  const { code } = esbuild.transformSync(transformed, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+    sourcefile: '/app/Screen.tsx',
+  })
+
+  let classResolverCalls = 0
+  const spyHozoClasses = () => {
+    classResolverCalls++
+    return { paddingBottom: 77 }
+  }
+  const accordionMod = loadNativePatternModule('accordion.native.tsx', {
+    hozoClasses: spyHozoClasses,
+  })
+  const screenMod = { exports: {} as { Screen: React.ComponentType<{ expanded?: string | null }> } }
+  runInNewContext(code, {
+    module: screenMod,
+    exports: screenMod.exports,
+    React,
+    require: (specifier: string) => {
+      if (specifier === 'react') return React
+      if (specifier === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+      if (specifier === '@hozo/patterns') return { Accordion: accordionMod.exports.Accordion }
+      throw new Error(`Unexpected require: ${specifier}`)
+    },
+  })
+
+  const renderCase = (
+    expanded: string | null,
+    interaction: {
+      hovered?: boolean
+      pressed?: boolean
+      focused?: boolean
+      focusVisible?: boolean
+    } = {},
+  ) => {
+    accordionMod.captured.length = 0
+    accordionMod.setInteraction({
+      hovered: false,
+      pressed: false,
+      focused: false,
+      focusVisible: false,
+      ...interaction,
+    })
+    renderToStaticMarkup(React.createElement(screenMod.exports.Screen, { expanded }))
+    return {
+      views: accordionMod.captured
+        .filter((entry) => entry.host === 'View')
+        .map((entry) => flattenStyle(entry.props.style)),
+      triggers: accordionMod.captured
+        .filter((entry) => entry.host === 'Pressable')
+        .map((entry) => flattenStyle(entry.props.style)),
+      texts: accordionMod.captured
+        .filter((entry) => entry.host === 'Text')
+        .map((entry) => flattenStyle(entry.props.style)),
+    }
+  }
+
+  const closed = renderCase(null)
+  assert.equal(closed.views[1]!.backgroundColor, '#010101')
+  assert.equal(closed.triggers[0]!.marginTop, 8)
+  assert.equal(closed.triggers[0]!.backgroundColor, '#111111')
+  assert.equal(closed.triggers[1]!.backgroundColor, '#666666')
+  assert.equal(closed.texts[0]!.color, '#eeeeee')
+  assert.equal(closed.texts[1]!.color, '#999999')
+
+  assert.equal(renderCase(null, { hovered: true }).triggers[0]!.backgroundColor, '#222222')
+  assert.equal(renderCase(null, { pressed: true }).triggers[0]!.backgroundColor, '#333333')
+  assert.equal(
+    renderCase(null, { focused: true, focusVisible: true }).triggers[0]!.borderColor,
+    '#444444',
+  )
+
+  const opened = renderCase('a')
+  // Views: [0: root, 1: section0, 2: panel0, 3: panelContent0, 4: section1]
+  assert.equal(opened.triggers[0]!.backgroundColor, '#555555')
+  assert.equal(opened.triggers[0]!.borderColor, '#777777')
+  assert.equal(opened.views[2]!.backgroundColor, '#fafafa')
+  assert.equal(opened.views[2]!.borderColor, '#888888')
+  assert.equal(opened.views[3]!.paddingTop, 16)
+  assert.equal(opened.texts[1]!.color, '#223344')
+
+  assert.equal(classResolverCalls, 0, 'prepared Accordion literals must never call hozoClasses')
+
+  for (const [classProp, preparedProp] of [
+    ['sectionClassName', 'hozoSectionStyle'],
+    ['headingClassName', 'hozoHeadingStyle'],
+    ['triggerClassName', 'hozoTriggerStyle'],
+    ['panelClassName', 'hozoPanelStyle'],
+    ['panelContentClassName', 'hozoPanelContentStyle'],
+  ]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          React.createElement(
+            accordionMod.exports.Accordion as React.ComponentType<Record<string, unknown>>,
+            {
+              items: [{ id: 'a', header: 'A', content: 'B' }],
+              [classProp]: 'pt-2',
+              [preparedProp]: () => ({}),
+            },
+          ),
+        ),
+      new RegExp(`Prepared Accordion styles must consume ${classProp}`),
     )
   }
 })

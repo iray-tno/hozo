@@ -10,6 +10,8 @@ const channels = (name, names, options = {}) =>
 
 const exports = [
   'Other',
+  'Accordion',
+  'HozoAccordion',
   'HozoBottomSheet',
   'BottomSheet',
   'Drawer',
@@ -41,8 +43,28 @@ test('catalog publication owns the contract once and attaches only actual packag
   assert.deepEqual(result.owners, patternsShadow)
   assert.notEqual(result.owners, ownerShadow, 'producer output must not mutate the catalog')
   assert.deepEqual(result.exports, [
+    {
+      name: 'Accordion',
+      owners: [
+        'Accordion.heading',
+        'Accordion.panel',
+        'Accordion.panelContent',
+        'Accordion.section',
+        'Accordion.trigger',
+      ],
+    },
     { name: 'BottomSheet', owners: ['BottomSheet.handle'] },
     { name: 'Drawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
+    {
+      name: 'HozoAccordion',
+      owners: [
+        'Accordion.heading',
+        'Accordion.panel',
+        'Accordion.panelContent',
+        'Accordion.section',
+        'Accordion.trigger',
+      ],
+    },
     { name: 'HozoBottomSheet', owners: ['BottomSheet.handle'] },
     { name: 'HozoDrawer', owners: ['Drawer.panel', 'Drawer.scrim'] },
     { name: 'HozoPopover', owners: ['Popover.panel', 'Popover.trigger'] },
@@ -64,7 +86,7 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'Toolbar', owners: ['Toolbar.root'] },
     { name: 'Tree', owners: ['Tree.row'] },
   ])
-  assert.equal(result.owners.contracts.length, 16)
+  assert.equal(result.owners.contracts.length, 21)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
@@ -84,6 +106,11 @@ test('catalog publication owns the contract once and attaches only actual packag
       ['Slider.thumb', 'audited'],
       ['Slider.fill', 'audited'],
       ['Slider.rail', 'audited'],
+      ['Accordion.section', 'audited'],
+      ['Accordion.heading', 'audited'],
+      ['Accordion.trigger', 'audited'],
+      ['Accordion.panel', 'audited'],
+      ['Accordion.panelContent', 'audited'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
