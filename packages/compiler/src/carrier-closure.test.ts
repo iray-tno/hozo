@@ -4,13 +4,19 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { captureCarrierClosure, carrierGuard, carrierTripMessage } from './carrier-closure.ts'
+import {
+  captureCarrierClosure,
+  carrierGuard,
+  carrierSources,
+  carrierTripMessage,
+} from './carrier-closure.ts'
 import { buildPackageManifest, serializeManifest } from './manifest.ts'
+import { carrierSourceFiles } from './project.ts'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 const options = { platform: 'android', epoch: 'carrier-closure-test' }
 
-function manifest(classes: string) {
+function manifest(classes: string, compiledByConsumer = true) {
   return serializeManifest(
     buildPackageManifest(
       { version: 1, textForwarding: {} },
@@ -18,7 +24,7 @@ function manifest(classes: string) {
         exports: [],
         owners: null,
         helpers: [],
-        compiledByConsumer: true,
+        compiledByConsumer,
         sources: [{ file: 'src/index.tsx', source: `export const x = "${classes}"` }],
       },
     ),
@@ -201,6 +207,56 @@ test('the guard trips only on a package with a manifest outside the capture', ()
     assert.deepEqual(trip, { instance: behind, name: 'behind' })
     assert.match(carrierTripMessage(closure, trip!), /behind .*declares a Hozo manifest/)
   })
+})
+
+test('carrier sources: only what a captured carrier ships for its consumer to compile', () => {
+  fixture((app) => {
+    const kit = install(app, 'kit', {}, 'p-4')
+    mkdirSync(path.join(kit, 'src'), { recursive: true })
+    writeFileSync(path.join(kit, 'src', 'a.tsx'), 'export {}\n')
+    writeFileSync(path.join(kit, 'src', 'a.test.tsx'), 'export {}\n')
+    // A package nested inside the carrier is its own package, not the carrier.
+    const nested = path.join(kit, 'node_modules', 'dep')
+    mkdirSync(nested, { recursive: true })
+    writeFileSync(path.join(nested, 'package.json'), '{"name":"dep"}')
+    writeFileSync(path.join(nested, 'x.tsx'), 'export {}\n')
+    // Ships compiled output: its manifest says the consumer compiles nothing.
+    const built = install(app, 'built', {}, 'p-2')
+    writeFileSync(path.join(built, 'hozo.manifest.json'), manifest('p-2', false))
+    writeFileSync(
+      path.join(app, 'package.json'),
+      JSON.stringify({ name: 'app', dependencies: { kit: '1', built: '1' } }),
+    )
+    writeFileSync(path.join(app, 'App.tsx'), 'export {}\n')
+    const closure = captureCarrierClosure(app, options)
+    assert.equal(closure.contributions.status, 'complete')
+    const admitted = carrierSources(closure)
+    assert.equal(admitted(path.join(kit, 'src', 'a.tsx')), true)
+    assert.equal(admitted(`${path.join(kit, 'src', 'a.tsx')}?v=1`), true)
+    assert.equal(admitted(path.join(kit, 'src', 'a.test.tsx')), false)
+    assert.equal(admitted(path.join(nested, 'x.tsx')), false)
+    assert.equal(admitted(path.join(built, 'index.js')), false)
+    assert.equal(admitted(path.join(app, 'App.tsx')), false)
+    assert.equal(admitted('\0virtual:module'), false)
+    assert.deepEqual(carrierSourceFiles(closure), [
+      path.join(kit, 'index.js'),
+      path.join(kit, 'src', 'a.tsx'),
+    ])
+  })
+})
+
+test('carrier sources of a real app: @hozo/ui, the one package that ships only source', () => {
+  const app = path.join(repo, 'examples/native-showcase')
+  const closure = captureCarrierClosure(app, options)
+  const admitted = carrierSources(closure)
+  assert.equal(admitted(path.join(repo, 'packages', 'ui', 'src', 'index.ts')), true)
+  // patterns and form publish compiled dist; core has no manifest at all.
+  for (const name of ['patterns', 'form', 'core'])
+    assert.equal(admitted(path.join(repo, 'packages', name, 'src', 'index.ts')), false, name)
+  const owners = new Set(
+    carrierSourceFiles(closure).map((file) => path.relative(repo, file).split(path.sep)[1]),
+  )
+  assert.deepEqual([...owners], ['ui'])
 })
 
 test('the guard passes every resolution a real app makes into its own packages', () => {

@@ -44,6 +44,8 @@ import {
   type CarrierTrip,
   captureCarrierClosure,
   carrierGuard,
+  carrierSourceFiles,
+  carrierSources,
   carrierTripMessage,
   checksRuntimeClasses,
   classesMissingFromRuntimeMap,
@@ -179,11 +181,17 @@ function configureHozo(
   // guard for every module loaded after them (#2047).
   let carriers: CarrierClosure | undefined
   let guard: ((file: string) => CarrierTrip | undefined) | undefined
+  // Source those packages ship for this build to compile, admitted from the
+  // capture rather than from the walk's file list.
+  let carrierSource: (file: string) => boolean = () => false
   let cache: CandidateCache
   let stylexModules: StylexModuleCache
   let candidateCssPath = ''
   let preflightPath = ''
   let includedFiles = new Set<string>()
+  // Which files under `node_modules` the transform compiles and scans.
+  const admitted = (file: string) =>
+    includedFiles.has(file) || ownerCallerFiles.has(file) || carrierSource(file)
   let server: ViteDevServer | undefined
   let resolvedConfig: ResolvedConfig | undefined
   let preflight = ''
@@ -333,10 +341,7 @@ function configureHozo(
    */
   const pass = (accepts: (file: string) => boolean): Pick<Plugin, 'transform'> => ({
     async transform(code, id) {
-      const file = scannableFile(
-        id,
-        (candidate) => includedFiles.has(candidate) || ownerCallerFiles.has(candidate),
-      )
+      const file = scannableFile(id, admitted)
       if (file && !accepts(file)) return
       if (!file) return
       const request = Symbol(id)
@@ -360,11 +365,7 @@ function configureHozo(
         // `TRANSFORMABLE` -- so it has to be admitted here or its classes
         // would never reach the candidate set at all.
         const scannable =
-          file &&
-          !isDerivedModule &&
-          (includedFiles.has(path.resolve(file)) ||
-            ownerCallerFiles.has(path.resolve(file)) ||
-            isTransformedSource(file))
+          file && !isDerivedModule && (admitted(path.resolve(file)) || isTransformedSource(file))
         if (file && scannable) {
           // For the `pre` pass `code` is still the source as written, which
           // is what the scanner expects. For the second pass it is the JSX
@@ -898,6 +899,7 @@ function configureHozo(
             ? undefined
             : completeCarrierClosure(root, (message) => this.warn(message))
         guard = carriers && carrierGuard(carriers)
+        carrierSource = carriers ? carrierSources(carriers) : () => false
         const project =
           discoveredProject ??
           scanProject(
@@ -924,6 +926,15 @@ function configureHozo(
             scanTailwindOrderCandidates(source),
           )
         }
+        // The captured carriers' source, which this build compiles: in the
+        // ordering seed before the first transform, as the walk's files are.
+        if (carriers)
+          for (const file of carrierSourceFiles(carriers))
+            rememberCandidates(
+              JSON.stringify(['lexical', file]),
+              file,
+              scanTailwindOrderCandidates(readFileSync(file, 'utf8')),
+            )
         updateUniverse()
         await resolveStylexRequests(
           stylexModules,
@@ -1073,9 +1084,7 @@ function configureHozo(
           revision: contentRevision(readFileSync(file, 'utf8')),
         }))
         const modules = [...this.getModuleIds()]
-          .filter((id) =>
-            scannableFile(id, (file) => includedFiles.has(file) || ownerCallerFiles.has(file)),
-          )
+          .filter((id) => scannableFile(id, admitted))
           .map((id) => {
             const module = this.getModuleInfo(id)
             return { id, code: module?.code ?? null, meta: module?.meta ?? {} }

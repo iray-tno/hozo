@@ -149,8 +149,51 @@ type Owner = { instance: string; name: string; manifest: boolean } | null
  */
 export function carrierGuard(closure: CarrierClosure): (file: string) => CarrierTrip | undefined {
   const allowed = new Set([closure.root, ...closure.carriers.map((row) => row.instance)])
+  const ownerOf = ownerLookup()
+  return (file) => {
+    const physical = file.split('?')[0]!
+    if (!path.isAbsolute(physical) || physical.includes('\0')) return undefined
+    const owner = ownerOf(path.dirname(physical))
+    if (!owner?.manifest || allowed.has(owner.instance)) return undefined
+    return Object.freeze({ instance: owner.instance, name: owner.name })
+  }
+}
+
+const TEST_FILE = /\.(?:test|spec|bench)\.[cm]?[jt]sx?$/
+
+/**
+ * Whether a file is source that a captured carrier ships for its consumer to
+ * compile (`compiledByConsumer` in its manifest).
+ *
+ * The bundler has to admit such a file to the Hozo transform itself. Until
+ * #2047, Vite admitted a file under `node_modules` only if the `@hozo/*`
+ * source walk had listed it. So a source-distributed package from anywhere
+ * else was never compiled, and deleting the walk would have stopped compiling
+ * `@hozo/ui` too. Its test files stay out, as they did from the walk.
+ */
+export function carrierSources(closure: CarrierClosure): (file: string) => boolean {
+  const compiled = new Set(
+    closure.contributions.status === 'complete'
+      ? closure.contributions.instances
+          .filter((row) => row.data.compiledByConsumer)
+          .map((row) => row.instance)
+      : [],
+  )
+  const ownerOf = ownerLookup()
+  return (file) => {
+    if (compiled.size === 0) return false
+    const physical = file.split('?')[0]!
+    if (!path.isAbsolute(physical) || physical.includes('\0') || TEST_FILE.test(physical))
+      return false
+    const owner = ownerOf(path.dirname(physical))
+    return owner !== null && compiled.has(owner.instance)
+  }
+}
+
+/** The package owning a directory, cached per directory. */
+function ownerLookup(): (dir: string) => Owner {
   const owners = new Map<string, Owner>()
-  function ownerOf(start: string): Owner {
+  return function ownerOf(start: string): Owner {
     const visited: string[] = []
     let dir = start
     let found: Owner = null
@@ -181,13 +224,6 @@ export function carrierGuard(closure: CarrierClosure): (file: string) => Carrier
     }
     for (const seen of visited) owners.set(seen, found)
     return found
-  }
-  return (file) => {
-    const physical = file.split('?')[0]!
-    if (!path.isAbsolute(physical) || physical.includes('\0')) return undefined
-    const owner = ownerOf(path.dirname(physical))
-    if (!owner?.manifest || allowed.has(owner.instance)) return undefined
-    return Object.freeze({ instance: owner.instance, name: owner.name })
   }
 }
 

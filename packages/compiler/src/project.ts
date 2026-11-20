@@ -7,6 +7,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { readAnalysisAliases } from './analysis-config.ts'
+import type { CarrierClosure } from './carrier-closure.ts'
 import {
   type CandidateCache,
   type ClassHelper,
@@ -42,6 +43,7 @@ export {
   type CarrierTrip,
   captureCarrierClosure,
   carrierGuard,
+  carrierSources,
   carrierTripMessage,
   locateDeclaredPackage,
 } from './carrier-closure.ts'
@@ -661,6 +663,30 @@ function packageSources(
     }
   }
   return files
+}
+
+/**
+ * The source files the captured carriers ship for this build to compile
+ * (`compiledByConsumer`), without their tests.
+ *
+ * Their candidates come from their manifests. The files themselves are still
+ * read at startup, for Vite's Tailwind ordering seed only, because the build
+ * compiles them anyway. Leaving that seed to fill in as transforms run made
+ * `apps/landing`'s output vary from run to run (#2047).
+ */
+export function carrierSourceFiles(closure: CarrierClosure): string[] {
+  if (closure.contributions.status !== 'complete') return []
+  const files: string[] = []
+  for (const row of closure.contributions.instances) {
+    if (!row.data.compiledByConsumer) continue
+    for (const file of walkFiles(DEFAULT_INCLUDE, {
+      cwd: row.instance,
+      gitignore: false,
+      ignore: [...DEFAULT_EXCLUDE, '**/*.{test,spec,bench}.{ts,tsx,js,jsx,mts,mjs}'],
+    }))
+      if (SCANNABLE.has(path.extname(file))) files.push(path.resolve(row.instance, file))
+  }
+  return files.sort()
 }
 
 /** The `@hozo/` packages this project declares a dependency on. */

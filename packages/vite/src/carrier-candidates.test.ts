@@ -11,7 +11,7 @@ import { build } from 'vite'
 import { buildPackageManifest, serializeManifest } from '../../compiler/src/manifest.ts'
 import { type HozoOptions, hozo } from './index.ts'
 
-function manifest(classes: string) {
+function manifest(classes: string, compiledByConsumer = true) {
   return serializeManifest(
     buildPackageManifest(
       { version: 1, textForwarding: {} },
@@ -19,21 +19,34 @@ function manifest(classes: string) {
         exports: [],
         owners: null,
         helpers: [],
-        compiledByConsumer: true,
+        compiledByConsumer,
         sources: [{ file: 'src/index.tsx', source: `export const x = "${classes}"` }],
       },
     ),
   )
 }
 
-function install(root: string, name: string, classes: string, declared = './hozo.manifest.json') {
+function install(
+  root: string,
+  name: string,
+  classes: string,
+  declared = './hozo.manifest.json',
+  source?: string,
+) {
   const dir = path.join(root, 'node_modules', name)
-  mkdirSync(dir, { recursive: true })
+  mkdirSync(path.join(dir, 'src'), { recursive: true })
   writeFileSync(path.join(dir, 'index.js'), 'export const kit = 1\n')
-  writeFileSync(path.join(dir, 'hozo.manifest.json'), manifest(classes))
+  // A package that ships source for its consumer to compile, as @hozo/ui does.
+  if (source) writeFileSync(path.join(dir, 'src', 'index.tsx'), source)
+  writeFileSync(path.join(dir, 'hozo.manifest.json'), manifest(classes, source !== undefined))
   writeFileSync(
     path.join(dir, 'package.json'),
-    JSON.stringify({ name, type: 'module', main: 'index.js', hozo: { manifest: declared } }),
+    JSON.stringify({
+      name,
+      type: 'module',
+      main: source ? 'src/index.tsx' : 'index.js',
+      hozo: { manifest: declared },
+    }),
   )
 }
 
@@ -52,7 +65,7 @@ function fixture(t, dependencies: Record<string, string>, imports: string[] = []
 
 async function tinyBuild(root: string, options: HozoOptions = {}) {
   const warnings: string[] = []
-  await build({
+  output = await build({
     root,
     configFile: false,
     logLevel: 'silent',
@@ -75,14 +88,38 @@ async function tinyBuild(root: string, options: HozoOptions = {}) {
   return warnings
 }
 
+let output: unknown
 const candidates = (root: string) =>
   readFileSync(path.join(root, 'node_modules', '.hozo', 'candidates.css'), 'utf8')
+// The compiled stylesheet the last build emitted.
+const emittedCss = () =>
+  (Array.isArray(output) ? output : [output])
+    .flatMap((result) => result.output)
+    .filter((asset) => asset.type === 'asset' && asset.fileName.endsWith('.css'))
+    .map((asset) => String(asset.source))
+    .join('\n')
 
 test('an installed package with a manifest contributes its candidates, without its sources', async (t) => {
   const root = fixture(t, { kit: '1' }, ['kit'])
   install(root, 'kit', 'gap-7')
   await tinyBuild(root)
   assert.match(candidates(root), /gap-7/)
+})
+
+test('source a package with a manifest ships for its consumer is compiled from node_modules', async (t) => {
+  // Not `@hozo/*`, so the source walk never listed it, and Vite only
+  // transforms what is admitted under node_modules.
+  const root = fixture(t, { kit: '1' }, ['kit'])
+  // `gap-9` is in the source only, so only compiling that file can emit it.
+  install(
+    root,
+    'kit',
+    'gap-7',
+    undefined,
+    `import {View} from '@hozo/core';export const Kit=()=> <View className="gap-9"/>`,
+  )
+  await tinyBuild(root)
+  assert.match(emittedCss(), /gap:36px/)
 })
 
 test('an explicit content.packages keeps the scan it names instead', async (t) => {
