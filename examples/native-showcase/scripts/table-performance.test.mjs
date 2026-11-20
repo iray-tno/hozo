@@ -187,6 +187,7 @@ test('missing, truncated, zero-work and unfinished observations cannot pass as c
 test('collector-only diagnostic reuse rejects all application, generator, dependency and workflow changes', () => {
   assertReusableTableInputs([
     'examples/native-showcase/scripts/table-performance-evidence.mjs',
+    'examples/native-showcase/scripts/verify-table-captures.mjs',
     'packages/patterns/README.md',
     'examples/storybook-demo/scripts/windowed-table.test.mjs',
     'docs/rfcs/014-windowed-table.md',

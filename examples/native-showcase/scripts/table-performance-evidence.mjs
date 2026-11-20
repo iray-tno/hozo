@@ -106,6 +106,7 @@ export function assertReusableTableInputs(changed) {
     'examples/native-showcase/scripts/table-performance.mjs',
     'examples/native-showcase/scripts/table-performance-evidence.mjs',
     'examples/native-showcase/scripts/table-performance.test.mjs',
+    'examples/native-showcase/scripts/verify-table-captures.mjs',
     'examples/native-showcase/README.md',
     'packages/patterns/README.md',
     'examples/storybook-demo/scripts/windowed-table.test.mjs',
