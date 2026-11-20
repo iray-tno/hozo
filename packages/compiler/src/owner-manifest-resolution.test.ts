@@ -103,7 +103,7 @@ test('actual importer-relative resolution preserves two non-Hozo versions, trans
       widgets.every((binding) => binding.entry.endsWith(index === 0 ? 'web.cjs' : 'native.cjs')),
     )
     assert.ok(
-      widgets.every((binding) => binding.manifest!.shadow.contracts[0]!.audit === 'unknown'),
+      widgets.every((binding) => binding.manifest!.shadow.contracts[0]!.audit === 'audited'),
     )
     assert.equal(result.capture.bindings.filter((binding) => binding.manifest === null).length, 3)
   }

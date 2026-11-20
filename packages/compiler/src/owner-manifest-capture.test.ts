@@ -24,7 +24,7 @@ test('resolved instance/entry/content/platform/epoch identities freeze independe
   if (first.status !== 'complete') return
   assert.equal(first.bindings.length, 2)
   assert.notEqual(first.bindings[0]!.instance, first.bindings[1]!.instance)
-  assert.equal(first.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'unknown')
+  assert.equal(first.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'audited')
   assert.ok(Object.isFrozen(first.bindings[0]!.manifest!.shadow.contracts[0]!.shapes))
   assert.equal(
     captureOwnerManifests([b, a], [row(b, 'ui-kit@instance-2'), row(a), row(a)], options).status,
@@ -149,8 +149,14 @@ test('changing a recognized audit declaration changes capture identity, not its 
   assert.equal(audited.scope, unknown.scope)
   if (audited.status === 'complete' && unknown.status === 'complete') {
     assert.notEqual(audited.fingerprint, unknown.fingerprint)
-    assert.equal(audited.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'audited')
-    assert.equal(unknown.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'unknown')
-    assert.ok(Object.isFrozen(audited.bindings[0]!.manifest!.shadow.contracts[0]!))
+    const auditedToolbar = audited.bindings[0]!.manifest!.shadow.contracts.find(
+      (contract) => contract.owner === 'Toolbar.root',
+    )!
+    const unknownToolbar = unknown.bindings[0]!.manifest!.shadow.contracts.find(
+      (contract) => contract.owner === 'Toolbar.root',
+    )!
+    assert.equal(auditedToolbar.audit, 'audited')
+    assert.equal(unknownToolbar.audit, 'unknown')
+    assert.ok(Object.isFrozen(auditedToolbar))
   }
 })

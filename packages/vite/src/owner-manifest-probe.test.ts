@@ -156,7 +156,7 @@ test('real Vite graph includes dynamic/transitive/cyclic imports and two instanc
     )
     assert.ok(captured.bindings.every((binding) => binding.instance !== f.unused))
     assert.ok(
-      participants.every((binding) => binding.manifest!.shadow.contracts[0]!.audit === 'unknown'),
+      participants.every((binding) => binding.manifest!.shadow.contracts[0]!.audit === 'audited'),
     )
     assert.throws(() => lease!.check(), /INVALIDATED/, 'closeBundle retires the lease')
     assert.doesNotMatch(
