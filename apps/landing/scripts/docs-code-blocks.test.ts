@@ -55,6 +55,23 @@ test('one Markdown renderer replaces nested and unlabelled fences, preserving li
   assert.equal(ids.length, new Set(ids).size)
 })
 
+test('fence ids follow document order, not the order highlighting finishes', async () => {
+  // A grammar loaded for the first time takes longer than an unlabelled
+  // fence, so before the fix the second fence was numbered first.
+  const result = await markdownToHtml('```haskell\nmain = pure ()\n```\n\n```\nplain\n```\n', {
+    fileURL: new URL('docs/order-probe.md', docs),
+    hastPlugins: [docsCodeBlocks()],
+  })
+  const prefixes = [...result.html.matchAll(/data-code-prefix="docs-fence-\w+-(\d+)-"/g)].map(
+    (match) => Number(match[1]),
+  )
+  assert.deepEqual(prefixes, [1, 2])
+  assert.deepEqual(
+    listings(result.html).map((data) => data.code),
+    ['main = pure ()', 'plain'],
+  )
+})
+
 test('Docs-only routing keeps ordinary pages and static MDX opt-in independent', async () => {
   const processor = docsMarkdown()
   const renderer = await processor.createRenderer({ syntaxHighlight: false })

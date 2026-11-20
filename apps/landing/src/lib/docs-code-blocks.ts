@@ -23,6 +23,10 @@ export function docsCodeBlocks(): HastPluginEntry {
             (child) => child.type === 'element' && child.tagName === 'code',
           )
           if (code?.type !== 'element') return
+          // Numbered before the await: fences are visited concurrently, and a
+          // number taken after it follows whichever highlight finished first,
+          // so two builds of one page gave its fences different ids.
+          const prefix = `docs-fence-${document}-${++serial}-`
           // An unlabelled fence has no language data at all.
           const fence = code.data as { lang?: unknown; meta?: unknown } | undefined
           const language = typeof fence?.lang === 'string' ? fence.lang : ''
@@ -32,7 +36,6 @@ export function docsCodeBlocks(): HastPluginEntry {
             language,
             metadata,
           )
-          const prefix = `docs-fence-${document}-${++serial}-`
           const html = renderDocsCode(data, prefix)
           if (context.sourceFormat === 'mdx') {
             // MDX normally removes HTML comments, including React's adjacent
