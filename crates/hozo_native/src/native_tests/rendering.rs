@@ -2049,6 +2049,99 @@ fn pattern_state_callbacks_do_not_invent_other_slots_or_group_context() {
     }
 }
 
+fn lower_element(element: &str) -> LowerOutput {
+    let source =
+        format!("import {{ Pressable, Text, View }} from '@hozo/core'\nconst el = {element}");
+    let parsed = hozo_parser::parse_tsx(&source);
+    lower(&parsed.roots[0].node, &source, &Theme::default())
+}
+
+#[test]
+fn a_view_inside_a_group_pressable_reads_its_state() {
+    // A `group` card restyling the box beside its label: the View reads the
+    // same context a Text does, so the Pressable has to provide it.
+    for (element, state) in [
+        (
+            r#"<Pressable className="group"><View className="bg-white group-hover:bg-blue-500">x</View></Pressable>"#,
+            "hovered && hozoStyles.",
+        ),
+        (
+            r#"<Pressable className="group"><View><View className="group-pressed:p-4" /></View></Pressable>"#,
+            "pressed && hozoStyles.",
+        ),
+    ] {
+        let output = lower_element(element);
+        assert!(
+            output.diagnostics.is_empty(),
+            "{element}: {:?}",
+            output.diagnostics
+        );
+        assert!(output.jsx.starts_with("<HozoPressable"), "{}", output.jsx);
+        assert!(
+            output
+                .jsx
+                .contains("<HozoInteractionView style={({ pressed, hovered, focused }) => ["),
+            "{}",
+            output.jsx
+        );
+        assert!(output.jsx.contains(state), "{}", output.jsx);
+        assert!(output.runtime_imports.contains(&"HozoInteractionView"));
+    }
+}
+
+#[test]
+fn a_view_without_a_group_variant_does_not_borrow_its_owners_state() {
+    // A plain `hover:` on a child asks about the child. It stays refused,
+    // and it does not turn the Pressable into a context provider.
+    let output = lower_element(
+        r#"<Pressable className="group"><View className="hover:bg-blue-500">x</View></Pressable>"#,
+    );
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+        "{:?}",
+        output.diagnostics
+    );
+    assert!(
+        !output.jsx.contains("HozoInteractionView"),
+        "{}",
+        output.jsx
+    );
+}
+
+#[test]
+fn a_group_state_the_context_does_not_carry_says_so_under_a_pressable() {
+    // It used to say nothing above the element was a Pressable, with the
+    // Pressable right there.
+    for child in ["Text", "View"] {
+        let output = lower_element(&format!(
+            r#"<Pressable className="group" accessibilityState={{{{ checked: on }}}}><{child} className="group-aria-checked:p-4">x</{child}></Pressable>"#
+        ));
+        let messages: Vec<_> = output
+            .diagnostics
+            .iter()
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            messages
+                .iter()
+                .any(|m| m.contains("does not carry") && !m.contains("Nothing above")),
+            "{child}: {messages:?}"
+        );
+    }
+    let output = lower_element(r#"<View className="group-hover:p-4">x</View>"#);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("is not a Text or View inside one")),
+        "{:?}",
+        output.diagnostics
+    );
+}
+
 #[test]
 fn an_avatar_is_hozo_avatar_and_each_part_gets_its_style() {
     // #144: four class lists, one per part, each a style prop here; the

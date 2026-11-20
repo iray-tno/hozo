@@ -34,6 +34,8 @@ import {
   Text,
   type TextProps,
   type TextStyle,
+  View,
+  type ViewProps,
   type ViewStyle,
 } from 'react-native'
 import { nativeDisabledProps } from './native-disabled.ts'
@@ -549,6 +551,24 @@ export function HozoText({ style, ...props }: HozoTextProps) {
     return <Text {...props} style={resolved} />
   }
   return <TransitionText {...props} context={context} resolved={resolved} />
+}
+
+export interface HozoInteractionViewProps extends Omit<ViewProps, 'style'> {
+  children?: ReactNode
+  style?: StyleProp<ViewStyle> | ((state: HozoPressableState) => StyleProp<ViewStyle>)
+}
+
+/**
+ * A View whose `group-*:` styles read the state of an enclosing
+ * HozoPressable, as HozoText's do. Without it a `group` card could restyle
+ * its label but not the icon box beside it. The style switches; it does not
+ * animate, since a `transition-*` on the owner animates the owner and its
+ * text colour only.
+ */
+export function HozoInteractionView({ style, ...props }: HozoInteractionViewProps) {
+  const context = useContext(InteractionContext)
+  const state = context ?? { pressed: false, hovered: false, focused: false, focusVisible: false }
+  return <View {...props} style={typeof style === 'function' ? style(state) : style} />
 }
 
 function TransitionText({

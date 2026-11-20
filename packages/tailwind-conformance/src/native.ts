@@ -205,7 +205,8 @@ const PROBE_CONTEXTS = [
   },
   {
     // `group-*:` styles an element by the state of a `group` ancestor, so
-    // it needs one. The child is a Text, the case the compiler wires.
+    // it needs one. A View child reads the same state, but probing one too
+    // covered no case this Text did not.
     name: 'Text in a group Pressable',
     render: (candidate: string) =>
       `import { Pressable, Text } from '@hozo/core'\n` +
