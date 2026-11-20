@@ -83,6 +83,20 @@ test('a real app: every manifest its Metro build reaches, and nothing behind ord
   assert.ok(closure.instances.size < 100, `${closure.instances.size} instances`)
 })
 
+test('an app that declares only @hozo/core captures @hozo/patterns through core', () => {
+  // @hozo/core writes no classes but depends on @hozo/patterns, which does.
+  // Without core's own (empty) manifest the capture stopped at core and the
+  // guard failed login-demo's build on its first @hozo/patterns module.
+  const app = path.join(repo, 'examples/login-demo')
+  const closure = captureCarrierClosure(app, options)
+  const names = closure.carriers.map((row) => row.name)
+  assert.ok(names.includes('@hozo/core'), names.join(', '))
+  assert.ok(names.includes('@hozo/patterns'), names.join(', '))
+  assert.equal(closure.contributions.status, 'complete')
+  const guard = carrierGuard(closure)
+  assert.equal(guard(path.join(repo, 'packages/patterns/dist/index.js')), undefined)
+})
+
 test('descends into carriers only, follows the app devDependencies, and keeps unlocated names', () => {
   fixture((app) => {
     const kit = install(app, 'kit', { dependencies: { inner: '1' } }, 'p-4')
