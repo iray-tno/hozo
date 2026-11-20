@@ -194,6 +194,22 @@ test('Web preserves declared geometry, all semantic rows and scrolls in both dir
       assert.ok(actual.scrollLeft > 0 && actual.scrollTop > 0)
       assert.match(actual.last, /Long value 99/)
     }
+    await page.keyboard.press('Tab')
+    assert.equal(
+      await page.evaluate(
+        () => document.activeElement === document.querySelector('table').parentElement,
+      ),
+      true,
+      'the scroll viewport must be reachable by keyboard',
+    )
+    const before = await page.evaluate(
+      () => document.querySelector('table').parentElement.scrollTop,
+    )
+    await page.keyboard.press('ArrowUp')
+    await page.waitForFunction(
+      (top) => document.querySelector('table').parentElement.scrollTop < top,
+      before,
+    )
   } finally {
     await browser.close()
   }
