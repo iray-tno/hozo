@@ -193,7 +193,11 @@ export function ResizablePane(props: ResizablePaneProps) {
     : paneClassName
       ? hozoClasses(paneClassName)
       : undefined
-  const [paneBox, paneText] = splitTextStyle([paneClassStyle, hozoAuthoredStyle(paneStyle)])
+  const authoredPaneStyle = hozoAuthoredStyle(paneStyle)
+  const [paneBox, paneText] =
+    paneClassStyle !== undefined || authoredPaneStyle !== undefined
+      ? splitTextStyle([paneClassStyle, authoredPaneStyle])
+      : [undefined, undefined]
   const splitter = (
     <Handle
       state={state}

@@ -187,9 +187,16 @@ test('Native responder and adjustable actions share state and expose collapse fa
       },
     ],
   })
+  const flatten = (style) =>
+    Array.isArray(style)
+      ? Object.assign({}, ...style.map(flatten))
+      : style && typeof style === 'object'
+        ? style
+        : {}
   const native = {
     View: 'NativeView',
     Text: 'NativeText',
+    StyleSheet: { flatten },
     I18nManager: direction,
     PanResponder: { create: (handlers) => ({ panHandlers: handlers }) },
   }
