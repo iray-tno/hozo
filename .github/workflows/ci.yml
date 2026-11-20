@@ -22,13 +22,13 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -40,11 +40,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -57,7 +57,7 @@ jobs:
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/owner-bundle.test.ts
         env:
           GOMAXPROCS: '1'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: owner-handle-bundle-evidence
@@ -98,13 +98,13 @@ jobs:
       # exact scene shared by Web and Native. This is Web evidence, not an
       # Android/iOS rendering claim; takes seconds, not an emulator build.
       - run: pnpm --filter @hozo/example-showcase test
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: semantic-web-layout-evidence
           path: examples/showcase/artifacts/semantic-layout
           if-no-files-found: warn
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: svg-filter-web-evidence
@@ -130,7 +130,7 @@ jobs:
       - name: Styling fact inventories and scoped current-source receipts
         if: always()
         run: node scripts/style-slots/status.mjs --output artifacts/style-fact-model/status.json artifacts/style-fact-model/handle-bundle.json artifacts/style-fact-model/handle-browser.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: styling-fact-status
@@ -140,13 +140,13 @@ jobs:
           if-no-files-found: warn
       # Characterization, not a conformance pass: preserve observed ordering
       # disagreements while the common planner is being implemented.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: tailwind-order-baseline
           path: artifacts/tailwind-order/browser-baseline.json
           if-no-files-found: warn
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: storybook-a11y-evidence
@@ -156,7 +156,7 @@ jobs:
           if-no-files-found: warn
       # Preserve the exact waiting stage and partial scenarios, including when
       # the browser hits the wall-clock deadline before producing a DOM dump.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: shared-showcase-interaction-evidence
@@ -183,11 +183,11 @@ jobs:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm

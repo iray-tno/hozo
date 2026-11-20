@@ -64,7 +64,7 @@ test('the historical series is pinned and stays outside the ordinary PR test gat
   assert.match(workflow, /pull_request:/)
   assert.match(workflow, /paths:/)
   assert.match(workflow, /if: always\(\)/)
-  assert.match(workflow, /actions\/upload-artifact@v4/)
+  assert.match(workflow, /actions\/upload-artifact@v\d+/)
   assert.doesNotMatch(
     readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
     /runtime-class-list\.mjs/,

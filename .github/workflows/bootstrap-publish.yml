@@ -38,10 +38,11 @@ jobs:
       artifact: ${{ steps.plan.outputs.artifact }}
       musl: ${{ steps.plan.outputs.musl }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
+          package-manager-cache: false
       - uses: dtolnay/rust-toolchain@stable
       - id: plan
         env:
@@ -58,9 +59,9 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           registry-url: https://registry.npmjs.org
@@ -96,7 +97,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ needs.validate.outputs.triple }}
@@ -105,8 +106,8 @@ jobs:
           key: bootstrap-${{ needs.validate.outputs.triple }}
       - if: needs.validate.outputs.musl == 'true'
         run: sudo apt-get update && sudo apt-get install -y musl-tools
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           registry-url: https://registry.npmjs.org
@@ -135,7 +136,7 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - env:

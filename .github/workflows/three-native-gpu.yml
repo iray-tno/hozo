@@ -23,17 +23,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       - run: pnpm install --frozen-lockfile --filter @hozo/example-three-native-probe...
       - run: pnpm --filter @hozo/example-three-native-probe... --if-present build
       - run: pnpm --filter @hozo/example-three-native-probe test
@@ -76,7 +76,7 @@ jobs:
           script: |
             bash examples/three-native-probe/scripts/android-probe.sh artifacts/three-native-gpu
             bash examples/three-native-probe/scripts/android-talkback.sh artifacts/three-native-gpu
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: three-native-gpu-expo-gl-android
@@ -87,9 +87,9 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -122,7 +122,7 @@ jobs:
           brew install facebook/fb/idb
       - name: Exercise Expo GL host
         run: bash examples/three-native-probe/scripts/ios-probe.sh artifacts/three-native-gpu-ios
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: three-native-gpu-expo-gl-ios

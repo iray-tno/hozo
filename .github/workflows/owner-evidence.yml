@@ -65,11 +65,11 @@ jobs:
       CARGO_BUILD_JOBS: '2'
       GOMAXPROCS: '1'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -84,7 +84,7 @@ jobs:
       - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-toolbar.test.mjs
       - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-vite.test.mjs
       - run: node --test --test-concurrency=1 examples/native-demo/scripts/metro-partial-owner-bundle.test.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: metro-partial-owner-bundle
@@ -103,7 +103,7 @@ jobs:
         if: always()
       - run: node scripts/style-slots/handle-contract-assessment.mjs
         if: always()
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: handle-contract-assessment
@@ -122,25 +122,25 @@ jobs:
       - name: Summarize scoped styling evidence
         if: always()
         run: node scripts/style-slots/status-summary.mjs artifacts/style-fact-model/styling-fact-status.json >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: styling-fact-status
           path: artifacts/style-fact-model/styling-fact-status.json
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: tabs-contract-audit
           path: artifacts/style-fact-model/tabs-contract-audit.json
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: owner-input-audit
           path: artifacts/style-fact-model/owner-input-audit.json
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: owner-handle-browser-evidence
@@ -152,19 +152,19 @@ jobs:
             artifacts/style-fact-model/handle-inputs-browser.json
             artifacts/style-fact-model/handle-bundle.json
           if-no-files-found: warn
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: owner-vite-evidence
           path: artifacts/style-fact-model/vite-owner-browser.json
           if-no-files-found: warn
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: owner-vite-fallback-evidence
           path: artifacts/style-fact-model/vite-owner-fallback-browser.json
           if-no-files-found: warn
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: owner-tabs-evidence
@@ -173,7 +173,7 @@ jobs:
             artifacts/style-fact-model/tabs-native.json
             artifacts/style-fact-model/tabs-compiled-native.json
           if-no-files-found: warn
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: owner-toolbar-evidence
