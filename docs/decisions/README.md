@@ -35,3 +35,4 @@ smaller questions that came up on the way, and their answers.
 | [011](011-styling-inputs-keep-their-own-cascade.md) | Styling inputs keep their own cascade; equal-weight inputs compose in JSX order |
 | [012](012-where-the-styling-workstreams-meet.md) | Where the styling workstreams meet: the fixed points, and what counts as enough evidence |
 | [013](013-text-inheritance-compiled-where-visible.md) | Native text inheritance: one rule, compiled where the build can see it, read at run time where it cannot |
+| [014](014-one-record-per-file.md) | What one file tells the build about itself is one record, read once; a new cross-file fact is a new field |
