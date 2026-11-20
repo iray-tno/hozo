@@ -152,6 +152,16 @@ fn render_candidate_module_impl(
             // pressable rendering it already tracks that state and hands it
             // to the resolver, so nothing here has to.
             if let Some(groups) = state_groups(&utility.groups, theme) {
+                if let Some(token) = groups
+                    .iter()
+                    .find_map(|group| unresolved_colour(&group.pairs))
+                {
+                    if let Some(plan) = plan.as_deref_mut() {
+                        plan.refused(name, "unresolved-theme-color");
+                    }
+                    unsupported.push((name, unresolved_reason(name, token)));
+                    continue;
+                }
                 explicit_leading |= groups.iter().any(|group| {
                     !group.font_default && group.pairs.iter().any(|(key, _)| key == "lineHeight")
                 });
@@ -190,6 +200,13 @@ fn render_candidate_module_impl(
             .into_iter()
             .map(|(key, value)| (key.to_string(), value))
             .collect();
+        if let Some(token) = unresolved_colour(&pairs) {
+            if let Some(plan) = plan.as_deref_mut() {
+                plan.refused(name, "unresolved-theme-color");
+            }
+            unsupported.push((name, unresolved_reason(name, token)));
+            continue;
+        }
         let gradient = crate::gradients::metadata(&properties, theme);
         let shadow = crate::shadows::metadata(&properties, theme);
         if pairs.is_empty() && gradient.is_none() && shadow.is_none() {
@@ -786,6 +803,39 @@ fn transition_part(
 }
 
 /// Metadata stays beside the emitted style object, never inside RN styles.
+/// The colour token a candidate's style names but the theme does not define
+/// (#2127).
+///
+/// A candidate is what discovery *might* see as a class, not what an author
+/// wrote in a `className`: `boxSizing: 'border-box'` in a Web-only file
+/// yields `border-box`, which parses as a border colour `box`. Static
+/// compilation keeps the unresolved marker, because there the author did
+/// write the class and a loud wrong value is the point. Here it would put a
+/// made-up colour into every app's map. Refused instead, so the class still
+/// warns if something does use it, and a theme that defines `--color-box`
+/// resolves it like any other colour.
+///
+/// Read from the emitted values because `resolve_theme_color` is the only
+/// writer of the marker: that covers every colour property, and a modifier
+/// on a theme colour that is not a hex triple, without a second list of them.
+fn unresolved_colour(pairs: &[(String, String)]) -> Option<&str> {
+    pairs.iter().find_map(|(_, value)| {
+        value
+            .strip_prefix("'hozo-unresolved:")
+            .and_then(|rest| rest.strip_suffix('\''))
+    })
+}
+
+fn unresolved_reason(name: &str, token: &str) -> String {
+    // `brand/50` when the theme's `brand` is not a hex triple; the theme
+    // variable is still `--color-brand`.
+    let token = token.split('/').next().unwrap_or(token);
+    format!(
+        "`{name}` names the colour `{token}`, which this project's theme does not define \
+         -- add `--color-{token}` to the theme, or this is not a class."
+    )
+}
+
 struct StateGroup {
     keys: Vec<String>,
     pairs: Vec<(String, String)>,
@@ -1331,6 +1381,58 @@ mod tests {
         );
         let module = render_candidate_module(&["hover:bg-blue-500".to_string()], &Theme::default());
         assert!(!module.contains("hozoTransformStyles"), "{module}");
+    }
+
+    fn box_theme() -> Theme {
+        Theme::new(
+            std::collections::HashMap::from([(
+                "box".to_string(),
+                hozo_ir::ThemeColor {
+                    oklch: "oklch(70% 0.1 200)".into(),
+                    hex: "#12abcd".into(),
+                },
+            )]),
+            None,
+            false,
+        )
+    }
+
+    fn styles_of(module: &str) -> &str {
+        let styles = &module[module.find("const styles").unwrap()..];
+        &styles[..styles.find("\n}\n").unwrap()]
+    }
+
+    fn unsupported_of(module: &str) -> &str {
+        let unsupported = &module[module.find("const unsupported").unwrap()..];
+        &unsupported[..unsupported.find("\n}\n").unwrap()]
+    }
+
+    // #2127: `boxSizing: 'border-box'` in a Web-only file reached every
+    // Native app's map as a border colour named `box`.
+    #[test]
+    fn a_candidate_naming_a_colour_the_theme_lacks_is_refused_not_invented() {
+        let names = ["border-box".to_string(), "hover:border-box".to_string()];
+        let module = render_candidate_module(&names, &Theme::default());
+        assert!(!module.contains("hozo-unresolved"), "{module}");
+        assert!(!styles_of(&module).contains("border-box"), "{module}");
+        let unsupported = unsupported_of(&module);
+        assert!(unsupported.contains(r#""border-box": "#), "{module}");
+        assert!(unsupported.contains(r#""hover:border-box": "#), "{module}");
+        assert!(unsupported.contains("--color-box"), "{module}");
+    }
+
+    #[test]
+    fn the_same_spelling_is_a_colour_when_the_theme_defines_it() {
+        let names = ["border-box".to_string(), "hover:border-box".to_string()];
+        let module = render_candidate_module(&names, &box_theme());
+        assert!(!module.contains("hozo-unresolved"), "{module}");
+        assert!(
+            styles_of(&module).contains(r#""border-box": {"#),
+            "{module}"
+        );
+        assert!(styles_of(&module).contains("'#12abcd'"), "{module}");
+        assert!(module.contains(r#""hover:border-box": ["#), "{module}");
+        assert!(!unsupported_of(&module).contains("border-box"), "{module}");
     }
 
     #[test]

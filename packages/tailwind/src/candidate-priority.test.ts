@@ -38,8 +38,12 @@ test('actual candidate objects share original write priorities with static Web a
   const cache = cacheFor(names)
   const prepared = await prepareTailwindOrder(css, base, cache.candidates())
   const context = prepareTailwindContext(JSON.stringify(prepared.snapshot))
-  const plan = cache.renderNativeModulePlan(context)
-  assert.equal(plan.code, cache.renderNativeModule())
+  // `bg-brand` is the unassessed object: a colour the theme defines, which
+  // Tailwind's own stylesheet here does not. Without the theme it is no
+  // colour at all, and the map refuses it (#2127).
+  const theme = { colors: [{ token: 'brand', oklch: 'oklch(40% 0.1 250)', hex: '#123456' }] }
+  const plan = cache.renderNativeModulePlan(context, theme)
+  assert.equal(plan.code, cache.renderNativeModule(theme))
   assert.equal(plan.schema, 1)
   assert.equal(plan.fingerprint, context.fingerprint)
   assert.deepEqual(
