@@ -32,7 +32,7 @@ import {
   TextArea,
   TimePicker,
 } from '@hozo/form'
-import { Chip } from '@hozo/patterns'
+import { Chip, Drawer } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -7488,6 +7488,105 @@ export function Screen() {
       paddingTop: 8,
       backgroundColor: 'rgb(51, 102, 153)',
       borderTopColor: 'rgb(0, 85, 170)',
+    })
+  } finally {
+    await page.close()
+  }
+})
+
+test('Drawer delivers prepared scrim and panel markers on Web Chromium and Native (#2046)', async () => {
+  const compiler = createCompiler()
+  const source = `import { Drawer } from '@hozo/patterns'
+export function Screen() {
+  return (
+    <div id="wrap">
+      <Drawer
+        open
+        portal={false}
+        accessibilityLabel="Menu"
+        scrimClassName="bg-[#121212] opacity-50"
+        panelClassName="pt-6 bg-[#fafafa] text-[#112233]"
+      >
+        Body
+      </Drawer>
+    </div>
+  )
+}
+`
+  const web = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(web)
+  const webJs = transformSync(web.code, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  const webMod = { exports: {} }
+  runInNewContext(webJs, {
+    module: webMod,
+    exports: webMod.exports,
+    h: createElement,
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Drawer }
+      throw new Error(`unexpected web import ${id}`)
+    },
+  })
+
+  const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
+  assert.ok(nativeCode)
+  const nativeJs = transformSync(nativeCode, {
+    loader: 'tsx',
+    format: 'cjs',
+    jsx: 'transform',
+    jsxFactory: 'h',
+  }).code
+  let nativeProps
+  const nativeMod = { exports: {} }
+  runInNewContext(nativeJs, {
+    module: nativeMod,
+    exports: nativeMod.exports,
+    h: (type, props) => {
+      if (type === 'Drawer') nativeProps = props
+      return { type, props }
+    },
+    require: (id) => {
+      if (id === '@hozo/patterns') return { Drawer: 'Drawer' }
+      if (id === 'react-native') return { StyleSheet: { create: (styles) => styles } }
+      throw new Error(`unexpected native import ${id}`)
+    },
+  })
+  nativeMod.exports.Screen()
+  assert.equal(nativeProps.scrimClassName, undefined)
+  assert.equal(nativeProps.panelClassName, undefined)
+  const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+  const hexToRgb = (hex) => {
+    const clean = hex.replace('#', '')
+    return `rgb(${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)})`
+  }
+  const nativeScrim = flat(nativeProps.hozoScrimStyle())
+  const nativePanel = flat(nativeProps.hozoPanelStyle())
+
+  const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
+    const markers = await page.evaluate(() => {
+      const scrim = document.querySelector('#wrap [aria-hidden="true"]')
+      const panel = document.querySelector('#wrap [role="dialog"]')
+      return {
+        scrimBg: getComputedStyle(scrim).backgroundColor,
+        scrimOpacity: parseFloat(getComputedStyle(scrim).opacity),
+        panelPaddingTop: parseFloat(getComputedStyle(panel).paddingTop),
+        panelBg: getComputedStyle(panel).backgroundColor,
+        panelColor: getComputedStyle(panel).color,
+      }
+    })
+    assert.deepEqual(markers, {
+      scrimBg: hexToRgb(nativeScrim.backgroundColor),
+      scrimOpacity: nativeScrim.opacity,
+      panelPaddingTop: nativePanel.paddingTop,
+      panelBg: hexToRgb(nativePanel.backgroundColor),
+      panelColor: hexToRgb(nativePanel.color),
     })
   } finally {
     await page.close()

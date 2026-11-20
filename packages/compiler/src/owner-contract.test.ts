@@ -365,6 +365,41 @@ test('single-platform contracts declare null host/carrier on the absent platform
     entry.shapes[0]!.events = ['pressed', 'hovered']
   }, /full control snapshot/)
 })
+test('Drawer scrim and panel contracts declare stateless box and split-text View hosts (#2046)', () => {
+  const scrim = parsed().contracts.find((row) => row.owner === 'Drawer.scrim')!
+  assert.equal(scrim.audit, 'audited')
+  assert.deepEqual(scrim.abi, {
+    nativePreparedProp: 'hozoScrimStyle',
+    webClassProp: 'scrimClassName',
+  })
+  assert.deepEqual(scrim.authoredStyles, [{ prop: 'scrimStyle', order: 0 }])
+  assert.deepEqual(scrim.shapes, [
+    {
+      id: 'scrim',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: [],
+    },
+  ])
+  const panel = parsed().contracts.find((row) => row.owner === 'Drawer.panel')!
+  assert.equal(panel.audit, 'audited')
+  assert.deepEqual(panel.abi, {
+    nativePreparedProp: 'hozoPanelStyle',
+    webClassProp: 'panelClassName',
+  })
+  assert.deepEqual(panel.authoredStyles, [{ prop: 'panelStyle', order: 0 }])
+  assert.deepEqual(panel.shapes, [
+    {
+      id: 'panel',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: [],
+      inputs: { facts: [], splitText: true },
+    },
+  ])
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

@@ -357,7 +357,12 @@ ${Object.entries(facts)
     .filter((contract) => contract.audit === 'audited')
     .flatMap((contract) => {
       const publication = ownerPublications.find((row) => row.owner === contract.owner)
-      if (publication?.package !== '@hozo/form') return []
+      if (!publication || !['@hozo/form', '@hozo/patterns'].includes(publication.package)) return []
+      if (publication.package === '@hozo/patterns') {
+        const [component] = contract.owner.split('.')
+        const slot = components[component]?.find((row) => row.classProp === contract.classProp)
+        if (!slot || slot.owner === 'pending-audit') return []
+      }
       return [
         {
           owner: contract.owner,

@@ -667,7 +667,20 @@ export const components = {
       className: { scrollYProp: 'hozoScrollY', backdropStyleProp: 'hozoBackdropStyle' },
     },
   }),
-  Drawer: slots('className scrimClassName panelClassName'),
+  Drawer: slots('className scrimClassName panelClassName', {
+    overrides: {
+      scrimClassName: {
+        owner: 'drawer-scrim',
+        gate: 'open',
+        composition: 'prepared-owner-contract',
+      },
+      panelClassName: {
+        owner: 'drawer-panel',
+        gate: 'open',
+        composition: 'prepared-owner-contract; split-box-text',
+      },
+    },
+  }),
   Listbox: slots('className optionClassName', {
     secondary: true,
     overrides: {
@@ -1096,6 +1109,41 @@ export const ownerShadow = {
           nativeHost: 'View',
           webHost: 'div',
           events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Drawer.scrim',
+      classProp: 'scrimClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoScrimStyle', webClassProp: 'scrimClassName' },
+      authoredStyles: [{ prop: 'scrimStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'scrim',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+    {
+      owner: 'Drawer.panel',
+      classProp: 'panelClassName',
+      audit: 'audited',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoPanelStyle', webClassProp: 'panelClassName' },
+      authoredStyles: [{ prop: 'panelStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'panel',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+          inputs: { facts: [], splitText: true },
         },
       ],
     },
@@ -1644,6 +1692,16 @@ export const ownerPublications = [
     owner: 'Tabs.Tab',
     package: '@hozo/patterns',
     exports: ['Tabs', 'HozoTabs'],
+  },
+  {
+    owner: 'Drawer.scrim',
+    package: '@hozo/patterns',
+    exports: ['Drawer', 'HozoDrawer'],
+  },
+  {
+    owner: 'Drawer.panel',
+    package: '@hozo/patterns',
+    exports: ['Drawer', 'HozoDrawer'],
   },
   {
     owner: 'Form.root',

@@ -9,6 +9,20 @@ export interface AuditedOwnerContract {
 
 export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
   {
+    owner: 'Drawer.scrim',
+    package: '@hozo/patterns',
+    exports: ['Drawer', 'HozoDrawer'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Drawer.scrim","classProp":"scrimClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoScrimStyle","webClassProp":"scrimClassName"},"authoredStyles":[{"prop":"scrimStyle","order":0}],"shapes":[{"id":"scrim","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+  },
+  {
+    owner: 'Drawer.panel',
+    package: '@hozo/patterns',
+    exports: ['Drawer', 'HozoDrawer'],
+    shadow:
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Drawer.panel","classProp":"panelClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoPanelStyle","webClassProp":"panelClassName"},"authoredStyles":[{"prop":"panelStyle","order":0}],"shapes":[{"id":"panel","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[],"inputs":{"facts":[],"splitText":true}}]}]}',
+  },
+  {
     owner: 'Form.root',
     package: '@hozo/form',
     exports: ['Form', 'HozoForm'],

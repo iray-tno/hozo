@@ -295,3 +295,35 @@ export function Screen() {
   assert.match(lowered.css, /\[data-hozo-step="increase"\]/)
   assert.match(lowered.css, /\[data-hozo-step="decrease"\]/)
 })
+
+test('ordinary Web lowering compiles Drawer scrimClassName and panelClassName by default (#2046)', () => {
+  const compiler = createCompiler()
+  const source = `import { Drawer } from '@hozo/patterns'
+export function Screen({ extra, dynamic }: { extra: Record<string, unknown>; dynamic: string }) {
+  return (
+    <>
+      <Drawer
+        open
+        portal={false}
+        accessibilityLabel="Menu"
+        scrimClassName="bg-[#000000]"
+        panelClassName="pt-6 text-[#112233] bg-[#ffffff]"
+      >
+        Body
+      </Drawer>
+      <Drawer open {...extra} scrimClassName="bg-[#111111]" panelClassName={dynamic} />
+    </>
+  )
+}
+`
+  const lowered = lowerModule(source, '/app/Screen.tsx', '/app/Screen.tsx', compiler, '/app')
+  assert.ok(lowered)
+  assert.doesNotMatch(lowered.code, /scrimClassName="bg-\[#000000\]"/)
+  assert.doesNotMatch(lowered.code, /panelClassName="pt-6 text-\[#112233\]/)
+  assert.match(lowered.code, /scrimClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /panelClassName=\{"hozo-owner-/)
+  assert.match(lowered.code, /scrimClassName="bg-\[#111111\]"/)
+  assert.match(lowered.code, /panelClassName=\{dynamic\}/)
+  assert.match(lowered.css, /padding-top:\s*24px/)
+  assert.match(lowered.css, /#112233|rgb\(17,\s*34,\s*51\)/)
+})

@@ -8,6 +8,7 @@ import {
   Modal,
   PanResponder,
   type StyleProp,
+  type TextStyle,
   View,
   type ViewStyle,
 } from 'react-native'
@@ -38,6 +39,10 @@ export interface HozoDrawerProps {
   className?: string
   scrimClassName?: string
   panelClassName?: string
+  /** @internal Complete prepared scrim class contribution (RFC 010). */
+  hozoScrimStyle?: () => StyleProp<ViewStyle>
+  /** @internal Complete prepared panel class contribution (RFC 010). */
+  hozoPanelStyle?: () => StyleProp<ViewStyle | TextStyle>
   style?: StyleProp<ViewStyle>
   scrimStyle?: StyleProp<ViewStyle>
   panelStyle?: StyleProp<ViewStyle>
@@ -89,12 +94,18 @@ export function HozoDrawer({
   className,
   scrimClassName,
   panelClassName,
+  hozoScrimStyle,
+  hozoPanelStyle,
   style,
   scrimStyle,
   panelStyle,
   testID,
   children,
 }: HozoDrawerProps) {
+  if (hozoScrimStyle && scrimClassName !== undefined)
+    throw new Error('Prepared Drawer styles must consume scrimClassName')
+  if (hozoPanelStyle && panelClassName !== undefined)
+    throw new Error('Prepared Drawer styles must consume panelClassName')
   const [fraction, setFraction] = useState(1)
   const [width, setWidth] = useState(0)
   // The panel runs the window's height, under the status bar and the notch
@@ -162,13 +173,22 @@ export function HozoDrawer({
     setWidth(event.nativeEvent.layout.width)
   }, [])
 
+  const panelClassStyle = hozoPanelStyle ? hozoPanelStyle() : hozoClasses(panelClassName)
+  const [panelBox, panelText] = splitTextStyle([panelClassStyle, hozoAuthoredStyle(panelStyle)])
+
   // The Web root is a `fixed inset-0` layer, and React Native drops `fixed`:
   // once the root became a row, a right-hand panel was only as tall as its
   // content. Inside a `Modal` the window is the Modal, so filling it is the
   // same layer.
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[{ flex: 1 }, hozoClasses(className), hozoAuthoredStyle(style)]}>
+      <View
+        style={[
+          { flex: 1 },
+          className ? hozoClasses(className) : undefined,
+          hozoAuthoredStyle(style),
+        ]}
+      >
         {/*
           The scrim is the tap that dismisses, which is the alternative for anyone
           who cannot swipe the panel away. Hidden from the accessibility tree
@@ -179,7 +199,7 @@ export function HozoDrawer({
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           style={(interaction) => [
-            hozoClasses(scrimClassName, { ...interaction }),
+            hozoScrimStyle ? hozoScrimStyle() : hozoClasses(scrimClassName, { ...interaction }),
             hozoAuthoredStyle(scrimStyle),
           ]}
           onPress={onClose}
@@ -195,18 +215,13 @@ export function HozoDrawer({
           testID={testID}
           onLayout={onLayout}
           style={[
-            hozoClasses(panelClassName),
-            hozoAuthoredStyle(panelStyle),
-            insetPadding([hozoClasses(panelClassName), panelStyle], insets, [
-              'top',
-              'bottom',
-              edge,
-            ]),
+            panelBox,
+            insetPadding([panelBox, panelStyle], insets, ['top', 'bottom', edge]),
             { transform: [{ translateX: away * travelFor(fraction, width) }] },
           ]}
           {...pan.panHandlers}
         >
-          {hozoTextChildren(children, splitTextStyle([hozoClasses(panelClassName), panelStyle])[1])}
+          {hozoTextChildren(children, panelText)}
         </View>
       </View>
     </Modal>

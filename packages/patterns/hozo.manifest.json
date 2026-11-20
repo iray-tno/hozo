@@ -59,7 +59,10 @@
     },
     {
       "name": "Drawer",
-      "owners": []
+      "owners": [
+        "Drawer.panel",
+        "Drawer.scrim"
+      ]
     },
     {
       "name": "HozoAccordion",
@@ -105,7 +108,10 @@
     },
     {
       "name": "HozoDrawer",
-      "owners": []
+      "owners": [
+        "Drawer.panel",
+        "Drawer.scrim"
+      ]
     },
     {
       "name": "HozoListbox",
@@ -468,6 +474,74 @@
             "nativeHost": "View",
             "webHost": "div",
             "events": []
+          }
+        ]
+      },
+      {
+        "owner": "Drawer.scrim",
+        "classProp": "scrimClassName",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoScrimStyle",
+          "webClassProp": "scrimClassName"
+        },
+        "authoredStyles": [
+          {
+            "prop": "scrimStyle",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "scrim",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      },
+      {
+        "owner": "Drawer.panel",
+        "classProp": "panelClassName",
+        "audit": "audited",
+        "bindings": [
+          "present"
+        ],
+        "abi": {
+          "nativePreparedProp": "hozoPanelStyle",
+          "webClassProp": "panelClassName"
+        },
+        "authoredStyles": [
+          {
+            "prop": "panelStyle",
+            "order": 0
+          }
+        ],
+        "shapes": [
+          {
+            "id": "panel",
+            "when": {
+              "eq": [
+                "present",
+                true
+              ]
+            },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": [],
+            "inputs": {
+              "facts": [],
+              "splitText": true
+            }
           }
         ]
       }
