@@ -77,7 +77,7 @@ the emulator stopped.
 
 ## Table mount measurement
 
-For #1373, dispatch `native-showcase` at the branch being measured with
+For #2130 (following the #1373 prototype), dispatch `native-showcase` at the branch being measured with
 `platform=android`, `android-scenario=table-performance`, and a fresh build
 (`reuse-build-run` empty). `Diagnostics/Table performance/Matrix` compares
 100, 500 and 1000 data rows with four text columns in a 240dp viewport. Each
@@ -92,25 +92,40 @@ differ. Application, Table, observer, generator, dependency and workflow
 changes require a fresh build. Both revisions and every differing path are
 retained; reused-binary diagnostics do not become release evidence.
 
-The baseline is generated from the current Native Table source at Metro
+Both controls are generated from the current Native Table/WindowedTable sources at Metro
 startup and before typechecking. Assertions require unique instrumentation
-anchors; the generator fails if they drift. The generated file is ignored,
-and tests verify that removing the observers restores the original source
-byte for byte. Counters observe the actual natural-width report callback and
-row mount effects. The source SHA256 accompanies every timing record and
-must match the driver checkout. No public Table API is changed.
+anchors; the generator fails if they drift. The generated files are ignored,
+and tests verify that removing the observers restores each original source
+byte for byte under LF and CRLF. Counters observe the actual natural-width
+report callback and row mount effects. WindowedTable counts the first cell
+of each row, including its header. The Native component and shared key/size
+model SHA256 accompany every timing record and must match the driver checkout.
+The shared model is copied unchanged. No public component API is changed.
 
-The measurement-only control uses React Native's existing FlatList with
-declared widths `[64, 96, 96, 96]`, 32dp rows, eight initial rows, batches of
-eight and `windowSize=3`. Its cell layout callbacks are counted separately
-from natural-width probes, of which it has none. This control does not yet
-provide accessible table semantics or estimated/growing column widths.
-Each control cell is a retained Native View, as in the baseline, with clipped
-subview removal disabled. Header and first-row node bounds are matched with
+The windowed control now uses the public WindowedTable implementation and
+its HozoFlatList backing, replacing the earlier raw FlatList prototype.
+It supplies declared widths `[64, 96, 96, 96]`, 32dp rows and a 240dp viewport.
+Both controls use 16px text with a 24px line height (the production control
+sets HozoTextSizeContext to 16). The archived prototype used 14px text;
+use the fresh, matched baseline for timing comparisons. Cell layout callbacks
+are counted separately from natural-width probes. Header and first-row node bounds are matched with
 text pixels after the timing window, and the accessibility tree is saved
 alongside each screenshot. Missing/blank text fails the observation. Both
 controls are memoized so updating the diagnostic status does not re-render
 the measured table after the quiet boundary.
+
+After the mount matrix, the same 1,000-row production instance jumps to the
+last row and returns, then scrolls horizontally in a 220dp viewport. A
+build-time diagnostic ref drives the existing FlatList scroll methods; there
+is no public imperative scroll API. Live absolute row indices, peak/cumulative
+row mounts, full header/value labels, exact column widths and row heights,
+and text pixels are checked. The end row must leave the window after returning.
+Finally, the emulator's system font scale is changed to 1.3, a fresh component
+mount uses the caller-recomputed 41.6dp row height, and the original system
+setting is restored even on failure. These five checkpoints are separate from
+the mount medians. Retained frame verification also checks their snapshots.
+The probe targets Android release-emulator behavior; physical devices,
+TalkBack/VoiceOver speech and native table navigation remain unverified.
 
 Retained frames can also be checked without repeating the experiment:
 
@@ -118,8 +133,8 @@ Retained frames can also be checked without repeating the experiment:
 node examples/native-showcase/scripts/verify-table-captures.mjs <downloaded-table-artifact>
 ```
 
-This verifies the original successful matrix and all four headers/first-row
-values against their nodes and screenshot pixels. `pixel-verification.json`
+This verifies the original successful matrix, all four headers/first-row
+values and any production window checkpoints against their nodes and screenshot pixels. `pixel-verification.json`
 binds each result to its screenshot/tree hashes and the verifier's hashes;
 it is supplementary frame evidence with no new timing samples.
 

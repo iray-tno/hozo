@@ -280,6 +280,8 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_ROOT$/packages/semantics/src/table.native.tsx",
+        "$TURBO_ROOT$/packages/patterns/src/windowed-table.native.tsx",
+        "$TURBO_ROOT$/packages/patterns/src/windowed-table-types.ts",
         "$TURBO_ROOT$/packages/engine/src/generated/gap-styles.ts",
         "$TURBO_ROOT$/packages/engine/src/authored-gap.ts",
         "$TURBO_ROOT$/packages/engine/src/gap-styles.ts",

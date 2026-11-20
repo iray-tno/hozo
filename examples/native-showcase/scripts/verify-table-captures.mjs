@@ -8,6 +8,7 @@ import {
   tableSummary,
   verifyTablePixels,
   verifyTableSample,
+  verifyTableWindow,
 } from './table-performance-evidence.mjs'
 
 // Recheck retained frames without reinstalling an app or repeating any input.
@@ -38,6 +39,8 @@ try {
       mode: sample.mode,
       count: sample.count,
       sourceHash: evidence.sourceHash,
+      windowedSourceHash: evidence.windowedSourceHash,
+      windowedModelHash: evidence.windowedModelHash,
     })
     const png = readFileSync(resolve(directory, `${sample.name}.png`))
     const xml = readFileSync(resolve(directory, `${sample.name}-uiautomator.xml`))
@@ -45,6 +48,41 @@ try {
     entry.treeSha256 = hash(xml)
     entry.pixels = verifyTablePixels(png, parseNodes(xml.toString()))
     entry.passed = true
+  }
+  if (evidence.windows) {
+    assert.deepEqual(
+      evidence.windows.map((sample) => sample.phase),
+      [
+        'initial-window',
+        'last-window',
+        'returned-window',
+        'horizontal-window',
+        'font-scale-window',
+      ],
+    )
+    for (const sample of evidence.windows) {
+      assert.equal(sample.passed, true)
+      verifyTableWindow(sample.observation, {
+        count: 1000,
+        windowedSourceHash: evidence.windowedSourceHash,
+        windowedModelHash: evidence.windowedModelHash,
+        includes: [sample.index + 1],
+        excludes: sample.excludes,
+      })
+      const png = readFileSync(resolve(directory, `${sample.phase}.png`))
+      const xml = readFileSync(resolve(directory, `${sample.phase}.xml`), 'utf8')
+      report.cases.push({
+        name: sample.phase,
+        passed: true,
+        pngSha256: hash(png),
+        xmlSha256: hash(xml),
+        pixels: verifyTablePixels(png, parseNodes(xml), {
+          index: sample.index,
+          columns: sample.columns,
+          headers: false,
+        }),
+      })
+    }
   }
   report.passed = true
   console.log(

@@ -5,10 +5,14 @@ export const TABLE_COUNTS = [100, 500, 1000]
 
 // Accessibility bounds can survive text disappearing after Native sizing.
 // Observe the actual header/value pixels after the timing window as well.
-export function verifyTablePixels(buffer, nodes) {
+export function verifyTablePixels(
+  buffer,
+  nodes,
+  { index = 0, columns = [0, 1, 2, 3], headers = true } = {},
+) {
   const image = PNG.sync.read(buffer)
   const labels = ['ID', 'Name', 'Region', 'Total']
-  const values = ['0', 'Item 0', 'East', '0']
+  const values = [String(index), `Item ${index}`, index % 2 ? 'West' : 'East', String(index * 17)]
   const matches = (node, label) => node.text === label || node['content-desc'] === label
   const read = (node, label) => {
     assert.ok(node?.rect, `missing Table node: ${label}`)
@@ -38,10 +42,18 @@ export function verifyTablePixels(buffer, nodes) {
     assert.ok(inkPixels >= 10, `Table text has empty pixels: ${label}`)
     return { label, rect: node.rect, inkPixels }
   }
-  const headers = labels.map((label) => nodes.find((node) => matches(node, label)))
-  const evidence = headers.map((node, index) => read(node, labels[index]))
+  if (!headers)
+    return columns.map((column) => {
+      const label = `${labels[column]}, ${values[column]}`
+      return read(
+        nodes.find((node) => matches(node, label)),
+        label,
+      )
+    })
+  const headerNodes = labels.map((label) => nodes.find((node) => matches(node, label)))
+  const evidence = headerNodes.map((node, index) => read(node, labels[index]))
   for (let column = 0; column < labels.length; column++) {
-    const [left, , right, bottom] = headers[column].rect
+    const [left, , right, bottom] = headerNodes[column].rect
     const label = `${labels[column]}, ${values[column]}`
     const node = nodes.find(
       (node) =>
@@ -56,9 +68,9 @@ export function verifyTablePixels(buffer, nodes) {
   return evidence
 }
 
-export function tableTimingRecords(log) {
+export function tableTimingRecords(log, marker = '[Hozo Table timing]') {
   return log.split(/\r?\n/).flatMap((line) => {
-    const at = line.indexOf('[Hozo Table timing]')
+    const at = line.indexOf(marker)
     if (at < 0) return []
     // A truncated record must fail, rather than disappear into an empty sample.
     // Release RN quotes console arguments and separates them with a comma.
@@ -84,10 +96,15 @@ export function assertReusableTableInputs(changed) {
   }
 }
 
-export function verifyTableSample(sample, { mode, count, sourceHash }) {
+export function verifyTableSample(
+  sample,
+  { mode, count, sourceHash, windowedSourceHash, windowedModelHash },
+) {
   assert.equal(sample.mode, mode)
   assert.equal(sample.count, count)
   assert.equal(sample.sourceHash, sourceHash, 'instrumented Table differs from checked-out source')
+  if (windowedSourceHash !== undefined) assert.equal(sample.windowedSourceHash, windowedSourceHash)
+  if (windowedModelHash !== undefined) assert.equal(sample.windowedModelHash, windowedModelHash)
   assert.equal(sample.passed, true, 'Table did not finish within the observation window')
   for (const field of ['boundaryMs', 'settledMs', 'observedMs', 'resolvedMs']) {
     assert.ok(Number.isFinite(sample[field]) && sample[field] >= 0, `missing ${field}`)
@@ -115,6 +132,27 @@ export function verifyTableSample(sample, { mode, count, sourceHash }) {
     )
     assert.ok(sample.cellLayouts >= sample.distinctLaidOutCells)
   }
+}
+
+export function verifyTableWindow(
+  sample,
+  { count, windowedSourceHash, windowedModelHash, includes = [], excludes = [] },
+) {
+  assert.equal(sample.count, count)
+  assert.equal(sample.windowedSourceHash, windowedSourceHash)
+  assert.equal(sample.windowedModelHash, windowedModelHash)
+  assert.equal(sample.naturalMeasurements, 0)
+  assert.ok(sample.rows > 0 && sample.rows <= sample.peakRows && sample.peakRows <= 48)
+  assert.ok(sample.mountedRows >= sample.peakRows)
+  assert.equal(new Set(sample.indices).size, sample.rows)
+  assert.equal(sample.indices.length, sample.rows)
+  assert.ok(
+    sample.indices.every((index) => Number.isInteger(index) && index >= 0 && index <= count),
+  )
+  for (const index of includes)
+    assert.ok(sample.indices.includes(index), `row ${index} was not mounted`)
+  for (const index of excludes)
+    assert.ok(!sample.indices.includes(index), `row ${index} did not leave the window`)
 }
 
 export function tableSummary(cases) {
