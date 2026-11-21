@@ -912,7 +912,9 @@ fn the_rest_of_the_form_states_are_named_absent() {
     // Constraint validation is a DOM feature. React Native has no
     // `required`, no `pattern`, and nothing for `:invalid` to be true
     // of -- so this is a refusal with a reason, not an unbuilt gap.
-    for class_name in ["invalid:p-4", "required:p-4", "placeholder-shown:p-4"] {
+    // `placeholder-shown:` is not one of them: it is read from the field's
+    // own `placeholder` and `value` (see below).
+    for class_name in ["invalid:p-4", "required:p-4"] {
         let source = format!(
             "import {{ TextInput }} from '@hozo/core'
                  const el = <TextInput accessibilityLabel=\"N\" className=\"{class_name}\" />
@@ -925,6 +927,115 @@ fn the_rest_of_the_form_states_are_named_absent() {
             1,
             "{class_name}: {:?}",
             output.diagnostics
+        );
+    }
+}
+
+#[test]
+fn placeholder_shown_is_read_from_the_placeholder_and_the_value() {
+    // (props, the guard the style is under; "" when known to apply, None
+    // when known not to.)
+    for (props, guard) in [
+        (
+            r#"placeholder="Email" value={text}"#,
+            Some("(((text) ?? '') === '')"),
+        ),
+        (
+            r#"placeholder={hint} value={text}"#,
+            Some("(!!(hint) && ((text) ?? '') === '')"),
+        ),
+        (r#"placeholder={hint} value="""#, Some("(!!(hint))")),
+        (r#"placeholder="Email" value="""#, Some("")),
+        // Nothing to show, or text in the way: never shown, on either
+        // platform.
+        (r#"value={text}"#, None),
+        (r#"placeholder="" value={text}"#, None),
+        (r#"placeholder="Email" value="typed""#, None),
+    ] {
+        let source = format!("import {{ TextInput }} from '@hozo/core'; export function C({{text, hint}}) {{ return <TextInput accessibilityLabel=\"Field\" {props} className=\"placeholder-shown:p-4 not-placeholder-shown:m-2\" /> }}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(out.diagnostics.is_empty(), "{props}: {:?}", out.diagnostics);
+        match guard {
+            Some("") => {
+                assert!(
+                    out.jsx.contains("hozoStyles.hozo0_placeholdershown"),
+                    "{props}: {}",
+                    out.jsx
+                );
+                assert!(
+                    !out.jsx.contains("hozoStyles.hozo0_notplaceholdershown"),
+                    "{props}: {}",
+                    out.jsx
+                );
+            }
+            Some(guard) => {
+                assert!(
+                    out.jsx
+                        .contains(&format!("{guard} && hozoStyles.hozo0_placeholdershown")),
+                    "{props}: {}",
+                    out.jsx
+                );
+                assert!(
+                    out.jsx.contains(&format!(
+                        "!({guard}) && hozoStyles.hozo0_notplaceholdershown"
+                    )),
+                    "{props}: {}",
+                    out.jsx
+                );
+            }
+            None => {
+                assert!(
+                    !out.jsx.contains("hozoStyles.hozo0_placeholdershown"),
+                    "{props}: {}",
+                    out.jsx
+                );
+                assert!(
+                    out.jsx.contains("hozoStyles.hozo0_notplaceholdershown"),
+                    "{props}: {}",
+                    out.jsx
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn placeholder_shown_without_a_value_or_off_a_field_is_refused() {
+    // An uncontrolled field keeps its text inside the native view, so
+    // there is nothing to read; negating that must not make it true.
+    for (element, class_name) in [
+        (
+            r#"<TextInput accessibilityLabel="F" placeholder="Email" className="{c}" />"#,
+            "placeholder-shown:p-4",
+        ),
+        (
+            r#"<TextInput accessibilityLabel="F" placeholder="Email" defaultValue="a" className="{c}" />"#,
+            "not-placeholder-shown:p-4",
+        ),
+        (
+            r#"<TextInput accessibilityLabel="F" placeholder="Email" className="{c}" />"#,
+            "md:placeholder-shown:p-4",
+        ),
+        (r#"<View className="{c}" />"#, "placeholder-shown:p-4"),
+    ] {
+        let element = element.replace("{c}", class_name);
+        let source = format!("import {{ TextInput, View }} from '@hozo/core'; export function C() {{ return {element} }}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == DiagnosticCode::NotWiredOnNative
+                    && d.severity == Severity::Error
+                    && d.message.contains("placeholder-shown")),
+            "{element}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            !out.jsx.contains("placeholdershown"),
+            "{element}: {}",
+            out.jsx
         );
     }
 }
@@ -1056,7 +1167,7 @@ fn missing_read_only_drivers_and_other_form_states_remain_refused_when_negated()
             out.jsx
         );
     }
-    for variant in ["not-required", "not-invalid", "md:not-placeholder-shown"] {
+    for variant in ["not-required", "not-invalid", "md:not-user-invalid"] {
         let out = compile_read_only_input("readOnly={locked}", &format!("{variant}:p-4"));
         assert!(
             out.diagnostics

@@ -157,6 +157,16 @@ const PROBE_CONTEXTS = [
       `  return <TextInput readOnly={locked} className="${candidate}" accessibilityLabel="Field" />\n}\n`,
   },
   {
+    // `placeholder-shown:` is read from the field's `placeholder` and
+    // `value`. A field with no placeholder never shows one, and one with no
+    // value cannot be read at all, so neither TextInput above could answer.
+    name: 'TextInput with a placeholder and a value',
+    render: (candidate: string) =>
+      `import { TextInput } from '@hozo/core'\n` +
+      `export function C({ text }) {\n` +
+      `  return <TextInput placeholder="Email" value={text} className="${candidate}" accessibilityLabel="Field" />\n}\n`,
+  },
+  {
     // `*:` and `**:` hand their style to the element's *children*, and
     // every other context here has only a text child -- which becomes an
     // inserted `Text` and is not what a subtree selector reaches. So they
