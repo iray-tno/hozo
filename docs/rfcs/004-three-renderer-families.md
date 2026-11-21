@@ -1,6 +1,6 @@
 # RFC 004: Three.js Renderer Families
 
-- **Status**: Accepted
+- **Status**: Implemented (#574 closed; follow-ups #595 and #596 closed)
 - **Tracking Issue**: #574
 - **Target Package**: `@hozo/three`
 
