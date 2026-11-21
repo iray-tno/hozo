@@ -1,5 +1,62 @@
 # @hozo/engine
 
+## 0.5.0
+
+### Minor Changes
+
+- [#2072](https://github.com/iray-tno/hozo/pull/2072) [`5c823ee`](https://github.com/iray-tno/hozo/commit/5c823ee87f1996f7011290af68702ef7f19e5388) Thanks [@iray-tno](https://github.com/iray-tno)! - On React Native, a physical inline utility on its own (`pl-4`, `mr-2`, `left-3`, `border-l-2`) now keeps its side in RTL, as in Tailwind. Before, React Native's default left/right swap moved it to the other side. Where the swap would change the result, both the static compiler and the generated candidate map emit the edge as `start`/`end` for the current direction, so the result no longer depends on the swap setting. A utility that writes both sides alike (`p-4`) is unchanged.
+  
+  This changes behaviour for an RTL app that relied on the swap to mirror physical classes. To mirror, use the logical classes (`ps-*`, `pe-*`, `ms-*`, `me-*`, `start-*`, `end-*`).
+
+- [#2074](https://github.com/iray-tno/hozo/pull/2074) [`b3cf38b`](https://github.com/iray-tno/hozo/commit/b3cf38b30f2fe748c4f73110d01de2566826355a) Thanks [@iray-tno](https://github.com/iray-tno)! - On React Native, a development build now warns once about each class it is handed at run time and cannot find in the project's class map, such as `` `bg-${color}-500` `` with a colour the build never saw. Before, such a class just did not apply, with no message. Release builds do not warn.
+  
+  Some names are meant to mark an element rather than style it, such as `js-row` or a name a test selects by. List those in the new `markerClasses` option, as exact names or as prefixes ending in `*`, and they are not warned about. Tailwind's own `group` and `peer` never need listing. The build-time `CLASS_NOT_IN_RUNTIME_MAP` check skips declared markers too.
+
+### Patch Changes
+
+- [#1996](https://github.com/iray-tno/hozo/pull/1996) [`cb4b456`](https://github.com/iray-tno/hozo/commit/cb4b4564ddb95d7ecb6f729433bf5c956788b53e) Thanks [@iray-tno](https://github.com/iray-tno)! - Preserve an absolute leading register supplementing a theme text colour in generated Web and Native runtime candidates.
+
+- [#1996](https://github.com/iray-tno/hozo/pull/1996) [`ba5beaf`](https://github.com/iray-tno/hozo/commit/ba5beaf2fbaff50a5b6bb1595ee156cae9dd5a1c) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep captured leading registers when a Text owner combines static and runtime classes, without overriding explicit authored styles.
+
+- [#2014](https://github.com/iray-tno/hozo/pull/2014) [`0001fc4`](https://github.com/iray-tno/hozo/commit/0001fc442e38955770974fb5377002e4deb4b95f) Thanks [@iray-tno](https://github.com/iray-tno)! - Use the captured Tailwind order when the state styles in a Native class
+  string are all ranked, even if another candidate in the project is
+  unassessed. Generated Native maps no longer need a separate flag for
+  fully ranked state styles.
+
+- [#1996](https://github.com/iray-tno/hozo/pull/1996) [`ed04074`](https://github.com/iray-tno/hozo/commit/ed04074de82890b87590afb537a0bea99b2751a7) Thanks [@iray-tno](https://github.com/iray-tno)! - Use Tailwind's captured order for equal-specificity hover and press font sizes, without shipping the older Native variant tie in size-only conditional tables.
+
+- [#1684](https://github.com/iray-tno/hozo/pull/1684) [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b) Thanks [@iray-tno](https://github.com/iray-tno)! - `Image` declares `width`, `height`, `loading`, `decoding` and `fetchPriority`. The uncompiled Web `Image` now forwards them to the `<img>`, as compiled output already did, so a server-rendered page reserves the image's box and lazy-loads it with or without the compiler ([#1674](https://github.com/iray-tno/hozo/issues/1674)). On React Native, `width` and `height` are React Native's own props, and the three loading hints type-check but are ignored.
+
+- [#1977](https://github.com/iray-tno/hozo/pull/1977) [`052b447`](https://github.com/iray-tno/hozo/commit/052b447351a669a12c5b8ced61bef5d07dc8a604) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep shared Tailwind order for dynamic Native text and physical padding when an independent background-colour candidate is unranked.
+
+- [#1977](https://github.com/iray-tno/hozo/pull/1977) [`43680e3`](https://github.com/iray-tno/hozo/commit/43680e3643ba9f3f6e01f5c7aa885feb8e5c7b04) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep explicit line height when a Native Text or TextInput mixes compiled font sizes with runtime classes.
+
+- [#2075](https://github.com/iray-tno/hozo/pull/2075) [`35cc5c3`](https://github.com/iray-tno/hozo/commit/35cc5c31ce90497de9a6f345e884af2d20a6bc60) Thanks [@iray-tno](https://github.com/iray-tno)! - A `style` prop now wins over the classes on the inline edges it writes on React Native. `className="px-8" style={{ paddingRight: 99 }}` used to keep the class's 32, because Yoga prefers `paddingEnd` to `paddingRight` in any order. The authored edge keeps React Native's own meaning, RTL swap included.
+
+- [#2078](https://github.com/iray-tno/hozo/pull/2078) [`70643e9`](https://github.com/iray-tno/hozo/commit/70643e959d229a75fcdbd1316f9a972efb4a2622) Thanks [@iray-tno](https://github.com/iray-tno)! - On React Native, a `style` passed through a spread now wins the inline edges it writes over the element's classes, as a named `style` does since the previous release. `<Button style={{ paddingRight: 24 }} />` used to keep the button's `px-*` padding on that side, because the wrapper hands `style` on with `{...rest}` and Yoga prefers the class's `paddingEnd` to `paddingRight`.
+
+- [#2036](https://github.com/iray-tno/hozo/pull/2036) [`3a3a8d5`](https://github.com/iray-tno/hozo/commit/3a3a8d52d64d0d580d9afaa298977c5c33f295f2) Thanks [@iray-tno](https://github.com/iray-tno)! - On React Native, an element whose classes write an inline edge both logically and physically (`px-8 pl-1`, `ps-8 pl-1`, and the margin, inset and border width and colour counterparts) now lays out as Tailwind does in both directions. The physical writes are emitted as `start`/`end` for the current direction, so the order Tailwind settled decides. Before, Yoga let `paddingStart` beat `paddingLeft` whatever the order, and React Native's default RTL left/right swap moved the physical write to the other side. Both the static compiler and the generated candidate map do this; an element that writes a family only physically or only logically is unchanged.
+
+- [#1996](https://github.com/iray-tno/hozo/pull/1996) [`45eda5b`](https://github.com/iray-tno/hozo/commit/45eda5b451bdf1449c7c16172c03b2a9e743aaa6) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep Tailwind's font-size winner for adjacent conditional size utilities with the same guard in a mixed, dynamic Native class string.
+
+- [#2059](https://github.com/iray-tno/hozo/pull/2059) [`cca1211`](https://github.com/iray-tno/hozo/commit/cca1211b176ec411112275399fc582a92a50efbe) Thanks [@iray-tno](https://github.com/iray-tno)! - RFC 006's whole-component Native text inheritance route is removed, now that [decision 013](https://github.com/iray-tno/hozo/blob/main/docs/decisions/013-text-inheritance-compiled-where-visible.md) is the default. The internal `textInheritance` and `textStatic` compile options are gone. So are the generated components that only that route emitted: `HozoInheritedText`, `HozoInheritedView`, `HozoInheritedRelativeText`, `HozoInheritedPressable` and `HozoInheritedLabel`, with their `@hozo/core/generated/*` and `@hozo/primitives/generated/*` entries. Compiled output never referred to them unless the internal option was set. Native Chip's internal `hozoInheritedLabel` and `hozoInheritedText` props are gone too, along with the colour-motion field of the inheritance protocol, which only RFC 006's pressable published.
+
+- [#1996](https://github.com/iray-tno/hozo/pull/1996) [`4f62450`](https://github.com/iray-tno/hozo/commit/4f624503a4fb9f4af6f699f7d2deb55b69a72c36) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep assessed Tailwind order between Native state styles even when a resting utility cannot be ranked, without shipping redundant owner variant ranks for those state maps.
+
+- [#2014](https://github.com/iray-tno/hozo/pull/2014) [`ddd7c73`](https://github.com/iray-tno/hozo/commit/ddd7c73d09768ad8fbcf55c40859729b7271ea1a) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep assessed Native state styles in the captured Tailwind order when an
+  unranked resting style is present, without moving styles across unknown state
+  writes or Native specificity boundaries.
+
+- [#1996](https://github.com/iray-tno/hozo/pull/1996) [`2d28017`](https://github.com/iray-tno/hozo/commit/2d2801735d14c61193610e74bc6178f15b79d07e) Thanks [@iray-tno](https://github.com/iray-tno)! - Preserve assessed Native state order beside conditional colour-only writers proven independent of those styles.
+
+- [#2014](https://github.com/iray-tno/hozo/pull/2014) [`cabc969`](https://github.com/iray-tno/hozo/commit/cabc9695ae805afa2c690aebcad5657f76f95eac) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep Tailwind's order for assessed RTL/LTR styles when an independent
+  resting background would otherwise send the class string through fallback.
+  Unknown writes still pin their position.
+
+- [#2014](https://github.com/iray-tno/hozo/pull/2014) [`3f1754a`](https://github.com/iray-tno/hozo/commit/3f1754a523e62dc44ccc3da7294e9510e5203302) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep assessed Tailwind order in the resting part of a Native class string
+  even when an unrelated unknown write prevents use of the complete order
+  plan. Do not move a style across an unproven boundary.
+
 ## 0.4.0
 
 ### Minor Changes
