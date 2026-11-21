@@ -22,6 +22,7 @@ import { enterIosText, inputObstruction } from './ios-form-input.mjs'
 import { IOS_SCENE_IMAGE_TIMEOUT, waitForIosSceneImage } from './ios-image-ready.mjs'
 import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
 import { launchIosApp } from './ios-launch.mjs'
+import { exerciseIosPreferences } from './ios-preferences-evidence.mjs'
 import { selectIosSimulator, waitForIosBoot } from './ios-simulator.mjs'
 import { selectStableIosText, waitForIosStorySelection } from './ios-story-selector.mjs'
 import { iosSvgEvidence, iosSvgRegion, readIosScenario } from './ios-svg-filter-evidence.mjs'
@@ -528,13 +529,12 @@ try {
       record('native keyboard input and save')
 
       await story('patterns-shared-showcase--preferences', 'Email notifications')
-      await tap(label('Email notifications'), 'email checkbox')
-      await tap(label('Automatic updates'), 'updates switch')
-      await waitFor(label('Preferences: email on, updates off'), 'preference state changes')
-      const required = await waitFor(label('Required security notices'), 'required checkbox')
-      assert.equal(required.enabled, false, 'required checkbox must be disabled')
-      await tap(label('Required security notices'), 'disabled required checkbox')
-      await waitFor(label('Preferences: email on, updates off'), 'disabled preference unchanged')
+      evidence.preferences = {}
+      await exerciseIosPreferences({
+        readNodes: nodes,
+        tapPoint: (point) => idb('ui', 'tap', ...point.map(String)),
+        observation: evidence.preferences,
+      })
       screenshot('06-preferences')
       record('shared checkbox and switch change state, disabled checkbox does not activate')
 
