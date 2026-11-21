@@ -52,15 +52,16 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             </Paragraph>
           </View>
 
-          {/* CTA Links */}
+          {/* CTA Links. The docs lead: they are where a reader can start from
+              without setup, and the REPL asks for more before it pays off. */}
           <View className="flex flex-row flex-wrap items-center justify-center gap-4 mb-12">
             <Link
-              href={`${cleanBase}/repl/`}
+              href={`${cleanBase}/docs/`}
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-bengara hover:bg-bengara-hover shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
-              <Text>Try the REPL</Text>
+              <Text>Read the docs</Text>
               <Text className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-yakisugi-950 text-hinoki-light border border-hinoki/18">
-                Playground
+                Guides
               </Text>
             </Link>
             <Link
@@ -70,10 +71,10 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               <Text>Try the showcase</Text>
             </Link>
             <Link
-              href={`${cleanBase}/docs/`}
+              href={`${cleanBase}/repl/`}
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui-muted hover:text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-hinoki/18 hover:border-hinoki/35 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
-              <Text>Read the docs</Text>
+              <Text>Try the REPL</Text>
             </Link>
           </View>
 

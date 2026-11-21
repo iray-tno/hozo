@@ -80,13 +80,13 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
         <View className="flex flex-row items-center gap-2 sm:gap-3 shrink-0">
           <Link
             href={`${cleanBase}/docs/`}
-            className="inline-flex flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-yakisugi-800 hover:bg-yakisugi-700 text-shikkui border border-hinoki/18 transition-all md:hidden"
+            className="inline-flex flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-bengara hover:bg-bengara-hover text-shikkui shadow-sm transition-all md:hidden"
           >
             <Text>Docs</Text>
           </Link>
           <Link
             href={`${cleanBase}/repl/`}
-            className="inline-flex flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-bengara hover:bg-bengara-hover text-shikkui shadow-sm transition-all md:hidden"
+            className="inline-flex flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-yakisugi-800 hover:bg-yakisugi-700 text-shikkui border border-hinoki/18 transition-all md:hidden"
           >
             <Text>REPL</Text>
           </Link>
