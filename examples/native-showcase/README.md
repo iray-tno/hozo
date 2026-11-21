@@ -552,6 +552,13 @@ If Linux still exposes a QEMU zombie, its wait status records the exit code
 or signal. On disconnect or failure, the timeline also records any exception
 metadata in the emulator's Crashpad reports. The records can be absent if
 the process was already reaped or Crashpad did not write a report.
+
+Fresh Android builds include `r8-keep-rules.txt` in that artifact. It records
+the two Expo GL members kept while R8 shrinks the release APK: the reflective
+`GLView` constructor and the JNI `GLContext.flush()` callback. Remove the
+app-local rules after the installed `expo-gl` ships its own, then confirm the
+effective configuration and rerun the signed Android smoke (#1598).
+
 Compare `android-scenario=full` and `android-scenario=ui-docs` with the same
 APK and system image and `diagnostics=false` to test the effect of the
 preceding scenarios.
