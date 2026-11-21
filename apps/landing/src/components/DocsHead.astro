@@ -24,6 +24,25 @@ const image = new URL(`${base}/og-image.png`, Astro.site).href
   }
   enhanceCode()
   document.addEventListener('astro:page-load', enhanceCode)
+
+  // A sidebar group's heading is sticky (docs.css), so it can be closed from
+  // the middle of a long group. Closed, the group shrinks above the view and
+  // the sidebar would show whatever followed it; bring its heading back
+  // instead. `toggle` does not bubble, hence the capture.
+  document.addEventListener(
+    'toggle',
+    (event) => {
+      const details = event.target
+      if (!(details instanceof HTMLDetailsElement) || details.open) return
+      const pane = details.closest('#starlight__sidebar')
+      const summary = details.querySelector(':scope > summary')
+      if (!pane || !summary) return
+      if (summary.getBoundingClientRect().top < pane.getBoundingClientRect().top) {
+        summary.scrollIntoView({ block: 'start' })
+      }
+    },
+    true,
+  )
 </script>
 <!-- The landing's type, which src/styles/docs.css names. -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />

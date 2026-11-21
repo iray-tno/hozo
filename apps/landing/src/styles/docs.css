@@ -166,3 +166,20 @@
     background-color: transparent;
   }
 }
+
+/* A sidebar group's heading stays at the top of the sidebar while its own
+ * links scroll under it, so a long group (Components has over forty pages)
+ * can be closed from the middle of it. It is sticky within its `<details>`,
+ * so the next group's heading pushes it away. The background is the pane's,
+ * which Starlight sets differently on narrow and wide screens. */
+.sidebar-content .top-level > li > details > summary {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--sl-color-black);
+}
+@media (min-width: 50rem) {
+  .sidebar-content .top-level > li > details > summary {
+    background-color: var(--sl-color-bg-sidebar);
+  }
+}
