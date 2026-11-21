@@ -123,7 +123,7 @@ pub(super) fn resolve(
     match condition {
         Condition::Not(inner) => resolve(inner, target, source, runtime)
             .map(Guard::negate)
-            .map_err(|reason| format!("`not-{}:` cannot be resolved: {reason}", condition_suffix(inner).unwrap_or_default())),
+            .map_err(|reason| format!("`not-{}:` cannot be resolved: {reason}", variant_spelling(inner).unwrap_or_default())),
         Condition::Disabled => node.props.effective_disabled().as_ref()
             .map(|disabled| Guard::Dynamic(format!("({})", render_condition_expr(source, disabled))))
             .ok_or_else(|| "`disabled:` needs a `disabled` prop on the same element to drive it, and this one has none.".into()),
@@ -141,7 +141,7 @@ pub(super) fn resolve(
             if pattern_slot.is_some_and(|slot| crate::pattern::events_unavailable(node.primitive, slot)) {
                 return Err(format!(
                     "`{}:` has no readable events on this decorative class owner on Native. A surrounding control's hover/press/focus does not locate interaction on its child; negation cannot make an unavailable fact true.",
-                    condition_suffix(condition).unwrap_or_default(),
+                    variant_spelling(condition).unwrap_or_default(),
                 ));
             }
             if matches!(node.primitive, Primitive::View | Primitive::Pressable)
@@ -164,7 +164,7 @@ pub(super) fn resolve(
                 } else {
                     Err(format!(
                         "`{}:` is not declared in this owner's delivered events on Native.",
-                        condition_suffix(condition).unwrap_or_default(),
+                        variant_spelling(condition).unwrap_or_default(),
                     ))
                 };
             }
@@ -173,7 +173,7 @@ pub(super) fn resolve(
                     Condition::Focus | Condition::FocusVisible => Ok(Guard::Interactive(focus_state(condition).unwrap().to_string())),
                     _ => Err(format!(
                         "`{}:` on TextInput is not wired on Native: the field observes its own focus, not a Pressable's hover/press. An outer control's state is not borrowed.",
-                        condition_suffix(condition).unwrap_or_default(),
+                        variant_spelling(condition).unwrap_or_default(),
                     )),
                 };
             }
@@ -182,7 +182,7 @@ pub(super) fn resolve(
                 if !node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some(owner)) {
                     return Err(format!(
                         "`{}:` on Stepper's step slots needs an authored `{owner}`: without it the step is descriptive, not a button. No button interaction is borrowed by its indicator or description.",
-                        condition_suffix(condition).unwrap_or_default(),
+                        variant_spelling(condition).unwrap_or_default(),
                     ));
                 }
             }
@@ -194,7 +194,7 @@ pub(super) fn resolve(
                 }
                 return Err(format!(
                     "`{}:` on CommandPalette's item slots is not wired on Native: the Web input keeps focus, not its option. Native button focus is a different owner; use activeItemClassName for the return-key target instead of borrowing input focus.",
-                    condition_suffix(condition).unwrap_or_default(),
+                    variant_spelling(condition).unwrap_or_default(),
                 ));
             }
             if pattern_owner.as_ref().is_some_and(|slot| !slot.pointer)
@@ -205,7 +205,7 @@ pub(super) fn resolve(
                 }
                 return Err(format!(
                     "`{}:` on OtpInput's input slot is not wired on Native: only input focus/modality is observed. Wrapper hover/press is a different owner and is not borrowed by the input or cells.",
-                    condition_suffix(condition).unwrap_or_default(),
+                    variant_spelling(condition).unwrap_or_default(),
                 ));
             }
             if pattern_owner.is_some()
@@ -229,7 +229,7 @@ pub(super) fn resolve(
                 // drop, not support. Refuse when no owner can drive it.
                 Err(format!(
                     "`{}:` is wired only on Pressable, Button and Link, or Text in their interaction context, on React Native; no readable interaction state exists on this element.",
-                    condition_suffix(condition).unwrap_or_default()
+                    variant_spelling(condition).unwrap_or_default()
                 ))
             }
         }

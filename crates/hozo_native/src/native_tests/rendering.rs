@@ -2143,6 +2143,47 @@ fn a_group_state_the_context_does_not_carry_says_so_under_a_pressable() {
 }
 
 #[test]
+fn a_refusal_names_the_variant_the_way_it_was_written() {
+    // The names used to be the style-entry suffix: `group-ariachecked:`,
+    // `hashover:`, and `data:` for every data attribute.
+    for (element, written) in [
+        (
+            r#"<Pressable className="group"><Text className="group-aria-checked:p-4">x</Text></Pressable>"#,
+            "`group-aria-checked:`",
+        ),
+        (r#"<View className="has-hover:p-4" />"#, "`has-hover:`"),
+        (
+            r#"<View className="data-[state=open]:p-4" />"#,
+            "`data-[state=open]:`",
+        ),
+        (r#"<View className="data-open:p-4" />"#, "`data-open:`"),
+        (
+            r#"<View className="focus-visible:p-4" />"#,
+            "`focus-visible:`",
+        ),
+        (
+            r#"<View className="hover:peer-hover:p-4" />"#,
+            "`hover:peer-hover`",
+        ),
+        (
+            r#"<View className="not-focus-visible:p-4" />"#,
+            "`not-focus-visible:`",
+        ),
+    ] {
+        let output = lower_element(element);
+        let messages: Vec<_> = output
+            .diagnostics
+            .iter()
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            messages.iter().any(|message| message.contains(written)),
+            "{element}: {messages:?}"
+        );
+    }
+}
+
+#[test]
 fn an_avatar_is_hozo_avatar_and_each_part_gets_its_style() {
     // #144: four class lists, one per part, each a style prop here; the
     // avatar keeps its text styles, which it hands to the initials.

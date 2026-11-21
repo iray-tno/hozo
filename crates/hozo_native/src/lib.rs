@@ -723,7 +723,7 @@ fn subtree_for_children(
             continue;
         };
         if let Some(elemental) = before.iter().find(|condition| condition.is_elemental()) {
-            let name = condition_suffix(elemental).unwrap_or_else(|| "…".to_string());
+            let name = variant_spelling(elemental).unwrap_or_else(|| "…".to_string());
             diagnostics.push(unwired_variant(
                 node,
                 &format!(
@@ -1186,7 +1186,7 @@ fn group_state(inner: &Condition, interaction_context: bool) -> Option<&'static 
 
 /// Why a `group-…:` could not be wired, in the terms the author can act on.
 fn group_unwired_message(inner: &Condition, interaction_context: bool) -> String {
-    let name = condition_suffix(inner).unwrap_or_else(|| "…".to_string());
+    let name = variant_spelling(inner).unwrap_or_else(|| "…".to_string());
     // Which state, before where: `group-aria-checked:` under a Pressable was
     // told nothing above it was one, when the Pressable was right there and
     // the condition was simply not one it hands down.
@@ -1545,6 +1545,93 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         ),
         Condition::Expr(expr) => Some(format!("cond_{}", expr_key(expr))),
     }
+}
+
+/// A condition as an author writes it in front of a class, for a message.
+///
+/// Not `condition_suffix`: that one has to be an identifier, so it read
+/// `group-ariachecked:`, `hashover:`, `focusvisible:`, and every `data-*`
+/// came out as `data:` -- a refusal naming a variant nobody wrote.
+///
+/// Widths and container sizes are resolved to pixels when parsed, so they
+/// come back in the bracket form (`min-[768px]`, `@min-[384px]`) rather
+/// than the name; that is still a class Tailwind accepts. `None` for what
+/// is not a variant at all: a guard from an expression.
+fn variant_spelling(condition: &Condition) -> Option<String> {
+    let inner = |inner: &Condition| variant_spelling(inner).unwrap_or_else(|| "…".to_string());
+    Some(match condition {
+        Condition::Always | Condition::Expr(_) => return None,
+        Condition::All(conditions) => conditions
+            .iter()
+            .filter_map(variant_spelling)
+            .collect::<Vec<_>>()
+            .join(":"),
+        Condition::Responsive(bp) => match bp {
+            Breakpoint::Sm => "sm",
+            Breakpoint::Md => "md",
+            Breakpoint::Lg => "lg",
+            Breakpoint::Xl => "xl",
+            Breakpoint::Xl2 => "2xl",
+        }
+        .to_string(),
+        Condition::Subtree { direct } => if *direct { "*" } else { "**" }.to_string(),
+        Condition::Container {
+            name,
+            at_least,
+            value,
+        } => format!(
+            "@{}-[{value}]{}",
+            if *at_least { "min" } else { "max" },
+            name.as_deref()
+                .map(|name| format!("/{name}"))
+                .unwrap_or_default()
+        ),
+        Condition::Width { at_least, value } => {
+            format!("{}-[{value}]", if *at_least { "min" } else { "max" })
+        }
+        Condition::Hover => "hover".to_string(),
+        Condition::Focus => "focus".to_string(),
+        Condition::FocusVisible => "focus-visible".to_string(),
+        Condition::Disabled => "disabled".to_string(),
+        Condition::Enabled => "enabled".to_string(),
+        Condition::Pressed => "pressed".to_string(),
+        Condition::Dark => "dark".to_string(),
+        Condition::FirstChild => "first".to_string(),
+        Condition::LastChild => "last".to_string(),
+        Condition::Aria(state) => format!("aria-{state}"),
+        Condition::Environment(query) => environment_name(*query).to_string(),
+        // Held as the selector, `[data-state="open"]`: back to
+        // `data-[state=open]`, or `data-open` for a bare attribute.
+        Condition::DataAttribute(selector) => {
+            let attribute = selector.trim_start_matches('[').trim_end_matches(']');
+            let attribute = attribute.strip_prefix("data-").unwrap_or(attribute);
+            if attribute.contains('=') {
+                format!("data-[{}]", attribute.replace('"', ""))
+            } else {
+                format!("data-{attribute}")
+            }
+        }
+        Condition::Supports(query) => format!("supports-[{query}]"),
+        Condition::Has(condition) => format!("has-{}", inner(condition)),
+        Condition::HasSelector(selector) => format!("has-[{selector}]"),
+        Condition::Not(condition) => format!("not-{}", inner(condition)),
+        Condition::Group(condition) => format!("group-{}", inner(condition)),
+        Condition::Peer(condition) => format!("peer-{}", inner(condition)),
+        Condition::In(condition) => format!("in-{}", inner(condition)),
+        Condition::Structural(structural) => structural.variant_name(),
+        Condition::FormState(state) => state.variant_name().to_string(),
+        Condition::PseudoElement(pseudo) => pseudo.variant_name().to_string(),
+        Condition::Control(state) => state.variant_name().to_string(),
+        Condition::FocusWithin => "focus-within".to_string(),
+        Condition::Target => "target".to_string(),
+        Condition::Open => "open".to_string(),
+        Condition::Inert => "inert".to_string(),
+        Condition::Visited => "visited".to_string(),
+        Condition::StartingStyle => "starting".to_string(),
+        Condition::ArbitrarySelector(selector) | Condition::ArbitraryAtRule(selector) => {
+            format!("[{selector}]")
+        }
+    })
 }
 
 /// A style key for a guard, from its shape as well as its spans.

@@ -630,7 +630,7 @@ pub(super) fn build_style_entries(
                              doesn't have wired up yet, so the style is not applied.",
                             atoms
                                 .iter()
-                                .filter_map(|condition| condition_suffix(condition))
+                                .filter_map(|condition| variant_spelling(condition))
                                 .collect::<Vec<_>>()
                                 .join(":")
                         ),
@@ -846,7 +846,7 @@ pub(super) fn build_style_entries(
                 node,
                 &format!(
                     "`{}:` has no React Native equivalent -- it selects on an attribute, a descendant or a CSS feature, and there are no selectors here. On Web the same class works.",
-                    condition_suffix(&condition).unwrap_or_default()
+                    variant_spelling(&condition).unwrap_or_default()
                 ),
                 Severity::Error,
             )),
