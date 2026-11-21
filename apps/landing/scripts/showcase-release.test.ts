@@ -110,6 +110,6 @@ test('Pages refreshes after successful tag releases, not dry runs or failures, a
     workflow,
     /workflow_run\.conclusion == 'success' && github\.event\.workflow_run\.event == 'push'/,
   )
-  assert.match(workflow, /actions\/checkout@v4\s+with:\s+ref: main/)
+  assert.match(workflow, /actions\/checkout@v\d+\s+with:\s+ref: main/)
   assert.match(workflow, /HOZO_SHOWCASE_DOWNLOADS: '1'/)
 })

@@ -42,10 +42,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
+          package-manager-cache: false
       - run: node scripts/showcase-release.mjs check-notes
 
   # A green package build does not exercise the real Metro application.
@@ -58,11 +59,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -70,7 +71,7 @@ jobs:
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm turbo run build --filter='./packages/*'
       - run: pnpm --filter @hozo/example-native-demo test
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-integration-bundles
@@ -100,18 +101,19 @@ jobs:
       contents: read
       actions: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
-      - uses: actions/download-artifact@v4
+          package-manager-cache: false
+      - uses: actions/download-artifact@v7
         with:
           pattern: hozo-native-showcase-*
           path: artifacts/showcase-input
       - run: node scripts/showcase-release.mjs prepare
         env:
           HOZO_RELEASE_SIGNING: ${{ (startsWith(github.ref, 'refs/tags/v') || inputs.release-signing) && '1' || '' }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: hozo-showcase-release-assets
           path: artifacts/showcase-release
@@ -144,7 +146,7 @@ jobs:
             musl: true
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.triple }}
@@ -154,8 +156,8 @@ jobs:
       # musl needs a linker the GNU-hosted runners do not carry.
       - if: matrix.musl
         run: sudo apt-get update && sudo apt-get install -y musl-tools
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -177,7 +179,7 @@ jobs:
           # failed for this single reason.
           RUSTFLAGS: ${{ matrix.musl && '-C target-feature=-crt-static' || '' }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.triple }}
           path: artifacts/
@@ -198,9 +200,9 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           registry-url: https://registry.npmjs.org
@@ -211,7 +213,7 @@ jobs:
       # before it reaches the first irreversible upload.
       - run: node -e "const v=require('node:child_process').execFileSync('npm',['--version'],{encoding:'utf8'}).trim().split('.').map(Number); if(v[0]<11||(v[0]===11&&v[1]<5)) process.exit(1)"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
           pattern: '{x86_64,aarch64}-*'
@@ -277,7 +279,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - id: auth
@@ -296,11 +298,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
-      - uses: actions/download-artifact@v4
+          package-manager-cache: false
+      - uses: actions/download-artifact@v7
         with:
           name: hozo-showcase-release-assets
           path: artifacts/showcase-release
@@ -323,14 +326,14 @@ jobs:
     needs: [build, showcase-assets, native-integration]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
           pattern: '{x86_64,aarch64}-*'
@@ -348,7 +351,7 @@ jobs:
     if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo publish --workspace --dry-run

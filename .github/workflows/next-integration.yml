@@ -22,11 +22,11 @@ jobs:
       CARGO_BUILD_JOBS: '2'
       RAYON_NUM_THREADS: '2'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -38,7 +38,7 @@ jobs:
         run: |
           mkdir -p artifacts
           pnpm --filter @hozo/example-next test 2>&1 | tee artifacts/next-integration.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: next-integration-evidence

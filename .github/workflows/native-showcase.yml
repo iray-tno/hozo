@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Validate release signing configuration before compiling
         if: inputs.release-signing
         run: node scripts/showcase-release.mjs check-signing
@@ -114,18 +114,18 @@ jobs:
           SHOWCASE_ANDROID_KEYSTORE_BASE64: ${{ secrets.SHOWCASE_ANDROID_KEYSTORE_BASE64 }}
           SHOWCASE_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.SHOWCASE_ANDROID_KEYSTORE_PASSWORD }}
           HOZO_REUSE_BUILD_RUN: ${{ inputs.reuse-build-run }}
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       # The text fixture's Node-only generator/proof lives in the private
       # conformance workspace and needs its own Babel dependency installed.
       # It is test tooling, not a production dependency of the Native app.
@@ -154,7 +154,7 @@ jobs:
           HOZO_RELEASE_SIGNING: ${{ inputs.release-signing && '1' || '' }}
           SHOWCASE_ANDROID_KEYSTORE_BASE64: ${{ inputs.release-signing && secrets.SHOWCASE_ANDROID_KEYSTORE_BASE64 || '' }}
           SHOWCASE_ANDROID_KEYSTORE_PASSWORD: ${{ inputs.release-signing && secrets.SHOWCASE_ANDROID_KEYSTORE_PASSWORD || '' }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: inputs.reuse-build-run == ''
         with:
           name: hozo-native-showcase-android-apk
@@ -163,7 +163,7 @@ jobs:
             examples/native-showcase/android/app/build/outputs/apk/release/signing.json
           if-no-files-found: error
           retention-days: 30
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         if: inputs.reuse-build-run != ''
         with:
           name: hozo-native-showcase-android-apk
@@ -205,49 +205,49 @@ jobs:
           HOZO_ANDROID_CANVAS_ROUNDS: ${{ inputs.android-canvas-rounds || '1' }}
           HOZO_ANDROID_SCENARIO: ${{ inputs.android-scenario || 'full' }}
           HOZO_CODE_BLOCK_PROFILE: ${{ inputs.code-block-profile && '1' || '' }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-android-host-attempt-${{ github.run_attempt }}
           path: artifacts/native-showcase-android-host
           if-no-files-found: ignore
           retention-days: 30
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-android-audio-evidence
           path: artifacts/native-showcase-audio
           if-no-files-found: ignore
           retention-days: 30
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-android-code-block-evidence
           path: artifacts/native-showcase-code-block
           if-no-files-found: ignore
           retention-days: 30
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-android-table-evidence
           path: artifacts/native-showcase-table
           if-no-files-found: ignore
           retention-days: 30
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-android-audio-settings-evidence
           path: artifacts/native-showcase-audio-settings
           if-no-files-found: ignore
           retention-days: 30
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-android-svg-evidence
           path: artifacts/native-showcase-svg
           if-no-files-found: ignore
           retention-days: 30
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-android-evidence
@@ -257,7 +257,7 @@ jobs:
       # The docs component previews, one image per page and a manifest of
       # what each is of (#1159). The docs deploy fetches the newest of these
       # from a successful run (#1160), so they are kept longer than the rest.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-android-ui-docs
@@ -272,9 +272,9 @@ jobs:
     # The weekly run also walks the 39 docs previews after the full showcase.
     timeout-minutes: ${{ github.event_name == 'schedule' && 90 || 60 }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -329,7 +329,7 @@ jobs:
       - name: Fingerprint the Simulator archive and record its actual architecture
         if: inputs.reuse-build-run == ''
         run: node scripts/showcase-release.mjs ios
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: inputs.reuse-build-run == ''
         with:
           name: hozo-native-showcase-ios-simulator-app
@@ -338,7 +338,7 @@ jobs:
             examples/native-showcase/ios/build.json
           if-no-files-found: error
           retention-days: 30
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         if: inputs.reuse-build-run != ''
         with:
           name: hozo-native-showcase-ios-simulator-app
@@ -401,14 +401,14 @@ jobs:
       - name: Summarize iOS submission and pixel measurements
         if: always() && inputs.ios-scenario != 'ui-docs'
         run: node examples/native-showcase/scripts/report-ios-performance.mjs artifacts/native-showcase-ios
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-ios-svg-evidence
           path: artifacts/native-showcase-ios/svg-filters
           if-no-files-found: ignore
           retention-days: 30
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-ios-evidence
@@ -416,7 +416,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
       # Kept as long as Android's, for the same docs deploy (#1160).
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: hozo-native-showcase-ios-ui-docs

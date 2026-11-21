@@ -41,26 +41,26 @@ jobs:
       RAYON_NUM_THREADS: '1'
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: cc1914bf49aaddd642d850bed77cb503e3e9966d
           path: .benchmark-before
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: 6333a72ba5720fc3b25f4eeab0bbd66b5bf131b4
           path: .benchmark-after
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event_name == 'workflow_dispatch' && inputs.baseline != ''
         with:
           ref: ${{ inputs.baseline }}
           path: .benchmark-baseline
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -102,7 +102,7 @@ jobs:
           baseline_sha=''
           if [ -n "$BASELINE_REF" ]; then baseline_sha=$(git -C .benchmark-baseline rev-parse HEAD); fi
           node scripts/runtime-class-list-report.mjs artifacts/runtime-class-list "$CURRENT_SHA" "$baseline_sha" >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: runtime-class-list-evidence

@@ -42,7 +42,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
       - uses: dtolnay/rust-toolchain@stable
@@ -51,8 +51,8 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -113,13 +113,13 @@ jobs:
         # Several app exports/Next builds otherwise compete with Metro's own
         # workers. Keep the same checks/deadlines, with two app tasks at once.
         run: node packages/test-reporter/src/run-command-junit.mjs integration pnpm test:integration --concurrency=2 --continue --summarize || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: native-export-evidence
           path: examples/native-showcase/artifacts/bundle-exports/
           if-no-files-found: warn
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: storybook-a11y-evidence
@@ -164,13 +164,15 @@ jobs:
         run: touch apps/landing/dist/.nojekyll
 
       - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
+          # v4+ leaves dotfiles out by default; .nojekyll was always shipped.
+          include-hidden-files: true
           path: apps/landing/dist
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
       # Report first, then make regressions visible on main. Every producer
       # above writes JUnit even when its command fails, so this step can fail

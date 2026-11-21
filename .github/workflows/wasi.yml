@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Pinned below 1.100. Rust 1.100's wasi-libc calls
       # `__wasilibc_futex_wait_atomic_wait` with three arguments; emnapi
       # 2.0.0-beta.3's archive defines it with four, the linker keeps
@@ -49,8 +49,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: wasm32-wasip1-threads-1.99.1
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
@@ -71,7 +71,7 @@ jobs:
       - run: pnpm --filter @hozo/compiler test
         env:
           HOZO_NATIVE_BINDING: ${{ github.workspace }}/artifacts/wasi/consumer/node_modules/@hozo/compiler-wasm32-wasi/hozo_napi.wasi.cjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: compiler-wasm32-wasi
@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Pinned for the reason given in the `compiler` job.
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -95,15 +95,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: wasm32-wasip1-threads-1.99.1
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 25
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build --filter='./packages/*'
       - run: pnpm test:packed-consumer --wasi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: packed-consumer-wasi
