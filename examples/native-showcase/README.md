@@ -15,6 +15,19 @@ separate from `native-demo` (compiler/accessibility verification) and
 `three-native-probe` (GPU measurements). Verification stories are explicit;
 no test controls or probe logging are injected into the ordinary demos.
 
+The full iOS smoke retains `evidence.preferences` for [#2147](https://github.com/iray-tno/hozo/issues/2147):
+each existing AX read's start/end time, original flattened fields (including
+control state and bounds), read errors, and each tap's point, duration and
+command outcome. `beforeSample` and `afterSample` index the surrounding
+successful AX reads; `resultSample` and `disabledResultSample` identify the
+exact expected summary observations. A read error is kept separately from
+an unchanged control. Command completion does not prove gesture delivery.
+The input order, single taps, polling intervals, deadlines and final state
+assertions are unchanged; no screenshot or extra AX read is inserted between
+the toggles. Existing `06-preferences` / failure captures and syslog accompany
+the trace. This is diagnostic evidence, not a claim that the flake is fixed
+or that it distinguishes a dropped gesture from an app callback failure.
+
 **SVG / Shared filters / Filters** uses the same five filter scenes as Web
 Storybook, with an on/off toggle. Metro resolves `react-native-svg` from this
 host so workspace library peers do not select another version. The shared
