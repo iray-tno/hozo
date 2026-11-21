@@ -617,6 +617,7 @@ try {
     evidence.canvasObservation = {
       assembledColours: assembled.colours,
       firstFrameWaitMs: assembledFrame.presentedAfterMs,
+      firstFrameCaptureTimeouts: assembledFrame.captureTimeouts,
       firstFrameEndToEndMs: Date.now() - canvasRequestedAt,
     }
     const disassemblyRequestedAt = Date.now()
@@ -639,6 +640,7 @@ try {
       )
       disassembled = frame.image
       evidence.canvasObservation.disassemblyWaitMs = frame.presentedAfterMs
+      evidence.canvasObservation.disassemblyCaptureTimeouts = frame.captureTimeouts
       evidence.canvasObservation.disassemblyEndToEndMs = Date.now() - disassemblyRequestedAt
     } catch (error) {
       if (evidence.diagnostic && error instanceof PresentedImageTimeout) {
@@ -669,6 +671,7 @@ try {
     )
     const reassembled = reassembledFrame.image
     evidence.canvasObservation.reassemblyWaitMs = reassembledFrame.presentedAfterMs
+    evidence.canvasObservation.reassemblyCaptureTimeouts = reassembledFrame.captureTimeouts
     evidence.canvasObservation.reassemblyEndToEndMs = Date.now() - reassemblyRequestedAt
     const reverseDifference = changedFraction(disassembled, reassembled)
     assert.ok(reverseDifference >= 0.01, `reverse GL image did not change: ${reverseDifference}`)

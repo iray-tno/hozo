@@ -60,3 +60,44 @@ test('a blank/unchanged iOS scene still fails; capture errors do not retry an in
   )
   assert.equal(reads, 1)
 })
+
+test('a timed-out capture is retried within the budget and counted (#2152)', async () => {
+  let time = 0
+  let reads = 0
+  const clock = {
+    now: () => time,
+    interval: 30_000,
+    sleep: async (delay) => {
+      time += delay
+    },
+  }
+  const timeout = () => Object.assign(new Error('spawnSync xcrun ETIMEDOUT'), { code: 'ETIMEDOUT' })
+  const result = await waitForIosSceneImage(
+    () => {
+      reads++
+      if (reads === 2 || reads === 3) throw timeout()
+      return { difference: reads < 4 ? 0 : 0.5 }
+    },
+    (image) => image.difference >= 0.01,
+    'disassembled frame',
+    clock,
+  )
+  assert.equal(result.image.difference, 0.5)
+  assert.equal(result.captureTimeouts, 2)
+  assert.equal(reads, 4)
+
+  time = 0
+  await assert.rejects(
+    waitForIosSceneImage(
+      () => {
+        throw timeout()
+      },
+      () => true,
+      'stalled',
+      clock,
+    ),
+    (error) =>
+      error instanceof PresentedImageTimeout && /\d+ capture\(s\) timed out/.test(error.message),
+  )
+  assert.equal(time, IOS_SCENE_IMAGE_TIMEOUT)
+})
