@@ -160,6 +160,8 @@ pub(super) fn render_node(
     // separate from placeholder because React Native names the two props
     // independently and either utility may appear alone.
     let caret = caret_props(node, theme, cx.runtime);
+    // The selection highlight is a third TextInput colour prop.
+    let selection = selection_props(node, theme, cx.runtime);
 
     // `leading-tight`/`tracking-wide` are relative to the font size, which
     // React Native's equivalents aren't. Resolved here, before the refusal
@@ -168,10 +170,13 @@ pub(super) fn render_node(
     // colour or a pseudo-element StyleSheet entry. Consume only declarations
     // the prop adapter actually handles, leaving every other pseudo/style
     // stack visible to the usual diagnostics.
-    let field_style: Option<Vec<_>> = placeholder.is_some().then(|| {
+    let field_style: Option<Vec<_>> = (placeholder.is_some() || selection.is_some()).then(|| {
         node.style
             .iter()
-            .filter(|declaration| placeholder_colour(declaration).is_none())
+            .filter(|declaration| {
+                (placeholder.is_none() || placeholder_colour(declaration).is_none())
+                    && (selection.is_none() || selection_colour(declaration).is_none())
+            })
             .cloned()
             .collect()
     });
@@ -1943,6 +1948,11 @@ pub(super) fn render_node(
     }
     for (key, value) in caret.into_iter().flatten() {
         props_text.push_str(&format!(" {key}={{{value}}}"));
+    }
+    for (key, value) in selection.into_iter().flatten() {
+        if !authored.contains(&key) {
+            props_text.push_str(&format!(" {key}={{{value}}}"));
+        }
     }
     // Android only: iOS has no balanced strategy, and the prop is ignored
     // there rather than refused, which is the same answer as the Web giving
