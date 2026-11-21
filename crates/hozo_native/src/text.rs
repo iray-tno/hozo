@@ -584,6 +584,48 @@ fn scheme_colour_value(
     Some(value)
 }
 
+/// `selection:bg-*` as React Native carries it: `TextInput`'s
+/// `selectionColor` prop, the highlight behind selected text.
+///
+/// Only the background, because that is all the prop is: `selection:text-*`
+/// colours the selected glyphs on Web, and React Native has nothing to put
+/// that on, so it keeps its diagnostic. On iOS the same prop also tints the
+/// cursor and the selection handles; that is the platform's one control for
+/// all three, not something Hozo adds.
+pub(super) fn selection_colour(declaration: &StyleDeclaration) -> Option<(&hozo_ir::Color, bool)> {
+    let selection = Condition::PseudoElement(hozo_ir::PseudoElement::Selection);
+    match (&declaration.property, &declaration.condition) {
+        (StyleProperty::BackgroundColor(c), condition)
+            if *condition == selection && absolute_placeholder_colour(c) =>
+        {
+            Some((c, false))
+        }
+        (StyleProperty::BackgroundColor(c), Condition::All(conditions))
+            if absolute_placeholder_colour(c)
+                && conditions.len() == 2
+                && conditions.contains(&Condition::Dark)
+                && conditions.contains(&selection) =>
+        {
+            Some((c, true))
+        }
+        _ => None,
+    }
+}
+
+pub(super) fn selection_props(
+    node: &Node,
+    theme: &Theme,
+    runtime: &mut RuntimeNeeds,
+) -> Option<Vec<(&'static str, String)>> {
+    if node.primitive != Primitive::TextInput
+        || !node.style.iter().any(|d| selection_colour(d).is_some())
+    {
+        return None;
+    }
+    scheme_colour_value(&node.style, theme, runtime, selection_colour)
+        .map(|value| vec![("selectionColor", value)])
+}
+
 pub(super) fn placeholder_only_reason(property: &StyleProperty) -> Option<String> {
     matches!(property, StyleProperty::PlaceholderColor(_)).then(|| {
         "`placeholder-*`: React Native carries this as `TextInput`'s `placeholderTextColor` prop, so it only means something on a TextInput"

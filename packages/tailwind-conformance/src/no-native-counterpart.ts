@@ -16,11 +16,15 @@
 //     state is visible to a compiler that sees the JSX, or to a context.
 //   - `data-*`: Hozo already answers declared owner facts and Presence.
 //   - `placeholder:`, `selection:`: TextInput has `placeholderTextColor`
-//     and `selectionColor`.
+//     and `selectionColor`, and their colours lower to them; the rest of
+//     what the two variants can set has nowhere to go.
 //   - `placeholder-shown:`: whether a TextInput is empty is in its value.
 //   - `backdrop:`: a Modal has a scrim to style.
 //   - `max-[40rem]`: `rem` could be given a fixed size.
-//   - `group-*` the context does not carry, `*-of-type`: not built yet.
+//   - `group-*` the context does not carry: not built yet.
+//   - `*-of-type`: refused by decision 003, since React Native has no tags.
+//     That is Hozo's choice about a Web lowering, not the platform lacking
+//     sibling order, so it is not listed here either.
 export const NO_NATIVE_COUNTERPART: Readonly<Record<string, string>> = {
   print: 'There is no print media; an app is not printed from its styles.',
   noscript: 'There is no page that could run with scripting off.',

@@ -304,6 +304,76 @@ fn an_authored_placeholder_prop_wins_and_a_plain_colour_needs_no_hook() {
 }
 
 #[test]
+fn selection_background_lowers_to_text_inputs_selection_colour() {
+    let source = "import {TextInput} from '@hozo/core'; export function C() { return <TextInput accessibilityLabel=\"Field\" className=\"bg-white selection:bg-red-500 dark:selection:bg-blue-500\"/> }";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output
+            .jsx
+            .contains("selectionColor={__hozoDark ? '#2b7fff' : '#fb2c36'}"),
+        "{}",
+        output.jsx
+    );
+    // The field's own background is still a style; the highlight is not.
+    assert!(
+        output.styles.contains("backgroundColor: '#fff'"),
+        "{}",
+        output.styles
+    );
+    assert!(!output.styles.contains("#fb2c36"), "{}", output.styles);
+    assert!(!output.styles.contains("#2b7fff"), "{}", output.styles);
+}
+
+#[test]
+fn an_authored_selection_colour_wins() {
+    let source = "import {TextInput} from '@hozo/core'; const e = <TextInput accessibilityLabel=\"Field\" selectionColor={authored} className=\"selection:bg-red-500\"/>";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert_eq!(
+        output.jsx.matches("selectionColor=").count(),
+        1,
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.jsx.contains("selectionColor={authored}"),
+        "{}",
+        output.jsx
+    );
+}
+
+#[test]
+fn selection_styles_the_prop_cannot_carry_still_diagnose() {
+    // The prop is the highlight colour and nothing else: not the selected
+    // text's colour, not a stack it cannot follow, and not on an element
+    // that has no selection to highlight.
+    for (primitive, classes) in [
+        ("TextInput", "selection:text-red-500"),
+        ("TextInput", "selection:p-4"),
+        ("TextInput", "focus:selection:bg-red-500"),
+        ("TextInput", "md:selection:bg-red-500"),
+        ("TextInput", "selection:bg-current"),
+        ("View", "selection:bg-red-500"),
+    ] {
+        let source = format!("import {{{primitive}}} from '@hozo/core'; export function C() {{ return <{primitive} accessibilityLabel=\"Field\" className=\"{classes}\"/> }}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+            "{classes} on {primitive}: {:?}",
+            output.diagnostics
+        );
+        assert!(!output.jsx.contains("selectionColor"), "{}", output.jsx);
+    }
+}
+
+#[test]
 fn caret_colour_lowers_to_text_inputs_cursor_prop() {
     let source = r#"
             import { TextInput } from '@hozo/core'
