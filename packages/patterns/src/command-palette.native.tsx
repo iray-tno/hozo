@@ -172,9 +172,12 @@ export function HozoCommandPalette({
   const label = message('hozo.commandPalette.label', {}, accessibilityLabel)
   // Text styles written on the palette or its panel reach every label in it,
   // as they would by inheritance on the Web.
-  const [rootBox, rootText] = splitTextStyle([hozoClasses(className), hozoAuthoredStyle(style)])
+  const [rootBox, rootText] = splitTextStyle([
+    hozoClasses(className, nonControlSlotFacts),
+    hozoAuthoredStyle(style),
+  ])
   const [panelBox, ownText] = splitTextStyle([
-    hozoClasses(panelClassName),
+    hozoClasses(panelClassName, nonControlSlotFacts),
     hozoAuthoredStyle(panelStyle),
   ])
   const panelText = { ...rootText, ...ownText }
@@ -192,9 +195,9 @@ export function HozoCommandPalette({
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={(interaction) => [
+          style={[
             FILL_ABSOLUTE,
-            hozoClasses(scrimClassName, { ...interaction }),
+            hozoClasses(scrimClassName, nonControlSlotFacts),
             hozoAuthoredStyle(scrimStyle),
           ]}
           onPress={close}
@@ -237,7 +240,10 @@ export function HozoCommandPalette({
           <PatternScrollContainer
             enabled={hozoListScrollY ?? true}
             style={
-              [hozoClasses(listClassName), hozoAuthoredStyle(listStyle)] as StyleProp<ViewStyle>
+              [
+                hozoClasses(listClassName, nonControlSlotFacts),
+                hozoAuthoredStyle(listStyle),
+              ] as StyleProp<ViewStyle>
             }
           >
             {groups.map((group) => (

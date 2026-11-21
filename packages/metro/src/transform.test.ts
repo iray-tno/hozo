@@ -93,15 +93,18 @@ export function C() { return <${component} ${slot}={chooseClasses()} ${style}={e
     assert.equal(output.match(/chooseClasses\(\)/g)?.length, 1)
     assert.doesNotMatch(output, /hozoClasses|candidate|HozoPressable|HozoText/)
   }
-  // No blanket forwarding: an unregistered decorative slot retains its
-  // existing fallback, and static interaction refusals below still apply.
+  // No blanket forwarding: an audited decorative slot resolves with its
+  // constant non-control facts rather than forwarding an interactive owner.
   const unowned = transformHozoSource(
     `import { ColorPicker } from '@hozo/core'
 export function C() { return <ColorPicker sliderClassName={classes} /> }`,
     'ColorPicker.tsx',
     '/project',
   )
-  assert.match(unowned, /sliderStyle=\{hozoClasses\(classes\)\}/)
+  assert.match(
+    unowned,
+    /sliderStyle=\{hozoClasses\(classes, \{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false \}\)\}/,
+  )
   assert.doesNotMatch(unowned, /sliderClassName=/)
 })
 

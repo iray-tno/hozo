@@ -78,7 +78,10 @@ export function HozoAvatar({
   const showImage = src !== undefined && failed !== src
   const letters = initials ?? (name ? avatarInitials(name, locale) : '')
   const label = avatarLabel(message, name, status, accessibilityLabel)
-  const [box, text] = splitTextStyle([hozoClasses(className), hozoAuthoredStyle(style)])
+  const [box, text] = splitTextStyle([
+    hozoClasses(className, nonControlSlotFacts),
+    hozoAuthoredStyle(style),
+  ])
   const [fallbackBox, fallbackText] = splitTextStyle([
     hozoClasses(fallbackClassName, nonControlSlotFacts),
     hozoAuthoredStyle(fallbackStyle),

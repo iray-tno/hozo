@@ -23,6 +23,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { PatternScrollContainer } from './scroll-container.native.tsx'
+import { nonControlSlotConstants as nonControlSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 // TalkBack acceptance sweeps on the reference emulator failed through 175ms
@@ -200,10 +201,11 @@ export function Dialog({
     }
   }, [restoreFocusTo])
 
+  const rootClassStyle = className ? hozoClasses(className, nonControlSlotFacts) : undefined
   const panel = (
     <PatternScrollContainer
       enabled={hozoScrollY}
-      style={[hozoClasses(className), hozoAuthoredStyle(style)] as StyleProp<ViewStyle>}
+      style={[rootClassStyle, hozoAuthoredStyle(style)] as StyleProp<ViewStyle>}
       // A dialog is a container, not one combined accessibility element.
       // On iOS an accessible parent hides its descendant controls from AX.
       // Keep modal isolation without swallowing confirm/cancel buttons.
@@ -219,7 +221,7 @@ export function Dialog({
           rejects; it takes the dialog's text classes instead (#1205). */}
       {hozoTextChildren(
         children,
-        splitTextStyle([hozoClasses(className), style] as StyleProp<ViewStyle>)[1],
+        splitTextStyle([rootClassStyle, style] as StyleProp<ViewStyle>)[1],
       )}
     </PatternScrollContainer>
   )

@@ -3503,3 +3503,45 @@ fn a_spread_on_a_plain_element_primitive_is_translated_like_its_named_props() {
     assert_eq!(image.jsx, "<img {...hozoImageDomProps(rest)} />");
     assert!(image.runtime_imports.contains(&"hozoImageDomProps"));
 }
+
+#[test]
+fn audited_container_primitive_roots_use_real_dom_predicates_and_slot_owner_marker() {
+    for (name, attrs) in [
+        ("Avatar", r#"name="Ada""#),
+        ("Pagination", "pageCount={3}"),
+        ("Stepper", "steps={steps} activeStep={0}"),
+        ("ColorPicker", r#"accessibilityLabel="Theme""#),
+        (
+            "Dialog",
+            r#"open={showing} onClose={dismiss} accessibilityLabel="Confirm""#,
+        ),
+        ("CommandPalette", "open commands={commands}"),
+    ] {
+        let static_src = format!(
+            "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className=\"pt-2 read-only:rounded-lg disabled:opacity-25 enabled:pb-4 not-disabled:px-2\" />"
+        );
+        let parsed = hozo_parser::parse_tsx(&static_src);
+        let out = lower(&parsed.roots[0].node, &static_src, &Theme::default());
+        assert!(out.diagnostics.is_empty(), "{name}: {:?}", out.diagnostics);
+        assert!(
+            !out.css.contains("data-hozo-disabled"),
+            "{name} root must ask the real DOM element, not [data-hozo-disabled]: {}",
+            out.css
+        );
+        assert!(out.css.contains(":disabled"), "{name}: {}", out.css);
+        assert!(out.css.contains(":enabled"), "{name}: {}", out.css);
+        assert!(out.css.contains(":read-only"), "{name}: {}", out.css);
+
+        let dynamic_src = format!(
+            "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className={{classes}} />"
+        );
+        let parsed = hozo_parser::parse_tsx(&dynamic_src);
+        let out = lower(&parsed.roots[0].node, &dynamic_src, &Theme::default());
+        assert!(
+            out.jsx
+                .contains("hozo-candidate-owner hozo-candidate-slot-owner"),
+            "{name} dynamic root must mark slot-owner form predicates: {}",
+            out.jsx
+        );
+    }
+}

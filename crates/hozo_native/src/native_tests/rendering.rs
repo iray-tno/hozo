@@ -2862,32 +2862,15 @@ fn command_option_semantics_are_not_native_button_pseudo_classes() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        if [
-            "inputClassName",
-            "shortcutClassName",
-            "groupHeadingClassName",
-            "emptyClassName",
-        ]
-        .contains(&slot)
-        {
-            assert!(
-                output.diagnostics.is_empty(),
-                "{slot}: {:?}",
-                output.diagnostics
-            );
-            assert!(
-                !output.jsx.contains("_ariaselected"),
-                "this owner is never selected: {}",
-                output.jsx
-            );
-            continue;
-        }
         assert!(
-            output.diagnostics.iter().any(
-                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
-            ),
+            output.diagnostics.is_empty(),
             "{slot}: {:?}",
             output.diagnostics
+        );
+        assert!(
+            !output.jsx.contains("_ariaselected"),
+            "this owner is never selected: {}",
+            output.jsx
         );
     }
 }
@@ -3061,8 +3044,7 @@ fn color_picker_semantics_belong_to_each_radio_not_the_group() {
             output.diagnostics
         );
     }
-    // The thumb and hex field have audited absent checked state; the group
-    // and track still have no semantic owner contract.
+    // Every non-swatch slot has audited absent checked state on its own owner.
     for slot in [
         "className",
         "sliderClassName",
@@ -3075,21 +3057,15 @@ fn color_picker_semantics_belong_to_each_radio_not_the_group() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        if slot == "inputClassName" || slot == "thumbClassName" {
-            assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-            assert!(
-                !output.jsx.contains("_ariachecked"),
-                "the field/thumb is never a checked radio: {}",
-                output.jsx
-            );
-            continue;
-        }
         assert!(
-            output.diagnostics.iter().any(
-                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
-            ),
+            output.diagnostics.is_empty(),
             "{slot}: {:?}",
             output.diagnostics
+        );
+        assert!(
+            !output.jsx.contains("_ariachecked"),
+            "{slot} is never a checked radio: {}",
+            output.jsx
         );
     }
 }
@@ -3260,4 +3236,134 @@ fn a_pressable_with_an_unseen_label_forwards_its_text_styles() {
         "{:?}",
         output.diagnostics
     );
+}
+
+#[test]
+fn audited_container_primitive_roots_resolve_non_control_facts_and_reject_events() {
+    let expected_facts = "{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }";
+    for (name, attrs) in [
+        ("Avatar", r#"name="Ada""#),
+        ("Pagination", "pageCount={3}"),
+        ("Stepper", "steps={steps} activeStep={0}"),
+        ("ColorPicker", r#"accessibilityLabel="Theme""#),
+        (
+            "Dialog",
+            r#"open={showing} onClose={dismiss} accessibilityLabel="Confirm""#,
+        ),
+        ("CommandPalette", "open commands={commands}"),
+    ] {
+        let static_src = format!(
+            "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className=\"pt-2 read-only:rounded-lg not-disabled:px-2 not-enabled:py-1 disabled:opacity-25 enabled:pb-4 aria-selected:mt-8 aria-disabled:mb-8 aria-checked:ml-8\" />"
+        );
+        let parsed = hozo_parser::parse_tsx(&static_src);
+        let out = lower(&parsed.roots[0].node, &static_src, &Theme::default());
+        assert!(out.diagnostics.is_empty(), "{name}: {:?}", out.diagnostics);
+        assert!(out.jsx.contains("hozo0_readonly"), "{name}: {}", out.jsx);
+        assert!(out.jsx.contains("hozo0_notdisabled"), "{name}: {}", out.jsx);
+        assert!(out.jsx.contains("hozo0_notenabled"), "{name}: {}", out.jsx);
+        assert!(!out.jsx.contains("hozo0_disabled"), "{name}: {}", out.jsx);
+        assert!(!out.jsx.contains("hozo0_enabled"), "{name}: {}", out.jsx);
+        assert!(
+            !out.jsx.contains("hozo0_ariaselected"),
+            "{name}: {}",
+            out.jsx
+        );
+        assert!(
+            !out.jsx.contains("hozo0_ariadisabled"),
+            "{name}: {}",
+            out.jsx
+        );
+        assert!(
+            !out.jsx.contains("hozo0_ariachecked"),
+            "{name}: {}",
+            out.jsx
+        );
+
+        for variant in ["hover", "active", "focus", "focus-visible", "not-hover"] {
+            let bad_src = format!(
+                "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className=\"{variant}:opacity-50\" />"
+            );
+            let parsed = hozo_parser::parse_tsx(&bad_src);
+            let out = lower(&parsed.roots[0].node, &bad_src, &Theme::default());
+            assert!(
+                out.diagnostics.iter().any(|d| {
+                    d.code == DiagnosticCode::NotWiredOnNative
+                        && d.severity == Severity::Error
+                        && d.message.contains("decorative class owner")
+                }),
+                "{name} {variant}: {:?}",
+                out.diagnostics
+            );
+        }
+
+        let dynamic_src = format!(
+            "import {{ {name} }} from '@hozo/core'\nconst el = <{name} {attrs} className={{classes}} />"
+        );
+        let parsed = hozo_parser::parse_tsx(&dynamic_src);
+        let out = lower(&parsed.roots[0].node, &dynamic_src, &Theme::default());
+        assert!(
+            out.jsx
+                .contains(&format!("hozoClasses(classes, {expected_facts})")),
+            "{name}: {}",
+            out.jsx
+        );
+    }
+    // ColorPicker.sliderClassName and Dialog scroll/backdrop layers retain their own contracts.
+    let slider_src = r#"import { ColorPicker } from '@hozo/core'
+const el = <ColorPicker accessibilityLabel="Theme" sliderClassName="pt-2 read-only:rounded-lg not-disabled:px-2 disabled:opacity-25 aria-selected:mt-8" />"#;
+    let parsed = hozo_parser::parse_tsx(slider_src);
+    let out = lower(&parsed.roots[0].node, slider_src, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("_readonly"), "{}", out.jsx);
+    assert!(out.jsx.contains("_notdisabled"), "{}", out.jsx);
+    assert!(!out.jsx.contains("_disabled"), "{}", out.jsx);
+    assert!(!out.jsx.contains("_ariaselected"), "{}", out.jsx);
+
+    let dialog_src = r#"import { Dialog } from '@hozo/core'
+const el = <Dialog open={showing} onClose={dismiss} accessibilityLabel="Confirm" className="overflow-y-auto backdrop:bg-black/50 read-only:rounded-lg disabled:opacity-25">Body</Dialog>"#;
+    let parsed = hozo_parser::parse_tsx(dialog_src);
+    let out = lower(&parsed.roots[0].node, dialog_src, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("hozoScrollY"), "{}", out.jsx);
+    assert!(out.jsx.contains("hozoBackdropStyle="), "{}", out.jsx);
+    assert!(out.jsx.contains("hozo0_readonly"), "{}", out.jsx);
+    assert!(!out.jsx.contains("hozo0_disabled"), "{}", out.jsx);
+
+    // CommandPalette scrim/panel/list share NonControl facts and retain scroll-y on list.
+    for slot in ["scrimClassName", "panelClassName", "listClassName"] {
+        let scroll = if slot == "listClassName" {
+            "overflow-y-auto "
+        } else {
+            ""
+        };
+        let palette_src = format!(
+            r#"import {{ CommandPalette }} from '@hozo/core'
+const el = <CommandPalette open commands={{commands}} {slot}="{scroll}pt-2 read-only:rounded-lg not-disabled:px-2 disabled:opacity-25 aria-selected:mt-8" />"#
+        );
+        let parsed = hozo_parser::parse_tsx(&palette_src);
+        let out = lower(&parsed.roots[0].node, &palette_src, &Theme::default());
+        assert!(out.diagnostics.is_empty(), "{slot}: {:?}", out.diagnostics);
+        assert!(out.jsx.contains("_readonly"), "{slot}: {}", out.jsx);
+        assert!(out.jsx.contains("_notdisabled"), "{slot}: {}", out.jsx);
+        assert!(!out.jsx.contains("_disabled"), "{slot}: {}", out.jsx);
+        assert!(!out.jsx.contains("_ariaselected"), "{slot}: {}", out.jsx);
+        if slot == "listClassName" {
+            assert!(out.jsx.contains("hozoListScrollY"), "{slot}: {}", out.jsx);
+        }
+        let bad_src = format!(
+            r#"import {{ CommandPalette }} from '@hozo/core'
+const el = <CommandPalette open commands={{commands}} {slot}="hover:opacity-50" />"#
+        );
+        let parsed = hozo_parser::parse_tsx(&bad_src);
+        let out = lower(&parsed.roots[0].node, &bad_src, &Theme::default());
+        assert!(
+            out.diagnostics.iter().any(|d| {
+                d.code == DiagnosticCode::NotWiredOnNative
+                    && d.severity == Severity::Error
+                    && d.message.contains("decorative class owner")
+            }),
+            "{slot}: {:?}",
+            out.diagnostics
+        );
+    }
 }

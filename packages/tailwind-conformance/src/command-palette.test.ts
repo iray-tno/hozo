@@ -554,7 +554,15 @@ test('compiled command option semantics follow target, filtering and availabilit
 })
 
 test('full lowering resolves decorative owners from their own known non-control facts', () => {
-  for (const slot of ['shortcutClassName', 'groupHeadingClassName', 'emptyClassName']) {
+  for (const slot of [
+    'className',
+    'scrimClassName',
+    'panelClassName',
+    'listClassName',
+    'shortcutClassName',
+    'groupHeadingClassName',
+    'emptyClassName',
+  ]) {
     // These owners are not selected options or disabled controls. Their known
     // false facts are supported, not unknown facts that need a diagnostic.
     assert.doesNotThrow(
@@ -579,13 +587,13 @@ test('full lowering resolves decorative owners from their own known non-control 
   }
 })
 
-test('full lowering keeps unknown option semantics and unaudited class owners diagnosed', () => {
+test('full lowering keeps unknown option, input and decorative predicates diagnosed', () => {
   for (const [slot, classes] of [
     ['itemClassName', 'not-aria-expanded:opacity-50'],
     ['activeItemClassName', 'aria-pressed:hover:opacity-50'],
     ['inputClassName', 'aria-pressed:opacity-50'],
-    ['listClassName', 'aria-selected:opacity-50'],
-    ['panelClassName', 'aria-disabled:opacity-50'],
+    ['listClassName', 'aria-expanded:opacity-50'],
+    ['panelClassName', 'not-aria-expanded:opacity-50'],
   ]) {
     assert.throws(
       () =>

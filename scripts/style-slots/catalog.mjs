@@ -631,6 +631,14 @@ export const components = {
   Avatar: slots('className imageClassName fallbackClassName statusClassName', {
     secondary: true,
     overrides: {
+      className: {
+        owner: 'non-control-avatar-span',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'always',
+        composition:
+          'classes/explicit-style; split-box-text inheritance; radius forwarded to image',
+      },
       imageClassName: {
         owner: 'non-control-image-img',
         profile: 'NonControl',
@@ -706,6 +714,20 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        className: {
+          owner: 'non-control-group-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'always',
+          composition: 'classes/explicit-style',
+        },
+        sliderClassName: {
+          owner: 'non-control-slider-track-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'each-channel-slider',
+          composition: 'track gradient; classes/explicit-style',
+        },
         thumbClassName: owned('adjustable-slider-thumb', 'SliderThumb', 'hozoThumbStyle', {
           pointer: false,
           composition:
@@ -769,6 +791,27 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        className: {
+          owner: 'non-control-overlay-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'open',
+          composition: 'fill-geometry; classes/explicit-style; split-box-text inheritance',
+        },
+        scrimClassName: {
+          owner: 'non-control-scrim-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'open',
+          composition: 'fill-absolute; classes/explicit-style',
+        },
+        panelClassName: {
+          owner: 'non-control-dialog-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'open',
+          composition: 'root-text inheritance; classes/explicit-style; split-box-text',
+        },
         inputClassName: {
           ...owned('real-search-input', 'CommandInput', 'hozoInputStyle', {
             pointer: false,
@@ -776,7 +819,14 @@ export const components = {
           }),
           placeholderColorProp: 'hozoInputPlaceholderTextColor',
         },
-        listClassName: { scrollYProp: 'hozoListScrollY' },
+        listClassName: {
+          owner: 'non-control-listbox-div',
+          scrollYProp: 'hozoListScrollY',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'open',
+          composition: 'classes/explicit-style; scroll-y container',
+        },
         groupHeadingClassName: {
           owner: 'non-control-group-heading-div',
           profile: 'NonControl',
@@ -808,7 +858,15 @@ export const components = {
   ),
   Dialog: slots('className', {
     overrides: {
-      className: { scrollYProp: 'hozoScrollY', backdropStyleProp: 'hozoBackdropStyle' },
+      className: {
+        owner: 'non-control-dialog',
+        scrollYProp: 'hozoScrollY',
+        backdropStyleProp: 'hozoBackdropStyle',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'open',
+        composition: 'classes/explicit-style; split-box-text; scroll-y and backdrop layers',
+      },
     },
   }),
   Drawer: slots('className scrimClassName panelClassName', {
@@ -915,6 +973,13 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        className: {
+          owner: 'non-control-list-ul',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'always',
+          composition: 'classes/explicit-style; split-box-text inheritance',
+        },
         ellipsisClassName: {
           owner: 'non-control-ellipsis-li',
           profile: 'NonControl',
@@ -997,6 +1062,13 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        className: {
+          owner: 'non-control-list-ol',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'always',
+          composition: 'classes/explicit-style; split-box-text inheritance',
+        },
         ...Object.fromEntries(
           ['step', 'completedStep', 'currentStep', 'errorStep'].map((name) => [
             `${name}ClassName`,

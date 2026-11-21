@@ -106,7 +106,10 @@ export function HozoPagination({
   const items = paginationItems({ page: current, pageCount, siblingCount, boundaryCount })
   const back = previousIcon ?? (dir === 'rtl' ? '›' : '‹')
   const forward = nextIcon ?? (dir === 'rtl' ? '‹' : '›')
-  const [box, rowText] = splitTextStyle([hozoClasses(className), hozoAuthoredStyle(style)])
+  const [box, rowText] = splitTextStyle([
+    hozoClasses(className, nonControlSlotFacts),
+    hozoAuthoredStyle(style),
+  ])
   const role = getPageHref ? 'link' : 'button'
 
   const control = (
