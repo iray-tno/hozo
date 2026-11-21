@@ -29,6 +29,16 @@ pub(super) fn uses_interaction(condition: &Condition) -> bool {
     })
 }
 
+/// A `group-*:` the owner's context can answer: what makes a View, not only
+/// a Text, read that context. A plain `hover:` on a View child asks about
+/// the child, so it alone does not.
+pub(super) fn uses_group_state(condition: &Condition) -> bool {
+    condition_contains(
+        condition,
+        |condition| matches!(condition, Condition::Group(inner) if group_state(inner, true).is_some()),
+    )
+}
+
 /// Scan only when choosing an interaction owner. Nested owners stop the
 /// search: their Text consumes a different context. Opaque JSX has no modeled
 /// declarations to invent a requirement from, but modeled expression/prop
@@ -40,7 +50,8 @@ pub(super) fn descendant_uses(node: &Node, predicate: fn(&Condition) -> bool) ->
         }
         node.style.iter().any(|declaration| {
             (text::is_text_primitive(node.primitive)
-                || text::is_text_property(&declaration.property))
+                || text::is_text_property(&declaration.property)
+                || (node.primitive == Primitive::View && uses_group_state(&declaration.condition)))
                 && predicate(&declaration.condition)
         }) || descendant_uses(node, predicate)
     }

@@ -400,6 +400,33 @@ test('focus-visible installs modality events only on an interaction that asks fo
   assert.equal(typeof tree?.props.style, 'function')
 })
 
+test('a View inside a group Pressable follows its hover and press', () => {
+  // The owner's own events, not a hand-made state: HozoInteractionView reads
+  // the context HozoPressable provides, as HozoText does.
+  const snapshots = renderNativeWithEvents(
+    `import { Pressable, View, Text } from '@hozo/core'
+     export function Card() {
+       return (
+         <Pressable className="group">
+           <View className="opacity-100 group-hover:opacity-75 group-pressed:opacity-50"><Text>Icon</Text></View>
+         </Pressable>
+       )
+     }`,
+    'Card',
+    ['onHoverIn', 'onPressIn', 'onPressOut', 'onHoverOut'],
+  )
+  const flatten = require('react-native').StyleSheet.flatten as (style: unknown) => {
+    opacity?: number
+  }
+  assert.deepEqual(
+    snapshots.map((tree) => {
+      const style = children(tree)[0].props.style
+      return flatten(Array.isArray(style) ? style.flat(Infinity) : style).opacity
+    }),
+    [1, 0.75, 0.5, 0.75, 1],
+  )
+})
+
 test('child Text focus-visible follows its owner through keyboard, pointer and blur events', () => {
   for (const parent of ['', 'focus:opacity-50']) {
     const snapshots = renderNativeWithEvents(

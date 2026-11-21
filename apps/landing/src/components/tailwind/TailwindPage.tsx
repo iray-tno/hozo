@@ -191,7 +191,13 @@ export interface TailwindNumbers {
   arbitrary: { candidates: number; match: number; textual: number; mismatch: number }
   variants: { total: number; match: number; mismatch: number }
   native: { candidates: number; covered: number; refused: number; silent: number; noOp: number }
-  nativeVariants: { total: number; covered: number; refused: number; silent: number }
+  nativeVariants: {
+    total: number
+    covered: number
+    refused: number
+    silent: number
+    noCounterpart: number
+  }
   arbitraryNative: { candidates: number; covered: number; refused: number; silent: number }
   refusalAudit: { checkable: number; confirmed: number; partial: number; suspect: number }
 }
@@ -241,9 +247,12 @@ export function TailwindMeasured({ numbers }: { numbers: TailwindNumbers }) {
         </Stat>
         <Stat
           label="Native · variants"
-          value={`${n(nativeVariants.covered)} / ${n(nativeVariants.total)}`}
+          value={`${n(nativeVariants.covered)} / ${n(nativeVariants.total - nativeVariants.noCounterpart)}`}
         >
-          The same variant list as the Web. {n(nativeVariants.refused)} refused with a diagnostic,{' '}
+          The same {n(nativeVariants.total)} as the Web, less {n(nativeVariants.noCounterpart)} that
+          use a variant with nothing to be on React Native (<Code>print:</Code>,{' '}
+          <Code>visited:</Code>, <Code>before:</Code>), refused with a diagnostic. Of the rest,{' '}
+          {n(nativeVariants.refused - nativeVariants.noCounterpart)} refused,{' '}
           {n(nativeVariants.silent)} silent.
         </Stat>
         <Stat

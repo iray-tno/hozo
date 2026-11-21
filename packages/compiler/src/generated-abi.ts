@@ -38,6 +38,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoInheritedMetricsContext: '@hozo/core/generated/text-inheritance-protocol',
   HozoInheritedPaintContext: '@hozo/core/generated/text-inheritance-protocol',
   HozoInheritedScope: '@hozo/core/generated/inherited-leaves',
+  HozoInteractionView: '@hozo/core/generated/text',
   hozoInteractive: '@hozo/core/generated/interactive',
   HozoLink: '@hozo/core/generated/link',
   hozoLinkDomProps: '@hozo/core/generated/button-dom-props',

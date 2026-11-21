@@ -1061,8 +1061,15 @@ pub(super) fn render_node(
         owner_events: cx.owner_inputs.events,
         node,
         position,
+        // A View joins its owner's context only for a `group-*:`. Once it
+        // has, a plain `hover:` beside it reads that owner too, as on Text;
+        // without one it stays refused rather than borrowing a state.
         interaction_context: interaction_context
-            && renders_text(component)
+            && (renders_text(component)
+                || (component == "View"
+                    && own_declarations
+                        .iter()
+                        .any(|declaration| interaction::uses_group_state(&declaration.condition))))
             && pattern_style_prop.is_none(),
         pattern_slot: Some("className"),
         composition: hozo_ir::OwnerSlotComposition {
@@ -1406,6 +1413,16 @@ pub(super) fn render_node(
     } else if renders_text(component) && interaction_context && !pressed_parts.is_empty() {
         cx.runtime.need_component("HozoText");
         "HozoText"
+    } else if component == "View"
+        && interaction_context
+        && !pressed_parts.is_empty()
+        && cx.owner_inputs.events.is_empty()
+        && cx.owner_inputs.facts.is_empty()
+    {
+        // `group-*:` on a View inside a Pressable: the same context HozoText
+        // reads. A pattern's owner View keeps its own callback below.
+        cx.runtime.need_component("HozoInteractionView");
+        "HozoInteractionView"
     } else if relative_at_runtime.is_some() {
         // The compiler could not see the size this scales against, so the
         // ratio travels to a component that can. Costs a context read, and
@@ -1442,6 +1459,7 @@ pub(super) fn render_node(
                 | "HozoLink"
                 | "HozoFlatList"
                 | "HozoText"
+                | "HozoInteractionView"
                 | "HozoTextSize"
                 | "HozoRelativeText"
                 | "HozoAnimated"
@@ -1471,7 +1489,7 @@ pub(super) fn render_node(
         && (!cx.owner_inputs.events.is_empty() || !cx.owner_inputs.facts.is_empty());
     let needs_pressed_fn = (matches!(
         rendered_component,
-        "Pressable" | "HozoPressable" | "HozoText" | "HozoLink"
+        "Pressable" | "HozoPressable" | "HozoText" | "HozoInteractionView" | "HozoLink"
     ) || pattern_style_prop.is_some()
         || owner_view_callback)
         && (!pressed_parts.is_empty() || runtime_states);
@@ -1782,7 +1800,9 @@ pub(super) fn render_node(
             } else {
                 let fields = if needs_focus_visible {
                     "pressed, hovered, focused, focusVisible"
-                } else if needs_hover_or_focus || rendered_component == "HozoText" {
+                } else if needs_hover_or_focus
+                    || matches!(rendered_component, "HozoText" | "HozoInteractionView")
+                {
                     "pressed, hovered, focused"
                 } else {
                     "pressed"

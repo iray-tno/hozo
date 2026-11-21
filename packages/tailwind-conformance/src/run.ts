@@ -36,6 +36,7 @@ import {
   NATIVE_GRID_CONTEXTUAL_CASES,
 } from './native-grid-contextual.ts'
 import { reactNativeCssProperties, reactNativeVersion } from './native-surface.ts'
+import { hasNoNativeCounterpart } from './no-native-counterpart.ts'
 import { buildOracle } from './oracle.ts'
 import { declaredPrimitives } from './primitives.ts'
 import { classesDefinedIn, renderWeb } from './render.ts'
@@ -1134,12 +1135,30 @@ const nativeVariantCount = (verdict: NativeVerdict) =>
 const nativeVariantRestricted = nativeVariantResults.filter(
   (result) => result.verdict === 'COVERED' && result.restrictedTo,
 )
+// Cases that use a variant with nothing to be on React Native. Still in
+// the total; counted so "covered" can also be read against what the
+// platform can express. Any of them covered means the list is wrong.
+const nativeVariantNoCounterpart = nativeVariantResults.filter((result) =>
+  hasNoNativeCounterpart(result.candidate),
+)
+const coveredWithoutCounterpart = nativeVariantNoCounterpart.filter(
+  (result) => result.verdict === 'COVERED',
+)
+if (coveredWithoutCounterpart.length > 0) {
+  throw new Error(
+    `NO_NATIVE_COUNTERPART lists a variant Hozo covers: ${coveredWithoutCounterpart
+      .slice(0, 5)
+      .map((result) => result.candidate)
+      .join(', ')}. Remove it from no-native-counterpart.ts.`,
+  )
+}
 console.log(
   `\n\n== Native variants (${variants.cases.length} single and stacked) ==\n` +
     'Coverage across the same target-aware Native probe contexts.\n\n' +
     `Covered:    ${nativeVariantCount('COVERED')}\n` +
     `Restricted: ${nativeVariantRestricted.length}   (included in covered)\n` +
     `Refused:    ${nativeVariantCount('REFUSED')}\n` +
+    `  of which no React Native counterpart: ${nativeVariantNoCounterpart.length}\n` +
     `Silent:     ${nativeVariantCount('SILENT')}\n` +
     `No-op:      ${nativeVariantCount('NO_OP')}`,
 )
@@ -1148,6 +1167,7 @@ record('nativeVariants', {
   covered: nativeVariantCount('COVERED'),
   restricted: nativeVariantRestricted.length,
   refused: nativeVariantCount('REFUSED'),
+  noCounterpart: nativeVariantNoCounterpart.length,
   silent: nativeVariantCount('SILENT'),
   noOp: nativeVariantCount('NO_OP'),
 })

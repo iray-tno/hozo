@@ -1187,13 +1187,16 @@ fn group_state(inner: &Condition, interaction_context: bool) -> Option<&'static 
 /// Why a `group-…:` could not be wired, in the terms the author can act on.
 fn group_unwired_message(inner: &Condition, interaction_context: bool) -> String {
     let name = condition_suffix(inner).unwrap_or_else(|| "…".to_string());
-    if interaction_context {
+    // Which state, before where: `group-aria-checked:` under a Pressable was
+    // told nothing above it was one, when the Pressable was right there and
+    // the condition was simply not one it hands down.
+    if interaction_context || group_state(inner, true).is_none() {
         format!(
             "`group-{name}:` reads a state React Native's Pressable context does not carry. Only `hover`, `focus`, `focus-visible` and `pressed` are handed down; a condition on the ancestor's own props is not. On Web the same class works from the selector."
         )
     } else {
         format!(
-            "`group-{name}:` needs an ancestor that hands its state down, which on React Native means a `Pressable`. Nothing above this element is one. On Web the same class works from the selector."
+            "`group-{name}:` reads the state a `Pressable`, `Button` or `Link` hands to the `Text` and `View` inside it, and this element is not a Text or View inside one. On Web the same class works from the selector."
         )
     }
 }
