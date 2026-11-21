@@ -4967,6 +4967,18 @@ impl Structural {
         }
     }
 
+    /// Whether this counts only siblings that share the element's tag: the
+    /// `-of-type` spellings, which React Native cannot answer at all
+    /// (decision 003), wherever the element sits.
+    pub fn counts_by_type(&self) -> bool {
+        matches!(
+            self,
+            Structural::Only { of_type: true }
+                | Structural::Edge { .. }
+                | Structural::Nth { of_type: true, .. }
+        )
+    }
+
     /// How the author spelled it, for a message that has to name it back.
     pub fn variant_name(&self) -> String {
         match self {

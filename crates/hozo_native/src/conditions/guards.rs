@@ -276,6 +276,15 @@ pub(super) fn resolve(
         }
         // Known positions are decided at build time: neither the positive
         // nor the negative half needs a selector engine or a subscription.
+        // Before the position check, because no position answers it: the
+        // position message sent authors to restructure JSX whose position
+        // the compiler could already see, and the error came back unchanged.
+        Condition::Structural(structural) if structural.counts_by_type() => {
+            let name = structural.variant_name();
+            Err(format!(
+                "`{name}:` counts only the siblings that share this element's tag, and React Native has no tags -- the tag it would have had is a choice Hozo makes on Web, never made here. So the `-of-type` variants are not compiled on React Native. `first:`, `last:`, `only:` and `nth-*:` count every sibling and work on both platforms; where every sibling is the same kind of element, they select the same one. On Web the same class works."
+            ))
+        }
         Condition::FirstChild | Condition::LastChild | Condition::Structural(_) => {
             let (name, known) = match condition {
                 Condition::FirstChild => ("first".into(), position.first),
