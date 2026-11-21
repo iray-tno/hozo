@@ -164,7 +164,11 @@ try {
       [snapshot.variants.match, snapshot.variants.total],
       [snapshot.arbitrary.match, snapshot.arbitrary.candidates],
       [snapshot.native.covered, snapshot.native.candidates],
-      [snapshot.nativeVariants.covered, snapshot.nativeVariants.total],
+      // Against the variants that have something to be on React Native (#2160).
+      [
+        snapshot.nativeVariants.covered,
+        snapshot.nativeVariants.total - snapshot.nativeVariants.noCounterpart,
+      ],
     ]) {
       assert.ok(measured.includes(`${n(match)} / ${n(of)}`), `${match} / ${of} missing`)
     }
