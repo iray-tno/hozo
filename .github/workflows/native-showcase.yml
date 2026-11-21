@@ -147,6 +147,20 @@ jobs:
         # Both the emulator and a physical arm64 Android phone can install it.
         # Expo's generated debug signing is for this showcase, not store release.
         run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon
+      - name: Verify R8 ran with the Expo GL keep rules
+        if: inputs.reuse-build-run == ''
+        shell: bash
+        run: |
+          mapping=examples/native-showcase/android/app/build/outputs/mapping/release
+          mkdir -p artifacts/native-showcase-android-host
+          receipt=artifacts/native-showcase-android-host/r8-keep-rules.txt
+          test -s "$mapping/mapping.txt"
+          {
+            grep -F -A 2 -- '-keepclassmembers class expo.modules.gl.GLView' "$mapping/configuration.txt"
+            grep -F -A 2 -- '-keepclassmembers class expo.modules.gl.GLContext' "$mapping/configuration.txt"
+          } | tee "$receipt"
+          grep -Eq 'public <init>\(android\.content\.Context, *expo\.modules\.kotlin\.AppContext\);' "$receipt"
+          grep -Fq 'public void flush();' "$receipt"
       - name: Sign and fingerprint the exact APK exercised below
         if: inputs.reuse-build-run == ''
         run: node scripts/showcase-release.mjs android
