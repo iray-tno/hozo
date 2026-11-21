@@ -1169,6 +1169,42 @@ fn of_type_is_named_absent_rather_than_answered_wrongly() {
 }
 
 #[test]
+fn of_type_is_refused_for_its_own_reason_where_the_position_is_known() {
+    // Two plain Views, so `first:` here would resolve. The refusal used to
+    // say the position could not be seen, which sent the author to
+    // restructure a tree the compiler had already read.
+    for class in [
+        "first-of-type:p-4",
+        "last-of-type:p-4",
+        "only-of-type:p-4",
+        "nth-of-type-2:p-4",
+        "nth-last-of-type-2:p-4",
+        "not-first-of-type:p-4",
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View><View className=\"{class}\">a</View><View>b</View></View>\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert_eq!(
+            output.diagnostics.len(),
+            1,
+            "{class}: {:?}",
+            output.diagnostics
+        );
+        let message = &output.diagnostics[0].message;
+        assert!(
+            message.contains("React Native has no tags"),
+            "{class}: {message}"
+        );
+        assert!(
+            !message.contains("position among its siblings"),
+            "{class}: {message}"
+        );
+    }
+}
+
+#[test]
 fn first_child_is_refused_when_a_sibling_is_unmodeled() {
     // `<ProfilePicture/>` renders and occupies the first slot, but never
     // becomes a Node -- so the Text is index 0 in `children` and second
