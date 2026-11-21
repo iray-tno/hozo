@@ -240,9 +240,33 @@ const PROBE_CONTEXTS = [
       `export function C() {\n  return (\n    <View>\n` +
       `      <View className="${candidate}">x</View>\n    </View>\n  )\n}\n`,
   },
+  {
+    // `starting:` is the frame an enter transition starts from, so it has a
+    // driver only beside a `transition-*` class on the same element. With
+    // no context carrying one, all of its cases were refused, each for want
+    // of a transition the probe never wrote.
+    //
+    // Only for candidates that use it: a transition with nothing to start
+    // from is itself refused on Native, so offering this context to every
+    // candidate would turn all of them from covered-everywhere into
+    // restricted, by measuring the transition instead of the candidate.
+    name: 'View with a transition',
+    appliesTo: (candidate: string) => candidate.split(':').includes('starting'),
+    render: (candidate: string) =>
+      `import { View } from '@hozo/core'\n` +
+      `export function C() {\n  return <View className="transition ${candidate}">x</View>\n}\n`,
+  },
 ] as const
 
-function probe(candidate: string, context: (typeof PROBE_CONTEXTS)[number]): NativeComparison {
+type ProbeContext = (typeof PROBE_CONTEXTS)[number]
+
+function contextsFor(candidate: string): ProbeContext[] {
+  return PROBE_CONTEXTS.filter(
+    (context) => !('appliesTo' in context) || context.appliesTo(candidate),
+  )
+}
+
+function probe(candidate: string, context: ProbeContext): NativeComparison {
   const source = context.render(candidate)
   const results = compileNative(source)
   if (results.length === 0) {
@@ -358,7 +382,8 @@ function probe(candidate: string, context: (typeof PROBE_CONTEXTS)[number]): Nat
 }
 
 export function compareNativeCandidate(candidate: string): NativeComparison {
-  const attempts = PROBE_CONTEXTS.map((context) => ({
+  const contexts = contextsFor(candidate)
+  const attempts = contexts.map((context) => ({
     context: context.name,
     result: probe(candidate, context),
   }))
@@ -366,7 +391,7 @@ export function compareNativeCandidate(candidate: string): NativeComparison {
   const working = attempts.filter((a) => a.result.verdict === 'COVERED')
   if (working.length > 0) {
     const covered = working[0].result
-    if (working.length === PROBE_CONTEXTS.length) {
+    if (working.length === contexts.length) {
       return covered
     }
     // Works somewhere but not everywhere. Still covered, but the report
