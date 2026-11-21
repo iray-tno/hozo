@@ -20,7 +20,8 @@
         "expo-build-properties",
         {
           "android": {
-            "enableMinifyInReleaseBuilds": false
+            "enableMinifyInReleaseBuilds": true,
+            "extraProguardRules": "-keepclassmembers class expo.modules.gl.GLView {\n  public <init>(android.content.Context, expo.modules.kotlin.AppContext);\n}\n\n-keepclassmembers class expo.modules.gl.GLContext {\n  public void flush();\n}"
           }
         }
       ]
