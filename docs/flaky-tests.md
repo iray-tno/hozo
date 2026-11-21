@@ -17,6 +17,7 @@ investigation moves.
 | Test | Where | Issue |
 | --- | --- | --- |
 | The `ios` job, before any test runs ("Timed out waiting for AX loaded notification") | `.github/workflows` | [#530](https://github.com/iray-tno/hozo/issues/530) |
+| The `ios` showcase smoke, Automatic updates remaining on after a tap ("Timed out: preference state changes") | `examples/native-showcase` | [#2147](https://github.com/iray-tno/hozo/issues/2147) |
 | The `voiceover` job, on the runner ("-1743", VoiceOver refusing to launch) | `.github/workflows` | [#631](https://github.com/iray-tno/hozo/issues/631) |
 | The Native Dialog returning focus to its opener | device a11y checks | [#484](https://github.com/iray-tno/hozo/issues/484) |
 | The `android` job, before any test runs ("Android framework readiness timed out") | `.github/workflows` | [#1525](https://github.com/iray-tno/hozo/issues/1525) |
