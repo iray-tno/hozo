@@ -103,7 +103,7 @@ Fidelity); it makes sure that whatever is not yet supported is never silent.
 | F2 | Which modules those exports are trusted from | `DEFAULT_PRIMITIVE_SOURCES`, `packages/compiler/src/sources.ts` | Hozo; a project may override |
 | F3 | Slot → style prop, owner, profile, events, gate, composition | `scripts/style-slots/catalog.mjs` → generated `hozo_ir/src/class_slots.rs`, `hozo_native/src/pattern_contracts.rs`, `patterns/src/slot-facts.native.ts` | `@hozo/patterns` only (27 components) |
 | F4 | Owner facts for form components | hand-written `packages/form/src/class-facts.native.ts` (the catalog's `NonControl` profile, value for value) and inline objects in each `.native.tsx` | `@hozo/form` only |
-| F5 | Which hosts and patterns hand text styles to children | `FORWARDING_HOSTS`, `HOST_MODULES`, `PATTERN_HOSTS`, `crates/hozo_parser/src/text_forwarding.rs` | Hozo only |
+| F5 | Which hosts and patterns hand text styles to children | `FORWARDING_HOSTS`, `HOST_MODULES`, `PATTERN_HOSTS`, `crates/hozo_parser/src/text_forwarding/branches.rs` | Hozo only |
 | F6 | What an exported component forwards as text | per-file summary → `hozo.manifest.json` `textForwarding`; read by Metro (`dependencyTextForwarding`, `getCacheKey`, `set_text_forwarding`) | any package; today only `@hozo/ui` ships one |
 | F7 | Which class strings a package's own code requests at run time | `packageSources`, `packages/compiler/src/project.ts`: walks the source of `@hozo/*` packages declared in the project's `package.json` | `@hozo/*` names only |
 | F8 | Which project functions join classes | `classHelpers` / `foundClassHelpers` in `metro.json` (#964) | the project |
