@@ -32,6 +32,7 @@ use enclosing::enclosing_component;
 mod atoms;
 mod build;
 mod class_expr;
+mod class_name;
 mod enclosing;
 mod finder;
 mod messages;
