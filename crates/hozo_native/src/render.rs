@@ -6,10 +6,12 @@
 use super::text::*;
 use super::*;
 
+mod child_list;
 mod class_slots;
 mod passthrough;
 mod refusals;
 mod semantic_defaults;
+mod spreads;
 
 enum NativeBackdropFilter {
     None,
@@ -1920,231 +1922,44 @@ pub(super) fn render_node(
     // last-wins duplicate resolution keeps matching the source's own
     // ordering semantics.
     let rendered = passthrough::render_passthrough(node, &descend, child_interaction_context, cx);
-    // Held styles go through the spreads, with whatever sits between them,
-    // in source order. A shape between the spreads that cannot be taken
-    // apart keeps the old emission rather than a guessed one -- and says
-    // so, because that emission lets a spread's style replace the compiled
-    // one, which is the bug composing exists to fix (#1054).
-    let spreads: Vec<usize> = (0..rendered.len())
-        .filter(|&index| rendered[index].0.is_spread)
-        .collect();
-    let group = match (held.held.is_empty(), spreads.first(), spreads.last()) {
-        (false, Some(&first), Some(&last)) => {
-            let mut args = Vec::new();
-            let mut refused = None;
-            for (prop, text) in &rendered[first..=last] {
-                let arg = if prop.is_spread {
-                    crate::spread_style::spread_argument(text)
-                } else {
-                    crate::spread_style::attribute_object(text)
-                };
-                match arg {
-                    Some(arg) => args.push(arg),
-                    None => {
-                        refused = Some(*prop);
-                        break;
-                    }
-                }
-            }
-            if let Some(prop) = refused {
-                let names = held
-                    .held
-                    .iter()
-                    .map(|(name, _)| format!("`{name}`"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                cx.diagnostics.push(Diagnostic {
-                    code: DiagnosticCode::UnsafePropSpreadAfterStyle,
-                    severity: Severity::Warning,
-                    message: format!(
-                        "A prop between this element's spreads is written in a form Hozo does not \
-                         take apart (an entity in a string, or an element as the value), so on \
-                         Native a {names} the spreads carry replaces the compiled one instead of \
-                         composing after it. Write the value in braces, or move the prop outside \
-                         the spreads."
-                    ),
-                    span: prop.span.0,
-                });
-                None
-            } else {
-                Some((first, last, args))
-            }
-        }
-        _ => None,
-    };
-    let mut prop_copies = cx.source_evidence.then(Vec::new);
-    match group {
-        Some((first, last, args)) => {
-            let after = rendered[last].0.span.0.start;
-            let written_last: Vec<String> = held
-                .held
-                .iter()
-                .map(|(name, _)| name.clone())
-                .filter(|name| {
-                    node.props.passthrough.iter().any(|prop| {
-                        !prop.is_spread
-                            && prop.name.as_deref() == Some(name.as_str())
-                            && prop.span.0.start > after
-                    })
-                })
-                .collect();
-            // A caller's style through a spread loses its inline edges to a
-            // class's start/end exactly as a named `style` would (#2050), so
-            // the same elements compose it through the edge-aware boundary.
-            let edges = !node.class_name_fallback.is_empty()
-                || crate::edge_projection::writes_logical_inline(&node.style);
-            let helper_text;
-            let helper = if edges {
-                cx.runtime.need_component("hozoEdgeSpreadStyles");
-                cx.runtime.need_native("I18nManager");
-                helper_text = format!(
-                    "hozoEdgeSpreadStyles(I18nManager.isRTL, I18nManager.doLeftAndRightSwapInRTL, {project_spread_gap})"
-                );
-                helper_text.as_str()
-            } else if project_spread_gap {
-                cx.runtime.need_component("hozoGapSpreadStyles");
-                "hozoGapSpreadStyles"
-            } else {
-                cx.runtime.need_component("hozoSpreadStyles");
-                "hozoSpreadStyles"
-            };
-            let mut group = Some(crate::spread_style::helper_call(
-                &held.held,
-                &written_last,
-                args,
-                helper,
-                cx.source_evidence,
-            ));
-            for (index, (_, text)) in rendered.into_iter().enumerate() {
-                if index == first {
-                    group
-                        .take()
-                        .expect("one first spread")
-                        .append_into(&mut props_text, &mut prop_copies);
-                }
-                if index < first || index > last {
-                    props_text.push(' ');
-                    text.append_into(&mut props_text, &mut prop_copies);
-                }
-                // Grouped props retain only their actual surviving argument
-                // fragments, never the generated keys/braces/helper prefix.
-            }
-        }
-        None => {
-            for (name, value) in &held.held {
-                props_text.push_str(&format!(" {name}={{{value}}}"));
-            }
-            for (_, text) in rendered {
-                props_text.push(' ');
-                text.append_into(&mut props_text, &mut prop_copies);
-            }
-        }
-    }
+    let prop_copies = spreads::append_passthrough(
+        node,
+        rendered,
+        &held,
+        project_spread_gap,
+        &mut props_text,
+        cx,
+    );
 
     crate::owner_style::validate_props(cx, &base_name, &props_text);
-
-    // Every child, in source order. A `Verbatim` is re-emitted from source
-    // rather than dropped; a bare string on a non-Text element gets the
-    // wrapper described above.
-    let mut inner = Rendered::new(cx.source_evidence);
-    // Tracks whether any earlier sibling could occupy an element position.
-    // A `Verbatim` may render nothing, one element, or a hundred
-    // (`{items.map(..)}`), so everything after one has no compile-time
-    // position at all.
-    // Both ends are decided up front, because "is anything after this one"
-    // can't be answered while walking forwards.
-    let is_verbatim = |c: &hozo_ir::Child| matches!(c, hozo_ir::Child::Verbatim { .. });
-    let is_element = |c: &hozo_ir::Child| matches!(c, hozo_ir::Child::Node(_));
-    let positions: Vec<SiblingPosition> = node
-        .children
-        .iter()
-        .enumerate()
-        .map(|(index, _)| {
-            let before = &node.children[..index];
-            let after = &node.children[index + 1..];
-            SiblingPosition {
-                first: (!before.iter().any(is_verbatim)).then(|| !before.iter().any(is_element)),
-                last: (!after.iter().any(is_verbatim)).then(|| !after.iter().any(is_element)),
-                ordinal: (!before.iter().any(is_verbatim))
-                    .then(|| before.iter().filter(|c| is_element(c)).count() + 1),
-                count: (!node.children.iter().any(is_verbatim))
-                    .then(|| node.children.iter().filter(|c| is_element(c)).count()),
-            }
-        })
-        .collect();
 
     // Everything below a text host inherits from it natively (decision 013).
     let encloses_text = is_text_primitive(node.primitive) || renders_text(rendered_component);
     if encloses_text {
         cx.text_depth += 1;
     }
-    for (index, child) in node.children.iter().enumerate() {
-        match child {
-            hozo_ir::Child::Node(child_node) => {
-                let child_position = positions[index];
-                inner.append(render_node(
-                    child_node,
-                    child_position,
-                    child_interaction_context,
-                    AncestorContext {
-                        inherited: &descend,
-                        parent_font_size: current_font_size,
-                        parent_size_opaque: parent_size_opaque || opaque_here,
-                        in_dynamic_ruby: node.primitive == Primitive::Ruby
-                            && component == "HozoRuby",
-                        from_ancestor: FromAncestor {
-                            direct: &to_children,
-                            all: &descendants,
-                            in_skeleton: from_ancestor.in_skeleton
-                                || node.primitive == Primitive::Skeleton,
-                        },
-                        grid_columns: grid.as_ref().and_then(|grid| grid.track_count),
-                        grid_rows: grid.as_ref().and_then(|grid| grid.row_track_count),
-                    },
-                    cx,
-                ));
-            }
-            hozo_ir::Child::Text(text) => {
-                let text = if node.primitive == Primitive::NoBreak {
-                    text.replace(' ', "\u{00A0}")
-                } else {
-                    text.clone()
-                };
-                let escaped = escape_jsx_text(&text);
-                // `SvgText` holds a string itself, so wrapping one in React
-                // Native's `Text` puts a text node where an SVG element
-                // belongs -- the string vanishes rather than rendering.
-                // The wrapper exists because a bare string inside a `View`
-                // crashes; inside `<Svg.Text>` there is nothing to fix.
-                let holds_text = renders_text(component) || component == "SvgText";
-                inner.text.push_str(&if !holds_text {
-                    wrap_in_text(
-                        &escaped,
-                        &descend,
-                        &base_name,
-                        node,
-                        position,
-                        child_interaction_context,
-                        cx,
-                    )
-                } else {
-                    escaped
-                });
-            }
-            hozo_ir::Child::Verbatim {
-                source: expr_ref,
-                nested,
-            } => {
-                inner.append(render_verbatim(
-                    *expr_ref,
-                    nested,
-                    &descend,
-                    child_interaction_context,
-                    cx,
-                ));
-            }
-        }
-    }
+    let for_children = AncestorContext {
+        inherited: &descend,
+        parent_font_size: current_font_size,
+        parent_size_opaque: parent_size_opaque || opaque_here,
+        in_dynamic_ruby: node.primitive == Primitive::Ruby && component == "HozoRuby",
+        from_ancestor: FromAncestor {
+            direct: &to_children,
+            all: &descendants,
+            in_skeleton: from_ancestor.in_skeleton || node.primitive == Primitive::Skeleton,
+        },
+        grid_columns: grid.as_ref().and_then(|grid| grid.track_count),
+        grid_rows: grid.as_ref().and_then(|grid| grid.row_track_count),
+    };
+    let inner = child_list::render_child_list(
+        node,
+        component,
+        for_children,
+        child_interaction_context,
+        &base_name,
+        position,
+        cx,
+    );
 
     if encloses_text {
         cx.text_depth -= 1;
