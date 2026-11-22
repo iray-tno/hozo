@@ -7,6 +7,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import {
+  readMetroState,
   withHozo,
   withHozoOwnerCallers,
   withHozoPartialOwners,
@@ -138,7 +139,8 @@ async function checkBundles(t, evidence, manifest) {
     )
     const patterns = install(
       '@hozo/patterns',
-      "export { BottomSheet } from './bottom-sheet.native.js';export {Toolbar,HozoToolbar} from './toolbar.native.js';",
+      `export { BottomSheet } from './bottom-sheet.native.js';
+export { Toolbar, HozoToolbar } from './toolbar.native.js';`,
       {
         hozo: { manifest: 'owner.json' },
         dependencies: {
@@ -382,7 +384,9 @@ async function checkBundles(t, evidence, manifest) {
         },
       },
     }
-    const options = { css: 'global.css', content: { packages: [] } }
+    // Exercise ordinary startup capture. An explicit package scan skips
+    // that capture and cannot prove default manifest-backed owner delivery.
+    const options = { css: 'global.css' }
     const capture = {
       platform,
       epoch: 'partial-owner-bundle',
@@ -455,6 +459,11 @@ async function checkBundles(t, evidence, manifest) {
             : partial
               ? await withHozoPartialOwners(config, livePreflight, options)
               : await withHozo(observingConfig, options))
+        assert.equal(
+          Boolean(readMetroState(f.root)?.carrierOwners),
+          mode === 'ordinary' || mode === 'budget-fallback',
+          `${platform}/${mode}: only ordinary builds should use the startup owner snapshot`,
+        )
         const resolve = configured.resolver.resolveRequest
         configured.resolver.resolveRequest = (context, specifier, target) => {
           try {
