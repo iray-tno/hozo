@@ -5,152 +5,15 @@
 
 use super::*;
 
+mod dark;
 mod guards;
+mod hooks;
+mod presence;
 
-/// A React hook the generated component needs in order to observe an
-/// ambient condition -- one whose value is the same app-wide at any moment.
-///
-/// These are why `dark:` and `md:` work on Native without the reactive
-/// engine Hozo doesn't ship: the value isn't per-element, so
-/// `@hozo/engine` keeps one subscription for the whole app and the hook
-/// only exists to re-render *this* component when it changes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RuntimeHook {
-    Dark,
-    Breakpoint(Breakpoint),
-    /// Window size, for the viewport-relative sizes (`h-screen`).
-    ///
-    /// Unlike the other two, this one's value is *used* rather than guarded
-    /// on, so it reports the numbers instead of a boolean -- and it
-    /// re-renders on every window change rather than only when a breakpoint
-    /// is crossed. That is the price of a size that has to track the window
-    /// exactly, and it's why the breakpoints keep their coarse snapshot
-    /// rather than being rebuilt on top of this.
-    Viewport,
-    SafeArea,
-    /// One environment query, by Tailwind's name for it.
-    ///
-    /// Seven queries, four subscriptions: the runtime answers
-    /// `motion-safe` from `motion-reduce` and `landscape` from
-    /// `portrait`, so the pairs cost nothing extra.
-    Environment(Environment),
-    /// A width threshold that is not one of the five named breakpoints.
-    ///
-    /// Its own hook rather than a number handed to the bucketed one,
-    /// because the buckets are the five and this is not one of them. Just
-    /// as cheap, though: the hook's snapshot is the *predicate* rather
-    /// than the width, so React bails out on every resize that doesn't
-    /// cross the threshold -- which is the same guarantee the buckets give
-    /// by rounding.
-    WidthAtLeast(u32),
-    /// One of Tailwind's four looping animations.
-    ///
-    /// Was `Spin` alone, because spin was the only one wired. The other
-    /// three move only opacity and transform too, so they run on the
-    /// same native driver and differ from it in nothing a separate hook
-    /// would have expressed.
-    Animation(hozo_ir::Animation),
-    /// A project's own `@keyframes`, by its index in
-    /// `RuntimeNeeds::keyframes` (decision 007, slice 3). The spec is
-    /// written into the declaration there, since it is not `Copy`.
-    Keyframes(usize),
-}
-
-impl RuntimeHook {
-    /// The local binding the rendered JSX guards on.
-    pub(super) fn binding(&self) -> String {
-        match self {
-            RuntimeHook::Dark => "__hozoDark".to_string(),
-            RuntimeHook::Breakpoint(bp) => format!("__hozoBp_{}", breakpoint_name(bp)),
-            RuntimeHook::WidthAtLeast(px) => format!("__hozoWidth_{px}"),
-            RuntimeHook::Viewport => "__hozoViewport".to_string(),
-            RuntimeHook::SafeArea => "__hozoSafeArea".to_string(),
-            RuntimeHook::Animation(name) => format!("__hozoAnim_{}", animation_name(*name)),
-            RuntimeHook::Keyframes(index) => format!("__hozoKeyframes_{index}"),
-            RuntimeHook::Environment(query) => {
-                format!("__hozoEnv_{}", environment_name(*query).replace('-', "_"))
-            }
-        }
-    }
-
-    pub(super) fn import(&self) -> &'static str {
-        match self {
-            RuntimeHook::Dark => "useHozoDark",
-            RuntimeHook::Breakpoint(_) => "useHozoBreakpoint",
-            RuntimeHook::Viewport => "useHozoViewport",
-            RuntimeHook::SafeArea => "useHozoSafeArea",
-            RuntimeHook::Animation(_) => "useHozoAnimation",
-            RuntimeHook::Keyframes(_) => "useHozoKeyframes",
-            RuntimeHook::Environment(_) => "useHozoEnvironment",
-            RuntimeHook::WidthAtLeast(_) => "useHozoWidthAtLeast",
-        }
-    }
-
-    pub(super) fn declaration(&self) -> String {
-        match self {
-            RuntimeHook::Dark => format!("const {} = useHozoDark()", self.binding()),
-            RuntimeHook::Breakpoint(bp) => format!(
-                "const {} = useHozoBreakpoint('{}')",
-                self.binding(),
-                breakpoint_name(bp)
-            ),
-            RuntimeHook::WidthAtLeast(px) => {
-                format!("const {} = useHozoWidthAtLeast({px})", self.binding())
-            }
-            RuntimeHook::Viewport => format!("const {} = useHozoViewport()", self.binding()),
-            RuntimeHook::SafeArea => format!("const {} = useHozoSafeArea()", self.binding()),
-            // Written by the caller, which holds the spec.
-            RuntimeHook::Keyframes(_) => {
-                unreachable!("keyframes declarations are written from RuntimeNeeds")
-            }
-            RuntimeHook::Animation(name) => format!(
-                "const {} = useHozoAnimation('{}')",
-                self.binding(),
-                animation_name(*name)
-            ),
-            // The query goes through as Tailwind's name, the way the
-            // breakpoint one does -- so the generated call reads as the
-            // class it came from.
-            RuntimeHook::Environment(query) => format!(
-                "const {} = useHozoEnvironment('{}')",
-                self.binding(),
-                environment_name(*query)
-            ),
-        }
-    }
-}
-
-/// Tailwind's own names, which `@hozo/engine`'s breakpoint table also
-/// uses. Distinct from `condition_suffix`, which needs an identifier-safe
-/// form (`xl2`) for the generated style key.
-fn breakpoint_name(bp: &Breakpoint) -> &'static str {
-    match bp {
-        Breakpoint::Sm => "sm",
-        Breakpoint::Md => "md",
-        Breakpoint::Lg => "lg",
-        Breakpoint::Xl => "xl",
-        Breakpoint::Xl2 => "2xl",
-    }
-}
-
-const STARTING_WITHOUT_TRANSITION: &str = "`starting:` is the first frame of an enter animation. On React Native it works on a `View` that also has a `transition-*` class -- `HozoAnimated` starts the element from these values and animates to its style. Here it has nothing to animate from, so it does nothing on this platform. On Web, too, `@starting-style` needs a transition on the same element to be seen.";
-
-const EXIT_WITHOUT_TRANSITION: &str = "`data-[state=closed]:` is the style an element leaves to inside `Presence`. On React Native it works on a `View` that also has a `transition-*` class -- `HozoAnimated` animates to these values before `Presence` removes the element. Here there is nothing to animate with, so the element is removed at once. On Web, too, without a transition the element is removed at once.";
-
-/// The first and last frames of an element that animates in and out
-/// (decision 007): `starting:` and `data-[state=closed]:`, each a list of
-/// guarded style parts.
-#[derive(Debug, Default)]
-pub(super) struct AnimatedFrames {
-    pub(super) starting: Vec<String>,
-    pub(super) exit: Vec<String>,
-}
-
-/// `data-[state=closed]:`, the one attribute selector Native can answer:
-/// `Presence` keeps the state, and `HozoAnimated` reads it.
-pub(super) fn presence_closed(condition: &Condition) -> bool {
-    matches!(condition, Condition::DataAttribute(selector) if selector == "[data-state=\"closed\"]")
-}
+use dark::with_dark_copies;
+pub(super) use hooks::RuntimeHook;
+pub(super) use presence::{presence_closed, AnimatedFrames};
+use presence::{EXIT_WITHOUT_TRANSITION, STARTING_WITHOUT_TRANSITION};
 
 pub(super) fn unwired_variant(node: &Node, message: &str, severity: Severity) -> Diagnostic {
     Diagnostic {
@@ -160,95 +23,6 @@ pub(super) fn unwired_variant(node: &Node, message: &str, severity: Severity) ->
         span: node.span,
     }
 }
-
-/// Groups `declarations` by condition, registers a named style entry for
-/// each group, and records how each should be referenced from the rendered
-/// `style` prop. Shared by a node and any `Text` wrapper inserted inside
-/// it, so both get identical condition handling.
-///
-/// Every condition that can't reach the rendered `style` prop reports
-/// itself. Until 2026-08-15 they were computed into the StyleSheet and then
-/// dropped in silence -- all eight variant-prefixed utilities in the
-/// conformance suite, scored as covered because the entry existed.
-/// The declarations again, with a dark copy of every one a paired token
-/// changes.
-///
-/// The Web half of this renders each rule twice and keeps the second when it
-/// differs (see `render_node`). That shape does not fit here: a rule on this
-/// platform is an entry in a `StyleSheet` plus a guarded reference to it in a
-/// style array, and the guard is built by a five-hundred-line match over the
-/// condition. Rendering twice would mean running that match twice with
-/// different names.
-///
-/// So the dark copy is made a *condition group* instead, before the match
-/// runs, and the match handles it the way it already handles `dark:bg-red-500`
-/// written by hand -- including registering `RuntimeHook::Dark`, which is what
-/// binds `__hozoDark`. A group that guarded on a binding nothing declares
-/// would be the free identifier #653 cost a day to.
-///
-/// Each copy is inserted **immediately after its own declaration**, not
-/// appended, and that is the whole of the ordering argument.
-/// `group_by_condition` keeps conditions in first-appearance order, and a
-/// React Native style array resolves last-wins, so position here is
-/// specificity. Inserted in place, a dark copy of an unconditional rule sorts
-/// among the conditionals *before* `disabled:` -- which is what the Web does,
-/// where `.a:disabled` at (0,2,0) beats `@media dark { .a }` at (0,1,0)
-/// whatever order they are written in. Appended at the end it would beat
-/// `disabled:`, and a disabled control would take its enabled colour after
-/// dark.
-///
-/// `None` when the theme has no pairs, which is every project that has not
-/// written one: no clone, no second pass, no extra entry.
-fn with_dark_copies(
-    declarations: &[StyleDeclaration],
-    theme: &Theme,
-) -> Option<Vec<StyleDeclaration>> {
-    let dark = theme.dark()?;
-    let mut out: Vec<StyleDeclaration> = Vec::with_capacity(declarations.len());
-    let mut copied = false;
-    for declaration in declarations {
-        out.push(declaration.clone());
-        // A rule the author already marked `dark:` is only for dark mode; a
-        // copy of it would say the same thing twice and win on a tie.
-        if declaration.condition.mentions_dark() || light_only(&declaration.condition) {
-            continue;
-        }
-        let property = std::slice::from_ref(&declaration.property);
-        if crate::candidate::style_pairs(property, theme)
-            == crate::candidate::style_pairs(property, &dark)
-        {
-            continue;
-        }
-        out.push(StyleDeclaration {
-            source: declaration.source,
-            property: declaration.property.clone(),
-            condition: declaration.condition.and_dark(),
-        });
-        copied = true;
-    }
-    if copied {
-        Some(out)
-    } else {
-        None
-    }
-}
-
-// A not-dark token stays in its light palette. Appending a dark copy would
-// manufacture a contradictory guard and a permanently unreachable entry.
-fn light_only(condition: &Condition) -> bool {
-    match condition {
-        Condition::Not(inner) => matches!(inner.as_ref(), Condition::Dark),
-        Condition::All(conditions) => conditions.iter().any(light_only),
-        _ => false,
-    }
-}
-
-// `mentions_dark` and `and_dark` are `hozo_ir`'s, not this file's. Both
-// backends ask the same two questions of a condition, and when the Web asked
-// them slightly differently -- equality against `Condition::Dark`, and a copy
-// that *replaced* the condition instead of extending it -- the two lowerings
-// disagreed about `hover:` in the dark. One answer in the IR is the fix that
-// cannot drift.
 
 pub(crate) struct StyleTarget<'a> {
     pub owner_facts: &'a [OwnerFact],
@@ -260,6 +34,15 @@ pub(crate) struct StyleTarget<'a> {
     pub composition: hozo_ir::OwnerSlotComposition,
 }
 
+/// Groups `declarations` by condition, registers a named style entry for
+/// each group, and records how each should be referenced from the rendered
+/// `style` prop. Shared by a node and any `Text` wrapper inserted inside
+/// it, so both get identical condition handling.
+///
+/// Every condition that can't reach the rendered `style` prop reports
+/// itself. Until 2026-08-15 they were computed into the StyleSheet and then
+/// dropped in silence -- all eight variant-prefixed utilities in the
+/// conformance suite, scored as covered because the entry existed.
 pub(super) fn build_style_entries(
     declarations: &[StyleDeclaration],
     base_name: &str,
