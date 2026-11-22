@@ -571,7 +571,7 @@ pub(super) fn build_style_entries(
             | Condition::Environment(_) | Condition::FirstChild | Condition::LastChild
             | Condition::Structural(_) | Condition::Not(_) | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible
             | Condition::Responsive(_) | Condition::Width { .. } | Condition::Dark
-            | Condition::Container { .. } | Condition::FormState(FormState::ReadOnly) => {
+            | Condition::Container { .. } | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown) => {
                 match guards::resolve(&condition, target, source, runtime) {
                     Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => base_parts.extend(parts.clone()),
                     Ok(guards::Guard::Known(true)) => conditional.extend(guarded("")),
@@ -617,7 +617,7 @@ pub(super) fn build_style_entries(
                             | Condition::Structural(_)
                             | Condition::StartingStyle
                             | Condition::Not(_)
-                            | Condition::FormState(FormState::ReadOnly)
+                            | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown)
                     ) || presence_closed(atom)
                         || (matches!(atom, Condition::DataAttribute(_))
                             && !target.owner_facts.is_empty())
@@ -654,7 +654,7 @@ pub(super) fn build_style_entries(
                             | Condition::LastChild | Condition::Structural(_) | Condition::Not(_)
                             | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
                             | Condition::Width { .. } | Condition::Dark | Condition::Container { .. }
-                            | Condition::FormState(FormState::ReadOnly) => {
+                            | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown) => {
                                 match guards::resolve(atom, target, source, runtime) {
                                     Ok(guards::Guard::Known(true)) => {}
                                     Ok(guards::Guard::Known(false)) => applies = false,

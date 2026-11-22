@@ -137,6 +137,7 @@ pub(super) fn resolve(
         // validation. Use one answer for the positive, stacked and negated
         // cases; a missing driver remains unknown, never false by default.
         Condition::FormState(FormState::ReadOnly) => read_only(node, source),
+        Condition::FormState(FormState::PlaceholderShown) => placeholder_shown(node, source),
         Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => {
             if pattern_slot.is_some_and(|slot| crate::pattern::events_unavailable(node.primitive, slot)) {
                 return Err(format!(
@@ -308,6 +309,76 @@ fn ambient(hook: RuntimeHook, runtime: &mut RuntimeNeeds) -> Guard {
     let binding = hook.binding();
     runtime.hooks.push(hook);
     Guard::Dynamic(binding)
+}
+
+/// A prop the author wrote on this element, as the parser kept it.
+enum Authored {
+    /// `name="text"`.
+    Literal(String),
+    /// `name={expr}`, as the expression's source.
+    Expr(String),
+}
+
+fn authored(node: &Node, source: &str, name: &str) -> Option<Authored> {
+    let prop = node
+        .props
+        .passthrough
+        .iter()
+        .find(|prop| prop.name.as_deref() == Some(name))?;
+    let text = &source[prop.span.0.start as usize..prop.span.0.end as usize];
+    let Some((_, value)) = text.split_once('=') else {
+        // A bare attribute is `true`, which is not text at all.
+        return Some(Authored::Expr("true".into()));
+    };
+    let value = value.trim();
+    if let Some(inner) = value.strip_prefix('{').and_then(|v| v.strip_suffix('}')) {
+        return Some(Authored::Expr(
+            hozo_ir::attribute_capture::slice(source, inner.trim()).into_owned(),
+        ));
+    }
+    value
+        .strip_prefix('"')
+        .and_then(|v| v.strip_suffix('"'))
+        .or_else(|| value.strip_prefix('\'').and_then(|v| v.strip_suffix('\'')))
+        .map(|inner| Authored::Literal(inner.to_string()))
+}
+
+/// `placeholder-shown:`: the field has a placeholder and no text, which on
+/// React Native is two props the compiler can read -- the question the
+/// browser answers from the element's state is answered here from the
+/// expressions that drive it.
+///
+/// - No `placeholder`, or an empty one, is never shown, on either platform.
+/// - No `value` is an uncontrolled field: what was typed lives inside the
+///   native view, and React Native gives nothing to read it with. That is
+///   refused rather than guessed.
+/// - A `value` that is `null` or `undefined` is counted as empty, which is
+///   what the field shows while it holds one.
+fn placeholder_shown(node: &Node, source: &str) -> Result<Guard, String> {
+    if node.primitive != Primitive::TextInput {
+        return Err("`placeholder-shown:` asks whether a TextInput is showing its placeholder, and this element is not a TextInput. On Web the same class works.".into());
+    }
+    let placeholder = match authored(node, source, "placeholder") {
+        None => return Ok(Guard::Known(false)),
+        Some(Authored::Literal(text)) if text.is_empty() => return Ok(Guard::Known(false)),
+        Some(Authored::Literal(_)) => None,
+        Some(Authored::Expr(expr)) => Some(format!("!!({expr})")),
+    };
+    let empty = match authored(node, source, "value") {
+        None => return Err("`placeholder-shown:` needs a `value` prop on the same TextInput: without one the field is uncontrolled, and React Native gives no way to read what was typed into it. Pass the text as `value` (with `onChangeText`) to drive the style. On Web the same class works.".into()),
+        Some(Authored::Literal(text)) => {
+            if !text.is_empty() {
+                return Ok(Guard::Known(false));
+            }
+            None
+        }
+        Some(Authored::Expr(expr)) => Some(format!("(({expr}) ?? '') === ''")),
+    };
+    Ok(match (placeholder, empty) {
+        (None, None) => Guard::Known(true),
+        (Some(guard), None) | (None, Some(guard)) => Guard::Dynamic(format!("({guard})")),
+        (Some(placeholder), Some(empty)) => Guard::Dynamic(format!("({placeholder} && {empty})")),
+    })
 }
 
 /// Read the same input state as RN TextInput: a defined readOnly wins;
