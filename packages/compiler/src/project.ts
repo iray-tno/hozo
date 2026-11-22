@@ -42,6 +42,7 @@ export {
   captureCarrierClosure,
   carrierGuard,
   carrierIncompleteMessage,
+  carrierOwnerRoutes,
   carrierSources,
   carrierTripMessage,
   locateDeclaredPackage,

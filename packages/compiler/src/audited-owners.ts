@@ -17,22 +17,25 @@ export type AuditedOwnerPreview = OwnerCallerPreview & {
   interactive?: boolean
 }
 
-const interactiveByOwner = new Map<string, boolean>()
+// The same owner name can describe different hosts in two installed versions.
+const interactiveByContract = new WeakMap<AuditedOwnerContract, boolean>()
 
 function contractHasInteractiveShape(contract: AuditedOwnerContract): boolean {
-  let interactive = interactiveByOwner.get(contract.owner)
+  let interactive = interactiveByContract.get(contract)
   if (interactive === undefined) {
     interactive = parseOwnerContractShadow(contract.shadow).contracts.some((entry) =>
       entry.shapes.some((shape) => shape.events.length > 0),
     )
-    interactiveByOwner.set(contract.owner, interactive)
+    interactiveByContract.set(contract, interactive)
   }
   return interactive
 }
 
-export function matchingAuditedOwners(source: string): readonly AuditedOwnerContract[] {
-  if (!AUDITED_OWNER_CONTRACTS.length) return []
-  return AUDITED_OWNER_CONTRACTS.filter(
+export function matchingAuditedOwners(
+  source: string,
+  contracts: readonly AuditedOwnerContract[] = AUDITED_OWNER_CONTRACTS,
+): readonly AuditedOwnerContract[] {
+  return contracts.filter(
     (contract) =>
       source.includes(contract.package) && contract.exports.some((name) => source.includes(name)),
   )
@@ -43,8 +46,9 @@ export function previewAuditedOwnerBatch(
   compiler: Compiler,
   target: 'web' | 'native',
   sourceFile?: string,
+  selected?: readonly AuditedOwnerContract[],
 ): AuditedOwnerPreview[] {
-  const contracts = matchingAuditedOwners(source)
+  const contracts = matchingAuditedOwners(source, selected)
   if (!contracts.length) return []
   return contracts.map((contract, index) => ({
     ...previewOwnerLiteralCallers(source, compiler, {
@@ -64,8 +68,9 @@ export function prepareAuditedOwnerBatch(
   compiler: Compiler,
   target: 'web' | 'native',
   sourceFile?: string,
+  selected?: readonly AuditedOwnerContract[],
 ): PreparedModule<AuditedOwnerPreview[]> | undefined {
-  const contracts = matchingAuditedOwners(source)
+  const contracts = matchingAuditedOwners(source, selected)
   if (!contracts.length) return undefined
   const prepared: { module: PreparedModule<OwnerCallerPreview>; interactive: boolean }[] = []
   const dispose = () => {

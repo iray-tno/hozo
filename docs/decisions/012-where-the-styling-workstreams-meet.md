@@ -164,6 +164,16 @@ is its measurement.
     seed. Without them, the seed filled in while transforms ran, and
     `apps/landing`'s output changed from run to run.
 
+**Owner delivery in ordinary Vite.** The same startup capture supplies the
+audited owner contracts of `@hozo/patterns` and `@hozo/form`. The import
+specifier only limits which requests to inspect; Vite's resolved package
+instance selects the contract. For a bare external import that Node will
+load, locate the package from that importer. A missing or unaudited owner
+does not fall back to the compiler's built-in table. That table remains for
+standalone callers and adapters that have not migrated. An explicit
+`content.packages` scan still controls candidates, not owner contracts.
+This does not enable arbitrary third-party owner declarations by default.
+
 ### 5. Text publication is a field of the contract
 
 Whether an owner hands text metrics and paint to its children is
