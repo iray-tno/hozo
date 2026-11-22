@@ -292,7 +292,7 @@ export async function buildVariantCatalog(
  * because `:disabled` matches form controls and a `Pressable` is a `<div>`
  * -- so the Tailwind class produced a rule that could never apply. The
  * decision and its reasoning are in `docs/decisions/001-disabled-and-focus.md`
- * and at the mapping in `crates/hozo_web/src/css.rs`.
+ * and at the mapping in `crates/hozo_web/src/css/shape.rs`.
  *
  * Folded here rather than left to show as a mismatch on every stacked
  * `disabled:` combination. A comparison that reports a difference someone

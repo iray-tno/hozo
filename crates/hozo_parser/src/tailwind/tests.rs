@@ -547,7 +547,12 @@ fn no_keyword_property_is_also_written_by_a_variant() {
     // Rust can't enumerate enum variants. Coarse -- a property named in
     // a comment there would trip this -- but it fails loudly and in the
     // safe direction.
-    let emitter = include_str!("../../../hozo_web/src/css.rs");
+    // The emitter is `css.rs` and every file of its `css/` module.
+    let css = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../hozo_web/src/css");
+    let mut emitter = std::fs::read_to_string(css.with_extension("rs")).unwrap();
+    for entry in std::fs::read_dir(&css).unwrap() {
+        emitter += &std::fs::read_to_string(entry.unwrap().path()).unwrap();
+    }
     for (token, property, _) in KEYWORD_UTILITIES {
         // The quoted name anywhere, not `("name",`: a wide match arm
         // puts the property on its own line, so anchoring on the paren
