@@ -351,6 +351,7 @@ const reads = {
     'crates/hozo_native/src/conditions.rs',
     'crates/hozo_native/src/text_region.rs',
     'crates/hozo_native/src/style.rs',
+    'crates/hozo_native/src/style/layers.rs',
     'crates/hozo_native/src/render.rs',
     'crates/hozo_native/src/spread_style.rs',
     'crates/hozo_native/src/text.rs',

@@ -1,0 +1,181 @@
+use super::*;
+
+#[test]
+fn a_js_string_survives_line_terminators() {
+    let input = "a,\n'b'\r\u{2028}\u{2029}\\";
+    let expected = [
+        "'a,", "\\n", "\\'b\\'", "\\r", "\\u2028", "\\u2029", "\\\\", "'",
+    ]
+    .concat();
+    assert_eq!(js_string(input), expected);
+}
+
+#[test]
+fn a_logical_border_width_lowers_and_its_solid_style_asks_nothing() {
+    // `border-s-2` failed the build: Tailwind writes a solid style per
+    // edge beside the width, and that style was refused as Web-only
+    // although solid is what React Native draws anyway.
+    for (class_name, expected) in [
+        ("border-s-2", "borderStartWidth: 2"),
+        ("border-e", "borderEndWidth: 1"),
+        ("border-x-4", "borderEndWidth: 4"),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.styles.contains(expected),
+            "{class_name}: {}",
+            out.styles
+        );
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+    }
+    // A non-solid side style is still one React Native cannot draw.
+    assert!(StyleProperty::BorderLogicalStyle(
+        hozo_ir::Edge::InlineStart,
+        hozo_ir::BorderStyle::Dashed
+    )
+    .unsupported_on_native()
+    .is_some());
+}
+
+#[test]
+fn numbers_have_no_unit_suffix() {
+    assert_eq!(
+        property_and_value(
+            &StyleProperty::PaddingTop(Length::Px(24.0)),
+            &Theme::default()
+        ),
+        vec![("paddingTop", "24".to_string())]
+    );
+}
+
+#[test]
+fn flex_grow_is_a_bare_number() {
+    assert_eq!(
+        property_and_value(
+            &StyleProperty::Flex(FlexShorthand::Grow(1.0)),
+            &Theme::default()
+        ),
+        vec![("flex", "1".to_string())]
+    );
+}
+
+#[test]
+fn flex_auto_expands_to_two_keys() {
+    assert_eq!(
+        property_and_value(&StyleProperty::Flex(FlexShorthand::Auto), &Theme::default()),
+        vec![
+            ("flexGrow", "1".to_string()),
+            ("flexShrink", "1".to_string())
+        ]
+    );
+}
+
+#[test]
+fn font_weight_is_a_string() {
+    assert_eq!(
+        property_and_value(
+            &StyleProperty::FontWeight(hozo_ir::FontWeight::Absolute(700)),
+            &Theme::default()
+        ),
+        vec![("fontWeight", "'700'".to_string())]
+    );
+}
+
+#[test]
+fn known_color_token_resolves_to_real_hex() {
+    assert_eq!(
+        property_and_value(
+            &StyleProperty::BackgroundColor(Color::Token("blue-500".to_string())),
+            &Theme::default()
+        ),
+        vec![("backgroundColor", "'#2b7fff'".to_string())]
+    );
+}
+
+#[test]
+fn unknown_color_token_falls_back_to_a_marker_string() {
+    assert_eq!(
+        property_and_value(
+            &StyleProperty::TextColor(Color::Token("brand-primary".to_string())),
+            &Theme::default()
+        ),
+        vec![("color", "'hozo-unresolved:brand-primary'".to_string())]
+    );
+}
+
+#[test]
+fn an_opacity_modifier_folds_into_the_colour() {
+    // React Native has no `color-mix`, so the alpha goes into the
+    // colour itself. Before this the token kept its modifier through
+    // the palette lookup, missed, and reached the style object as
+    // `'hozo-unresolved:blue-500/50'` -- a string React Native cannot
+    // parse, emitted with no diagnostic.
+    let prop = StyleProperty::BackgroundColor(Color::Token("blue-500/50".to_string()));
+    assert_eq!(
+        property_and_value(&prop, &Theme::default()),
+        vec![("backgroundColor", "'rgba(43, 127, 255, 0.5)'".to_string())]
+    );
+}
+
+#[test]
+fn a_short_hex_gets_the_same_treatment() {
+    // `black` and `white` are `#000` and `#fff` in the palette, and a
+    // reader that only understood six digits turned `bg-black/25` into
+    // the unresolved marker while `bg-blue-500/50` worked -- one class
+    // shape, two answers.
+    let prop = StyleProperty::BackgroundColor(Color::Token("black/25".to_string()));
+    assert_eq!(
+        property_and_value(&prop, &Theme::default()),
+        vec![("backgroundColor", "'rgba(0, 0, 0, 0.25)'".to_string())]
+    );
+}
+
+#[test]
+fn raw_filter_and_background_image_keep_their_css_order() {
+    let filter = vec![
+        StyleProperty::Filter(FilterFunction::Blur, "blur(8px)".to_string()),
+        StyleProperty::FilterRaw("sepia(60%) hue-rotate(20deg)".to_string()),
+    ];
+    assert_eq!(
+        filter_entry(&filter, &Theme::default()),
+        Some(("filter", "'sepia(60%) hue-rotate(20deg)'".to_string()))
+    );
+    let image = vec![StyleProperty::BackgroundImage(
+        "linear-gradient(90deg,#123456,#abcdef)".to_string(),
+    )];
+    assert_eq!(
+        background_image_entry(&image, &Theme::default()),
+        Some((
+            "backgroundImage",
+            "'linear-gradient(90deg,#123456,#abcdef)'".to_string()
+        ))
+    );
+}
+
+#[test]
+fn portable_text_shadow_expands_to_native_text_fields() {
+    let property = StyleProperty::TextShadow(hozo_ir::TextShadowValue::Portable {
+        css: "#123456 1px -2px 4px".to_string(),
+        color: Color::Css("#123456".to_string()),
+        offset_x: Length::Px(1.0),
+        offset_y: Length::Px(-2.0),
+        radius: Length::Px(4.0),
+    });
+    assert_eq!(
+        property_and_value(&property, &Theme::default()),
+        vec![
+            ("textShadowColor", "'#123456'".to_string()),
+            ("textShadowOffset", "{ width: 1, height: -2 }".to_string()),
+            ("textShadowRadius", "4".to_string()),
+        ]
+    );
+    assert!(property.unsupported_on_native().is_none());
+}

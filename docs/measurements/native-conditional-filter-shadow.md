@@ -21,7 +21,7 @@ register, so:
 
 ## What changed
 
-`fold_base_layers` (`crates/hozo_native/src/style.rs`) copies the
+`fold_base_layers` (`crates/hozo_native/src/style/layers.rs`) copies the
 unconditional shadow-family and filter-family writes into every other
 condition that writes the same family, before that condition's own writes.
 The existing per-group composition then joins them, and a condition's own
