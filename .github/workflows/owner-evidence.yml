@@ -45,6 +45,8 @@ on:
       - 'crates/hozo_web/src/owner_class.rs'
       - 'crates/hozo_web/src/lib.rs'
       - 'crates/hozo_web/src/passthrough.rs'
+      - 'crates/hozo_web/src/press.rs'
+      - 'crates/hozo_web/src/scroll.rs'
       - 'crates/hozo_native/src/conditions/guards.rs'
       - 'crates/hozo_native/src/render.rs'
       - 'crates/hozo_native/src/render/*.rs'
