@@ -6,9 +6,11 @@
 use super::*;
 
 mod dark;
+mod groups;
 mod guards;
 mod hooks;
 mod presence;
+mod stacked;
 
 use dark::with_dark_copies;
 pub(super) use hooks::RuntimeHook;
@@ -89,89 +91,13 @@ pub(super) fn build_style_entries(
     // condition, a breakpoint, `dark:`, a className branch -- is (0,1,0) and
     // loses to it.
     let mut state_parts: Vec<String> = Vec::new();
-    // Mixed text owners must still order the raw register against the
-    // caller's writes. Only fold it into defaults on the static path.
-    let mixed_text = matches!(
-        node.primitive,
-        hozo_ir::Primitive::Text | hozo_ir::Primitive::TextInput
-    ) && !node.class_name_fallback.is_empty();
-    let register = declarations
-        .iter()
-        .rev()
-        .find_map(|declaration| match declaration.property {
-            StyleProperty::LeadingRegister(px)
-                if !mixed_text && declaration.condition == Condition::Always =>
-            {
-                Some(px)
-            }
-            _ => None,
-        });
-    let hozo_ir::NativeConditionGroupPlan {
-        mut groups,
+    let groups::Groups {
+        groups,
         canonical_input,
-    } = hozo_ir::plan_native_condition_groups(declarations, target.composition);
+        projects_metrics,
+    } = groups::plan_groups(declarations, &edge_conflicts, target, theme);
     let mut ordered_states = Vec::new();
     let mut has_interactive = false;
-    for (_, props) in &mut groups {
-        *props = hozo_ir::dedupe_last_wins(theme.resolve_shadow_tokens(std::mem::take(props)));
-        if let Some(px) = register {
-            for property in props.iter_mut() {
-                if let StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(length)) =
-                    property
-                {
-                    *length = hozo_ir::Length::Px(px);
-                }
-            }
-        }
-    }
-    let is_default = |property: &StyleProperty| {
-        matches!(
-            property,
-            StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(_))
-        )
-    };
-    let projects_metrics = groups.iter().any(|(_, props)| props.iter().any(is_default))
-        && groups.iter().any(|(_, props)| {
-            props.iter().any(|property| {
-                matches!(
-                    property,
-                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_))
-                )
-            })
-        });
-    if projects_metrics {
-        // This is CSS register projection, after authored input precedence
-        // has been decided: a font default reads an explicit --tw-leading
-        // even from a less-specific rule or another frontend input. Keep
-        // normal writes in their established order and move only fallbacks.
-        let mut defaults = Vec::new();
-        let mut writes = Vec::new();
-        for (condition, props) in groups {
-            let (fallback, rest): (Vec<_>, Vec<_>) = props.into_iter().partition(is_default);
-            if !fallback.is_empty() {
-                defaults.push((condition.clone(), fallback));
-            }
-            if !rest.is_empty() {
-                writes.push((condition, rest));
-            }
-        }
-        defaults.extend(writes);
-        groups = defaults;
-    }
-    let expanded_groups: Vec<(Condition, Vec<StyleProperty>, bool)> = if edge_conflicts.is_empty() {
-        groups
-            .into_iter()
-            .map(|(condition, props)| (condition, props, false))
-            .collect()
-    } else {
-        groups
-            .iter()
-            .flat_map(|(condition, props)| {
-                crate::edge_projection::expand_group(condition, props, &edge_conflicts)
-            })
-            .collect()
-    };
-    let groups = expanded_groups;
     // A ranked input can revisit a condition after another one -- Tailwind's
     // order put `text-[20px]`, then the other branch's classes, then
     // `text-red-500` -- and each visit is its own group. Named by condition
@@ -368,199 +294,53 @@ pub(super) fn build_style_entries(
             }
             Condition::Always => base_parts.extend(parts.clone()),
             Condition::All(conditions) => {
-                let mut atoms = Vec::new();
-                let mut pending: Vec<_> = conditions.iter().rev().collect();
-                while let Some(atom) = pending.pop() {
-                    if let Condition::All(nested) = atom {
-                        pending.extend(nested.iter().rev());
-                    } else {
-                        atoms.push(atom);
-                    }
-                }
-                let supported = atoms.iter().all(|atom| {
-                    matches!(
-                        atom,
-                        Condition::Always
-                            | Condition::Disabled
-                            | Condition::Aria(_)
-                            | Condition::Enabled
-                            | Condition::Group(_)
-                            | Condition::Environment(_)
-                            | Condition::Pressed
-                            | Condition::Expr(_)
-                            | Condition::Hover
-                            | Condition::Focus
-                            | Condition::FocusVisible
-                            | Condition::Responsive(_)
-                            | Condition::Width { .. }
-                            | Condition::Container { .. }
-                            | Condition::Dark
-                            | Condition::FirstChild
-                            | Condition::LastChild
-                            | Condition::Structural(_)
-                            | Condition::StartingStyle
-                            | Condition::Not(_)
-                            | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown)
-                    ) || presence_closed(atom)
-                        || (matches!(atom, Condition::DataAttribute(_))
-                            && !target.owner_facts.is_empty())
-                });
-                if !supported {
-                    diagnostics.push(unwired_variant(
-                        node,
-                        &format!(
-                            "`{}`: this stacked variant contains a condition React Native \
-                             doesn't have wired up yet, so the style is not applied.",
-                            atoms
-                                .iter()
-                                .filter_map(|condition| variant_spelling(condition))
-                                .collect::<Vec<_>>()
-                                .join(":")
-                        ),
-                        Severity::Warning,
-                    ));
-                } else {
-                    let mut guards = Vec::new();
-                    let mut uses_interactive_state = false;
-                    let mut applies = true;
-                    // `motion-safe:starting:`, `md:starting:`: the first
-                    // frame, under the other atoms' guards. It goes where an
-                    // unstacked `starting:` goes, guarded.
-                    let mut enters_from = false;
-                    // `motion-safe:data-[state=closed]:`: the same, for the
-                    // frame an element leaves to inside `Presence`.
-                    let mut leaves_to = false;
-                    for atom in atoms {
-                        match atom {
-                            Condition::Disabled | Condition::Enabled | Condition::Aria(_)
-                            | Condition::Environment(_) | Condition::FirstChild
-                            | Condition::LastChild | Condition::Structural(_) | Condition::Not(_)
-                            | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
-                            | Condition::Width { .. } | Condition::Dark | Condition::Container { .. }
-                            | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown) => {
-                                match guards::resolve(atom, target, source, runtime) {
-                                    Ok(guards::Guard::Known(true)) => {}
-                                    Ok(guards::Guard::Known(false)) => applies = false,
-                                    Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),
-                                    Ok(guards::Guard::Interactive(guard)) => {
-                                        guards.push(guard);
-                                        uses_interactive_state = true;
-                                    }
-                                    Ok(guards::Guard::InteractiveScoped { available, predicate }) => {
-                                        guards.push(format!("({available} && {predicate})"));
-                                        uses_interactive_state = true;
-                                    }
-                                    Ok(guards::Guard::Scoped { available, predicate }) => {
-                                        guards.push(format!("({available} && {predicate})"));
-                                    }
-                                    Err(reason) => {
-                                        diagnostics.push(unwired_variant(node, &reason, Severity::Error));
-                                        applies = false;
-                                    }
-                                }
-                            }
-                            Condition::Always => {}
-                            Condition::Group(inner) => match group_state(inner, interaction_context) {
-                                Some(state) => {
-                                    guards.push(state.to_string());
-                                    uses_interactive_state = true;
-                                }
-                                None => {
-                                    diagnostics.push(unwired_variant(
-                                        node,
-                                        &group_unwired_message(inner, interaction_context),
-                                        Severity::Error,
-                                    ));
-                                    applies = false;
-                                }
-                            },
-                            Condition::Expr(expr) => {
-                                guards.push(format!("({})", render_condition_expr(source, expr)));
-                            }
-                            Condition::StartingStyle => enters_from = true,
-                            Condition::DataAttribute(_)
-                                if !presence_closed(atom) && !target.owner_facts.is_empty() =>
-                            {
-                                match guards::resolve(atom, target, source, runtime) {
-                                    Ok(guards::Guard::InteractiveScoped {
-                                        available,
-                                        predicate,
-                                    }) => {
-                                        guards.push(format!("({available} && {predicate})"));
-                                        uses_interactive_state = true;
-                                    }
-                                    Ok(guards::Guard::Known(true)) => {}
-                                    Ok(guards::Guard::Known(false)) => applies = false,
-                                    Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),
-                                    Ok(guards::Guard::Interactive(guard)) => {
-                                        guards.push(guard);
-                                        uses_interactive_state = true;
-                                    }
-                                    Ok(guards::Guard::Scoped {
-                                        available,
-                                        predicate,
-                                    }) => guards.push(format!("({available} && {predicate})")),
-                                    Err(reason) => {
-                                        diagnostics.push(unwired_variant(
-                                            node,
-                                            &reason,
-                                            Severity::Error,
-                                        ));
-                                        applies = false;
-                                    }
-                                }
-                            }
-                            Condition::DataAttribute(_) => leaves_to = true,
-                            _ => unreachable!("unsupported atoms were rejected above"),
-                        }
-                    }
-                    if applies {
-                        let prefix = if guards.is_empty() {
-                            String::new()
-                        } else {
-                            format!("{} && ", guards.join(" && "))
-                        };
-                        if enters_from && leaves_to {
-                            diagnostics.push(unwired_variant(
+                if let Some(stacked::Stacked {
+                    prefix,
+                    uses_interactive_state,
+                    enters_from,
+                    leaves_to,
+                }) = stacked::stacked_guard(conditions, target, source, runtime, diagnostics)
+                {
+                    if enters_from && leaves_to {
+                        diagnostics.push(unwired_variant(
+                            node,
+                            "`starting:` and `data-[state=closed]:` in one class are the first frame of an element that is already leaving. Nothing can be both, so it is not applied here.",
+                            Severity::Warning,
+                        ));
+                    } else if leaves_to {
+                        match (frames.as_deref_mut(), uses_interactive_state) {
+                            (Some(frames), false) => frames.exit.extend(guarded(&prefix)),
+                            (Some(_), true) => diagnostics.push(unwired_variant(
                                 node,
-                                "`starting:` and `data-[state=closed]:` in one class are the first frame of an element that is already leaving. Nothing can be both, so it is not applied here.",
+                                "`data-[state=closed]:` stacked with an interaction state is not wired on React Native: the frame an element leaves to is chosen when `Presence` closes, not as it is pressed or hovered. On Web the same class works.",
                                 Severity::Warning,
-                            ));
-                        } else if leaves_to {
-                            match (frames.as_deref_mut(), uses_interactive_state) {
-                                (Some(frames), false) => frames.exit.extend(guarded(&prefix)),
-                                (Some(_), true) => diagnostics.push(unwired_variant(
-                                    node,
-                                    "`data-[state=closed]:` stacked with an interaction state is not wired on React Native: the frame an element leaves to is chosen when `Presence` closes, not as it is pressed or hovered. On Web the same class works.",
-                                    Severity::Warning,
-                                )),
-                                (None, _) => diagnostics.push(unwired_variant(
-                                    node,
-                                    EXIT_WITHOUT_TRANSITION,
-                                    Severity::Warning,
-                                )),
-                            }
-                        } else if enters_from {
-                            match (frames.as_deref_mut(), uses_interactive_state) {
-                                (Some(frames), false) => frames.starting.extend(guarded(&prefix)),
-                                // The first frame is read once, on mount, and
-                                // nothing has been pressed or hovered yet.
-                                (Some(_), true) => diagnostics.push(unwired_variant(
-                                    node,
-                                    "`starting:` stacked with an interaction state is the first frame of an element that is already being pressed, hovered or focused as it mounts. React Native reads the first frame once, before any of those can be true, so it is not applied here. On Web the same class works.",
-                                    Severity::Warning,
-                                )),
-                                (None, _) => diagnostics.push(unwired_variant(
-                                    node,
-                                    STARTING_WITHOUT_TRANSITION,
-                                    Severity::Warning,
-                                )),
-                            }
-                        } else if uses_interactive_state {
-                            pressed_parts.extend(guarded(&prefix));
-                        } else {
-                            conditional.extend(guarded(&prefix));
+                            )),
+                            (None, _) => diagnostics.push(unwired_variant(
+                                node,
+                                EXIT_WITHOUT_TRANSITION,
+                                Severity::Warning,
+                            )),
                         }
+                    } else if enters_from {
+                        match (frames.as_deref_mut(), uses_interactive_state) {
+                            (Some(frames), false) => frames.starting.extend(guarded(&prefix)),
+                            // The first frame is read once, on mount, and
+                            // nothing has been pressed or hovered yet.
+                            (Some(_), true) => diagnostics.push(unwired_variant(
+                                node,
+                                "`starting:` stacked with an interaction state is the first frame of an element that is already being pressed, hovered or focused as it mounts. React Native reads the first frame once, before any of those can be true, so it is not applied here. On Web the same class works.",
+                                Severity::Warning,
+                            )),
+                            (None, _) => diagnostics.push(unwired_variant(
+                                node,
+                                STARTING_WITHOUT_TRANSITION,
+                                Severity::Warning,
+                            )),
+                        }
+                    } else if uses_interactive_state {
+                        pressed_parts.extend(guarded(&prefix));
+                    } else {
+                        conditional.extend(guarded(&prefix));
                     }
                 }
             }
