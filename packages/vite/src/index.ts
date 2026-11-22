@@ -507,33 +507,30 @@ function configureHozo(
           // The helper files' records from the scan, re-read only on change.
           facts,
         )
-        let auditedOwners: LowerModuleOptions['auditedOwners']
-        if (!ownerPlan && !discoverOwnerSources) {
-          // An empty selection is authoritative. Do not use the compiler's
-          // standalone catalog when Vite resolved no participating contract.
-          auditedOwners = []
-          const routes = ownerRoutes
-          if (routes?.specifiers.some((specifier) => source.includes(specifier))) {
-            const imports = new Set(
-              inspectStaticModuleImports(source, absoluteFile).bindings.map(({ source }) => source),
-            )
-            const selected = await Promise.all(
-              routes.specifiers
-                .filter((specifier) => imports.has(specifier))
-                .map(async (specifier) => {
-                  const entry = await this.resolve(specifier, absoluteFile, { skipSelf: true })
-                  if (!entry) return []
-                  // SSR can leave the bare import for Node rather than return
-                  // a file. Use that importer's Node package, not the app root.
-                  const physical =
-                    entry.external && entry.id === specifier
-                      ? locateDeclaredPackage(path.dirname(absoluteFile), specifier)
-                      : entry.id
-                  return physical ? routes.forResolvedImport(physical, specifier) : []
-                }),
-            )
-            auditedOwners = selected.flat()
-          }
+        // An empty selection is authoritative, including a pre-output
+        // fallback. Vite never switches to the standalone catalog.
+        let auditedOwners: LowerModuleOptions['auditedOwners'] = []
+        const routes = ownerRoutes
+        if (routes?.specifiers.some((specifier) => source.includes(specifier))) {
+          const imports = new Set(
+            inspectStaticModuleImports(source, absoluteFile).bindings.map(({ source }) => source),
+          )
+          const selected = await Promise.all(
+            routes.specifiers
+              .filter((specifier) => imports.has(specifier))
+              .map(async (specifier) => {
+                const entry = await this.resolve(specifier, absoluteFile, { skipSelf: true })
+                if (!entry) return []
+                // SSR can leave the bare import for Node rather than return
+                // a file. Use that importer's Node package, not the app root.
+                const physical =
+                  entry.external && entry.id === specifier
+                    ? locateDeclaredPackage(path.dirname(absoluteFile), specifier)
+                    : entry.id
+                return physical ? routes.forResolvedImport(physical, specifier) : []
+              }),
+          )
+          auditedOwners = selected.flat()
         }
         compiler.setClassHelpers(resolveClassHelpers(options.classHelpers, helpers))
         checkRequest()
@@ -931,28 +928,18 @@ function configureHozo(
         // throws before any output. The experimental owner paths above bring
         // their own; an explicit `content.packages` names sources to scan.
         carriers =
-          ownerPlan || discoverOwnerSources
+          ownerPlan || (discoverOwnerSources && !ownerFallback)
             ? undefined
             : requireCarrierClosure(root, options.content, {
                 platform: 'web',
                 epoch: 'vite-carriers-0',
               })
         guard = carriers && carrierGuard(carriers)
-        // An explicit source scan changes candidate input, not the origin of
-        // an owner contract. Capture it once here if candidates did not.
-        const ownerCarriers =
-          carriers ??
-          (!ownerPlan && !discoverOwnerSources
-            ? requireCarrierClosure(root, undefined, {
-                platform: 'web',
-                epoch: 'vite-carriers-0',
-              })
-            : undefined)
-        ownerRoutes = ownerCarriers && carrierOwnerRoutes(ownerCarriers, builtInOwnerPackages)
+        ownerRoutes = carriers && carrierOwnerRoutes(carriers, builtInOwnerPackages)
         for (const file of ownerRoutes?.inputs.keys() ?? []) this.addWatchFile(file)
         carrierSource = carriers ? carrierSources(carriers) : () => false
         const project =
-          discoveredProject ??
+          (carriers ? undefined : discoveredProject) ??
           scanProject(
             root,
             options.content,

@@ -171,7 +171,9 @@ instance selects the contract. For a bare external import that Node will
 load, locate the package from that importer. A missing or unaudited owner
 does not fall back to the compiler's built-in table. That table remains for
 standalone callers and adapters that have not migrated. An explicit
-`content.packages` scan still controls candidates, not owner contracts.
+`content.packages` scan bypasses the startup capture, so package owner
+class props remain ordinary there. A pre-output refusal uses the same
+capture policy as ordinary Vite.
 This does not enable arbitrary third-party owner declarations by default.
 
 ### 5. Text publication is a field of the contract
