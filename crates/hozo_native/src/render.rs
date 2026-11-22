@@ -6,6 +6,8 @@
 use super::text::*;
 use super::*;
 
+mod refusals;
+
 enum NativeBackdropFilter {
     None,
     Blur(String),
@@ -18,20 +20,6 @@ fn has_gap(style: &[StyleDeclaration]) -> bool {
             StyleProperty::Gap(_) | StyleProperty::RowGap(_) | StyleProperty::ColumnGap(_)
         )
     })
-}
-
-fn native_backdrop_filter(declaration: &StyleDeclaration) -> Option<NativeBackdropFilter> {
-    if declaration.condition != Condition::Always {
-        return None;
-    }
-    match &declaration.property {
-        StyleProperty::BackdropFilter(FilterFunction::None, _) => Some(NativeBackdropFilter::None),
-        StyleProperty::BackdropFilter(FilterFunction::Blur, value) => value
-            .strip_prefix("blur(")?
-            .strip_suffix("px)")
-            .map(|radius| NativeBackdropFilter::Blur(radius.to_string())),
-        _ => None,
-    }
 }
 
 /// Resolve StyleX's browser feature fallback before any contextual Native
@@ -285,195 +273,23 @@ pub(super) fn render_node(
     } else {
         Vec::new()
     };
-    let mut backdrop_filter = None;
-
-    for declaration in &style {
-        if is_viewport_sized(&declaration.property) {
-            continue;
-        }
-        // Lowered as a prop just above, so it must not also be reported as
-        // a style this platform cannot hold.
-        if !svg_paint.is_empty()
-            && matches!(
-                declaration.property,
-                StyleProperty::Fill(_) | StyleProperty::Stroke(_) | StyleProperty::StrokeWidth(_)
-            )
-        {
-            continue;
-        }
-        if grid.is_some() && grid_absorbs(&declaration.property) {
-            continue;
-        }
-        if let Some(filter) = native_backdrop_filter(declaration) {
-            backdrop_filter = Some(filter);
-            continue;
-        }
-        if grid_item.is_some()
-            && matches!(
-                declaration.property,
-                StyleProperty::GridColumn(_)
-                    | StyleProperty::GridColumnStart(_)
-                    | StyleProperty::GridColumnEnd(_)
-                    | StyleProperty::GridRow(_)
-                    | StyleProperty::GridRowStart(_)
-                    | StyleProperty::GridRowEnd(_)
-            )
-        {
-            continue;
-        }
-        if (transition.is_some() || ambient_transition.is_some())
-            && matches!(
-                declaration.property,
-                StyleProperty::TransitionProperty(_)
-                    | StyleProperty::TransitionDuration(..)
-                    | StyleProperty::TransitionDelay(..)
-                    | StyleProperty::TransitionTimingFunction(..)
-            )
-        {
-            continue;
-        }
-        if truncation.is_some() && is_truncation_declaration(&declaration.property) {
-            continue;
-        }
-        // How text breaks into lines. The Web has five properties for it and
-        // React Native one Android prop, so most of these have nothing to
-        // become here. That is a difference in where lines fall, not a layout
-        // that is wrong, so it is a warning -- it used to be the Web-only
-        // error, which stopped the Native build for a `text-balance` in a
-        // component written once for both.
-        if let Some((name, value)) = crate::text::line_breaking(&declaration.property) {
-            {
-                let lowered = text_break.is_some()
-                    && name == "text-wrap"
-                    && matches!(value.as_str(), "balance" | "pretty")
-                    && declaration.condition == Condition::Always;
-                // The platform's own behaviour already -- for Tailwind's
-                // `break-normal` and `text-wrap`, which reset rather than ask.
-                // A declaration written out (StyleX, `[line-break:normal]`) is
-                // still reported: someone set it on purpose, and the StyleX
-                // scorecard holds its Web-only properties to saying so.
-                let default = match &declaration.property {
-                    StyleProperty::KeywordPair(..) => value == "normal",
-                    StyleProperty::Keyword("text-wrap", "wrap") => true,
-                    _ => false,
-                };
-                if !lowered && !default {
-                    let keep_all_on_text = ios_line_break.is_some()
-                        && name == "word-break"
-                        && value == "keep-all"
-                        && declaration.condition == Condition::Always;
-                    let reason = if keep_all_on_text {
-                        "iOS keeps Korean words whole (`lineBreakStrategyIOS=\"hangul-word\"`, \
-                         set here), but still breaks Chinese and Japanese between characters, \
-                         and Android has no control for it -- see \
-                         https://github.com/iray-tno/hozo/issues/813"
-                    } else if name == "text-wrap" && matches!(value.as_str(), "balance" | "pretty")
-                    {
-                        if declaration.condition == Condition::Always {
-                            "React Native sets it on the `Text` that holds the words (Android's \
-                             `textBreakStrategy`), and this element is not one"
-                        } else {
-                            "React Native sets it as a `Text` prop, which a variant cannot switch"
-                        }
-                    } else {
-                        "React Native's `Text` has no control over where lines break beyond \
-                         Android's `textBreakStrategy`, so the platform decides. Its default \
-                         already keeps closing punctuation off the start of a line; strict and \
-                         loose rules, and breaking by phrase, wait on React Native -- see \
-                         https://github.com/iray-tno/hozo/issues/813"
-                    };
-                    cx.diagnostics.push(Diagnostic {
-                        code: DiagnosticCode::WebOnlyPropertyOnNative,
-                        severity: Severity::Warning,
-                        // A StyleX declaration keeps the reason its
-                        // property is refused everywhere else (it names
-                        // StyleX's Web surface); only the weight changes.
-                        message: match declaration.property.unsupported_on_native() {
-                            Some(refusal)
-                                if matches!(declaration.property, StyleProperty::WebOnly(..)) =>
-                            {
-                                format!(
-                                    "{refusal}. Lines fall where React Native puts them here; on \
-                                     Web it applies as written."
-                                )
-                            }
-                            _ => format!(
-                                "`{name}: {value}`: {reason}. Lines fall where React Native puts \
-                                 them here; on Web it applies as written."
-                            ),
-                        },
-                        span: node.span,
-                    });
-                }
-                continue;
-            }
-        }
-        if has_keyframes && crate::keyframes::is_timing(&declaration.property) {
-            continue;
-        }
-        if matches!(declaration.property, StyleProperty::PlaceholderColor(_)) {
-            if let Some(reason) = placeholder_only_reason(&declaration.property) {
-                let reason = if node.primitive == Primitive::TextInput {
-                    "conditional placeholder colours beyond dark mode are not wired to TextInput's placeholderTextColor prop".to_string()
-                } else {
-                    reason
-                };
-                cx.diagnostics
-                    .push(unwired_variant(node, &reason, Severity::Error));
-                continue;
-            }
-        }
-        if matches!(declaration.property, StyleProperty::CaretColor(_)) {
-            if caret.is_some() && caret_colour(declaration).is_some() {
-                continue;
-            }
-            let reason = if node.primitive == Primitive::TextInput {
-                "conditional caret colours beyond dark mode are not wired to TextInput's cursorColor prop".to_string()
-            } else {
-                caret_only_reason()
-            };
-            cx.diagnostics
-                .push(unwired_variant(node, &reason, Severity::Error));
-            continue;
-        }
-        if let Some(reason) = truncation_only_reason(&declaration.property) {
-            cx.diagnostics.push(Diagnostic {
-                code: DiagnosticCode::WebOnlyPropertyOnNative,
-                severity: Severity::Error,
-                message: reason,
-                span: node.span,
-            });
-            continue;
-        }
-        // Survived the fold above, so there was no font size to resolve it
-        // against. Reported as unwired rather than Web-only: the platform
-        // can hold the value, and writing a `text-*` on the same element is
-        // all it takes.
-        if let Some(reason) = font_relative_reason(&declaration.property) {
-            cx.diagnostics
-                .push(unwired_variant(node, &reason, Severity::Error));
-            continue;
-        }
-        // Possible on the platform, unbuilt here. Named apart from the
-        // Web-only refusals so the two don't blur together -- see
-        // `DiagnosticCode::NotWiredOnNative`.
-        if let Some(reason) = declaration.property.not_wired_on_native() {
-            cx.diagnostics
-                .push(unwired_variant(node, &reason, Severity::Error));
-            continue;
-        }
-        // Refused rather than dropped: silently ignoring a `block`/`grid`
-        // would leave a layout that looks right on Web and is wrong on
-        // device with nothing pointing at the cause.
-        if let Some(reason) = declaration.property.unsupported_on_native_with_theme(theme) {
-            cx.diagnostics.push(Diagnostic {
-                code: DiagnosticCode::WebOnlyPropertyOnNative,
-                severity: Severity::Error,
-                message: format!("{reason} -- this utility is Web-only."),
-                span: node.span,
-            });
-        }
-    }
+    let backdrop_filter = refusals::report_refused(
+        &style,
+        refusals::Lowered {
+            svg_paint: !svg_paint.is_empty(),
+            grid: grid.is_some(),
+            grid_item: grid_item.is_some(),
+            transition: transition.is_some() || ambient_transition.is_some(),
+            truncation: truncation.is_some(),
+            text_break: text_break.is_some(),
+            ios_line_break: ios_line_break.is_some(),
+            keyframes: has_keyframes,
+            caret: caret.is_some(),
+        },
+        node,
+        theme,
+        cx.diagnostics,
+    );
 
     let (mut component, extra_props) = markup::native_component(node, cx.diagnostics);
     // A ruby whose word only React Native can read hands the label to a
