@@ -48,6 +48,7 @@
         "$TURBO_ROOT$/crates/hozo_native/src/owner_style.rs",
         "$TURBO_ROOT$/crates/hozo_web/src/owner_class.rs",
         "$TURBO_ROOT$/crates/hozo_web/src/lib.rs",
+        "$TURBO_ROOT$/crates/hozo_web/src/passthrough.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/*.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/render.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/source_evidence.rs",
@@ -84,6 +85,7 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_ROOT$/crates/hozo_web/src/lib.rs",
+        "$TURBO_ROOT$/crates/hozo_web/src/passthrough.rs",
         "$TURBO_ROOT$/crates/hozo_web/src/css.rs",
         "$TURBO_ROOT$/crates/hozo_web/src/css/*.rs",
         "$TURBO_ROOT$/packages/primitives/src/native-disabled.ts",
