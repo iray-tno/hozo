@@ -1,3 +1,12 @@
+use hozo_ir::{
+    Align, AlignSelf, Angle, BorderStyle, Breakpoint, Clamp, Color, ColumnCount, Condition,
+    Dimension, Display, Edge, Em, FilterFunction, FlexDirection, FlexShorthand, FontWeight,
+    GradientKind, GradientStop, GridLine, GridSpan, GridTracks, Justify, Length, LetterSpacing,
+    LineHeight, MaskSlot, MaskStop, Origin, Overflow, Position, Radius, Scale, StyleProperty,
+    TextAlign, TextOverflow, TextTransform, WhiteSpace,
+};
+
+use super::keyword_table::KEYWORD_UTILITIES;
 use super::*;
 
 #[test]

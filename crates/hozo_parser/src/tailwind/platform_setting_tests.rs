@@ -1,3 +1,6 @@
+use hozo_ir::{Condition, Environment};
+
+use super::expand::MEMO_LIMIT;
 use super::*;
 
 #[test]
