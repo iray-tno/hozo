@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
@@ -146,35 +146,41 @@ export function officialStylexPropertiesFromTypes(): Set<string> {
 
 /** Source inspection is confined to manifest generation and drift checking. */
 export function mappedHozoStylexPropertiesFromRust(): Set<string> {
-  const source = readFileSync(path.join(repoRoot(), 'crates/hozo_parser/src/stylex.rs'), 'utf8')
-  const start = source.indexOf('fn token_for(')
-  const end = source.indexOf('\nfn canonical_property(', start)
-  if (start === -1 || end === -1) throw new Error('Hozo StyleX property mapper was not found')
-
-  const properties = new Set<string>()
-  for (const match of source.slice(start, end).matchAll(/^ {8}"([A-Za-z][A-Za-z0-9]*)"\s*=>/gm)) {
-    properties.add(match[1])
+  const parser = path.join(repoRoot(), 'crates/hozo_parser/src')
+  const module = (name: string, fn: string) => {
+    const source = readFileSync(path.join(parser, 'stylex', `${name}.rs`), 'utf8')
+    if (!source.includes(`fn ${fn}(`)) throw new Error(`Hozo StyleX ${fn} was not found`)
+    return source
   }
+  const properties = new Set<string>()
+  const arms = (source: string) => {
+    for (const match of source.matchAll(/^ {8}"([A-Za-z][A-Za-z0-9]*)"\s*=>/gm))
+      properties.add(match[1])
+  }
+  arms(module('tailwind_token', 'token_for'))
+  arms(module('direct', 'direct_properties'))
 
   // Web-only properties live outside direct_properties so their explicit
   // grammar table can be shared by future property families. They are still
   // implementation-backed mappings, not hand-maintained coverage claims.
-  const webStart = source.indexOf('fn web_only_keyword_spec(')
-  const webEnd = source.indexOf('\nfn web_only_property(', webStart)
-  if (webStart === -1 || webEnd === -1)
-    throw new Error('Hozo Web value grammar table was not found')
-  for (const match of source
-    .slice(webStart, webEnd)
-    .matchAll(/^ {8}"([A-Za-z][A-Za-z0-9]*)"\s*=>/gm)) {
-    properties.add(match[1])
-  }
+  arms(module('web_keywords', 'web_only_keyword_spec'))
+  arms(module('web_specs', 'web_only_spec'))
+
   // A few properties take StyleX API values rather than literals and are
   // therefore lowered in parse_rule_object instead of the literal-value
   // tables above. Keep the claim implementation-backed by reading those
-  // explicit branches from the same Rust source.
-  for (const match of source.matchAll(/if name == "([A-Za-z][A-Za-z0-9]*)" \{/g)) {
-    properties.add(match[1])
-  }
+  // explicit branches from the same Rust sources, tests aside.
+  const sources = [
+    path.join(parser, 'stylex.rs'),
+    ...readdirSync(path.join(parser, 'stylex'))
+      .filter((file) => file.endsWith('.rs') && file !== 'tests.rs')
+      .map((file) => path.join(parser, 'stylex', file)),
+  ]
+  for (const file of sources)
+    for (const match of readFileSync(file, 'utf8').matchAll(
+      /if name == "([A-Za-z][A-Za-z0-9]*)" \{/g,
+    ))
+      properties.add(match[1])
   if (properties.size === 0) throw new Error('Hozo StyleX property mapper was empty')
   return properties
 }
