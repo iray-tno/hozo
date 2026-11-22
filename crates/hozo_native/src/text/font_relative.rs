@@ -1,0 +1,151 @@
+//! Line heights and letter spacing relative to the font size, resolved
+//! against it.
+
+use crate::*;
+
+/// Rewrites the font-relative text metrics into absolute ones, against a
+/// font size set on the same element.
+///
+/// CSS lets `line-height` be a bare multiplier and `letter-spacing` be a
+/// length in `em`; React Native's `lineHeight` and `letterSpacing` are
+/// absolute numbers. The conversion needs the font size, and the useful
+/// observation is that the compiler often has it -- `text-lg leading-tight`
+/// puts both on the same element, and Tailwind's own output does the same
+/// multiplication.
+///
+/// Only a font size under the *same* condition is used, falling back to an
+/// unconditional one. An inherited size is equally usable: Hozo already
+/// carries text declarations through View nodes because RN itself does not.
+/// Folding `leading-tight` against a `md:text-lg` would bake a size that only
+/// applies above 768px into a style that always does.
+pub(crate) fn fold_font_relative(
+    declarations: &[StyleDeclaration],
+    inherited: &[StyleDeclaration],
+) -> Vec<StyleDeclaration> {
+    let font_size = |condition: &Condition| -> Option<f64> {
+        let find = |list: &[StyleDeclaration], want: &Condition| {
+            list.iter()
+                .rev()
+                .find_map(|d| match (&d.property, &d.condition) {
+                    (StyleProperty::FontSize(Length::Px(px)), c) if c == want => Some(*px),
+                    _ => None,
+                })
+        };
+        find(declarations, condition)
+            .or_else(|| find(declarations, &Condition::Always))
+            .or_else(|| find(inherited, condition))
+            .or_else(|| find(inherited, &Condition::Always))
+    };
+
+    let explicit_leading = |condition: &Condition| {
+        declarations.iter().any(|d| {
+            matches!(
+                d.property,
+                StyleProperty::LineHeight(
+                    hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)
+                )
+            ) && (&d.condition == condition || d.condition == Condition::Always)
+        })
+    };
+    let mut folded: Vec<_> = declarations
+        .iter()
+        .filter(|d| {
+            !matches!(
+                d.property,
+                StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(_))
+            ) || !explicit_leading(&d.condition)
+        })
+        .map(|declaration| {
+            let Some(size) = font_size(&declaration.condition) else {
+                return declaration.clone();
+            };
+            let property = match &declaration.property {
+                StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) => {
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(size * ratio)))
+                }
+                StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(em)) => {
+                    StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Px(Length::Px(
+                        size * em.0,
+                    )))
+                }
+                _ => return declaration.clone(),
+            };
+            StyleDeclaration {
+                source: declaration.source,
+                property,
+                condition: declaration.condition.clone(),
+            }
+        })
+        .collect();
+
+    // A ratio must be recomputed when a font-size condition changes. CSS
+    // retains --tw-leading and multiplies at used-value time; RN needs the
+    // corresponding absolute number under the intersection of both guards.
+    // No runtime measurement or extra subscription: reuse existing guards.
+    for leading in declarations {
+        let StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) = &leading.property else {
+            continue;
+        };
+        if font_size(&leading.condition).is_none() {
+            continue;
+        }
+        for font in declarations {
+            let StyleProperty::FontSize(Length::Px(size)) = &font.property else {
+                continue;
+            };
+            if font.condition == Condition::Always || leading.condition == font.condition {
+                continue;
+            }
+            if leading.condition == Condition::Always
+                && declarations.iter().any(|d| {
+                    d.condition == font.condition
+                        && matches!(
+                            d.property,
+                            StyleProperty::LineHeight(
+                                hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)
+                            )
+                        )
+                })
+            {
+                continue;
+            }
+            let condition = if leading.condition == Condition::Always {
+                font.condition.clone()
+            } else {
+                Condition::all(vec![leading.condition.clone(), font.condition.clone()])
+            };
+            folded.push(StyleDeclaration {
+                source: leading.source,
+                property: StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(
+                    size * ratio,
+                ))),
+                condition,
+            });
+        }
+    }
+    folded
+}
+
+/// Why a font-relative metric couldn't be honoured when `fold_font_relative`
+/// found no font size to resolve it against.
+///
+/// Kept out of `StyleProperty::unsupported_on_native` because the answer
+/// depends on the node, which that method can't see -- the same reason
+/// `truncation_only_reason` lives here.
+pub(crate) fn font_relative_reason(property: &StyleProperty) -> Option<String> {
+    match property {
+        StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(_)) => Some(
+            "`tracking-*` in em: React Native's letterSpacing is absolute. Hozo resolves it \
+             against a text size on the same element, and this element sets none -- add a \
+             `text-*` utility here, or use an absolute tracking value."
+                .to_string(),
+        ),
+        StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(_)) => Some(
+            "`leading-*` as a ratio: React Native's lineHeight is absolute. Hozo resolves it \
+             against a text size on the same element, and this element sets none -- add a \
+             `text-*` utility here, or use `leading-<number>`."
+                .to_string(),
+        ),
+        _ => None,
+    }
+}
