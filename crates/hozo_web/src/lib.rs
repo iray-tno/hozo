@@ -6,8 +6,10 @@
 //! simple source-order-within-condition flattening (see `css.rs`) stay
 //! correct without needing RNW/StyleX-style explicit priority tables.
 
+mod class_slots;
 mod css;
 mod markup;
+mod navigation;
 mod owner_class;
 mod passthrough;
 mod press;
@@ -15,6 +17,7 @@ mod scroll;
 mod theme_variables;
 pub use owner_class::lower_owner_class;
 mod source_evidence;
+mod text_input;
 use source_evidence::Rendered;
 pub use source_evidence::SourceCopy;
 #[cfg(test)]
@@ -1497,104 +1500,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             }
             format!(" className={{{value}}}")
         };
-    // A component's other class lists, compiled the same way and handed to
-    // it under the prop the author wrote (`removeClassName`).
-    for slot in node
-        .props
-        .class_slots
-        .iter()
-        .filter(|slot| slot.slot != hozo_ir::ClassSlot::ROOT)
-    {
-        let slot_class = cx.allocator.alloc();
-        let before = cx.rules.len();
-        push_rules_using(
-            &slot_class,
-            &slot.style,
-            slot.span,
-            theme,
-            cx.rules,
-            cx.diagnostics,
-            css::render_slot_rule,
-        );
-        let produced = (cx.rules.len() != before).then_some(slot_class);
-        let classes: Vec<&str> = produced
-            .iter()
-            .map(String::as_str)
-            .chain(slot.carried.iter().map(String::as_str))
-            .collect();
-        if !slot.fallback.is_empty() || slot.evaluation.is_some() {
-            for expr in &slot.fallback {
-                let code = hozo_parser::class_fallback_code(
-                    &source_text(source, *expr),
-                    slot.slot.class_prop,
-                );
-                cx.diagnostics.push(hozo_ir::Diagnostic {
-                    code,
-                    severity: hozo_ir::Severity::Warning,
-                    message: format!("`{}` retains an opaque class expression; its CSS comes from the project-wide candidate stylesheet. Use a static string for build-time validation.{}", slot.slot.class_prop, hozo_parser::class_fallback_note(code)),
-                    span: slot.span,
-                });
-            }
-            // The fallback remains an authored value, not a condition
-            // emitted onto the widget root instead of the slot owner.
-            let compiled = std::iter::once(format!("{:?}", classes.join(" ")))
-                .chain(class_guards(&slot.style, source))
-                .collect::<Vec<_>>()
-                .join(", ");
-            // With no unconditional text, an inactive branch is an empty
-            // class list. A guard/base marker must not turn it truthy and
-            // suppress the component's empty-class defaults.
-            let compiled = if slot.evaluation.is_some()
-                && slot
-                    .style
-                    .iter()
-                    .all(|d| matches!(d.condition, hozo_ir::Condition::Expr(_)))
-            {
-                let active = slot
-                    .style
-                    .iter()
-                    .filter_map(|d| match &d.condition {
-                        hozo_ir::Condition::Expr(expression) => {
-                            Some(render_condition_expr(source, expression))
-                        }
-                        _ => None,
-                    })
-                    .collect::<std::collections::BTreeSet<_>>()
-                    .into_iter()
-                    .map(|expr| format!("({expr})"))
-                    .collect::<Vec<_>>()
-                    .join(" || ");
-                format!("...(({active}) ? [{compiled}] : [])")
-            } else {
-                compiled
-            };
-            let parts = std::iter::once(compiled)
-                .chain(slot.fallback.iter().map(|expr| {
-                    slot.evaluation.as_ref().map_or_else(
-                        || source_text(source, *expr).to_string(),
-                        |evaluation| evaluation.value(source, *expr),
-                    )
-                }))
-                .collect::<Vec<_>>()
-                .join(", ");
-            let mut value = format!("[{parts}].filter(Boolean).join(' ')");
-            if !slot.fallback.is_empty() {
-                value.push_str(
-                    ".replace(/\\S/, 'hozo-candidate-owner hozo-candidate-slot-owner $&')",
-                );
-            }
-            if let Some(evaluation) = &slot.evaluation {
-                value = evaluation.wrap(source, &value);
-            }
-            attrs.push_str(&format!(" {}={{{value}}}", slot.slot.class_prop));
-        } else if !classes.is_empty() {
-            attrs.push_str(&format!(
-                r#" {}="{}""#,
-                slot.slot.class_prop,
-                classes.join(" ")
-            ));
-        }
-    }
+    class_slots::class_slot_attrs(node, &mut attrs, cx);
     // A secondary list the compiler carries whole reaches the component as
     // written and its CSS comes from the candidate stylesheet, as an opaque
     // root `className` does. Said the same way, at the attribute, so the
@@ -2025,108 +1931,9 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
 
     // The `TextInput` props the DOM has under another name.
     //
-    // Every one of these was passed through before, which is the right
-    // default for a prop only React Native has and the wrong one for a
-    // prop the DOM has and spells differently. `onChangeText` reached
-    // `<input onChangeText={…}>`: the field rendered, React warned, and
-    // typing in it did nothing.
-    if !node.props.text_input.is_empty() {
-        let text_input = &node.props.text_input;
-        if let Some(handler) = text_input.on_change_text {
-            // The wrapper the fallback `TextInput` in `@hozo/core` has
-            // always written, generated here instead. Parenthesised
-            // because the handler is an arbitrary expression and
-            // `a || b` beside a call would bind the wrong way. Optional,
-            // because a wrapper passing its own optional prop on hands
-            // over `undefined`, and typing must not throw (#1118).
-            attrs.push_str(&format!(
-                " onChange={{(event) => ({})?.(event.target.value)}}",
-                source_text(source, handler),
-            ));
-        }
-        // Two spellings of one attribute. React Native 0.87 has both, so
-        // an author may write either, and `editable` is the negative of
-        // the two -- `editable={false}` is `readOnly`.
-        if let Some(editable) = text_input.editable.as_ref() {
-            attrs.push_str(&match editable {
-                hozo_ir::ConditionExpr::Static(true) => String::new(),
-                hozo_ir::ConditionExpr::Static(false) => " readOnly".to_string(),
-                other => format!(" readOnly={{!({})}}", render_condition_expr(source, other)),
-            });
-        }
-        if let Some(read_only) = text_input.read_only.as_ref() {
-            attrs.push_str(&boolean_attribute("readOnly", read_only, source));
-        }
-        if let Some(auto_correct) = text_input.auto_correct.as_ref() {
-            attrs.push_str(&match auto_correct {
-                hozo_ir::ConditionExpr::Static(true) => " autoCorrect=\"on\"".to_string(),
-                hozo_ir::ConditionExpr::Static(false) => " autoCorrect=\"off\"".to_string(),
-                other => format!(
-                    // Evaluate an arbitrary author expression once, preserving
-                    // `undefined` (the platform default) rather than disabling it.
-                    " autoCorrect={{((value) => value === undefined ? undefined : value ? 'on' : 'off')({})}}",
-                    render_condition_expr(source, other),
-                ),
-            });
-        }
-        if let Some(secure) = text_input.secure_text_entry.as_ref() {
-            attrs.push_str(&match secure {
-                hozo_ir::ConditionExpr::Static(true) => " type=\"password\"".to_string(),
-                hozo_ir::ConditionExpr::Static(false) => String::new(),
-                other => format!(
-                    " type={{({}) ? 'password' : 'text'}}",
-                    render_condition_expr(source, other),
-                ),
-            });
-        }
-        if let Some(mode) = text_input.dom_input_mode() {
-            attrs.push_str(&format!(" inputMode=\"{mode}\""));
-        }
-        // `numberOfLines` is only `rows` on the element `multiline`
-        // produces. On an `<input>` there are no rows to set.
-        if let Some(rows) = text_input.number_of_lines.filter(|_| is_textarea(node)) {
-            attrs.push_str(&format!(" rows={{{}}}", source_text(source, rows)));
-        }
-    }
+    text_input::text_input_attrs(node, source, &mut attrs);
 
-    // `replace` belongs to an application router, not to HTML. Preserve
-    // it on the real anchor as inert data so @hozo/navigation's delegated
-    // click handler can reconstruct the request for compiled output too.
-    if let Some(replace) = &node.props.navigation_replace {
-        if tag == "a" {
-            match replace {
-                hozo_ir::ConditionExpr::Static(true) => {
-                    attrs.push_str(" data-hozo-navigation-replace=\"\"");
-                }
-                hozo_ir::ConditionExpr::Static(false) => {}
-                other => attrs.push_str(&format!(
-                    " data-hozo-navigation-replace={{({}) ? '' : undefined}}",
-                    render_condition_expr(source, other)
-                )),
-            }
-        } else if tag == "Pressable" {
-            attrs.push_str(&boolean_attribute("replace", replace, source));
-        }
-    }
-
-    // Like `replace`, prefetch intent belongs to the router rather than
-    // HTML. The provider observes this inert marker on hover or focus.
-    if let Some(prefetch) = &node.props.navigation_prefetch {
-        if tag == "a" {
-            match prefetch {
-                hozo_ir::ConditionExpr::Static(true) => {
-                    attrs.push_str(" data-hozo-navigation-prefetch=\"\"");
-                }
-                hozo_ir::ConditionExpr::Static(false) => {}
-                other => attrs.push_str(&format!(
-                    " data-hozo-navigation-prefetch={{({}) ? '' : undefined}}",
-                    render_condition_expr(source, other)
-                )),
-            }
-        } else if tag == "Pressable" {
-            attrs.push_str(&boolean_attribute("prefetch", prefetch, source));
-        }
-    }
+    navigation::navigation_attrs(node, tag, source, &mut attrs);
 
     // `external`, which is Hozo's own spelling and not the DOM's.
     //
