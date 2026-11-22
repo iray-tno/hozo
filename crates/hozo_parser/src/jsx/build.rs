@@ -1,19 +1,17 @@
 //! One JSX element converted into a `Node`.
 
 use hozo_ir::{
-    ConditionExpr, Diagnostic, DiagnosticCode, HeadingLevel, Node, PassthroughProp, Primitive,
-    PropSet, Severity, SourceSpan, StyleDeclaration, SvgElement,
+    ConditionExpr, Diagnostic, HeadingLevel, Node, Primitive, PropSet, SourceSpan,
+    StyleDeclaration, SvgElement,
 };
 use oxc_ast::ast::{
     JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXElement, JSXExpression,
 };
-use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 
 use super::children::build_children;
 use super::class_name;
 use super::element_name::element_primitive;
-use super::finder::PrimitiveFinder;
 use super::props::{
     attribute_literal, capture_flag, capture_literal, capture_prop_expr, object_literal_keys,
     passthrough_prop,
@@ -21,6 +19,8 @@ use super::props::{
 use super::responder;
 use super::role::accessibility_role_from_value;
 use super::scope::Scope;
+use super::scroll_props;
+use super::spread;
 use super::validate::{
     validate_enter_motion, validate_flex_direction, validate_focusable_disabled,
     validate_semantic_children,
@@ -71,94 +71,17 @@ pub(super) fn build_node(
         let attr = match attr_item {
             JSXAttributeItem::Attribute(attr) => attr,
             JSXAttributeItem::SpreadAttribute(spread) => {
-                match scope.stylex.resolve_props(&spread.argument) {
-                    crate::stylex::Resolution::Ready(declarations) => {
-                        // Styling input, not an opaque prop spread. Appending
-                        // here preserves order with className and reuses the
-                        // IR's normal last-wins behavior.
-                        style.extend(declarations.into_iter().map(|mut declaration| {
-                            declaration.source = hozo_ir::StyleSource::Stylex(spread.span.start);
-                            declaration
-                        }));
-                        continue;
-                    }
-                    crate::stylex::Resolution::Partial {
-                        declarations,
-                        residual,
-                        gaps,
-                    } => {
-                        style.extend(declarations.into_iter().map(|mut declaration| {
-                            declaration.source = hozo_ir::StyleSource::Stylex(spread.span.start);
-                            declaration
-                        }));
-                        props.stylex_residuals.push(residual);
-                        diagnostics.extend(gaps.into_iter().map(|gap| Diagnostic {
-                            code: DiagnosticCode::StylexNotLowered,
-                            severity: Severity::Warning,
-                            message: gap.message,
-                            span: gap.span,
-                        }));
-                        continue;
-                    }
-                    crate::stylex::Resolution::Gap { message, span } => {
-                        diagnostics.push(Diagnostic {
-                            code: DiagnosticCode::StylexNotLowered,
-                            severity: Severity::Warning,
-                            message,
-                            span,
-                        });
-                    }
-                    crate::stylex::Resolution::NotStylex => {}
+                if spread::stylex_spread(spread, scope, &mut style, &mut props, diagnostics) {
+                    continue;
                 }
-                if seen_class_name {
-                    // JSX resolves duplicate props last-wins, so a spread
-                    // *after* className can override Hozo's compiled
-                    // classes at runtime with whatever the spread carries.
-                    // The spread is still emitted (dropping it would be
-                    // worse) -- this just refuses to let it happen silently.
-                    diagnostics.push(Diagnostic {
-                        code: DiagnosticCode::UnsafePropSpreadAfterStyle,
-                        severity: Severity::Warning,
-                        message: "Prop spread appears after className and may override Hozo's \
-                                  compiled styles at runtime. Move the spread before className."
-                            .to_string(),
-                        span: to_span(spread.span()),
-                    });
-                }
-                // The spread is opaque; the primitives written inside it
-                // (`{...withFooter(<Text className="p-2" />)}`) are not, and
-                // lower like those in any other carried expression.
-                let mut finder = PrimitiveFinder {
+                props.passthrough.push(spread::opaque_spread(
+                    spread,
                     scope,
+                    &named,
+                    seen_class_name,
                     diagnostics,
                     consumed,
-                    nested: Vec::new(),
-                    enclosing: Vec::new(),
-                    expression_container: false,
-                };
-                finder.visit_expression(&spread.argument);
-                let nested = finder.nested;
-                props.passthrough.push(PassthroughProp {
-                    span: to_expr_ref(spread.span()),
-                    is_spread: true,
-                    class_literals: Vec::new(),
-                    later_names: named
-                        .iter()
-                        .filter(|(start, _)| *start > spread.span.start)
-                        .map(|(_, name)| name.clone())
-                        .collect(),
-                    name: None,
-                    literal: None,
-                    nested,
-                    spread_excludes: match &spread.argument {
-                        oxc_ast::ast::Expression::Identifier(id) => scope
-                            .rest_exclusions
-                            .get(&id.span.start)
-                            .cloned()
-                            .unwrap_or_default(),
-                        _ => Vec::new(),
-                    },
-                });
+                ));
                 continue;
             }
         };
@@ -452,27 +375,8 @@ pub(super) fn build_node(
                     .passthrough
                     .push(passthrough_prop(attr, scope, diagnostics, consumed)),
             },
-            "onScroll" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => {
-                capture_prop_expr(
-                    attr,
-                    &mut props.on_scroll,
-                    &mut props.passthrough,
-                    scope,
-                    diagnostics,
-                    consumed,
-                )
-            }
-            "scrollEventThrottle"
-                if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) =>
-            {
-                capture_prop_expr(
-                    attr,
-                    &mut props.scroll_event_throttle,
-                    &mut props.passthrough,
-                    scope,
-                    diagnostics,
-                    consumed,
-                )
+            name if scroll_props::reads(primitive, name) => {
+                scroll_props::capture(name, attr, &mut props, scope, diagnostics, consumed)
             }
             // Not on a chip, whose `disabled` is a prop of the pattern rather
             // than a host element's state to translate.
@@ -519,110 +423,6 @@ pub(super) fn build_node(
                     diagnostics,
                     consumed,
                 )
-            }
-            "horizontal" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => {
-                match &attr.value {
-                    None => props.scroll_horizontal = Some(ConditionExpr::Static(true)),
-                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                        props.scroll_horizontal =
-                            Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
-                    }
-                    _ => {
-                        props
-                            .passthrough
-                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
-                    }
-                }
-            }
-            "refreshing"
-                if matches!(
-                    primitive,
-                    Primitive::ScrollView | Primitive::FlatList | Primitive::RefreshControl
-                ) =>
-            {
-                match &attr.value {
-                    None => props.refreshing = Some(ConditionExpr::Static(true)),
-                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                        props.refreshing =
-                            Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
-                    }
-                    _ => {
-                        props
-                            .passthrough
-                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
-                    }
-                }
-            }
-            "onRefresh"
-                if matches!(
-                    primitive,
-                    Primitive::ScrollView | Primitive::FlatList | Primitive::RefreshControl
-                ) =>
-            {
-                match &attr.value {
-                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                        props.on_refresh = Some(to_expr_ref(container.expression.span()));
-                    }
-                    _ => {
-                        props
-                            .passthrough
-                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
-                    }
-                }
-            }
-            "keyboardShouldPersistTaps"
-                if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) =>
-            {
-                match &attr.value {
-                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                        props.keyboard_should_persist_taps =
-                            Some(to_expr_ref(container.expression.span()));
-                    }
-                    Some(JSXAttributeValue::StringLiteral(literal)) => {
-                        props.keyboard_should_persist_taps = Some(to_expr_ref(literal.span));
-                    }
-                    _ => {
-                        props
-                            .passthrough
-                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
-                    }
-                }
-            }
-            "showsVerticalScrollIndicator"
-                if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) =>
-            {
-                match &attr.value {
-                    None => {
-                        props.shows_vertical_scroll_indicator = Some(ConditionExpr::Static(true))
-                    }
-                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                        props.shows_vertical_scroll_indicator =
-                            Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
-                    }
-                    _ => {
-                        props
-                            .passthrough
-                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
-                    }
-                }
-            }
-            "showsHorizontalScrollIndicator"
-                if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) =>
-            {
-                match &attr.value {
-                    None => {
-                        props.shows_horizontal_scroll_indicator = Some(ConditionExpr::Static(true))
-                    }
-                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                        props.shows_horizontal_scroll_indicator =
-                            Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
-                    }
-                    _ => {
-                        props
-                            .passthrough
-                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
-                    }
-                }
             }
             // Both spellings are accepted and neither is passed through:
             // the two platforms name this prop differently, so the value is
