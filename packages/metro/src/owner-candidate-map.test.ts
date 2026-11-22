@@ -27,6 +27,7 @@ import {
   metroStatePath,
   readMetroState,
   withHozo,
+  withHozoOwnerCallers,
   withHozoOwnerCandidates,
   withHozoPartialOwners,
   withHozoPartialOwnersOrOrdinary,
@@ -555,7 +556,7 @@ test('fixture child output can trigger cancellation without blocking the parent 
   assert.ok(child.child.exitCode !== null || child.child.signalCode !== null)
 })
 
-test('a packed and offline-installed non-Hozo dependency reaches the generated runtime without checkout leakage', {
+test('a packed non-Hozo dependency supplies runtime candidates and opt-in Native owner delivery', {
   timeout: 30000,
 }, async (t) => {
   const f = fixture(t)
@@ -657,4 +658,47 @@ test('a packed and offline-installed non-Hozo dependency reaches the generated r
   const cache = openCandidateCache(path.join(f.root, CACHE_DIR, 'candidates.json'))
   assert.equal(cache.exportFile(path.join(installed, 'tokens.js')), null)
   assert.ok(cache.exportFile(f.params.filename))
+
+  const caller = `import {FixturePanel as Panel} from 'acme-frozen-styles';
+export const Row=()=> <Panel panelClassName="p-2" style={author.value}/>;`
+  writeFileSync(f.params.filename, caller)
+  const manifestOnly = { ...f.options, content: { include: ['src/**'] } }
+  await withHozo(f.config, manifestOnly)
+  assert.doesNotMatch(String(await transform({ ...params, src: caller })), /hozoFixturePanelStyle/)
+  const captureCaller = (platform: string) =>
+    collectMetroOwnerPreflight(f.context, f.delegate, {
+      platform,
+      epoch: 'packed-owner-caller',
+      origins: [f.params.filename],
+    })
+  for (const platform of ['android', 'ios']) {
+    const preflight = captureCaller(platform)
+    assert.equal(preflight.status, 'complete', JSON.stringify(preflight))
+    const config = await withHozoOwnerCallers(f.config, preflight, 'Toolbar.root', manifestOnly)
+    const result = config.resolver.resolveRequest(
+      { ...f.context, originModulePath: f.params.filename },
+      'acme-frozen-styles',
+      platform,
+    )
+    assert.equal(result.filePath, path.join(installed, `${platform}.js`))
+    const input = { ...params, src: caller, options: { ...params.options, platform } }
+    const output = String(await transform(input))
+    assert.match(output, /hozoFixturePanelStyle=/)
+    assert.match(output, /paddingTop:\s*14/)
+    assert.doesNotMatch(output, /panelClassName="p-2"|hozoToolbarStyle/)
+    assert.equal(output.split('author.value').length - 1, 1)
+    const opaque = caller.replace('panelClassName="p-2"', 'panelClassName={classes}')
+    const fallback = String(await transform({ ...input, src: opaque }))
+    assert.match(fallback, /panelClassName=\{classes\}/)
+    assert.doesNotMatch(fallback, /hozoFixturePanelStyle/)
+  }
+  // Keep the package, component, candidate list and caller; remove only the
+  // owner declaration. A fresh capture must not infer a contract from the JSX.
+  const manifestPath = path.join(installed, 'owner.json')
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  manifest.owners = null
+  for (const exported of manifest.exports) exported.owners = []
+  writeFileSync(manifestPath, JSON.stringify(manifest))
+  await withHozoOwnerCallers(f.config, captureCaller('android'), 'Toolbar.root', manifestOnly)
+  assert.match(String(await transform({ ...params, src: caller })), /panelClassName="p-2"/)
 })

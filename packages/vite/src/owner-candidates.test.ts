@@ -101,12 +101,15 @@ function fixture(t) {
     ],
   }
   const options = { root, css: 'tokens.css', content: { include: ['entry.tsx'], packages: [] } }
-  const run = (consumer = true, extra: Plugin[] = []) =>
+  const run = (consumer = true, extra: Plugin[] = [], configured?: Plugin[]) =>
     build({
       root,
       configFile: false,
       logLevel: 'silent',
-      plugins: [consumer ? hozoWithOwnerCandidates(options, plan) : hozo(options), ...extra],
+      plugins: [
+        configured ?? (consumer ? hozoWithOwnerCandidates(options, plan) : hozo(options)),
+        ...extra,
+      ],
       resolve: { conditions: ['browser'] },
       build: {
         write: false,
@@ -1118,7 +1121,7 @@ test('warm owner leases do no filesystem polling and watcher retirement fences p
   assert.throws(() => session.validate(), /INVALIDATED/)
 })
 
-test('the same packed non-Hozo fixture used by Native supplies manifest-only Web CSS', {
+test('the same packed non-Hozo fixture supplies Web candidates and opt-in owner delivery', {
   timeout: 30000,
 }, async (t) => {
   const f = fixture(t)
@@ -1193,4 +1196,46 @@ test('the same packed non-Hozo fixture used by Native supplies manifest-only Web
   assert.deepEqual(report.packages.instances, [installed])
   assert.equal(report.authored.length, 1)
   assert.equal(report.finalOrderingReady, false)
+
+  const caller = `import {FixturePanel as Panel} from 'acme-frozen-styles';
+export const Row=()=> <Panel panelClassName="p-2" style={globalThis.author}/>;`
+  writeFileSync(f.entry, caller)
+  const options = { ...f.options, content: { include: ['entry.tsx'] } }
+  assert.doesNotMatch(
+    JSON.stringify(await f.run(false, [], hozo(options))),
+    /hozo-owner-[a-f0-9]{16}-r/,
+  )
+  const runCaller = async () =>
+    JSON.stringify(
+      await f.run(
+        true,
+        [],
+        hozoWithOwnerCallers(options, {
+          context: 'packed-owner-caller',
+          edges: f.plan.edges,
+        }),
+      ),
+    )
+  const lowered = await runCaller()
+  assert.match(lowered, /panelClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+  assert.match(
+    readFileSync(`${f.entry}.hozo.css`, 'utf8'),
+    /\.hozo-owner-[^\s]+\s*\{[^}]+padding-top:\s*14px/s,
+  )
+  assert.doesNotMatch(lowered, /hozoFixturePanelStyle|hozoToolbarStyle/)
+  writeFileSync(
+    f.entry,
+    caller.replace('panelClassName="p-2"', 'panelClassName={globalThis.classes}'),
+  )
+  const opaque = await runCaller()
+  assert.match(opaque, /panelClassName[^\n]+globalThis\.classes/)
+  assert.doesNotMatch(opaque, /hozo-owner-[a-f0-9]{16}-r/)
+
+  const manifestPath = path.join(installed, 'owner.json')
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  manifest.owners = null
+  for (const exported of manifest.exports) exported.owners = []
+  writeFileSync(manifestPath, JSON.stringify(manifest))
+  writeFileSync(f.entry, caller)
+  assert.doesNotMatch(await runCaller(), /hozo-owner-[a-f0-9]{16}-r/)
 })

@@ -340,8 +340,7 @@ export async function transform(params: TransformParams): Promise<unknown> {
   const textInheritance = state?.nativeTextInheritance ?? 'unified'
   const selectedOwner =
     state?.ownerShadow?.mode === 'owner-caller-transform' &&
-    semanticModuleEligible(absoluteFile, 'native') &&
-    params.src.includes('@hozo/patterns')
+    semanticModuleEligible(absoluteFile, 'native')
       ? ownerSession?.ownerCaller(absoluteFile)
       : undefined
   const rewritten =
