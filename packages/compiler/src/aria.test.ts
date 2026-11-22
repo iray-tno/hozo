@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -53,7 +53,7 @@ test('carries what a role needs to mean anything', () => {
 test('every requirement the table carries is one the checker reads', () => {
   // The coverage claim, stated as a measurement rather than a promise.
   //
-  // There is no per-role code in `aria_check.rs` -- it reads
+  // There is no per-role code in `aria_check` -- it reads
   // `required_props`, `required_context` and `required_owned` for whatever
   // role it finds, so coverage is structural: every role with a
   // requirement is checked, and a role gains checks the moment the
@@ -79,10 +79,16 @@ test('every requirement the table carries is one the checker reads', () => {
   // writes. Anything ARIA says that is not in those fields -- name from
   // content, allowed values -- is outside this and stays outside until the
   // table carries it.
-  const checker = readFileSync(
-    path.join(repoRoot, 'crates', 'hozo_parser', 'src', 'aria_check.rs'),
-    'utf8',
-  )
+  // The checker is `aria_check.rs` and the non-test files of its module.
+  const checkerDir = path.join(repoRoot, 'crates', 'hozo_parser', 'src', 'aria_check')
+  const checker = [
+    `${checkerDir}.rs`,
+    ...readdirSync(checkerDir)
+      .filter((file) => !file.endsWith('tests.rs'))
+      .map((file) => path.join(checkerDir, file)),
+  ]
+    .map((file) => readFileSync(file, 'utf8'))
+    .join('\n')
   for (const field of ['required_props', 'required_context', 'required_owned']) {
     assert.match(checker, new RegExp(`spec.${field}`), `${field} is in the table and unread`)
   }
