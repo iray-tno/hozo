@@ -113,11 +113,12 @@ export function transformHozoSource(
   observe?: NativeRewriteObserver,
   textInheritance: NativeTextInheritance = 'unified',
   skipAuditedOwners = false,
+  auditedOwners?: Parameters<typeof matchingAuditedOwners>[1],
 ): string | null {
   const hasOwners =
     !skipAuditedOwners &&
     semanticModuleEligible(filename, 'native') &&
-    matchingAuditedOwners(code).length > 0
+    matchingAuditedOwners(code, auditedOwners).length > 0
   const provenance = hasOwners ? new SourceProvenance(code) : undefined
   const track: NativeRewriteObserver | undefined = provenance
     ? (input, edits) => {
@@ -137,7 +138,7 @@ export function transformHozoSource(
     track,
   )
   if (!provenance) return ordinary
-  const previews = previewAuditedOwnerBatch(code, compiler, 'native', filename)
+  const previews = previewAuditedOwnerBatch(code, compiler, 'native', filename, auditedOwners)
   return composeNativeOwnerPreviews(code, ordinary, provenance, previews, observe)
 }
 
@@ -155,10 +156,11 @@ export function transformHozoSourceOrPrepare(
   observe?: NativeRewriteObserver,
   textInheritance: NativeTextInheritance = 'unified',
   skipAuditedOwners = false,
+  auditedOwners?: Parameters<typeof matchingAuditedOwners>[1],
 ): TailwindModuleAttempt<string | null> {
   const ownerBatch =
     !skipAuditedOwners && semanticModuleEligible(filename, 'native')
-      ? prepareAuditedOwnerBatch(code, compiler, 'native', filename)
+      ? prepareAuditedOwnerBatch(code, compiler, 'native', filename, auditedOwners)
       : undefined
   if (ownerBatch && ownerBatch.candidates.length === 0) ownerBatch.dispose()
   const activeOwners = ownerBatch && ownerBatch.candidates.length > 0 ? ownerBatch : undefined

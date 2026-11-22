@@ -199,7 +199,6 @@ export function carrierOwnerRoutes(closure: CarrierClosure, admittedPackages: re
   const instances = new Map<string, readonly AuditedOwnerContract[]>()
   const specifiers = new Set<string>()
   const inputs = new Map<string, string>()
-  const ownerOf = ownerLookup()
   if (closure.contributions.status === 'complete')
     for (const instance of closure.contributions.instances) {
       const carrier = closure.carriers.find((row) => row.instance === instance.instance)
@@ -232,9 +231,28 @@ export function carrierOwnerRoutes(closure: CarrierClosure, admittedPackages: re
       specifiers.add(carrier.name)
       instances.set(instance.instance, contracts)
     }
-  return {
+  return restoreCarrierOwnerRoutes({
     specifiers: [...specifiers],
-    inputs,
+    inputs: [...inputs],
+    instances: [...instances],
+  })
+}
+
+export interface CarrierOwnerSnapshot {
+  specifiers: string[]
+  inputs: [string, string][]
+  instances: [string, readonly AuditedOwnerContract[]][]
+}
+
+/** Metro sends the same frozen projection to its workers. Do not walk the
+ * project or read package manifests again from the worker. */
+export function restoreCarrierOwnerRoutes(snapshot: CarrierOwnerSnapshot) {
+  const instances = new Map(snapshot.instances)
+  const ownerOf = ownerLookup()
+  return {
+    snapshot,
+    specifiers: snapshot.specifiers,
+    inputs: new Map(snapshot.inputs),
     forResolvedImport(file: string, specifier: string): readonly AuditedOwnerContract[] {
       if (!path.isAbsolute(file) || /[?#\0]/.test(file)) return []
       const owner = ownerOf(path.dirname(file))

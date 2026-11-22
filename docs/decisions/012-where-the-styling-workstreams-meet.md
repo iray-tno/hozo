@@ -176,6 +176,16 @@ class props remain ordinary there. A pre-output refusal uses the same
 capture policy as ordinary Vite.
 This does not enable arbitrary third-party owner declarations by default.
 
+**Owner delivery in ordinary Metro.** Configuration freezes the same
+owner contracts and includes the snapshot identity in the transformer
+cache key. A worker runs before Metro resolves the module graph, so it
+only prepares named imports that the existing barrel splitter can bind
+to the same package's physical file. The splitter retains that binding
+through lowering. Other imports keep ordinary class props; there is no
+package-name-only contract fallback. The standalone and explicit
+experiment baselines remain separate, and replacing installed manifests
+requires restarting Metro.
+
 ### 5. Text publication is a field of the contract
 
 Whether an owner hands text metrics and paint to its children is

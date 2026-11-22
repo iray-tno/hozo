@@ -168,34 +168,47 @@ const IMPORT_RE = new RegExp(
  */
 export function modularizeHozoImports(code: string, filename: string): string {
   if (!MODULAR_SOURCES.some((source) => code.includes(source))) return code
-  return code.replace(IMPORT_RE, (statement, list: string, barrel: string) => {
-    const entry = packageEntry(barrel, path.dirname(filename))
-    if (!entry) return statement
-    const table = exportTable(entry)
-    const byFile = new Map<string, string[]>()
-    const kept: string[] = []
-    for (const part of list
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean)) {
-      if (part.startsWith('type ')) {
-        kept.push(part)
-        continue
+  return bindHozoImports(filename)(code)
+}
+
+type ObserveModularBinding = (barrel: string, imported: string, entry: string, leaf: string) => void
+
+/** Keep the same physical barrel/leaf binding before and after lowering. */
+export function bindHozoImports(filename: string) {
+  const entries = new Map<string, string | null>()
+  return (code: string, observe?: ObserveModularBinding): string => {
+    if (!MODULAR_SOURCES.some((source) => code.includes(source))) return code
+    return code.replace(IMPORT_RE, (statement, list: string, barrel: string) => {
+      if (!entries.has(barrel)) entries.set(barrel, packageEntry(barrel, path.dirname(filename)))
+      const entry = entries.get(barrel)
+      if (!entry) return statement
+      const table = exportTable(entry)
+      const byFile = new Map<string, string[]>()
+      const kept: string[] = []
+      for (const part of list
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean)) {
+        if (part.startsWith('type ')) {
+          kept.push(part)
+          continue
+        }
+        const [imported = '', local = imported] = part.split(/\s+as\s+/).map((name) => name.trim())
+        const origin = table.get(imported)
+        if (!origin) {
+          kept.push(part)
+          continue
+        }
+        const specifier = origin.name === local ? local : `${origin.name} as ${local}`
+        observe?.(barrel, imported, entry, origin.file)
+        byFile.set(origin.file, [...(byFile.get(origin.file) ?? []), specifier])
       }
-      const [imported = '', local = imported] = part.split(/\s+as\s+/).map((name) => name.trim())
-      const origin = table.get(imported)
-      if (!origin) {
-        kept.push(part)
-        continue
-      }
-      const specifier = origin.name === local ? local : `${origin.name} as ${local}`
-      byFile.set(origin.file, [...(byFile.get(origin.file) ?? []), specifier])
-    }
-    const lines = [...byFile].map(
-      ([file, names]) =>
-        `import { ${names.join(', ')} } from ${JSON.stringify(importSpecifier(filename, file))}\n`,
-    )
-    if (kept.length > 0) lines.push(`import { ${kept.join(', ')} } from '${barrel}'\n`)
-    return lines.join('')
-  })
+      const lines = [...byFile].map(
+        ([file, names]) =>
+          `import { ${names.join(', ')} } from ${JSON.stringify(importSpecifier(filename, file))}\n`,
+      )
+      if (kept.length > 0) lines.push(`import { ${kept.join(', ')} } from '${barrel}'\n`)
+      return lines.join('')
+    })
+  }
 }

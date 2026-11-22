@@ -42,7 +42,7 @@ function fixture(t: TestContext, platform: string) {
     )
     writeFileSync(
       path.join(dir, 'index.js'),
-      'export const Toolbar=null;export const HozoToolbar=null;export const View=null;',
+      'export const Toolbar=null;\nexport const HozoToolbar=null;\nexport const View=null;',
     )
     if (name === '@hozo/patterns')
       writeFileSync(
@@ -59,7 +59,7 @@ function fixture(t: TestContext, platform: string) {
     resolver: { resolveRequest: f.delegate },
     transformer: { babelTransformerPath: upstream },
   }
-  const options = { css: 'global.css', content: { packages: [] } }
+  const options = { css: 'global.css' }
   const preflight = collectMetroOwnerPreflight(f.context, f.delegate, {
     platform,
     epoch: 'explicit-toolbar',
@@ -104,6 +104,98 @@ test('one explicitly selected captured Toolbar alias gets a full carrier alongsi
     assert.equal(await transform(f.params), ordinary)
     assert.equal(getCacheKey({ projectRoot: f.root }), ordinaryKey)
   }
+})
+
+test('configured Metro binds owner contracts to the physical leaf it imports', async (t) => {
+  const f = fixture(t, 'android')
+  const top = path.join(f.root, 'node_modules', '@hozo/patterns')
+  const bridge = path.join(f.root, 'node_modules', 'bridge')
+  const nested = path.join(bridge, 'node_modules', '@hozo/patterns')
+  const manifest = JSON.parse(readFileSync(path.join(top, 'owner.json'), 'utf8'))
+  const toolbar = manifest.owners.contracts.find((row) => row.owner === 'Toolbar.root')
+  assert.ok(toolbar)
+  const writeManifest = (dir: string, preparedProp?: string) => {
+    writeFileSync(
+      path.join(dir, 'owner.json'),
+      JSON.stringify({
+        ...manifest,
+        exports: preparedProp ? [{ name: 'Toolbar', owners: ['Toolbar.root'] }] : [],
+        textForwarding: {},
+        textPublish: [],
+        owners: preparedProp
+          ? {
+              ...manifest.owners,
+              contracts: [
+                { ...toolbar, abi: { ...toolbar.abi, nativePreparedProp: preparedProp } },
+              ],
+            }
+          : null,
+      }),
+    )
+  }
+  writeFileSync(
+    path.join(bridge, 'package.json'),
+    JSON.stringify({
+      name: 'bridge',
+      dependencies: { '@hozo/patterns': '2' },
+      hozo: { manifest: 'owner.json' },
+    }),
+  )
+  writeManifest(bridge)
+  mkdirSync(nested, { recursive: true })
+  writeFileSync(
+    path.join(nested, 'package.json'),
+    JSON.stringify({
+      name: '@hozo/patterns',
+      version: '2',
+      main: 'index.js',
+      hozo: { manifest: 'owner.json' },
+    }),
+  )
+  for (const [dir, leaf, carrier] of [
+    [top, 'top-toolbar.js', 'hozoTopToolbarStyle'],
+    [nested, 'nested-toolbar.js', 'hozoNestedToolbarStyle'],
+  ]) {
+    writeFileSync(path.join(dir!, 'index.js'), `export { Toolbar } from './${leaf}'\n`)
+    writeFileSync(path.join(dir!, leaf!), 'export const Toolbar = null\n')
+    writeManifest(dir!, carrier!)
+  }
+  const nestedCaller = path.join(bridge, 'widget.tsx')
+  writeFileSync(nestedCaller, source().replace('p-2', 'p-5'))
+  await withHozo(f.config, f.options)
+  for (const platform of ['android', 'ios']) {
+    const main = { ...f.params, options: { ...f.params.options, platform } }
+    const outer = String(await transform(main))
+    assert.match(outer, /top-toolbar\.js/)
+    assert.match(outer, /hozoTopToolbarStyle=/)
+    assert.match(outer, /paddingTop:\s*14/)
+    assert.doesNotMatch(outer, /hozoNestedToolbarStyle|hozoToolbarStyle=/)
+    const inner = String(
+      await transform({
+        ...main,
+        filename: nestedCaller,
+        src: readFileSync(nestedCaller, 'utf8'),
+      }),
+    )
+    assert.match(inner, /nested-toolbar\.js/)
+    assert.match(inner, /hozoNestedToolbarStyle=/)
+    assert.match(inner, /paddingTop:\s*35/)
+    assert.doesNotMatch(inner, /hozoTopToolbarStyle|hozoToolbarStyle=/)
+    const mixed =
+      source() +
+      `\nimport Other, {Toolbar as Bare} from '@hozo/patterns';
+export const B = () => <Bare className="p-2" />;`
+    const unsupported = String(await transform({ ...main, src: mixed }))
+    assert.match(unsupported, /className="p-2"/)
+    assert.doesNotMatch(unsupported, /hozo(?:TopToolbar|Toolbar)Style=/)
+  }
+  const oldKey = getCacheKey(f.params.options)
+  writeManifest(top)
+  await withHozo(f.config, f.options)
+  assert.notEqual(getCacheKey(f.params.options), oldKey)
+  const noContract = String(await transform(f.params))
+  assert.match(noContract, /className="p-2"/)
+  assert.doesNotMatch(noContract, /hozo(?:TopToolbar|Toolbar)Style=/)
 })
 
 test('one planner owns binding inspection for all captured aliases', async (t) => {
