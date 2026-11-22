@@ -164,6 +164,28 @@ is its measurement.
     seed. Without them, the seed filled in while transforms ran, and
     `apps/landing`'s output changed from run to run.
 
+**Owner delivery in ordinary Vite.** The same startup capture supplies the
+audited owner contracts of `@hozo/patterns` and `@hozo/form`. The import
+specifier only limits which requests to inspect; Vite's resolved package
+instance selects the contract. For a bare external import that Node will
+load, locate the package from that importer. A missing or unaudited owner
+does not fall back to the compiler's built-in table. That table remains for
+standalone callers and adapters that have not migrated. An explicit
+`content.packages` scan bypasses the startup capture, so package owner
+class props remain ordinary there. A pre-output refusal uses the same
+capture policy as ordinary Vite.
+This does not enable arbitrary third-party owner declarations by default.
+
+**Owner delivery in ordinary Metro.** Configuration freezes the same
+owner contracts and includes the snapshot identity in the transformer
+cache key. A worker runs before Metro resolves the module graph, so it
+only prepares named imports that the existing barrel splitter can bind
+to the same package's physical file. The splitter retains that binding
+through lowering. Other imports keep ordinary class props; there is no
+package-name-only contract fallback. The standalone and explicit
+experiment baselines remain separate, and replacing installed manifests
+requires restarting Metro.
+
 ### 5. Text publication is a field of the contract
 
 Whether an owner hands text metrics and paint to its children is

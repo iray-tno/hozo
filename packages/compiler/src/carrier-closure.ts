@@ -14,6 +14,7 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import type { AuditedOwnerContract } from './audited-owner-contracts.ts'
 import {
   captureOwnerManifests,
   type OwnerImportEdge,
@@ -187,6 +188,80 @@ export function carrierSources(closure: CarrierClosure): (file: string) => boole
       return false
     const owner = ownerOf(path.dirname(physical))
     return owner !== null && compiled.has(owner.instance)
+  }
+}
+
+/** @internal Owner recipes for a bounded set of participating root imports.
+ * The name only filters resolver requests. Only the captured physical
+ * instance of the resolved module can supply recipes. */
+export function carrierOwnerRoutes(closure: CarrierClosure, admittedPackages: readonly string[]) {
+  const names = new Set(admittedPackages)
+  const instances = new Map<string, readonly AuditedOwnerContract[]>()
+  const specifiers = new Set<string>()
+  const inputs = new Map<string, string>()
+  if (closure.contributions.status === 'complete')
+    for (const instance of closure.contributions.instances) {
+      const carrier = closure.carriers.find((row) => row.instance === instance.instance)
+      if (!carrier || !names.has(carrier.name)) continue
+      // Watch even a manifest declaring no owners: adding a contract also
+      // changes the frozen build inputs.
+      inputs.set(instance.file, instance.sha256)
+      const metadata = path.join(instance.instance, 'package.json')
+      const metadataHash = closure.metadata.find((row) => row.file === metadata)?.sha256
+      if (metadataHash) inputs.set(metadata, metadataHash)
+      const owners = instance.data.owners
+      const contracts =
+        owners?.contracts.flatMap((contract) => {
+          if (contract.audit !== 'audited') return []
+          const exports = instance.data.exports
+            .filter((entry) => entry.owners.includes(contract.owner))
+            .map((entry) => entry.name)
+          return exports.length
+            ? [
+                {
+                  owner: contract.owner,
+                  package: carrier.name,
+                  exports,
+                  shadow: JSON.stringify({ schema: owners.schema, contracts: [contract] }),
+                },
+              ]
+            : []
+        }) ?? []
+      if (!contracts.length) continue
+      specifiers.add(carrier.name)
+      instances.set(instance.instance, contracts)
+    }
+  return restoreCarrierOwnerRoutes({
+    specifiers: [...specifiers],
+    inputs: [...inputs],
+    instances: [...instances],
+  })
+}
+
+export interface CarrierOwnerSnapshot {
+  specifiers: string[]
+  inputs: [string, string][]
+  instances: [string, readonly AuditedOwnerContract[]][]
+}
+
+/** Metro sends the same frozen projection to its workers. Do not walk the
+ * project or read package manifests again from the worker. */
+export function restoreCarrierOwnerRoutes(snapshot: CarrierOwnerSnapshot) {
+  const instances = new Map(snapshot.instances)
+  const ownerOf = ownerLookup()
+  return {
+    snapshot,
+    specifiers: snapshot.specifiers,
+    inputs: new Map(snapshot.inputs),
+    forResolvedImport(file: string, specifier: string): readonly AuditedOwnerContract[] {
+      if (!path.isAbsolute(file) || /[?#\0]/.test(file)) return []
+      const owner = ownerOf(path.dirname(file))
+      const contracts = owner ? instances.get(owner.instance) : undefined
+      if (!contracts) return []
+      return contracts[0]?.package === specifier
+        ? contracts
+        : contracts.map((contract) => ({ ...contract, package: specifier }))
+    },
   }
 }
 

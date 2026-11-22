@@ -14,6 +14,7 @@
 
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import type { AuditedOwnerContract } from './audited-owner-contracts.ts'
 import {
   applyWebOwnerPreviews,
   matchingAuditedOwners,
@@ -646,6 +647,9 @@ export interface LowerModuleOptions {
   observe?: (stage: LowerModuleStage) => void
   /** @internal Explicit owner-caller pipelines disable default audited-owner lowering so spans are not rewritten twice. */
   skipAuditedOwners?: boolean
+  /** @internal Actual bundler-resolved contracts. Empty means there are no
+   * owners for this file; only standalone callers may omit the list. */
+  auditedOwners?: readonly AuditedOwnerContract[]
 }
 
 export interface LowerModuleStage {
@@ -743,7 +747,7 @@ export function lowerModule(
   const hasOwners =
     !options.skipAuditedOwners &&
     semanticModuleEligible(file, 'web') &&
-    matchingAuditedOwners(code).length > 0
+    matchingAuditedOwners(code, options.auditedOwners).length > 0
   if (!hasOwners) {
     const lowered = lowerModuleUnchecked(code, id, file, compiler, root, stylexModules, options)
     return completeModuleResolution(lowered, root, file, options)
@@ -763,7 +767,7 @@ export function lowerModule(
     file,
     tracked,
   )
-  const previews = previewAuditedOwnerBatch(code, compiler, 'web', file)
+  const previews = previewAuditedOwnerBatch(code, compiler, 'web', file, options.auditedOwners)
   return applyWebOwnerPreviews(code, id, file, lowered, provenance, previews)
 }
 
@@ -907,7 +911,7 @@ export function lowerModuleOrPrepare(
   const captured = { ...options }
   const ownerBatch =
     !captured.skipAuditedOwners && semanticModuleEligible(file, 'web')
-      ? prepareAuditedOwnerBatch(code, compiler, 'web', file)
+      ? prepareAuditedOwnerBatch(code, compiler, 'web', file, captured.auditedOwners)
       : undefined
   if (ownerBatch && ownerBatch.candidates.length === 0) ownerBatch.dispose()
   const activeOwners = ownerBatch && ownerBatch.candidates.length > 0 ? ownerBatch : undefined

@@ -38,14 +38,17 @@ export {
   type CarrierClosure,
   type CarrierClosureOptions,
   type CarrierInstance,
+  type CarrierOwnerSnapshot,
   type CarrierTrip,
   captureCarrierClosure,
   carrierGuard,
   carrierIncompleteMessage,
+  carrierOwnerRoutes,
   carrierSources,
   carrierTripMessage,
   locateDeclaredPackage,
   requireCarrierClosure,
+  restoreCarrierOwnerRoutes,
 } from './carrier-closure.ts'
 export { FILE_FACTS_SCHEMA, FileFactStore, type FileFacts, fileFacts } from './file-facts.ts'
 export { prepareInstanceOwnerCallers } from './owner-caller-participant.ts'

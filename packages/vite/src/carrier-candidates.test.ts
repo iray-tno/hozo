@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { build } from 'vite'
+import { build, type Plugin } from 'vite'
 import { buildPackageManifest, serializeManifest } from '../../compiler/src/manifest.ts'
 import { runManifestCli } from '../../compiler/src/manifest-command.ts'
 import { type HozoOptions, hozo } from './index.ts'
@@ -64,7 +64,7 @@ function fixture(t, dependencies: Record<string, string>, imports: string[] = []
   return root
 }
 
-async function tinyBuild(root: string, options: HozoOptions = {}) {
+async function tinyBuild(root: string, options: HozoOptions = {}, plugins: Plugin[] = []) {
   const warnings: string[] = []
   output = await build({
     root,
@@ -79,7 +79,7 @@ async function tinyBuild(root: string, options: HozoOptions = {}) {
       hasErrorLogged: () => false,
       hasWarned: false,
     },
-    plugins: [hozo({ root, css: 'tokens.css', ...options })],
+    plugins: [hozo({ root, css: 'tokens.css', ...options }), ...plugins],
     build: {
       write: false,
       lib: { entry: path.join(root, 'entry.tsx'), formats: ['es'], cssFileName: 'fixture' },
@@ -105,6 +105,130 @@ test('an installed package with a manifest contributes its candidates, without i
   install(root, 'kit', 'gap-7')
   await tinyBuild(root)
   assert.match(candidates(root), /gap-7/)
+})
+
+function installToolbar(root: string, version: string, classProp: string, audit = 'audited') {
+  const name = '@hozo/patterns'
+  install(root, name, 'p-3 p-7')
+  const dir = path.join(root, 'node_modules', name)
+  const metadata = path.join(dir, 'package.json')
+  writeFileSync(
+    metadata,
+    JSON.stringify({ ...JSON.parse(readFileSync(metadata, 'utf8')), version }),
+  )
+  writeFileSync(path.join(dir, 'index.js'), 'export const Toolbar = props => props')
+  const manifestFile = path.join(dir, 'hozo.manifest.json')
+  const data = JSON.parse(readFileSync(manifestFile, 'utf8'))
+  data.exports = [{ name: 'Toolbar', owners: ['Toolbar.root'] }]
+  data.owners = {
+    schema: 'rfc010-owner-shadow-0',
+    contracts: [
+      {
+        owner: 'Toolbar.root',
+        classProp,
+        audit,
+        bindings: ['present'],
+        abi: { nativePreparedProp: null, webClassProp: classProp },
+        authoredStyles: [],
+        shapes: [
+          {
+            id: 'root',
+            when: { eq: ['present', true] },
+            nativeHost: null,
+            webHost: 'div',
+            events: [],
+          },
+        ],
+      },
+    ],
+  }
+  writeFileSync(manifestFile, JSON.stringify(data))
+  return manifestFile
+}
+
+test('ordinary Vite reads the actual installed owner contract for each importer', async (t) => {
+  const root = fixture(t, { '@hozo/patterns': '1', bridge: '1' })
+  installToolbar(root, '1.0.0', 'topClassName')
+  install(
+    root,
+    'bridge',
+    '',
+    undefined,
+    `import {Toolbar} from '@hozo/patterns';
+export const Nested = () => <Toolbar nestedClassName="pt-7" topClassName="pt-2"/>;`,
+  )
+  const bridge = path.join(root, 'node_modules', 'bridge')
+  const metadata = path.join(bridge, 'package.json')
+  writeFileSync(
+    metadata,
+    JSON.stringify({
+      ...JSON.parse(readFileSync(metadata, 'utf8')),
+      dependencies: { '@hozo/patterns': '2' },
+    }),
+  )
+  installToolbar(bridge, '2.0.0', 'nestedClassName')
+  writeFileSync(
+    path.join(root, 'entry.tsx'),
+    `import {Toolbar as Tools} from '@hozo/patterns';
+export { Nested } from 'bridge';
+export const Top = () => <Tools topClassName="pt-3" nestedClassName="pt-5"/>;`,
+  )
+  await tinyBuild(root)
+  const top = readFileSync(path.join(root, 'entry.tsx.hozo.css'), 'utf8')
+  const nested = readFileSync(path.join(bridge, 'src', 'index.tsx.hozo.css'), 'utf8')
+  assert.match(top, /padding-top: 12px/)
+  assert.doesNotMatch(top, /padding-top: 20px/)
+  assert.match(nested, /padding-top: 28px/)
+  assert.doesNotMatch(nested, /padding-top: 8px/)
+})
+
+test('ordinary Vite does not replace an unadmitted manifest with its built-in copy', async (t) => {
+  const root = fixture(t, { '@hozo/patterns': '1' })
+  installToolbar(root, '1.0.0', 'className', 'unknown')
+  writeFileSync(
+    path.join(root, 'entry.tsx'),
+    "import {Toolbar} from '@hozo/patterns'; export const Top = () => <Toolbar className='p-3'/>",
+  )
+  await tinyBuild(root)
+  assert.doesNotMatch(JSON.stringify(output), /hozo-owner-[a-f0-9]{16}-r/)
+})
+
+test('a bare external owner uses the package Node will load for that importer', async (t) => {
+  const root = fixture(t, { '@hozo/patterns': '1' })
+  installToolbar(root, '1.0.0', 'panelClassName')
+  writeFileSync(
+    path.join(root, 'entry.tsx'),
+    "import {Toolbar} from '@hozo/patterns'; export const Top = () => <Toolbar panelClassName='pt-3'/>",
+  )
+  await tinyBuild(root, {}, [
+    {
+      name: 'external-toolbar',
+      resolveId(id) {
+        if (id === '@hozo/patterns') return { id, external: true }
+      },
+    },
+  ])
+  assert.match(readFileSync(path.join(root, 'entry.tsx.hozo.css'), 'utf8'), /padding-top: 12px/)
+})
+
+test('ordinary Vite refuses to publish owners if the captured manifest changed', async (t) => {
+  const root = fixture(t, { '@hozo/patterns': '1' })
+  const file = installToolbar(root, '1.0.0', 'className')
+  writeFileSync(
+    path.join(root, 'entry.tsx'),
+    "import {Toolbar} from '@hozo/patterns'; export const Top = () => <Toolbar className='p-3'/>",
+  )
+  await assert.rejects(
+    tinyBuild(root, {}, [
+      {
+        name: 'change-owner-manifest',
+        generateBundle() {
+          writeFileSync(file, `${readFileSync(file, 'utf8')}\n`)
+        },
+      },
+    ]),
+    /owner manifest input changed.*hozo\.manifest\.json/,
+  )
 })
 
 test('source a package with a manifest ships for its consumer is compiled from node_modules', async (t) => {

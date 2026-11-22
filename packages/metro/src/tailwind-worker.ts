@@ -205,6 +205,7 @@ export class MetroTailwindWorker {
     root: string,
     stylexModules?: StylexModuleCache,
     textInheritance: NativeTextInheritance = 'unified',
+    auditedOwners?: Parameters<typeof transformHozoSourceOrPrepare>[9],
   ) {
     this.reportMissingRuntimeClasses(source, filename)
     return this.session.runModule(
@@ -220,6 +221,8 @@ export class MetroTailwindWorker {
           stylexModules,
           undefined,
           textInheritance,
+          false,
+          auditedOwners,
         )
         if (result.kind === 'prepared') {
           let changed = false

@@ -30,6 +30,7 @@ import {
 } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import { loadProjectTheme } from '@hozo/tailwind'
+import { metroCarrierOwnerBindings, readMetroCarrierOwners } from './carrier-owner-routes.ts'
 import { type HozoMetroState, readMetroState } from './config.ts'
 import { modularizeHozoImports } from './modular-imports.ts'
 import { ownerShadowIdentity, ownerShadowSession } from './owner-manifest-shadow.ts'
@@ -338,6 +339,19 @@ export async function transform(params: TransformParams): Promise<unknown> {
     compilerState.projectForwarding = projectForwarding !== undefined
   }
   const textInheritance = state?.nativeTextInheritance ?? 'unified'
+  const manifestBindings =
+    state?.carrierOwners && semanticModuleEligible(absoluteFile, 'native')
+      ? metroCarrierOwnerBindings(
+          readMetroCarrierOwners(state.carrierOwners),
+          params.src,
+          absoluteFile,
+        )
+      : undefined
+  // Configured ordinary builds never fall back to package-name recipes.
+  // Direct transforms and the pre-existing opt-in evidence drivers keep
+  // their standalone baseline.
+  const auditedOwners =
+    state && !state.ownerShadow ? (manifestBindings?.contracts ?? []) : undefined
   const selectedOwner =
     state?.ownerShadow?.mode === 'owner-caller-transform' &&
     semanticModuleEligible(absoluteFile, 'native')
@@ -362,6 +376,7 @@ export async function transform(params: TransformParams): Promise<unknown> {
             projectRoot!,
             compilerState.stylexModules,
             textInheritance,
+            auditedOwners,
           )
         : transformHozoSource(
             params.src,
@@ -371,6 +386,8 @@ export async function transform(params: TransformParams): Promise<unknown> {
             compilerState.stylexModules,
             undefined,
             textInheritance,
+            false,
+            auditedOwners,
           )
   if (
     rewritten !== null &&
@@ -399,7 +416,9 @@ export async function transform(params: TransformParams): Promise<unknown> {
   const modular =
     state?.ownerShadow?.mode === 'owner-caller-transform'
       ? before
-      : modularizeHozoImports(before, absoluteFile)
+      : manifestBindings
+        ? manifestBindings.rewrite(before)
+        : modularizeHozoImports(before, absoluteFile)
   const nextParams = modular === params.src ? params : { ...params, src: modular }
   const output = loadUpstream(projectRoot).transform(nextParams)
   if (!ownerSession) return output

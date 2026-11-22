@@ -29,10 +29,15 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { type CandidateCache, scanTailwindOrderCandidates } from '@hozo/compiler'
+import {
+  type CandidateCache,
+  inspectStaticModuleImports,
+  scanTailwindOrderCandidates,
+} from '@hozo/compiler'
 import { formatDiagnostic, reportDiagnostics } from '@hozo/compiler/diagnostics'
 import {
   foldedPrimitiveCalls,
+  type LowerModuleOptions,
   lowerModule,
   lowerModuleOrPrepare,
   prepareOwnerLowerModule,
@@ -43,6 +48,7 @@ import {
   type CarrierClosure,
   type CarrierTrip,
   carrierGuard,
+  carrierOwnerRoutes,
   carrierSourceFiles,
   carrierSources,
   carrierTripMessage,
@@ -55,8 +61,10 @@ import {
   type HozoProjectOptions,
   importSpecifier,
   isTransformedSource,
+  locateDeclaredPackage,
   type OwnerContractRequest,
   preflightCssPath,
+  readBoundedUtf8File,
   requireCarrierClosure,
   resolveClassHelpers,
   resolveStylexRequests,
@@ -91,6 +99,8 @@ import { discoveryPaths, openViteTailwindEpoch, type ViteTailwindEpoch } from '.
  * module would run Tailwind's resolver hundreds of times for one answer.
  */
 export type HozoOptions = HozoProjectOptions
+
+const builtInOwnerPackages = ['@hozo/patterns', '@hozo/form']
 
 export function hozo(options: HozoOptions = {}): Plugin[] {
   return configureHozo(options)
@@ -155,6 +165,8 @@ function configureHozo(
   // The frozen package manifests this build's candidates came from, and the
   // guard for every module loaded after them (#2047).
   let carriers: CarrierClosure | undefined
+  let ownerRoutes: ReturnType<typeof carrierOwnerRoutes> | undefined
+  let changedOwnerInput: string | undefined
   let guard: ((file: string) => CarrierTrip | undefined) | undefined
   // Source those packages ship for this build to compile, admitted from the
   // capture rather than from the walk's file list.
@@ -202,6 +214,16 @@ function configureHozo(
       throw new Error('[hozo] owner configured source set changed; rebuild before publication')
     owners?.validateGraph(graph)
     ownerFallback?.validate()
+    for (const [file, hash] of ownerRoutes?.inputs ?? []) {
+      let actual: string | undefined
+      try {
+        actual = createHash('sha256').update(readBoundedUtf8File(file, 65_536)).digest('hex')
+      } catch {}
+      if (actual !== hash)
+        throw new Error(
+          `[hozo] owner manifest input changed during the build: ${file}; restart or rebuild`,
+        )
+    }
   }
 
   function updateUniverse() {
@@ -330,6 +352,8 @@ function configureHozo(
       const checkRequest = () => {
         ownerEpoch?.check()
         fallbackEpoch?.check()
+        if (changedOwnerInput)
+          throw new Error(`[hozo] owner manifest input changed: ${changedOwnerInput}; restart Vite`)
         if (requests.get(requestId)?.token !== request)
           throw new TailwindPreparationCancelled('TAILWIND_MODULE_SUPERSEDED')
       }
@@ -483,6 +507,31 @@ function configureHozo(
           // The helper files' records from the scan, re-read only on change.
           facts,
         )
+        // An empty selection is authoritative, including a pre-output
+        // fallback. Vite never switches to the standalone catalog.
+        let auditedOwners: LowerModuleOptions['auditedOwners'] = []
+        const routes = ownerRoutes
+        if (routes?.specifiers.some((specifier) => source.includes(specifier))) {
+          const imports = new Set(
+            inspectStaticModuleImports(source, absoluteFile).bindings.map(({ source }) => source),
+          )
+          const selected = await Promise.all(
+            routes.specifiers
+              .filter((specifier) => imports.has(specifier))
+              .map(async (specifier) => {
+                const entry = await this.resolve(specifier, absoluteFile, { skipSelf: true })
+                if (!entry) return []
+                // SSR can leave the bare import for Node rather than return
+                // a file. Use that importer's Node package, not the app root.
+                const physical =
+                  entry.external && entry.id === specifier
+                    ? locateDeclaredPackage(path.dirname(absoluteFile), specifier)
+                    : entry.id
+                return physical ? routes.forResolvedImport(physical, specifier) : []
+              }),
+          )
+          auditedOwners = selected.flat()
+        }
         compiler.setClassHelpers(resolveClassHelpers(options.classHelpers, helpers))
         checkRequest()
         current.check()
@@ -490,7 +539,7 @@ function configureHozo(
         // registry changes are installed only when its graph/epoch changes,
         // not rebuilt for every warm file. Actual parsed candidates, rather
         // than an early lexical scan alone, decide context completeness.
-        const policy = { unloweredReactNativeJsx: options.unloweredReactNativeJsx }
+        const policy = { unloweredReactNativeJsx: options.unloweredReactNativeJsx, auditedOwners }
         let lowered: ReturnType<typeof lowerModule>
         // Emit once during transform, before Vite consumes the companion
         // stylesheet. Rank-free module output does not need a final graph.
@@ -773,6 +822,8 @@ function configureHozo(
       async buildStart() {
         owners?.invalidate()
         owners = undefined
+        ownerRoutes = undefined
+        changedOwnerInput = undefined
         ownerSourceFiles = undefined
         ownerCallerFiles = new Set()
         ownerFallback?.invalidate()
@@ -877,16 +928,18 @@ function configureHozo(
         // throws before any output. The experimental owner paths above bring
         // their own; an explicit `content.packages` names sources to scan.
         carriers =
-          ownerPlan || discoverOwnerSources
+          ownerPlan || (discoverOwnerSources && !ownerFallback)
             ? undefined
             : requireCarrierClosure(root, options.content, {
                 platform: 'web',
                 epoch: 'vite-carriers-0',
               })
         guard = carriers && carrierGuard(carriers)
+        ownerRoutes = carriers && carrierOwnerRoutes(carriers, builtInOwnerPackages)
+        for (const file of ownerRoutes?.inputs.keys() ?? []) this.addWatchFile(file)
         carrierSource = carriers ? carrierSources(carriers) : () => false
         const project =
-          discoveredProject ??
+          (carriers ? undefined : discoveredProject) ??
           scanProject(
             root,
             options.content,
@@ -947,6 +1000,11 @@ function configureHozo(
       },
 
       async watchChange(id, change) {
+        if (ownerRoutes?.inputs.has(path.resolve(id))) {
+          changedOwnerInput = path.resolve(id)
+          invalidateTransforms()
+          return
+        }
         if (ownerFallback?.watchFiles.includes(path.resolve(id))) {
           ownerFallback.invalidate()
           return
@@ -1101,6 +1159,8 @@ function configureHozo(
       closeBundle() {
         owners?.invalidate()
         owners = undefined
+        ownerRoutes = undefined
+        changedOwnerInput = undefined
         ownerSourceFiles = undefined
         ownerCallerFiles.clear()
         ownerFallback?.invalidate()

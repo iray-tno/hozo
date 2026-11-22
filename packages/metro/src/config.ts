@@ -19,6 +19,10 @@ import {
 } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import {
+  type MetroCarrierOwnerReference,
+  publishMetroCarrierOwners,
+} from './carrier-owner-routes.ts'
+import {
   assertMetroOwnerPreflightCurrent,
   type MetroOwnerPreflight,
   type OwnerMetroContext,
@@ -96,6 +100,8 @@ type MetroResolveRequest = (
 export interface HozoMetroState {
   /** Explicit assessment or candidate consumption; never default owner facts. */
   ownerShadow?: MetroOwnerShadowState
+  /** Frozen ordinary owner contracts, separate from the opt-in graph. */
+  carrierOwners?: MetroCarrierOwnerReference
   upstreamTransformer?: string
   css?: string
   sources?: readonly string[]
@@ -407,6 +413,7 @@ async function configureHozo<T extends MetroConfigShape>(
     fontAvailability: options.fontAvailability,
     ...(textInheritance === 'compiled' ? { nativeTextInheritance: textInheritance } : {}),
   }
+  if (carriers) state.carrierOwners = publishMetroCarrierOwners(projectRoot, carriers)
   if (ownerPreflight)
     state.ownerShadow = prepareMetroOwnerShadow(
       projectRoot,
