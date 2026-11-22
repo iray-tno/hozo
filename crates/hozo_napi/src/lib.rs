@@ -9,7 +9,7 @@
 //! source-rewrite instructions) -- that comes once the plugin itself is
 //! being wired up and its real requirements are known.
 
-use hozo_ir::{StyleProperty, Theme, Utf16Offsets};
+use hozo_ir::{Theme, Utf16Offsets};
 use napi_derive::napi;
 use std::sync::Arc;
 mod owner_slots;
@@ -85,6 +85,9 @@ pub use web::{
 use native::{emit_native_module, parse_native_module, NativeModuleOptions};
 use stylex::external_bindings;
 use web::{emit_web, parse_web, TailwindPlanOptions, WebModuleOptions};
+// Only `prepared_module`'s tests read this through `super::*`.
+#[cfg(test)]
+use hozo_ir::StyleProperty;
 
 #[cfg(test)]
 mod native_candidate_tests;
