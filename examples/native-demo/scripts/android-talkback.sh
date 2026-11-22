@@ -344,7 +344,7 @@ next() { adb shell input keyevent KEYCODE_TAB; }
 #   - the Native `TextInput` is React Native's own, re-exported unchanged by
 #     `@hozo/primitives` (`foundation.native.tsx`);
 #   - the compiler emits those props only when an author writes them
-#     (`crates/hozo_parser/src/jsx.rs` captures, `hozo_native/src/render.rs`
+#     (`crates/hozo_parser/src/jsx/` captures, `hozo_native/src/render.rs`
 #     renders);
 #   - and TalkBack calls the field "Edit box" throughout. A secure field it
 #     would call a password.
