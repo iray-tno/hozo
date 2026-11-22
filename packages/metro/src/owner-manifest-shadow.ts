@@ -1,4 +1,4 @@
-// Explicit assessment or candidate-only consumption, never owner/helper/text facts.
+// Explicit, resolver-scoped assessment and opt-in consumption.
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -155,7 +155,8 @@ export class MetroOwnerShadowSession {
     const lease = this.worker.lease()
     const { requests } = discoverOwnerPackageCallers(lease, importer)
     const eligible = requests.flatMap((request) => {
-      if (request.specifier !== '@hozo/patterns') return []
+      // An exact captured import/export and the configured target, not a
+      // package-name allowlist, identify this opt-in caller.
       const selected = selectOwnerPackageContract(lease, request)
       if (selected.status !== 'selected' || selected.identity.owner !== this.#target) return []
       return [request]

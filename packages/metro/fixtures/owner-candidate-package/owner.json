@@ -1,7 +1,31 @@
 {
   "schema": "rfc010-package-shadow-0",
-  "owners": null,
-  "exports": [{ "name": "token", "owners": [] }],
+  "owners": {
+    "schema": "rfc010-owner-shadow-0",
+    "contracts": [
+      {
+        "owner": "Toolbar.root",
+        "classProp": "panelClassName",
+        "audit": "unknown",
+        "bindings": ["present"],
+        "abi": { "nativePreparedProp": "hozoFixturePanelStyle", "webClassProp": "panelClassName" },
+        "authoredStyles": [{ "prop": "style", "order": 0 }],
+        "shapes": [
+          {
+            "id": "root",
+            "when": { "eq": ["present", true] },
+            "nativeHost": "View",
+            "webHost": "div",
+            "events": []
+          }
+        ]
+      }
+    ]
+  },
+  "exports": [
+    { "name": "FixturePanel", "owners": ["Toolbar.root"] },
+    { "name": "token", "owners": [] }
+  ],
   "helpers": [],
   "candidates": ["p-3", "p-5"],
   "compiledByConsumer": true,

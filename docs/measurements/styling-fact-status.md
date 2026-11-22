@@ -32,6 +32,22 @@ That is inventory growth, not lost coverage or an audit regression caused by
 the handle spike. This report does not turn known catalog descriptions into
 independently audited contracts.
 
+On `76bb7926` the inventory has 0 pending out of 100 pattern slots (46
+component-managed), 0 pending out of 52 form slots, and 98 contracts declared
+`audited` with none `unknown`. The owner migration evidence is already split
+among the Chromium/Native comparisons in
+[`caller-composition.test.mjs`](../../examples/storybook-demo/scripts/caller-composition.test.mjs)
+and the real component implementations driven with Native host stand-ins in
+[`form-owner-contracts.test.ts`](../../packages/metro/src/form-owner-contracts.test.ts)
+and [`patterns-owner-contracts.test.ts`](../../packages/metro/src/patterns-owner-contracts.test.ts).
+The Form cases include single-platform hosts (#2045, #2095); the Patterns
+cases cover the migrated slots and roots (#2046, #2137) and the audited
+Primitive facts (#2149). Use these tests for Phase B rather than repeating the
+spikes. They are not yet joined by public owner, platform and declared shape:
+the status script's independently verified rows are still only for its
+selected receipt scope. Do not turn the 98 declarations into a Contract audit
+percentage.
+
 ## Separate claims
 
 | Output | What its denominator means |
