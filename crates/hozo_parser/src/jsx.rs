@@ -31,13 +31,16 @@ use enclosing::enclosing_component;
 
 mod atoms;
 mod build;
+mod children;
 mod class_expr;
 mod class_name;
+mod element_name;
 mod enclosing;
 mod finder;
 mod messages;
 mod primitives;
 mod props;
+mod responder;
 mod role;
 mod root_capture;
 mod scope;
