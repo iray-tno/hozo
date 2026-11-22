@@ -11,8 +11,10 @@ pub(super) const DEFER_GRADIENT: u8 = 2;
 pub(super) const DEFER_TRANSFORM: u8 = 4;
 pub(super) const DEFER_FILTER: u8 = 8;
 pub(super) const DEFER_TEXT_METRICS: u8 = 16;
+mod classify;
 mod edges;
 mod pairs;
+mod pipeline;
 mod plan;
 mod states;
 mod transitions;
@@ -112,157 +114,19 @@ fn render_candidate_module_impl(
     theme: &Theme,
     mut plan: Option<&mut CandidatePlanBuilder<'_>>,
 ) -> String {
-    let mut supported: Vec<(&String, Vec<(String, String)>)> = Vec::new();
-    let mut unsupported: Vec<(&String, String)> = Vec::new();
-    let mut states: Vec<(&String, Vec<StateGroup>)> = Vec::new();
-    let mut transforms = Vec::new();
-    let mut filters = Vec::new();
-    let mut gradients = Vec::new();
-    let mut shadows = Vec::new();
-    let mut transitions: Vec<(&String, Option<&'static str>, String)> = Vec::new();
-    let mut font_defaults = Vec::new();
-    let mut leading_registers = Vec::new();
-    let mut explicit_leading = false;
-    for name in class_names {
-        let Some(mut utility) = hozo_parser::resolve_class_name(name) else {
-            if let Some(plan) = plan.as_deref_mut() {
-                plan.refused(name, "unrecognized");
-            }
-            continue;
-        };
-        for (_, props) in &mut utility.groups {
-            *props = theme.resolve_shadow_tokens(std::mem::take(props));
-        }
-        if utility.important {
-            if let Some(plan) = plan.as_deref_mut() {
-                plan.refused(name, "important-not-lowered");
-            }
-            unsupported.push((name, hozo_parser::IMPORTANT_NOT_LOWERED.into()));
-            continue;
-        }
-        // A transition utility draws nothing; it says how a change in what
-        // is drawn should arrive. React Native cannot be told that through
-        // a style object, so these go in a table of their own that the
-        // engine reads into `HozoAnimated`'s spec (#1450), including under
-        // `motion-reduce:` / `motion-safe:`, which the reader decides.
-        if let Some((condition, spec)) = transition_part(&utility.groups) {
-            if let Some(plan) = plan.as_deref_mut() {
-                plan.refused(name, "transition");
-            }
-            transitions.push((name, condition, spec));
-            continue;
-        }
-        // Any conditional group disqualifies the class, which is what
-        // makes `container` land here: its max-widths are per-breakpoint.
-        if utility
-            .groups
-            .iter()
-            .any(|(condition, _)| *condition != Condition::Always)
-        {
-            // A state of the element itself is the exception (#886): the
-            // pressable rendering it already tracks that state and hands it
-            // to the resolver, so nothing here has to.
-            if let Some(groups) = state_groups(&utility.groups, theme) {
-                if let Some(token) = groups
-                    .iter()
-                    .find_map(|group| unresolved_colour(&group.pairs))
-                {
-                    if let Some(plan) = plan.as_deref_mut() {
-                        plan.refused(name, "unresolved-theme-color");
-                    }
-                    unsupported.push((name, unresolved_reason(name, token)));
-                    continue;
-                }
-                explicit_leading |= groups.iter().any(|group| {
-                    !group.font_default && group.pairs.iter().any(|(key, _)| key == "lineHeight")
-                });
-                if let Some(plan) = plan.as_deref_mut() {
-                    plan.states(name, &utility.groups, &groups);
-                }
-                states.push((name, groups));
-                continue;
-            }
-            if let Some(plan) = plan.as_deref_mut() {
-                plan.refused(name, "unsupported-condition-or-property");
-            }
-            unsupported.push((name, format!("`{name}` is conditional, and a runtime-resolved class can only carry unconditional styles on React Native. Write it as a static className so it compiles to a real style variant.")));
-            continue;
-        }
-        let properties: Vec<StyleProperty> = utility
-            .groups
-            .iter()
-            .flat_map(|(_, properties)| properties.clone())
-            .collect();
-        if let Some(reason) = properties
-            .iter()
-            .find_map(|property| property.unsupported_on_native_with_theme(theme))
-        {
-            if let Some(plan) = plan.as_deref_mut() {
-                plan.refused(name, "unsupported-property");
-            }
-            unsupported.push((name, format!("{reason} -- this utility is Web-only.")));
-            continue;
-        }
-        // Owned, because the properties are a local that ends with this
-        // iteration -- a style key can now borrow from the property it
-        // came from (an arbitrary property's name is the author's text,
-        // not a literal in this binary).
-        let pairs: Vec<(String, String)> = style_pairs(&properties, theme)
-            .into_iter()
-            .map(|(key, value)| (key.to_string(), value))
-            .collect();
-        if let Some(token) = unresolved_colour(&pairs) {
-            if let Some(plan) = plan.as_deref_mut() {
-                plan.refused(name, "unresolved-theme-color");
-            }
-            unsupported.push((name, unresolved_reason(name, token)));
-            continue;
-        }
-        let gradient = crate::gradients::metadata(&properties, theme);
-        let shadow = crate::shadows::metadata(&properties, theme);
-        if pairs.is_empty() && gradient.is_none() && shadow.is_none() {
-            if let Some(plan) = plan.as_deref_mut() {
-                plan.refused(name, "no-native-output");
-            }
-            continue;
-        }
-        explicit_leading |= properties.iter().any(|property| {
-            matches!(
-                property,
-                StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_))
-            )
-        });
-        if let Some(plan) = plan.as_deref_mut() {
-            plan.style(
-                name,
-                &properties,
-                &pairs,
-                gradient.as_ref(),
-                shadow.as_ref(),
-            );
-        }
-        if let Some(metadata) = crate::transforms::metadata(&properties, theme) {
-            transforms.push((name, metadata));
-        }
-        if let Some(metadata) = crate::filters::metadata(&properties) {
-            filters.push((name, metadata));
-        }
-        if let Some(metadata) = gradient {
-            gradients.push((name, metadata));
-        }
-        if let Some(metadata) = shadow {
-            shadows.push((name, metadata));
-        }
-        if has_font_default(&properties) {
-            font_defaults.push(name);
-        }
-        if matches!(properties.as_slice(), [StyleProperty::TextColor(_)]) {
-            if let Some(px) = theme.utility_leading_register(name) {
-                leading_registers.push((name, px));
-            }
-        }
-        supported.push((name, pairs));
-    }
+    let classify::Classified {
+        supported,
+        unsupported,
+        states,
+        transforms,
+        filters,
+        gradients,
+        shadows,
+        transitions,
+        font_defaults,
+        leading_registers,
+        explicit_leading,
+    } = classify::classify_candidates(class_names, theme, &mut plan);
 
     // Ordinary rotate/scale candidates need composition too: RN's last
     // transform array wins, unlike CSS's independently cascading families.
@@ -556,58 +420,14 @@ fn render_candidate_module_impl(
             |group| group.shadow.as_ref().map(|metadata| metadata.code.as_str()),
         );
     }
-    // One selected-object pipeline; every composer retains original identities
-    // for the next family. No duplicate filter/text/transform decision tree.
-    let mut pipeline = String::new();
-    let mut input = "resolved";
-    if needs_gradient_slots {
-        pipeline.push_str(&format!("const gradient = !(deferred & {DEFER_GRADIENT}) && resolved.some(style => gradients.has(style)) ? hozoGradientStyles(resolved, gradients, {}) : resolved; ", crate::gradients::defaults()));
-        input = "gradient";
-    }
-    if needs_shadow_slots {
-        pipeline.push_str(&format!("const shadow = !(deferred & {DEFER_SHADOW}) && {input}.some(style => shadows.has(style)) ? hozoShadowStyles({input}, shadows, {}) : {input}; ", crate::shadows::defaults()));
-        input = "shadow";
-    }
-    if needs_filter_slots {
-        pipeline.push_str(&format!("const filtered = (deferred & {DEFER_FILTER}) || {input}.some(style => 'filter' in style && !filters.has(style)) ? {input} : {input}.some(style => filters.has(style)) ? hozoFilterStyles({input}, filters) : {input}; "));
-        input = "filtered";
-    }
-    if composes_text_metrics {
-        let registers = if uses_leading_registers {
-            ", leadingRegisters"
-        } else {
-            ""
-        };
-        if uses_leading_registers {
-            pipeline.push_str(&format!(
-                "const text = (deferred & {DEFER_TEXT_METRICS}) ? {input} : hozoTextMetricStyles({input}, fontDefaults{registers}); "
-            ));
-        } else {
-            pipeline.push_str(&format!(
-                "const text = hozoTextMetricStyles({input}, fontDefaults); "
-            ));
-        }
-        input = "text";
-    }
-    if needs_transform_slots {
-        pipeline.push_str(&format!("const transformed = !(deferred & {DEFER_TRANSFORM}) && {input}.some(style => transforms.has(style)) ? hozoTransformStyles({input}, transforms, undefined, Boolean(deferred)) : {input}; "));
-        input = "transformed";
-    }
-    let effect_mask = u8::from(needs_shadow_slots) * DEFER_SHADOW
-        + u8::from(needs_gradient_slots) * DEFER_GRADIENT
-        + u8::from(needs_transform_slots) * DEFER_TRANSFORM
-        + u8::from(needs_filter_slots) * DEFER_FILTER
-        + u8::from(uses_leading_registers && composes_text_metrics) * DEFER_TEXT_METRICS;
-    let compose = if pipeline.is_empty() {
-        None
-    } else {
-        let args = if effect_mask != 0 {
-            "(resolved, deferred)"
-        } else {
-            "resolved"
-        };
-        Some(format!("{args} => {{ {pipeline}return {input} }}"))
-    };
+    let (compose, effect_mask) = pipeline::compose(pipeline::Needs {
+        gradients: needs_gradient_slots,
+        shadows: needs_shadow_slots,
+        filters: needs_filter_slots,
+        text_metrics: composes_text_metrics,
+        leading_registers: uses_leading_registers,
+        transforms: needs_transform_slots,
+    });
     let needs_direction_ambient = ambient || edge_direction;
     out.push_str(
         "// Generated by Hozo. Do not edit.\n\
