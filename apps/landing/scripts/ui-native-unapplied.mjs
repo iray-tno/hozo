@@ -53,7 +53,7 @@ async function webOnlySlots(repo) {
 const webOnly = await webOnlySlots(path.resolve(import.meta.dirname, '../../..'))
 
 function compilerFacts(repo) {
-  const jsx = readFileSync(path.join(repo, 'crates/hozo_parser/src/jsx.rs'), 'utf8')
+  const jsx = readFileSync(path.join(repo, 'crates/hozo_parser/src/jsx/primitives.rs'), 'utf8')
   const primitives = new Set(
     [...jsx.matchAll(/"([A-Za-z]+)" => Some\(Primitive::/g)].map((m) => m[1]),
   )

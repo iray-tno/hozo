@@ -101,7 +101,7 @@ function main() {
   }
   if (failures) {
     console.error(
-      `\n${failures} disagreement(s). Correct the side that is wrong. Both manifest fields and PATTERN_HOSTS are authored in scripts/style-slots/catalog.mjs: run node scripts/style-slots/generate.mjs and pnpm manifests after changing it. The primitive mapping is primitive_for_name in crates/hozo_parser/src/jsx.rs.`,
+      `\n${failures} disagreement(s). Correct the side that is wrong. Both manifest fields and PATTERN_HOSTS are authored in scripts/style-slots/catalog.mjs: run node scripts/style-slots/generate.mjs and pnpm manifests after changing it. The primitive mapping is primitive_for_name in crates/hozo_parser/src/jsx/primitives.rs.`,
     )
     process.exit(1)
   }

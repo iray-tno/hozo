@@ -99,7 +99,7 @@ Fidelity); it makes sure that whatever is not yet supported is never silent.
 
 | # | Fact | Where | Who can contribute |
 | --- | --- | --- | --- |
-| F1 | Which exports the compiler lowers, and as what | `primitive_for_name`, `crates/hozo_parser/src/jsx.rs`, over the closed `Primitive` enum | Hozo only |
+| F1 | Which exports the compiler lowers, and as what | `primitive_for_name`, `crates/hozo_parser/src/jsx/primitives.rs`, over the closed `Primitive` enum | Hozo only |
 | F2 | Which modules those exports are trusted from | `DEFAULT_PRIMITIVE_SOURCES`, `packages/compiler/src/sources.ts` | Hozo; a project may override |
 | F3 | Slot → style prop, owner, profile, events, gate, composition | `scripts/style-slots/catalog.mjs` → generated `hozo_ir/src/class_slots.rs`, `hozo_native/src/pattern_contracts.rs`, `patterns/src/slot-facts.native.ts` | `@hozo/patterns` only (27 components) |
 | F4 | Owner facts for form components | hand-written `packages/form/src/class-facts.native.ts` (the catalog's `NonControl` profile, value for value) and inline objects in each `.native.tsx` | `@hozo/form` only |
