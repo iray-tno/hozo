@@ -119,7 +119,7 @@ because a prebuilt package or a wrapper that forwards `className` never is.
   state". It runs in real Chrome, with the component's CSS both before and
   after the candidate stylesheet, enabled and disabled, against the actual
   Native resolver's array.
-- `crates/hozo_native/src/candidate.rs:27-37`: why environment conditions are
+- `crates/hozo_native/src/candidate/tests.rs:388-392`: why environment conditions are
   refused and element states are not.
 - `crates/hozo_native/src/spread_style.rs` and
   `packages/engine/src/spread-styles.ts`: a spread's `style` composed after

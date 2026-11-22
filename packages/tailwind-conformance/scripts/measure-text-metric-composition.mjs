@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { fileURLToPath } from 'node:url'
@@ -28,10 +28,13 @@ const facts = {
   revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
   dirty: !!execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(),
   sources: Object.fromEntries(
-    ['crates/hozo_native/src/candidate.rs', 'packages/engine/src/class-resolver.ts'].map((file) => [
-      file,
-      sha(readFileSync(path.join(root, file))),
-    ]),
+    [
+      'crates/hozo_native/src/candidate.rs',
+      ...readdirSync(path.join(root, 'crates/hozo_native/src/candidate')).map(
+        (name) => `crates/hozo_native/src/candidate/${name}`,
+      ),
+      'packages/engine/src/class-resolver.ts',
+    ].map((file) => [file, sha(readFileSync(path.join(root, file)))]),
   ),
   addon: sha(readFileSync(path.join(root, 'packages/compiler/hozo_napi.node'))),
 }
