@@ -9,8 +9,10 @@ mod dark;
 mod groups;
 mod guards;
 mod hooks;
+mod inline_parts;
 mod presence;
 mod stacked;
+mod unwired;
 
 use dark::with_dark_copies;
 pub(super) use hooks::RuntimeHook;
@@ -129,109 +131,23 @@ pub(super) fn build_style_entries(
         if props.is_empty() {
             continue;
         }
-        // A viewport-relative size can't live in the StyleSheet: its value
-        // is a number that changes when the device rotates. It becomes an
-        // inline object read from a hook instead, so it stays in the same
-        // style array -- and therefore in the same last-wins order -- as the
-        // static entry it sits beside.
-        let (viewport_props, props): (Vec<_>, Vec<_>) =
-            props.into_iter().partition(is_viewport_sized);
-        let viewport = viewport_object(&viewport_props);
-        if viewport.is_some() {
-            runtime.hooks.push(RuntimeHook::Viewport);
-        }
-        // A safe-area inset is the same kind of value: the device knows it
-        // and the build does not, and it moves when the device rotates.
-        let (safe_area_props, props): (Vec<_>, Vec<_>) =
-            props.into_iter().partition(is_safe_area_inset);
-        let safe_area = safe_area_object(&safe_area_props);
-        if safe_area.is_some() {
-            runtime.hooks.push(RuntimeHook::SafeArea);
-        }
-        let (animation_props, props): (Vec<_>, Vec<_>) = props
-            .into_iter()
-            .partition(|property| matches!(property, StyleProperty::Animation(_)));
-        // `animate-none` asks for no hook: it turns an animation off
-        // rather than being one. The last one under this condition wins, as
-        // the later `animation` declaration does in CSS.
-        let animation_hook = match animation_props.last() {
-            Some(StyleProperty::Animation(name)) if *name != hozo_ir::Animation::None => {
-                Some(RuntimeHook::Animation(*name))
-            }
-            _ => None,
-        };
-        let animation = animation_hook.as_ref().map(RuntimeHook::binding);
-        if let Some(hook) = animation_hook {
-            runtime.hooks.push(hook);
-        }
-        // A project's own `@keyframes` (decision 007, slice 3), timed by the
-        // `animation-*` longhands written beside it: those under this same
-        // condition, over the unconditional ones. The longhands themselves
-        // never reach the style array -- they are the hook's argument.
-        let (keyframe_props, props): (Vec<_>, Vec<_>) = props
-            .into_iter()
-            .filter(|property| !crate::keyframes::is_timing(property))
-            .partition(|property| {
-                matches!(
-                    property,
-                    StyleProperty::AnimationName(_) | StyleProperty::ThemeAnimation(_)
-                )
-            });
-        let keyframes = keyframe_props.last().and_then(|property| {
-            // One of the project's own Tailwind animations: the theme holds
-            // both the keyframes and the timing, as `--animate-<name>`.
-            if let StyleProperty::ThemeAnimation(name) = property {
-                let Some(keyframes) = theme.animation(name).and_then(|animation| animation.keyframes.as_ref())
-                else {
-                    diagnostics.push(unwired_variant(
-                        node,
-                        &format!(
-                            "`animate-{name}` names an animation the project's Tailwind theme does not define \
-                             with `--animate-{name}` and its `@keyframes`, so there is nothing to run here. \
-                             On Web the class reaches the page, where the project's own CSS can still run it."
-                        ),
-                        Severity::Warning,
-                    ));
-                    return None;
-                };
-                let unread = theme.animation(name).map(|animation| animation.unread.as_slice()).unwrap_or_default();
-                if !unread.is_empty() {
-                    diagnostics.push(unwired_variant(
-                        node,
-                        &format!(
-                            "`animate-{name}`: {} in its `@keyframes` could not be read on React Native, so \
-                             the frames run without {}. On Web the keyframes apply as written.",
-                            unread.iter().map(|declaration| format!("`{declaration}`")).collect::<Vec<_>>().join(", "),
-                            if unread.len() == 1 { "it" } else { "them" },
-                        ),
-                        Severity::Warning,
-                    ));
-                }
-                let shorthand = theme.animation(name).map(|animation| animation.shorthand.as_str()).unwrap_or_default();
-                let timing = crate::keyframes::shorthand_timing(shorthand);
-                let timing: Vec<&StyleProperty> = timing.iter().collect();
-                let spec = crate::keyframes::spec(keyframes, &timing, theme, node, diagnostics);
-                let hook = runtime.keyframes_hook(spec);
-                let binding = hook.binding();
-                runtime.hooks.push(hook);
-                return Some(binding);
-            }
-            let StyleProperty::AnimationName(keyframes) = property else { return None };
-            let timing: Vec<&StyleProperty> = declarations
-                .iter()
-                .filter(|declaration| declaration.condition == Condition::Always)
-                .chain(declarations.iter().filter(|declaration| {
-                    condition != Condition::Always && declaration.condition == condition
-                }))
-                .map(|declaration| &declaration.property)
-                .filter(|property| crate::keyframes::is_timing(property))
-                .collect();
-            let spec = crate::keyframes::spec(keyframes, &timing, theme, node, diagnostics);
-            let hook = runtime.keyframes_hook(spec);
-            let binding = hook.binding();
-            runtime.hooks.push(hook);
-            Some(binding)
-        });
+        let (
+            props,
+            inline_parts::InlineParts {
+                viewport,
+                safe_area,
+                animation,
+                keyframes,
+            },
+        ) = inline_parts::inline_parts(
+            props,
+            &condition,
+            declarations,
+            node,
+            theme,
+            runtime,
+            diagnostics,
+        );
         if props.is_empty()
             && viewport.is_none()
             && safe_area.is_none()
@@ -276,20 +192,48 @@ pub(super) fn build_style_entries(
             parts.iter().map(|part| format!("{prefix}{part}")).collect()
         };
         match &condition {
-            Condition::Disabled | Condition::Enabled | Condition::Aria(_)
-            | Condition::Environment(_) | Condition::FirstChild | Condition::LastChild
-            | Condition::Structural(_) | Condition::Not(_) | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible
-            | Condition::Responsive(_) | Condition::Width { .. } | Condition::Dark
-            | Condition::Container { .. } | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown) => {
+            Condition::Disabled
+            | Condition::Enabled
+            | Condition::Aria(_)
+            | Condition::Environment(_)
+            | Condition::FirstChild
+            | Condition::LastChild
+            | Condition::Structural(_)
+            | Condition::Not(_)
+            | Condition::Pressed
+            | Condition::Hover
+            | Condition::Focus
+            | Condition::FocusVisible
+            | Condition::Responsive(_)
+            | Condition::Width { .. }
+            | Condition::Dark
+            | Condition::Container { .. }
+            | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown) => {
                 match guards::resolve(&condition, target, source, runtime) {
-                    Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => base_parts.extend(parts.clone()),
+                    Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => {
+                        base_parts.extend(parts.clone())
+                    }
                     Ok(guards::Guard::Known(true)) => conditional.extend(guarded("")),
                     Ok(guards::Guard::Known(false)) => {}
-                    Ok(guards::Guard::Dynamic(guard)) => conditional.extend(guarded(&format!("{guard} && "))),
-                    Ok(guards::Guard::Interactive(guard)) => pressed_parts.extend(guarded(&format!("{guard} && "))),
-                    Ok(guards::Guard::InteractiveScoped { available, predicate }) => pressed_parts.extend(guarded(&format!("({available} && {predicate}) && "))),
-                    Ok(guards::Guard::Scoped { available, predicate }) => conditional.extend(guarded(&format!("({available} && {predicate}) && "))),
-                    Err(reason) => diagnostics.push(unwired_variant(node, &reason, Severity::Error)),
+                    Ok(guards::Guard::Dynamic(guard)) => {
+                        conditional.extend(guarded(&format!("{guard} && ")))
+                    }
+                    Ok(guards::Guard::Interactive(guard)) => {
+                        pressed_parts.extend(guarded(&format!("{guard} && ")))
+                    }
+                    Ok(guards::Guard::InteractiveScoped {
+                        available,
+                        predicate,
+                    }) => {
+                        pressed_parts.extend(guarded(&format!("({available} && {predicate}) && ")))
+                    }
+                    Ok(guards::Guard::Scoped {
+                        available,
+                        predicate,
+                    }) => conditional.extend(guarded(&format!("({available} && {predicate}) && "))),
+                    Err(reason) => {
+                        diagnostics.push(unwired_variant(node, &reason, Severity::Error))
+                    }
                 }
             }
             Condition::Always => base_parts.extend(parts.clone()),
@@ -370,7 +314,9 @@ pub(super) fn build_style_entries(
                     Ok(guards::Guard::InteractiveScoped {
                         available,
                         predicate,
-                    }) => pressed_parts.extend(guarded(&format!("({available} && {predicate}) && "))),
+                    }) => {
+                        pressed_parts.extend(guarded(&format!("({available} && {predicate}) && ")))
+                    }
                     Ok(guards::Guard::Known(true)) => conditional.extend(guarded("")),
                     Ok(guards::Guard::Known(false)) => {}
                     Ok(guards::Guard::Dynamic(guard)) => {
@@ -388,49 +334,16 @@ pub(super) fn build_style_entries(
                     }
                 }
             }
-            Condition::DataAttribute(_) if presence_closed(&condition) => match frames.as_deref_mut() {
-                Some(frames) => frames.exit.extend(guarded("")),
-                None => diagnostics.push(unwired_variant(
-                    node,
-                    EXIT_WITHOUT_TRANSITION,
-                    Severity::Warning,
-                )),
-            },
-            // `data-…:` selects on an attribute, and React Native views
-            // have none: what the DOM keeps in an attribute a React Native
-            // component keeps in a prop, and Hozo cannot read a prop it
-            // does not model. `has-…:` and `supports-…:` are a descendant
-            // selector and a CSS feature query, neither of which exists
-            // here at all.
-            Condition::DataAttribute(_)
-            | Condition::Supports(_)
-            | Condition::Has(_)
-            | Condition::HasSelector(_) => diagnostics.push(unwired_variant(
-                node,
-                &format!(
-                    "`{}:` has no React Native equivalent -- it selects on an attribute, a descendant or a CSS feature, and there are no selectors here. On Web the same class works.",
-                    variant_spelling(&condition).unwrap_or_default()
-                ),
-                Severity::Error,
-            )),
-            // Focus on a *descendant*, which is a relation, and relations
-            // on Native are the one thing this backend keeps having to
-            // refuse -- see `peer-` below. `focus:` works because an
-            // element knows its own focus; nothing here knows a subtree's.
-            Condition::FocusWithin => diagnostics.push(unwired_variant(
-                node,
-                "`focus-within:` asks whether anything *inside* this element has focus, and React Native gives an element no way to know that. `focus:` on the element that actually takes focus is the version that works on both platforms.",
-                Severity::Error,
-            )),
-            // Not a gap in this backend so much as a question the platform
-            // cannot be asked: a link the user has been to needs links and
-            // a history to have been in them, and neither is a thing React
-            // Native has.
-            Condition::Visited => diagnostics.push(unwired_variant(
-                node,
-                "`visited:` styles a link the user has already been to. React Native has no browsing history and no links to have been in one, so there is nothing here for this to be true of. On Web the same class works -- for colours; the browser discards the rest.",
-                Severity::Error,
-            )),
+            Condition::DataAttribute(_) if presence_closed(&condition) => {
+                match frames.as_deref_mut() {
+                    Some(frames) => frames.exit.extend(guarded("")),
+                    None => diagnostics.push(unwired_variant(
+                        node,
+                        EXIT_WITHOUT_TRANSITION,
+                        Severity::Warning,
+                    )),
+                }
+            }
             // The first frame of an enter animation (decision 007).
             // `HozoAnimated` starts from these values and transitions to
             // the element's style, which is what `@starting-style` does on
@@ -445,80 +358,6 @@ pub(super) fn build_style_entries(
                     Severity::Warning,
                 )),
             },
-            Condition::Open => diagnostics.push(unwired_variant(
-                node,
-                "`open:` matches an open `<details>`, `<dialog>` or popover by its `open` attribute. React Native has no attribute to read, and `Details` keeps its open state to itself, so nothing here can tell this element is open. On Web the same class works.",
-                Severity::Error,
-            )),
-            Condition::Control(state) => diagnostics.push(unwired_variant(
-                node,
-                &format!(
-                    "`{}:` matches a checkbox, a radio or a form's default button by the DOM's own state. React Native has none of those elements and no selector to ask with. Style from the state you already hold instead -- `aria-checked:` reads `accessibilityState`, which works on both platforms. On Web the same class works.",
-                    state.variant_name(),
-                ),
-                Severity::Error,
-            )),
-            Condition::Target => diagnostics.push(unwired_variant(
-                node,
-                "`target:` matches the element the document's URL fragment points at. React Native has no document and no URL to point with, so there is nothing for this to be true of. On Web the same class works.",
-                Severity::Error,
-            )),
-            // Not a gap that could be closed. React Native's styles are
-            // objects handed to components, and a pseudo-element is a box
-            // the browser makes that has no component to hand one to.
-            // `placeholder:` is the near miss: React Native carries a
-            // placeholder's colour on `TextInput`'s own
-            // `placeholderTextColor` prop, which is a colour and not a
-            // style object, so it cannot take the rest of what
-            // `placeholder:` is allowed to set.
-            Condition::PseudoElement(pseudo) => diagnostics.push(unwired_variant(
-                node,
-                &format!(
-                    "`{}:` styles a pseudo-element, which React Native does not have -- its styles go to components, and there is no component here to give one to. Render the content as a real element instead. On Web the same class works.",
-                    pseudo.variant_name(),
-                ),
-                Severity::Error,
-            )),
-            Condition::FormState(state) => diagnostics.push(unwired_variant(
-                node,
-                &format!(
-                    "`{}:` is the DOM's constraint validation, which React Native does not have -- there is no `required`, no `pattern`, and nothing for `:invalid` to be true of. Validate in your own code and drive the style from a `className` guard. On Web the same class works.",
-                    state.variant_name(),
-                ),
-                Severity::Error,
-            )),
-            // A subtree marker that survived the partition above, which
-            // means it is wrapped in something -- `not-*:` and the like.
-            // Handing a style down is the answer to `*:`; there is no
-            // answer to the negation of one, because the set it names is
-            // "everything that is not a child of this", which React Native
-            // has no way to enumerate.
-            Condition::Subtree { .. } => diagnostics.push(unwired_variant(
-                node,
-                "`*:`/`**:` is handed to this element's children at build time, and this one is wrapped in a variant that cannot be. On Web the same class works from the selector.",
-                Severity::Error,
-            )),
-            Condition::Peer(_) => diagnostics.push(unwired_variant(
-                node,
-                "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
-                 and there are none here -- a parent can hand its state down through context, and \
-                 a sibling has nowhere to hand it. On Web the same class works.",
-                Severity::Error,
-            )),
-            Condition::In(_) => diagnostics.push(unwired_variant(
-                node,
-                "`in-…:` asks whether any ancestor is in a state, through a selector. React \
-                 Native has no selectors, and with no `group` marker there is no ancestor to hand \
-                 the state down from. Put `group` on the ancestor and write `group-…:`. On Web \
-                 the same class works.",
-                Severity::Error,
-            )),
-            Condition::Inert => diagnostics.push(unwired_variant(
-                node,
-                "`inert:` matches an element under the `inert` attribute, which React Native \
-                 does not have. On Web the same class works.",
-                Severity::Error,
-            )),
             Condition::Expr(expr) => {
                 let guard = render_condition_expr(source, expr);
                 // A JS guard decides whether its classes are present, and
@@ -534,43 +373,7 @@ pub(super) fn build_style_entries(
                     conditional.extend(parts);
                 }
             }
-            // Refused rather than shelved. React Native has no selector
-            // engine at all -- not a missing feature but a different
-            // architecture, since styles there are objects handed to
-            // elements rather than rules matched against a tree. `[&>*]`
-            // asks which elements match a pattern, and there is nothing on
-            // that side of the compiler that could ever answer it.
-            //
-            // An error, not a warning: the author wrote a selector, and a
-            // build that quietly rendered without it would look like it
-            // worked.
-            Condition::ArbitrarySelector(selector) => diagnostics.push(Diagnostic {
-                code: DiagnosticCode::WebOnlyPropertyOnNative,
-                severity: Severity::Error,
-                message: format!(
-                    "`[{selector}]:` is a CSS selector, and React Native has no selector engine \
-                     to match it with -- styles there are objects attached to elements, not \
-                     rules matched against a tree. Move the condition into JSX, or apply the \
-                     style to the elements directly."
-                ),
-                span: node.span,
-            }),
-            // `@media` and `@supports` both ask the browser a question
-            // about itself. The nearest Native equivalents are real but
-            // unrelated -- `useWindowDimensions` for width, `Platform` for
-            // capability -- and neither is a translation of the at-rule
-            // the author wrote.
-            Condition::ArbitraryAtRule(rule) => diagnostics.push(Diagnostic {
-                code: DiagnosticCode::WebOnlyPropertyOnNative,
-                severity: Severity::Error,
-                message: format!(
-                    "`[{rule}]:` is a CSS at-rule, which only a browser can evaluate. Hozo's \
-                     own breakpoint variants do work on React Native -- they read \
-                     `useWindowDimensions` -- so a width query is better written as `md:` than \
-                     as a raw `@media`."
-                ),
-                span: node.span,
-            }),
+            other => diagnostics.push(unwired::unwired_diagnostic(other, node)),
         }
         if canonical_input {
             // These two buckets describe where a guard gets its value, not
