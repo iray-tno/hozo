@@ -6,13 +6,18 @@
 //! simple source-order-within-condition flattening (see `css.rs`) stay
 //! correct without needing RNW/StyleX-style explicit priority tables.
 
+mod class_slots;
 mod css;
 mod markup;
+mod navigation;
 mod owner_class;
 mod passthrough;
+mod press;
+mod scroll;
 mod theme_variables;
 pub use owner_class::lower_owner_class;
 mod source_evidence;
+mod text_input;
 use source_evidence::Rendered;
 pub use source_evidence::SourceCopy;
 #[cfg(test)]
@@ -1257,6 +1262,16 @@ fn push_rules_using(
     }
 }
 
+/// What `render_node`'s attribute phases (`press`, `passthrough`) read
+/// about the element being rendered.
+#[derive(Clone, Copy)]
+pub(crate) struct Element<'n> {
+    pub(crate) node: &'n Node,
+    pub(crate) tag: &'n str,
+    pub(crate) disabled_expr: &'n Option<String>,
+    pub(crate) is_hozo_component: bool,
+}
+
 fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
     let source = cx.source;
     let theme = cx.theme;
@@ -1485,104 +1500,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             }
             format!(" className={{{value}}}")
         };
-    // A component's other class lists, compiled the same way and handed to
-    // it under the prop the author wrote (`removeClassName`).
-    for slot in node
-        .props
-        .class_slots
-        .iter()
-        .filter(|slot| slot.slot != hozo_ir::ClassSlot::ROOT)
-    {
-        let slot_class = cx.allocator.alloc();
-        let before = cx.rules.len();
-        push_rules_using(
-            &slot_class,
-            &slot.style,
-            slot.span,
-            theme,
-            cx.rules,
-            cx.diagnostics,
-            css::render_slot_rule,
-        );
-        let produced = (cx.rules.len() != before).then_some(slot_class);
-        let classes: Vec<&str> = produced
-            .iter()
-            .map(String::as_str)
-            .chain(slot.carried.iter().map(String::as_str))
-            .collect();
-        if !slot.fallback.is_empty() || slot.evaluation.is_some() {
-            for expr in &slot.fallback {
-                let code = hozo_parser::class_fallback_code(
-                    &source_text(source, *expr),
-                    slot.slot.class_prop,
-                );
-                cx.diagnostics.push(hozo_ir::Diagnostic {
-                    code,
-                    severity: hozo_ir::Severity::Warning,
-                    message: format!("`{}` retains an opaque class expression; its CSS comes from the project-wide candidate stylesheet. Use a static string for build-time validation.{}", slot.slot.class_prop, hozo_parser::class_fallback_note(code)),
-                    span: slot.span,
-                });
-            }
-            // The fallback remains an authored value, not a condition
-            // emitted onto the widget root instead of the slot owner.
-            let compiled = std::iter::once(format!("{:?}", classes.join(" ")))
-                .chain(class_guards(&slot.style, source))
-                .collect::<Vec<_>>()
-                .join(", ");
-            // With no unconditional text, an inactive branch is an empty
-            // class list. A guard/base marker must not turn it truthy and
-            // suppress the component's empty-class defaults.
-            let compiled = if slot.evaluation.is_some()
-                && slot
-                    .style
-                    .iter()
-                    .all(|d| matches!(d.condition, hozo_ir::Condition::Expr(_)))
-            {
-                let active = slot
-                    .style
-                    .iter()
-                    .filter_map(|d| match &d.condition {
-                        hozo_ir::Condition::Expr(expression) => {
-                            Some(render_condition_expr(source, expression))
-                        }
-                        _ => None,
-                    })
-                    .collect::<std::collections::BTreeSet<_>>()
-                    .into_iter()
-                    .map(|expr| format!("({expr})"))
-                    .collect::<Vec<_>>()
-                    .join(" || ");
-                format!("...(({active}) ? [{compiled}] : [])")
-            } else {
-                compiled
-            };
-            let parts = std::iter::once(compiled)
-                .chain(slot.fallback.iter().map(|expr| {
-                    slot.evaluation.as_ref().map_or_else(
-                        || source_text(source, *expr).to_string(),
-                        |evaluation| evaluation.value(source, *expr),
-                    )
-                }))
-                .collect::<Vec<_>>()
-                .join(", ");
-            let mut value = format!("[{parts}].filter(Boolean).join(' ')");
-            if !slot.fallback.is_empty() {
-                value.push_str(
-                    ".replace(/\\S/, 'hozo-candidate-owner hozo-candidate-slot-owner $&')",
-                );
-            }
-            if let Some(evaluation) = &slot.evaluation {
-                value = evaluation.wrap(source, &value);
-            }
-            attrs.push_str(&format!(" {}={{{value}}}", slot.slot.class_prop));
-        } else if !classes.is_empty() {
-            attrs.push_str(&format!(
-                r#" {}="{}""#,
-                slot.slot.class_prop,
-                classes.join(" ")
-            ));
-        }
-    }
+    class_slots::class_slot_attrs(node, &mut attrs, cx);
     // A secondary list the compiler carries whole reaches the component as
     // written and its CSS comes from the candidate stylesheet, as an opaque
     // root `className` does. Said the same way, at the attribute, so the
@@ -1814,146 +1732,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             ));
         }
     }
-    // A tag that lowered to a DOM element, rather than one carried
-    // verbatim: a foreign component supplies its own behaviour and a spread
-    // aimed at a `div` would be props it never asked for. Lowercase is the
-    // whole test -- JSX reserves it for host elements.
-    let lowered_to_dom = tag.chars().next().is_some_and(char::is_lowercase);
-    if lowered_to_dom && (node.primitive == Primitive::ScrollView || scrolls_by_style(node)) {
-        // Keyboard access for the scroll container, decided at runtime
-        // because nothing that decides it is a compile-time fact:
-        // whether it overflows depends on CSS, content and viewport,
-        // and whether it holds anything focusable depends on what a
-        // runtime expression rendered. See `hozoScrollable` and #99.
-        //
-        // Skipped entirely when the author wrote `tabIndex`. That is the
-        // whole of the precedence rule, and settling it here rather than
-        // in the runtime means there is no branch to get wrong: an
-        // author saying `tabIndex={-1}` means it, and a spread that is
-        // never emitted cannot argue.
-        let authored_tab_index = node.props.passthrough.iter().any(|prop| {
-            !prop.is_spread
-                && source_text(source, prop.span)
-                    .trim_start()
-                    .starts_with("tabIndex")
-        });
-        if !authored_tab_index {
-            attrs.push_str(" {...hozoScrollable()}");
-        }
-    }
-    if node.primitive == Primitive::ScrollView {
-        if tag == "HozoScrollView" {
-            if let Some(refreshing) = &node.props.refreshing {
-                attrs.push_str(&format!(
-                    " refreshing={{{}}}",
-                    render_condition_expr(source, refreshing)
-                ));
-            }
-            if let Some(on_refresh) = node.props.on_refresh {
-                attrs.push_str(&format!(
-                    " onRefresh={{{}}}",
-                    source_text(source, on_refresh)
-                ));
-            }
-            if let Some(value) = node.props.keyboard_should_persist_taps {
-                attrs.push_str(&format!(
-                    " keyboardShouldPersistTaps={{{}}}",
-                    source_text(source, value)
-                ));
-            }
-            if let Some(value) = &node.props.shows_vertical_scroll_indicator {
-                attrs.push_str(&format!(
-                    " showsVerticalScrollIndicator={{{}}}",
-                    render_condition_expr(source, value)
-                ));
-            }
-            if let Some(value) = &node.props.shows_horizontal_scroll_indicator {
-                attrs.push_str(&format!(
-                    " showsHorizontalScrollIndicator={{{}}}",
-                    render_condition_expr(source, value)
-                ));
-            }
-        } else if node.props.shows_vertical_scroll_indicator.is_some()
-            || node.props.shows_horizontal_scroll_indicator.is_some()
-        {
-            let horizontal = node
-                .props
-                .scroll_horizontal
-                .as_ref()
-                .map(|value| render_condition_expr(source, value))
-                .unwrap_or_else(|| "false".to_string());
-            let vertical = node
-                .props
-                .shows_vertical_scroll_indicator
-                .as_ref()
-                .map(|value| render_condition_expr(source, value))
-                .unwrap_or_else(|| "true".to_string());
-            let horizontal_indicator = node
-                .props
-                .shows_horizontal_scroll_indicator
-                .as_ref()
-                .map(|value| render_condition_expr(source, value))
-                .unwrap_or_else(|| "true".to_string());
-            attrs.push_str(&format!(
-                " data-hozo-hide-scrollbar={{({horizontal} ? !({horizontal_indicator}) : !({vertical})) ? '' : undefined}}"
-            ));
-        }
-    } else if node.primitive == Primitive::FlatList {
-        if let Some(refreshing) = &node.props.refreshing {
-            attrs.push_str(&format!(
-                " refreshing={{{}}}",
-                render_condition_expr(source, refreshing)
-            ));
-        }
-        if let Some(on_refresh) = node.props.on_refresh {
-            attrs.push_str(&format!(
-                " onRefresh={{{}}}",
-                source_text(source, on_refresh)
-            ));
-        }
-        if let Some(value) = node.props.keyboard_should_persist_taps {
-            attrs.push_str(&format!(
-                " keyboardShouldPersistTaps={{{}}}",
-                source_text(source, value)
-            ));
-        }
-        if let Some(value) = &node.props.shows_vertical_scroll_indicator {
-            attrs.push_str(&format!(
-                " showsVerticalScrollIndicator={{{}}}",
-                render_condition_expr(source, value)
-            ));
-        }
-        if let Some(value) = &node.props.shows_horizontal_scroll_indicator {
-            attrs.push_str(&format!(
-                " showsHorizontalScrollIndicator={{{}}}",
-                render_condition_expr(source, value)
-            ));
-        }
-    } else if node.primitive == Primitive::RefreshControl {
-        if let Some(refreshing) = &node.props.refreshing {
-            attrs.push_str(&format!(
-                " refreshing={{{}}}",
-                render_condition_expr(source, refreshing)
-            ));
-        }
-        if let Some(on_refresh) = node.props.on_refresh {
-            attrs.push_str(&format!(
-                " onRefresh={{{}}}",
-                source_text(source, on_refresh)
-            ));
-        }
-    }
-    if matches!(node.primitive, Primitive::ScrollView | Primitive::FlatList) {
-        if let Some(value) = node.props.on_scroll {
-            attrs.push_str(&format!(" onScroll={{{}}}", source_text(source, value)));
-        }
-        if let Some(value) = node.props.scroll_event_throttle {
-            attrs.push_str(&format!(
-                " scrollEventThrottle={{{}}}",
-                source_text(source, value)
-            ));
-        }
-    }
+    scroll::scroll_attrs(node, tag, source, &mut attrs);
     if node.primitive == Primitive::Image {
         if let Some(label) = node.props.accessibility_label {
             attrs.push_str(&format!(" alt={{{}}}", source_text(source, label)));
@@ -1965,113 +1744,18 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             render_condition_expr(source, open)
         ));
     }
-    if let Some(on_press) = node.props.on_press {
-        let name = if is_hozo_component {
-            "onPress"
-        } else {
-            "onClick"
-        };
-        // Not when the author already wrote the name this maps onto.
-        //
-        // `onPress` is React Native's spelling and becomes `onClick` here,
-        // so an element carrying both got `onClick` twice. JSX resolves a
-        // duplicate last-wins and the passthrough is emitted last, so the
-        // author's `onClick` won and their `onPress` was dropped in
-        // silence -- the prop the compiler models losing to the one it
-        // carries, which is backwards.
-        //
-        // The Native backend already guards its semantic props this way,
-        // for the same reason and with the same treatment of a spread: its
-        // contents are unknowable here, so the mapping stays, and if the
-        // spread does carry the prop it lands last and still wins.
-        let authored_target = node
-            .props
-            .passthrough
-            .iter()
-            .filter(|prop| !prop.is_spread)
-            .filter_map(|prop| prop.name.as_deref())
-            .any(|prop| prop == name);
-        // Keyed off `tabIndex` being in the emitted attributes rather than
-        // off the primitive: that attribute *is* the statement that Hozo
-        // made this element focusable itself, so "Hozo put it in the tab
-        // order" and "Hozo owes it the rest of being a control" cannot
-        // drift apart.
-        if tag == "a" && disabled_expr.is_some() && !authored_target {
-            // Anchors have no native disabled state. Keep the real href
-            // for copying, SEO, and browser menus, but suppress ordinary
-            // activation while disabled. The uncompiled HozoLink uses the
-            // same conditional handler shape.
-            // `event` binds only the disabled arm, not the authored handler
-            // in the other arm. Trace that value, not the generated callback.
-            let prefix = format!(
-                " onClick={{({}) ? (event) => event.preventDefault() : ",
-                disabled_expr.as_deref().unwrap_or("false"),
-            );
-            source_evidence::expression(
-                &mut attrs,
-                &mut attr_copies,
-                source,
-                &source_text(source, on_press),
-                &prefix,
-                "}",
-            );
-        } else if synthesized_control {
-            // One call, not five expressions. `disabled` means five things
-            // at once (see docs/decisions/001) and emitting them
-            // separately is how they came apart: this announced
-            // `aria-disabled` and then ran the handler anyway, and once
-            // keyboard activation existed it ran on Enter and Space too.
-            //
-            // It also means the guard expression is evaluated once rather
-            // than once per thing it decides.
-            // The authored function is created in its original scope and
-            // passed as a value. The helper does not wrap its source body.
-            let suffix = format!(
-                "{})}}",
-                disabled_expr
-                    .as_ref()
-                    .map(|expr| format!(", {expr}"))
-                    .unwrap_or_default(),
-            );
-            source_evidence::expression(
-                &mut attrs,
-                &mut attr_copies,
-                source,
-                &source_text(source, on_press),
-                " {...hozoInteractive(",
-                &suffix,
-            );
-            *cx.uses_key_activation = true;
-            // `hozoInteractive` marks the element `data-hozo-pressable`,
-            // and the rule that gives it a pointer lives with the view base.
-            *cx.uses_view_base = true;
-        } else if authored_target {
-            cx.diagnostics.push(hozo_ir::Diagnostic {
-                code: hozo_ir::DiagnosticCode::PropCollidesWithPlatformName,
-                severity: hozo_ir::Severity::Warning,
-                message: format!(
-                    "`onPress` compiles to `{name}` on Web and this element already has one,                      so the `onPress` handler is not used. Keep whichever you meant."
-                ),
-                span: node.span,
-            });
-        } else {
-            source_evidence::expression(
-                &mut attrs,
-                &mut attr_copies,
-                source,
-                &source_text(source, on_press),
-                &format!(" {name}={{"),
-                "}",
-            );
-            // A real `<button>` is a control already, but since Tailwind
-            // v4's Preflight its cursor is `default`. The same marker as a
-            // synthesized control; the rule itself skips `:disabled`.
-            if node.primitive == Primitive::Button && tag == "button" {
-                attrs.push_str(" data-hozo-pressable=\"\"");
-                *cx.uses_view_base = true;
-            }
-        }
-    }
+    press::on_press_attrs(
+        Element {
+            node,
+            tag,
+            disabled_expr: &disabled_expr,
+            is_hozo_component,
+        },
+        synthesized_control,
+        &mut attrs,
+        &mut attr_copies,
+        cx,
+    );
     if tag == "a"
         && node.props.on_press.is_none()
         && !node
@@ -2247,108 +1931,9 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
 
     // The `TextInput` props the DOM has under another name.
     //
-    // Every one of these was passed through before, which is the right
-    // default for a prop only React Native has and the wrong one for a
-    // prop the DOM has and spells differently. `onChangeText` reached
-    // `<input onChangeText={…}>`: the field rendered, React warned, and
-    // typing in it did nothing.
-    if !node.props.text_input.is_empty() {
-        let text_input = &node.props.text_input;
-        if let Some(handler) = text_input.on_change_text {
-            // The wrapper the fallback `TextInput` in `@hozo/core` has
-            // always written, generated here instead. Parenthesised
-            // because the handler is an arbitrary expression and
-            // `a || b` beside a call would bind the wrong way. Optional,
-            // because a wrapper passing its own optional prop on hands
-            // over `undefined`, and typing must not throw (#1118).
-            attrs.push_str(&format!(
-                " onChange={{(event) => ({})?.(event.target.value)}}",
-                source_text(source, handler),
-            ));
-        }
-        // Two spellings of one attribute. React Native 0.87 has both, so
-        // an author may write either, and `editable` is the negative of
-        // the two -- `editable={false}` is `readOnly`.
-        if let Some(editable) = text_input.editable.as_ref() {
-            attrs.push_str(&match editable {
-                hozo_ir::ConditionExpr::Static(true) => String::new(),
-                hozo_ir::ConditionExpr::Static(false) => " readOnly".to_string(),
-                other => format!(" readOnly={{!({})}}", render_condition_expr(source, other)),
-            });
-        }
-        if let Some(read_only) = text_input.read_only.as_ref() {
-            attrs.push_str(&boolean_attribute("readOnly", read_only, source));
-        }
-        if let Some(auto_correct) = text_input.auto_correct.as_ref() {
-            attrs.push_str(&match auto_correct {
-                hozo_ir::ConditionExpr::Static(true) => " autoCorrect=\"on\"".to_string(),
-                hozo_ir::ConditionExpr::Static(false) => " autoCorrect=\"off\"".to_string(),
-                other => format!(
-                    // Evaluate an arbitrary author expression once, preserving
-                    // `undefined` (the platform default) rather than disabling it.
-                    " autoCorrect={{((value) => value === undefined ? undefined : value ? 'on' : 'off')({})}}",
-                    render_condition_expr(source, other),
-                ),
-            });
-        }
-        if let Some(secure) = text_input.secure_text_entry.as_ref() {
-            attrs.push_str(&match secure {
-                hozo_ir::ConditionExpr::Static(true) => " type=\"password\"".to_string(),
-                hozo_ir::ConditionExpr::Static(false) => String::new(),
-                other => format!(
-                    " type={{({}) ? 'password' : 'text'}}",
-                    render_condition_expr(source, other),
-                ),
-            });
-        }
-        if let Some(mode) = text_input.dom_input_mode() {
-            attrs.push_str(&format!(" inputMode=\"{mode}\""));
-        }
-        // `numberOfLines` is only `rows` on the element `multiline`
-        // produces. On an `<input>` there are no rows to set.
-        if let Some(rows) = text_input.number_of_lines.filter(|_| is_textarea(node)) {
-            attrs.push_str(&format!(" rows={{{}}}", source_text(source, rows)));
-        }
-    }
+    text_input::text_input_attrs(node, source, &mut attrs);
 
-    // `replace` belongs to an application router, not to HTML. Preserve
-    // it on the real anchor as inert data so @hozo/navigation's delegated
-    // click handler can reconstruct the request for compiled output too.
-    if let Some(replace) = &node.props.navigation_replace {
-        if tag == "a" {
-            match replace {
-                hozo_ir::ConditionExpr::Static(true) => {
-                    attrs.push_str(" data-hozo-navigation-replace=\"\"");
-                }
-                hozo_ir::ConditionExpr::Static(false) => {}
-                other => attrs.push_str(&format!(
-                    " data-hozo-navigation-replace={{({}) ? '' : undefined}}",
-                    render_condition_expr(source, other)
-                )),
-            }
-        } else if tag == "Pressable" {
-            attrs.push_str(&boolean_attribute("replace", replace, source));
-        }
-    }
-
-    // Like `replace`, prefetch intent belongs to the router rather than
-    // HTML. The provider observes this inert marker on hover or focus.
-    if let Some(prefetch) = &node.props.navigation_prefetch {
-        if tag == "a" {
-            match prefetch {
-                hozo_ir::ConditionExpr::Static(true) => {
-                    attrs.push_str(" data-hozo-navigation-prefetch=\"\"");
-                }
-                hozo_ir::ConditionExpr::Static(false) => {}
-                other => attrs.push_str(&format!(
-                    " data-hozo-navigation-prefetch={{({}) ? '' : undefined}}",
-                    render_condition_expr(source, other)
-                )),
-            }
-        } else if tag == "Pressable" {
-            attrs.push_str(&boolean_attribute("prefetch", prefetch, source));
-        }
-    }
+    navigation::navigation_attrs(node, tag, source, &mut attrs);
 
     // `external`, which is Hozo's own spelling and not the DOM's.
     //
@@ -2373,7 +1958,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
     // an unknown RN-specific prop is still carried as written, because a
     // visible React warning is safer than silently deleting app behavior.
     passthrough::emit(
-        passthrough::Element {
+        Element {
             node,
             tag,
             disabled_expr: &disabled_expr,

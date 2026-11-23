@@ -5,17 +5,8 @@ use hozo_ir::{Node, Primitive, SourceCopy};
 
 use crate::{
     attribute_value_slice, attribute_value_source, omit_later_names, render_verbatim,
-    source_evidence, source_text, spread_argument, WebRenderContext,
+    source_evidence, source_text, spread_argument, Element, WebRenderContext,
 };
-
-/// What the passthrough loop needs to know about the element being rendered.
-#[derive(Clone, Copy)]
-pub(crate) struct Element<'n> {
-    pub(crate) node: &'n Node,
-    pub(crate) tag: &'n str,
-    pub(crate) disabled_expr: &'n Option<String>,
-    pub(crate) is_hozo_component: bool,
-}
 
 /// `target` and `rel` for an `<a>`'s `external` prop or a hand-written
 /// `_blank`. True when `external` set `target`, so the authored one is dropped.
