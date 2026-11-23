@@ -109,7 +109,7 @@ because a prebuilt package or a wrapper that forwards `className` never is.
 
 - `packages/compiler/README.md`, "Candidate stylesheet cascade": the
   specificity values and the Native array order.
-- `crates/hozo_web/src/lib.rs:458-466`: the owned copy's selector.
+- `crates/hozo_web/src/candidates.rs:114-123`: the owned copy's selector.
 - `crates/hozo_native/src/native_tests/conditions.rs:1659`,
   `a_callers_class_goes_after_the_resting_look_and_before_the_state`. Its
   order is base, then `md:`, then the branch, then `hozoClasses(className, …)`,
