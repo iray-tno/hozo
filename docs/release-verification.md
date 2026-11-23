@@ -55,6 +55,11 @@ after every required check completes.
   A real browser checks the application's overridden theme colour and exercises
   pointer and keyboard activation. Neither React Native nor RNW is installed in
   that Web application.
+- The packed CLI plans the correct dependencies for a Vite starter. The fixture
+  installs the corresponding local tarballs, then runs `hozo init --write`,
+  its setup checks, and the Vite production build. The planning check is separate
+  from fetching packages by version on npm: an unpublished version cannot be
+  added by name, even when pnpm has a workspace override for that dependency.
 - Fresh Android and iOS production Metro bundles resolve the installed Native
   entry points. RN's own CLI discovers the optional Android module and its actual
   codegen produces specs from the installed tarball.
