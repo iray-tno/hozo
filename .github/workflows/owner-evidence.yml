@@ -49,6 +49,7 @@ on:
       - 'crates/hozo_web/src/scroll.rs'
       - 'crates/hozo_web/src/text_input.rs'
       - 'crates/hozo_web/src/navigation.rs'
+      - 'crates/hozo_web/src/class_attribute.rs'
       - 'crates/hozo_web/src/class_slots.rs'
       - 'crates/hozo_web/src/accessibility.rs'
       - 'crates/hozo_native/src/conditions/guards.rs'
