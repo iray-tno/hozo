@@ -12,7 +12,12 @@ import { statSync } from 'node:fs'
 import path from 'node:path'
 
 import { inspectStaticModuleImports } from '@hozo/compiler'
-import { lowerModule, lowerModuleOrPrepare, sideEffectImport } from '@hozo/compiler/lower'
+import {
+  lowerModule,
+  lowerModuleOrPrepare,
+  sideEffectImport,
+  webModuleImportEdit,
+} from '@hozo/compiler/lower'
 import {
   importSpecifier,
   resolveStylexRequests,
@@ -170,16 +175,21 @@ export default function hozoLoader(source) {
         // from one designated entry: the candidate sheet has to be present
         // whichever module the dynamic className lives in, and a bundler
         // resolves the repeated import to a single module in its graph.
-        const code =
+        const imports =
           // The base layer first. Preflight is element selectors only, so
           // every utility outranks it on specificity either way, but order
           // is what decides the ties and there is no reason to leave them
           // to the graph.
           sideEffectImport(importSpecifier(file, options.preflightPath)) +
           sideEffectImport(`./${lowered.cssFileName}`) +
-          sideEffectImport(importSpecifier(file, options.candidateCssPath)) +
-          lowered.code
-        callback(null, code)
+          sideEffectImport(importSpecifier(file, options.candidateCssPath))
+        const edit = webModuleImportEdit(lowered.code, imports, absoluteFile)
+        callback(
+          null,
+          lowered.code.slice(0, edit.spanStart) +
+            edit.replacement +
+            lowered.code.slice(edit.spanEnd),
+        )
       } catch (error) {
         callback(error)
       } finally {

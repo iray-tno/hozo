@@ -143,7 +143,7 @@ test('the default Next loader uses the captured owner contract of the resolved p
       owners: null,
     }),
   )
-  const input = `import {Toolbar} from '${name}';export const A=()=> <Toolbar rootClassName="pt-2" nestedClassName="pt-5" className="pt-9"/>`
+  const input = `'use client'\nimport {Toolbar} from '${name}';export const A=()=> <Toolbar rootClassName="pt-2" nestedClassName="pt-5" className="pt-9"/>`
   writeFileSync(path.join(bridge, 'Consumer.tsx'), input)
   writeFileSync(file, `${input}\nexport {A as B} from 'bridge';`)
   const nestedImporterDir = path.join(root, 'src', 'other')
@@ -166,6 +166,7 @@ test('the default Next loader uses the captured owner contract of the resolved p
   ] as const) {
     const request = invoke(options, input, importer, '', resolveImport)
     const code = await request.work
+    assert.match(code, /^'use client'\nimport [^\n]+preflight\.css/)
     assert.match(code, new RegExp(`${selected}=\\{"hozo-owner-`))
     assert.ok(code.includes(untouched))
     assert.ok(code.includes('className="pt-9"'))
