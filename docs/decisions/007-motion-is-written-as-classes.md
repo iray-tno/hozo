@@ -18,7 +18,7 @@ Much of the underlying machinery has been built since then:
 | `motion-safe:` / `motion-reduce:` | `@media (prefers-reduced-motion…)` (`crates/hozo_web/src/css/shape.rs:145`) | `AccessibilityInfo.isReduceMotionEnabled` (`packages/engine/src/hooks.native.ts:296`) |
 | `starting:` | `@starting-style` (`crates/hozo_web/src/css/shape.rs:335`) | **refused** with a diagnostic (`crates/hozo_native/src/conditions/presence.rs:5`) |
 | enter / exit on mount and unmount | `starting:` covers enter | nothing |
-| `Dialog`'s own open animation | keyframes, off under reduced motion (`crates/hozo_web/src/lib.rs:122`) | `Modal`'s `animationType` |
+| `Dialog`'s own open animation | keyframes, off under reduced motion (`crates/hozo_web/src/base_css.rs:63`) | `Modal`'s `animationType` |
 
 The two big gaps are enter on Native and exit anywhere.
 
