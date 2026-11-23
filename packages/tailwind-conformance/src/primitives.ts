@@ -30,7 +30,10 @@ function repoRoot(): string {
  * once -- the contract is about the drawing, not about each shape in it.
  */
 export function declaredPrimitives(): string[] {
-  const source = readFileSync(path.join(repoRoot(), 'crates', 'hozo_ir', 'src', 'primitive.rs'), 'utf8')
+  const source = readFileSync(
+    path.join(repoRoot(), 'crates', 'hozo_ir', 'src', 'primitive.rs'),
+    'utf8',
+  )
   const start = source.indexOf('pub enum Primitive {')
   if (start === -1) {
     throw new Error(
@@ -61,7 +64,10 @@ export interface DeclaredPrimitive {
  * this is the half that has to be read.
  */
 export function declaredPrimitivesWithDocs(): DeclaredPrimitive[] {
-  const source = readFileSync(path.join(repoRoot(), 'crates', 'hozo_ir', 'src', 'primitive.rs'), 'utf8')
+  const source = readFileSync(
+    path.join(repoRoot(), 'crates', 'hozo_ir', 'src', 'primitive.rs'),
+    'utf8',
+  )
   const start = source.indexOf('pub enum Primitive {')
   if (start === -1) throw new Error('no `Primitive` enum in hozo_ir')
   const body = source.slice(start, source.indexOf('\n}', start))

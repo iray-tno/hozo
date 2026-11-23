@@ -37,7 +37,10 @@ function repoRoot(): string {
  * halves look reasonable.
  */
 export function declaredDiagnosticCodes(): string[] {
-  const source = readFileSync(path.join(repoRoot(), 'crates', 'hozo_ir', 'src', 'diagnostics.rs'), 'utf8')
+  const source = readFileSync(
+    path.join(repoRoot(), 'crates', 'hozo_ir', 'src', 'diagnostics.rs'),
+    'utf8',
+  )
   const codes = [...source.matchAll(/DiagnosticCode::\w+\s*=>\s*"([A-Z0-9_]+)"/g)].map(
     (match) => match[1],
   )
