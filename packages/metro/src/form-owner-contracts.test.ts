@@ -6,7 +6,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { createCompiler } from '@hozo/compiler'
-import { TailwindProjectSession } from '@hozo/compiler/project'
+import { parseOwnerPackageShadow, TailwindProjectSession } from '@hozo/compiler/project'
 import * as esbuild from 'esbuild'
 import { transformHozoSource, transformHozoSourceOrPrepare } from './transform.ts'
 
@@ -688,7 +688,17 @@ export function RefusedFallbacks() {
   assert.equal(indicatorStyle.borderColor, '#aa0000')
 
   // Scrim Pressable (index 1) and Sheet View (index 1) deliver resting prepared styles.
-  assert.equal(flattenStyle(pressables[1]!.props.style).backgroundColor, '#000000')
+  const scrim = selectMod.captured.find(
+    (entry) => flattenStyle(entry.props.style).backgroundColor === '#000000',
+  )
+  const manifest = parseOwnerPackageShadow(
+    readFileSync(new URL('../../form/hozo.manifest.json', import.meta.url), 'utf8'),
+  )
+  const scrimShape = manifest.owners?.contracts.find((row) => row.owner === 'NativeSelect.scrim')
+    ?.shapes[0]
+  assert.ok(scrim && scrimShape)
+  assert.equal(scrim.host, scrimShape.nativeHost)
+  assert.deepEqual(scrimShape.events, [])
   const sheetStyle = flattenStyle(views[1]!.props.style)
   assert.equal(sheetStyle.paddingTop, 20)
   assert.equal(sheetStyle.backgroundColor, '#505050')

@@ -2291,7 +2291,7 @@
               true
             ]
           },
-          "nativeHost": "View",
+          "nativeHost": "Pressable",
           "webHost": null,
           "events": []
         }

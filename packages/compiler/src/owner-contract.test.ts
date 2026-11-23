@@ -322,6 +322,7 @@ test('single-platform contracts declare null host/carrier on the absent platform
   const scrim = parsed().contracts.find((row) => row.owner === 'NativeSelect.scrim')!
   assert.equal(scrim.audit, 'audited')
   assert.deepEqual(scrim.abi, { nativePreparedProp: 'hozoScrimStyle', webClassProp: null })
+  assert.equal(scrim.shapes[0]!.nativeHost, 'Pressable')
   assert.equal(scrim.shapes[0]!.inputs, undefined)
   const option = parsed().contracts.find((row) => row.owner === 'NativeSelect.option')!
   assert.equal(option.audit, 'audited')
