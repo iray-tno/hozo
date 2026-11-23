@@ -20,6 +20,7 @@ import {
   readResolvedOwnerManifest,
   StylexModuleCache,
 } from '@hozo/compiler/project'
+import { buildSync, transformSync } from 'esbuild'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { fixtureNode } from '../fixtures/fixture-process.mjs'
 import { ownerMetroFixture } from '../fixtures/owner-metro-resolver.mjs'
@@ -687,6 +688,53 @@ export const Row=()=> <Panel panelClassName="p-2" style={author.value}/>;`
     assert.match(output, /paddingTop:\s*14/)
     assert.doesNotMatch(output, /panelClassName="p-2"|hozoToolbarStyle/)
     assert.equal(output.split('author.value').length - 1, 1)
+    // Execute the exact packaged entry that Metro resolved, not a copy of
+    // FixturePanel or a function that merely inspects its incoming carrier.
+    const entry = buildSync({
+      entryPoints: [result.filePath],
+      bundle: true,
+      format: 'cjs',
+      write: false,
+    }).outputFiles[0]!.text
+    const dependency = { exports: {} }
+    runInNewContext(entry, {
+      module: dependency,
+      exports: dependency.exports,
+      __hozoFixtureRender: true,
+    })
+    const screen = {
+      exports: {} as { Row: () => { type: string; props: Record<string, unknown> } },
+    }
+    const authored = { paddingTop: 31 }
+    let styleReads = 0
+    runInNewContext(
+      transformSync(output, { loader: 'tsx', format: 'cjs', jsxFactory: 'jsx' }).code,
+      {
+        module: screen,
+        exports: screen.exports,
+        jsx: (render: (props: unknown) => unknown, props: unknown) => render(props),
+        author: {
+          get value() {
+            styleReads++
+            return authored
+          },
+        },
+        require(id: string) {
+          if (id === 'react-native') return { StyleSheet: { create: <T>(styles: T) => styles } }
+          assert.equal(id, 'acme-frozen-styles')
+          return dependency.exports
+        },
+      },
+    )
+    const rendered = screen.exports.Row()
+    assert.equal(rendered.type, 'View')
+    assert.equal(rendered.props.className, undefined)
+    const styles = rendered.props.style as Record<string, unknown>[]
+    assert.equal(styles[0]?.paddingTop, 14)
+    assert.equal(styles[1], authored)
+    assert.equal(Object.assign({}, ...styles).paddingTop, 31)
+    assert.equal(styleReads, 1)
+
     const opaque = caller.replace('panelClassName="p-2"', 'panelClassName={classes}')
     const fallback = String(await transform({ ...input, src: opaque }))
     assert.match(fallback, /panelClassName=\{classes\}/)

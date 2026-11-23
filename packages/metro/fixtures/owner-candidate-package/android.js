@@ -7,4 +7,5 @@ export function FixturePanel({ panelClassName, hozoFixturePanelStyle, style }) {
   }
 }
 
-throw new Error('Android package entry must not execute during analysis')
+if (globalThis.__hozoFixtureRender !== true)
+  throw new Error('Android package entry must not execute during analysis')
