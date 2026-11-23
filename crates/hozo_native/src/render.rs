@@ -6,15 +6,20 @@
 use super::text::*;
 use super::*;
 
+mod authored_style;
 mod child_list;
 mod class_slots;
 mod effects;
+mod frames;
+mod host;
 mod host_props;
+mod motion_props;
 mod passthrough;
 mod progress;
 mod refusals;
 mod semantic_defaults;
 mod spreads;
+mod style_attribute;
 mod style_props;
 
 enum NativeBackdropFilter {
@@ -709,91 +714,33 @@ pub(super) fn render_node(
     } else {
         None
     };
-    let own_entries = &cx.style_entries[own_entry_start..own_entry_end];
-    let mixed_metric_defaults = effects::mixed_metric_defaults(component, node, own_entries);
-    let mixed_registers = mixed_metric_defaults.is_some() && theme.has_utility_leading_registers();
-    let transform_specs = if mixed_transforms
-        || (own_declarations
-            .iter()
-            .any(|d| crate::transforms::is_control(&d.property))
-            && own_declarations
-                .iter()
-                .any(|d| d.condition != Condition::Always))
-        || crate::transforms::split_across_entries(own_entries)
-    {
-        crate::transforms::specs(own_entries, theme)
-    } else {
-        String::new()
-    };
-    let filter_specs = if mixed_filters
-        || (project_filter_slots && crate::filters::split_across_entries(own_entries))
-    {
-        crate::filters::specs(own_entries)
-    } else {
-        String::new()
-    };
-    let gradient_specs = if compose_gradients {
-        crate::gradients::specs(&cx.style_entries[own_entry_start..], theme)
-    } else {
-        String::new()
-    };
-    let shadow_specs = if compose_shadows {
-        crate::shadows::specs(&cx.style_entries[own_entry_start..], theme)
-    } else {
-        String::new()
-    };
-    let mixed_shadows = mixed_shadows && !shadow_specs.is_empty();
-    let mixed_gradients = mixed_gradients && !gradient_specs.is_empty();
-    let mixed_transforms = mixed_transforms && !transform_specs.is_empty();
-    let mixed_filters = mixed_filters && !filter_specs.is_empty();
-    let deferred_effects = u8::from(mixed_shadows) * crate::candidate::DEFER_SHADOW
-        + u8::from(mixed_gradients) * crate::candidate::DEFER_GRADIENT
-        + u8::from(mixed_transforms) * crate::candidate::DEFER_TRANSFORM
-        + u8::from(mixed_filters) * crate::candidate::DEFER_FILTER
-        + u8::from(mixed_registers) * crate::candidate::DEFER_TEXT_METRICS;
+    let (effects, deferred_effects) = effects::plan(
+        effects::Mixing {
+            mixed_shadows,
+            mixed_gradients,
+            mixed_transforms,
+            mixed_filters,
+            project_filter_slots,
+            compose_gradients,
+            compose_shadows,
+        },
+        component,
+        node,
+        &own_declarations,
+        own_entry_start,
+        own_entry_end,
+        cx,
+    );
     let starting_parts = frames.starting;
     let exit_parts = frames.exit;
-    if own_declarations
-        .iter()
-        .any(|d| crate::transforms::is_control(&d.property))
-        && (!starting_parts.is_empty() || !exit_parts.is_empty())
-    {
-        cx.diagnostics.push(unwired_variant(node,
-            "Transform resets with starting/exit animation frames are not wired on Native yet. Use explicit transform values for these animation endpoints.",
-            Severity::Error));
-    }
-    // What `HozoAnimated` can start from is what it can interpolate. A
-    // `starting:w-0` is `@starting-style` on Web and animates there; here
-    // the width would be applied as the first frame and then jump, which is
-    // worse than not applying it -- so it is left out and named.
-    if !starting_parts.is_empty() || !exit_parts.is_empty() {
-        let mut fixed: Vec<String> = own_declarations
-            .iter()
-            .filter(|declaration| {
-                crate::condition_contains(&declaration.condition, |condition| {
-                    matches!(condition, Condition::StartingStyle)
-                        || crate::conditions::presence_closed(condition)
-                })
-            })
-            .filter(|declaration| !crate::transition::interpolatable(&declaration.property))
-            .flat_map(|declaration| crate::style::property_and_value(&declaration.property, theme))
-            .map(|(key, _)| format!("`{key}`"))
-            .collect();
-        fixed.dedup();
-        if !fixed.is_empty() {
-            cx.diagnostics.push(crate::conditions::unwired_variant(
-                node,
-                &format!(
-                    "`starting:` and `data-[state=closed]:` on React Native animate opacity, \
-                     transforms and colours -- what `HozoAnimated` can interpolate. {} would be a \
-                     frame that jumps rather than moves, so it is not applied here. On Web the \
-                     same class works.",
-                    fixed.join(", ")
-                ),
-                hozo_ir::Severity::Warning,
-            ));
-        }
-    }
+    frames::refuse_unmovable_frames(
+        node,
+        &own_declarations,
+        &starting_parts,
+        &exit_parts,
+        theme,
+        cx.diagnostics,
+    );
 
     // After the compiled resting styles, so it wins the same way it would in
     // the source: `cn('p-4', getDynamic())` puts the opaque part last, and RN
@@ -931,88 +878,22 @@ pub(super) fn render_node(
             Severity::Error,
         ));
     }
-    // Choose the actual host before adding measurement. Replacing it with a
-    // View loses Pressable events, Text semantics and ScrollView behavior;
-    // container measurement is a provider around this very same host.
-    let rendered_component = if renders_backdrop_filter {
-        cx.runtime.need_component("HozoBackdropFilter");
-        "HozoBackdropFilter"
-    } else if component == "TextInput"
-        && (!pressed_parts.is_empty()
-            || runtime_states
-            || node.props.effective_disabled().is_some()
-            || node.props.aria_invalid.is_some())
-    {
-        cx.runtime.need_component("HozoTextInput");
-        "HozoTextInput"
-    } else if component == "Pressable" && needs_interaction_host {
-        cx.runtime.need_component("HozoPressable");
-        "HozoPressable"
-    } else if renders_text(component) && interaction_context && !pressed_parts.is_empty() {
-        cx.runtime.need_component("HozoText");
-        "HozoText"
-    } else if component == "View"
-        && interaction_context
-        && !pressed_parts.is_empty()
-        && cx.owner_inputs.events.is_empty()
-        && cx.owner_inputs.facts.is_empty()
-    {
-        // `group-*:` on a View inside a Pressable: the same context HozoText
-        // reads. A pattern's owner View keeps its own callback below.
-        cx.runtime.need_component("HozoInteractionView");
-        "HozoInteractionView"
-    } else if relative_at_runtime.is_some() {
-        // The compiler could not see the size this scales against, so the
-        // ratio travels to a component that can. Costs a context read, and
-        // only here -- everything the compiler *can* resolve stays a plain
-        // `Text` with a number in a stylesheet.
-        cx.runtime.need_component("HozoRelativeText");
-        "HozoRelativeText"
-    } else if publishes_size {
-        // The other half. This element holds the size the ratio above
-        // needs and holds it in a form only React Native can evaluate, so
-        // it says what it resolved to.
-        cx.runtime.need_component("HozoTextSize");
-        "HozoTextSize"
-    } else {
-        component
-    };
-    // Only a host with one forwarded layout event can publish its width.
-    // Portals, non-layout SVG nodes, and identity-sensitive compound parts
-    // need their own adapter; a provider must not invent a measurable box
-    // for them or hide their identity from their owning component.
-    let measures_host = declares_container
-        && matches!(
-            rendered_component,
-            "View"
-                | "Animated.View"
-                | "Text"
-                | "Animated.Text"
-                | "TextInput"
-                | "HozoTextInput"
-                | "Image"
-                | "ScrollView"
-                | "Pressable"
-                | "HozoPressable"
-                | "HozoLink"
-                | "HozoFlatList"
-                | "HozoText"
-                | "HozoInteractionView"
-                | "HozoTextSize"
-                | "HozoRelativeText"
-                | "HozoAnimated"
-                | "HozoRuby"
-                | "HozoDetails"
-                | "HozoBadge"
-                | "Svg"
-        );
-    if declares_container && !measures_host {
-        cx.diagnostics.push(unwired_variant(
-            node,
-            &format!("`@container` needs a single layout-reporting host on Native; `{rendered_component}` cannot publish that width through this adapter. Put the container on a View inside or around it instead."),
-            Severity::Error,
-        ));
-    }
+    let rendered_component = host::rendered_component(
+        host::HostChoice {
+            component,
+            renders_backdrop_filter,
+            has_pressed_parts: !pressed_parts.is_empty(),
+            runtime_states,
+            needs_interaction_host,
+            interaction_context,
+            relative_at_runtime: relative_at_runtime.is_some(),
+            publishes_size,
+        },
+        node,
+        cx,
+    );
+    let measures_host =
+        host::measures_host(declares_container, rendered_component, node, cx.diagnostics);
     // An intervening control owns its own interaction. Neither an enhanced
     // nor a plain link may borrow an outer button's hover/focus context.
     let owns_pressable_interaction = rendered_component == "HozoPressable";
@@ -1100,46 +981,14 @@ pub(super) fn render_node(
     // an opaque class may carry gap, so it needs the same bounded boundary.
     let project_authored_gap = !node.class_name_fallback.is_empty() || has_gap(&node.style);
     let mut project_spread_gap = project_authored_gap;
-    let authored_style: Vec<String> = node
-        .props
-        .passthrough
-        .iter()
-        .filter(|prop| prop.name.as_deref() == Some("style"))
-        .filter_map(|prop| {
-            let text = &source[prop.span.0.start as usize..prop.span.0.end as usize];
-            let value = text.split_once('=')?.1.trim();
-            // `style={expr}`. A string is not a style React Native accepts,
-            // so anything else is left where it was.
-            let inner = value.strip_prefix('{')?.strip_suffix('}')?;
-            Some(if project_authored_gap {
-                cx.runtime.need_component("hozoAuthoredStyle");
-                format!(
-                    "hozoAuthoredStyle({})",
-                    hozo_ir::attribute_capture::slice(source, inner.trim())
-                )
-            } else {
-                hozo_ir::attribute_capture::slice(source, inner.trim()).into_owned()
-            })
-        })
-        .collect();
+    let authored_style =
+        authored_style::authored_style(node, project_authored_gap, source, cx.runtime);
     // Pattern callbacks are a private generated-code ABI, not an authored
     // style function. Keep the caller's style separate and last, so a state
     // class cannot override it or put a function inside an RN style array.
     // Style attributes a spread could replace are held here and composed
     // with the spreads where those are emitted (`spread_style`).
     let mut held = crate::spread_style::HeldStyles::new(&node.props.passthrough);
-    let effects = effects::Effects {
-        shadow_specs,
-        gradient_specs,
-        filter_specs,
-        transform_specs,
-        mixed_shadows,
-        mixed_gradients,
-        mixed_filters,
-        mixed_transforms,
-        metric_defaults: mixed_metric_defaults,
-        mixed_registers,
-    };
     style_array_parts = effects::compose_mixed(style_array_parts, &effects, cx.runtime);
     if (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some() {
         if !authored_style.is_empty() {
@@ -1170,87 +1019,30 @@ pub(super) fn render_node(
 
     style_array_parts = effects::compose_unmixed(style_array_parts, &effects, cx.runtime);
 
-    if let Some(route) = &pattern_classes {
-        cx.owner_callbacks.push(crate::OwnerCallback {
-            span: node.span,
-            class_prop: "className",
-        });
-        held.emit(&mut props_text, &route.prop(&style_array_parts));
-    } else if needs_pressed_fn {
-        let callback = if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
-            cx.owner_callbacks.push(crate::OwnerCallback {
-                span: node.span,
-                class_prop: "className",
-            });
-            crate::class_route::static_callback(node.primitive, "className", &style_array_parts)
-        } else {
-            let mut params: Vec<String> = if !cx.owner_inputs.events.is_empty() {
-                cx.owner_inputs
-                    .events
-                    .iter()
-                    .map(|event| event.key().to_string())
-                    .collect()
-            } else if owner_view_callback {
-                Vec::new()
-            } else {
-                let fields = if needs_focus_visible {
-                    "pressed, hovered, focused, focusVisible"
-                } else if needs_hover_or_focus
-                    || matches!(rendered_component, "HozoText" | "HozoInteractionView")
-                {
-                    "pressed, hovered, focused"
-                } else {
-                    "pressed"
-                };
-                vec![fields.to_string()]
-            };
-            params.extend(cx.owner_inputs.facts.iter().map(|fact| fact.parameter()));
-            let state = format!("{{ {} }}", params.join(", "));
-            format!("({state}) => [{}]", style_array_parts.join(", "))
-        };
-        let attribute = format!(" {}={{{callback}}}", pattern_style_prop.unwrap_or("style"));
-        crate::owner_style::record(cx, &base_name, &attribute, true);
-        if owner_view_callback && needs_focus_visible {
-            crate::owner_style::mark_focus_visible(cx, &base_name);
-        }
-        held.emit(&mut props_text, &attribute);
-    } else if style_array_parts.len() == 1 && !style_array_parts[0].contains("&&") {
-        let attribute = format!(" style={{{}}}", style_array_parts[0]);
-        crate::owner_style::record(cx, &base_name, &attribute, false);
-        held.emit(&mut props_text, &attribute);
-    } else if !style_array_parts.is_empty() {
-        let attribute = format!(" style={{[{}]}}", style_array_parts.join(", "));
-        crate::owner_style::record(cx, &base_name, &attribute, false);
-        held.emit(&mut props_text, &attribute);
-    }
-    if let Some((duration, delay, easing, opacity, transform, colors)) = transition {
-        props_text.push_str(&format!(
-            " hozoTransition={{{{ duration: {duration}, delay: {delay}, easing: '{easing}', opacity: {opacity}, transform: {transform}, colors: {colors} }}}}"
-        ));
-    }
-    // The same prop name, deliberately, with fewer fields: `HozoAnimated`
-    // works out which properties moved by comparing one render's style
-    // with the last, so it needs no list of them. Sharing the name means
-    // an element that becomes a `Pressable` later keeps the class working.
-    if let Some((duration, delay, easing)) = ambient_transition {
-        props_text.push_str(&format!(
-            " hozoTransition={{{{ duration: {duration}, delay: {delay}, easing: '{easing}' }}}}"
-        ));
-    }
-    // The first frame of an enter animation: `HozoAnimated` starts here and
-    // transitions to `style` on mount (decision 007).
-    match starting_parts.as_slice() {
-        [] => {}
-        [one] => props_text.push_str(&format!(" hozoStarting={{{one}}}")),
-        many => props_text.push_str(&format!(" hozoStarting={{[{}]}}", many.join(", "))),
-    }
-    // The frame an element leaves to: `HozoAnimated` transitions to it when
-    // `Presence` closes, and `Presence` removes the element when it ends.
-    match exit_parts.as_slice() {
-        [] => {}
-        [one] => props_text.push_str(&format!(" hozoExit={{{one}}}")),
-        many => props_text.push_str(&format!(" hozoExit={{[{}]}}", many.join(", "))),
-    }
+    style_attribute::write_style_attribute(
+        style_attribute::StyleAttribute {
+            pattern_classes: pattern_classes.as_ref(),
+            needs_pressed_fn,
+            owner_view_callback,
+            needs_focus_visible,
+            needs_hover_or_focus,
+            rendered_component,
+            pattern_style_prop,
+        },
+        &style_array_parts,
+        node,
+        &base_name,
+        &mut held,
+        &mut props_text,
+        cx,
+    );
+    motion_props::write_motion_props(
+        transition,
+        ambient_transition,
+        &starting_parts,
+        &exit_parts,
+        &mut props_text,
+    );
     // The ratio, for the component that resolves it.
     if let Some(ratio) = relative_at_runtime {
         props_text.push_str(&format!(" hozoRelative={{{ratio}}}"));
