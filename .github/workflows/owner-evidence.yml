@@ -52,6 +52,8 @@ on:
       - 'crates/hozo_web/src/class_attribute.rs'
       - 'crates/hozo_web/src/class_slots.rs'
       - 'crates/hozo_web/src/accessibility.rs'
+      - 'crates/hozo_web/src/disabled.rs'
+      - 'crates/hozo_web/src/responder.rs'
       - 'crates/hozo_native/src/conditions/guards.rs'
       - 'crates/hozo_native/src/render.rs'
       - 'crates/hozo_native/src/render/*.rs'
