@@ -13,6 +13,7 @@ pub(super) const DEFER_FILTER: u8 = 8;
 pub(super) const DEFER_TEXT_METRICS: u8 = 16;
 mod classify;
 mod edges;
+mod ordering;
 mod pairs;
 mod pipeline;
 mod plan;
@@ -201,45 +202,7 @@ fn render_candidate_module_impl(
         body.push_str(&format!("  {}: {},\n", quote(name), quote(reason)));
     }
     body.push_str("}\n\n");
-    let mut state_colors = None;
-    let ordering = plan.and_then(|plan| {
-        if plan.finalized {
-            let (barriers, independent) = plan.independent_colors("style");
-            let covers_every_drawable =
-                barriers.len() + independent.len() == supported.len() + states.len();
-            let partial = (!barriers.is_empty() && independent.len() > 1)
-                .then(|| (barriers.join(" "), independent.join(" ")));
-            if !states.is_empty() {
-                let (colors, independent) = plan.independent_colors("state");
-                // Colour writes keep authored order only when their Native
-                // specificity ties. A mixed-weight colour tier still needs
-                // its usual specificity projection, not a guessed rank.
-                let mut weights = states
-                    .iter()
-                    .filter(|(name, _)| colors.contains(&name.as_str()))
-                    .flat_map(|(_, groups)| groups.iter().map(|group| group.order));
-                let uniform = weights
-                    .next()
-                    .is_some_and(|first| first.is_some() && weights.all(|weight| weight == first));
-                if !colors.is_empty()
-                    && uniform
-                    && states.iter().all(|(name, groups)| {
-                        (colors.contains(&name.as_str()) || independent.contains(&name.as_str()))
-                            && groups.iter().all(|group| group.order.is_some())
-                    })
-                {
-                    state_colors = Some(colors.join(" "));
-                }
-            }
-            plan.prepare_ordering().map(|order| {
-                let complete = order.ranks.len() == supported.len() + states.len()
-                    || (partial.is_some() && covers_every_drawable);
-                (order, partial, complete)
-            })
-        } else {
-            None
-        }
-    });
+    let (ordering, state_colors) = ordering::plan_ordering(plan, supported.len(), &states);
     // Compact ranks are emitted only for drawable entries, and only when
     // every group in that entry is ranked. When they cover every emitted
     // entry, or ranked entries and independent colours cover every
@@ -277,28 +240,7 @@ fn render_candidate_module_impl(
             && owner_ranks
                 .next()
                 .is_some_and(|first| owner_ranks.any(|rank| rank != first));
-        body.push_str("const states = {\n");
-        for (name, groups) in &states {
-            let groups: Vec<String> = groups
-                .iter()
-                .map(|group| {
-                    let keys: Vec<String> = group.keys.iter().map(|key| quote(key)).collect();
-                    let pairs: Vec<String> = group
-                        .pairs
-                        .iter()
-                        .map(|(key, value)| format!("{key}: {value}"))
-                        .collect();
-                    let order = group
-                        .order
-                        .filter(|_| emit_owner_ranks)
-                        .map(|key| format!(", {key}"))
-                        .unwrap_or_default();
-                    format!("[[{}], {{ {} }}{order}]", keys.join(", "), pairs.join(", "))
-                })
-                .collect();
-            body.push_str(&format!("  {}: [{}],\n", quote(name), groups.join(", ")));
-        }
-        body.push_str("}\n\n");
+        states::write_states(&mut body, &states, emit_owner_ranks);
         if ambient || edge_direction {
             ", states, { rtl: I18nManager.isRTL, ltr: !I18nManager.isRTL }"
         } else {
