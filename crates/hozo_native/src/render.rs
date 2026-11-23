@@ -420,38 +420,18 @@ pub(super) fn render_node(
         ));
     }
 
-    // The official StyleX residue lands before Hozo's generated `style`, so
-    // it cannot replace the declarations that were successfully lowered.
-    let mut props_text = node
-        .props
-        .stylex_residuals
-        .iter()
-        .map(|residual| format!(" {{...({})}}", residual.render_expression(source)))
-        .collect::<String>();
-    if let Some(prop) = layout.scroll_prop {
-        props_text.push_str(&format!(" {prop}={{true}}"));
-    }
-    if !backdrop_parts.is_empty() {
-        let prop = crate::pattern::backdrop_style_prop(node.primitive, "className")
-            .expect("a backdrop style must have a catalogued owner");
-        props_text.push_str(&format!(" {prop}={{[{}]}}", backdrop_parts.join(", ")));
-    }
-    if let Some(radius) = &layout.backdrop_blur {
-        props_text.push_str(&format!(" hozoBackdropBlur={{{radius}}}"));
-    }
-    if link_interaction {
-        props_text.push_str(" hozoLinkComponent={HozoPressable}");
-    }
-    if rendered_component == "HozoBackdropFilter" {
-        if let Some(NativeBackdropFilter::Blur(radius)) = &backdrop_filter {
-            props_text.push_str(&format!(" hozoBlurRadius={{{radius}}}"));
-        }
-    }
-    if node.primitive == Primitive::Progress {
-        if let Some(value) = progress::accessibility_value(node, source) {
-            props_text.push_str(&value);
-        }
-    }
+    let mut props_text = host_props::leading_props(
+        node,
+        host_props::Leading {
+            scroll_prop: layout.scroll_prop,
+            backdrop_parts: &backdrop_parts,
+            backdrop_blur: layout.backdrop_blur.as_ref(),
+            backdrop_filter: backdrop_filter.as_ref(),
+            link_interaction,
+        },
+        rendered_component,
+        source,
+    );
 
     // An authored `style` joins the array instead of becoming a second
     // `style` attribute.
@@ -482,32 +462,15 @@ pub(super) fn render_node(
     // with the spreads where those are emitted (`spread_style`).
     let mut held = crate::spread_style::HeldStyles::new(&node.props.passthrough);
     style_array_parts = effects::compose_mixed(style_array_parts, &effects, cx.runtime);
-    if (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some() {
-        if !authored_style.is_empty() {
-            held.emit(
-                &mut props_text,
-                &format!(" style={{[{}]}}", authored_style.join(", ")),
-            );
-        }
-    } else if !authored_style.is_empty()
-        && !style_array_parts.is_empty()
-        && (!node.class_name_fallback.is_empty()
-            || crate::edge_projection::writes_logical_inline(&node.style))
-    {
-        // Yoga prefers a class's `paddingEnd` to the author's `paddingRight`
-        // whatever the order; the helper lets the author's edge win, on the
-        // side React Native would give it alone (#2050). An opaque class may
-        // write any edge, so it takes the same boundary.
-        cx.runtime.need_component("hozoAuthoredEdges");
-        cx.runtime.need_native("I18nManager");
-        style_array_parts = vec![format!(
-            "hozoAuthoredEdges([{}], [{}], I18nManager.isRTL, I18nManager.doLeftAndRightSwapInRTL)",
-            style_array_parts.join(", "),
-            authored_style.join(", ")
-        )];
-    } else {
-        style_array_parts.extend(authored_style);
-    }
+    style_array_parts = authored_style::compose(
+        style_array_parts,
+        authored_style,
+        (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some(),
+        node,
+        &mut held,
+        &mut props_text,
+        cx.runtime,
+    );
 
     style_array_parts = effects::compose_unmixed(style_array_parts, &effects, cx.runtime);
 

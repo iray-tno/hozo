@@ -290,3 +290,62 @@ pub(super) fn write_host_props(
         }
     }
 }
+
+/// What the element's props start with: the official StyleX residue, which
+/// lands before Hozo's generated `style` so it cannot replace the
+/// declarations that were lowered, then the props a layout adapter, a
+/// backdrop, a link or a progress bar adds.
+/// What the leading props are written from.
+pub(super) struct Leading<'a> {
+    pub(super) scroll_prop: Option<&'static str>,
+    pub(super) backdrop_parts: &'a [String],
+    pub(super) backdrop_blur: Option<&'a String>,
+    pub(super) backdrop_filter: Option<&'a NativeBackdropFilter>,
+    pub(super) link_interaction: bool,
+}
+
+pub(super) fn leading_props(
+    node: &Node,
+    leading: Leading<'_>,
+    rendered_component: &str,
+    source: &str,
+) -> String {
+    let Leading {
+        scroll_prop,
+        backdrop_parts,
+        backdrop_blur,
+        backdrop_filter,
+        link_interaction,
+    } = leading;
+    let mut props_text = node
+        .props
+        .stylex_residuals
+        .iter()
+        .map(|residual| format!(" {{...({})}}", residual.render_expression(source)))
+        .collect::<String>();
+    if let Some(prop) = scroll_prop {
+        props_text.push_str(&format!(" {prop}={{true}}"));
+    }
+    if !backdrop_parts.is_empty() {
+        let prop = crate::pattern::backdrop_style_prop(node.primitive, "className")
+            .expect("a backdrop style must have a catalogued owner");
+        props_text.push_str(&format!(" {prop}={{[{}]}}", backdrop_parts.join(", ")));
+    }
+    if let Some(radius) = backdrop_blur {
+        props_text.push_str(&format!(" hozoBackdropBlur={{{radius}}}"));
+    }
+    if link_interaction {
+        props_text.push_str(" hozoLinkComponent={HozoPressable}");
+    }
+    if rendered_component == "HozoBackdropFilter" {
+        if let Some(NativeBackdropFilter::Blur(radius)) = backdrop_filter {
+            props_text.push_str(&format!(" hozoBlurRadius={{{radius}}}"));
+        }
+    }
+    if node.primitive == Primitive::Progress {
+        if let Some(value) = progress::accessibility_value(node, source) {
+            props_text.push_str(&value);
+        }
+    }
+    props_text
+}
