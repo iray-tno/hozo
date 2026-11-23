@@ -144,3 +144,42 @@ pub(super) fn hand_down_text(
         unified_scope,
     }
 }
+
+/// The label's text styles, by state, for `HozoPressable` to hand to a
+/// label that arrives as `children`. Compiled here like any other entry;
+/// only which element they land on waits for runtime.
+pub(super) fn label_style(
+    forwards_label: bool,
+    text_declarations: &[StyleDeclaration],
+    base_name: &str,
+    node: &Node,
+    position: SiblingPosition,
+    cx: &mut NativeRenderContext<'_>,
+) -> Option<Vec<String>> {
+    if forwards_label {
+        let mut parts = Vec::new();
+        let mut pressed = Vec::new();
+        let target = crate::conditions::StyleTarget {
+            owner_facts: &[],
+            owner_events: &[],
+            node,
+            position,
+            interaction_context: true,
+            pattern_slot: None,
+            composition: Default::default(),
+        };
+        build_style_entries(
+            text_declarations,
+            &format!("{base_name}_label"),
+            &target,
+            &mut parts,
+            &mut pressed,
+            None,
+            cx,
+        );
+        parts.extend(pressed);
+        (!parts.is_empty()).then_some(parts)
+    } else {
+        None
+    }
+}

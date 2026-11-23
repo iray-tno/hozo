@@ -238,67 +238,12 @@ pub(super) fn render_node(
         unified_scope,
     } = text_handoff::hand_down_text(node, component, &style, inherited, parent_font_size, cx);
 
-    // `space-*`/`divide-*` belong to the children, not here. Web gives them
-    // their own rule with a child-scoped selector; the equivalent on this
-    // platform is a style handed to `HozoSpaced`, which decides at render
-    // time which children receive it -- see that component for why the
-    // decision can't be made here.
-    let own_declarations = own_declarations.into_iter().filter(|d| {
-        if grid.is_some() && grid_absorbs(&d.property) {
-            return false;
-        }
-        if grid_item.is_some()
-            && matches!(
-                d.property,
-                StyleProperty::GridColumn(_)
-                    | StyleProperty::GridColumnStart(_)
-                    | StyleProperty::GridColumnEnd(_)
-                    | StyleProperty::GridRow(_)
-                    | StyleProperty::GridRowStart(_)
-                    | StyleProperty::GridRowEnd(_)
-            )
-        {
-            return false;
-        }
-        !matches!(
-            d.property,
-            StyleProperty::TransitionProperty(_)
-                | StyleProperty::TransitionDuration(..)
-                | StyleProperty::TransitionDelay(..)
-                | StyleProperty::TransitionTimingFunction(..)
-        )
-    });
-    let (child_declarations, own_declarations): (Vec<_>, Vec<_>) =
-        own_declarations.partition(|d| style::is_child_scoped(&d.property));
-    let mixed_effect_boundary = matches!(node.primitive, Primitive::View | Primitive::Pressable)
-        && component != "HozoAnimated"
-        && !node.props.has_spread()
-        && !node.class_name_fallback.is_empty();
-    let mixed_shadows = mixed_effect_boundary && crate::shadows::can_mix(&own_declarations);
-    let mixed_gradients = mixed_effect_boundary && crate::gradients::can_mix(&own_declarations);
-    let mixed_transforms = mixed_effect_boundary && crate::transforms::can_mix(&own_declarations);
-    let project_filter_slots =
-        component != "HozoAnimated" && crate::filters::can_compose(&own_declarations);
-    let mixed_filters =
-        mixed_effect_boundary && project_filter_slots && crate::filters::can_mix(&own_declarations);
-    let compose_gradients = mixed_gradients
-        || (component != "HozoAnimated"
-            && crate::gradients::split_across_conditions(&own_declarations));
-    let compose_shadows = mixed_shadows
-        || (component != "HozoAnimated"
-            && crate::shadows::split_across_conditions(&own_declarations));
-    // Copying base effect registers into every condition would overwrite a
-    // different active condition's value when the runtime joins the slots.
-    let own_declarations = style::fold_base_layers(
+    let (child_declarations, own_declarations, mixing) = effects::own_declarations(
         own_declarations,
-        style::ComposedLayers {
-            // If the emitted objects write identical slots, the conditional
-            // literal already replaces all the base slots. Otherwise the
-            // composer reads them independently, so no base copy is needed.
-            filters: project_filter_slots,
-            gradients: compose_gradients,
-            shadows: compose_shadows,
-        },
+        node,
+        component,
+        grid.is_some(),
+        grid_item.is_some(),
     );
 
     let mut frames = crate::conditions::AnimatedFrames::default();
@@ -323,9 +268,9 @@ pub(super) fn render_node(
             && pattern_style_prop.is_none(),
         pattern_slot: Some("className"),
         composition: hozo_ir::OwnerSlotComposition {
-            filters: project_filter_slots,
-            shadows: compose_shadows,
-            gradients: compose_gradients,
+            filters: mixing.project_filter_slots,
+            shadows: mixing.compose_shadows,
+            gradients: mixing.compose_gradients,
         },
     };
     let state_start = build_style_entries(
@@ -358,45 +303,16 @@ pub(super) fn render_node(
             cx,
         );
     }
-    // The label's text styles, by state, for `HozoPressable` to hand to a
-    // label that arrives as `children`. Compiled here like any other entry;
-    // only which element they land on waits for runtime.
-    let label_style = if forwards_label {
-        let mut parts = Vec::new();
-        let mut pressed = Vec::new();
-        let target = crate::conditions::StyleTarget {
-            owner_facts: &[],
-            owner_events: &[],
-            node,
-            position,
-            interaction_context: true,
-            pattern_slot: None,
-            composition: Default::default(),
-        };
-        build_style_entries(
-            &text_declarations,
-            &format!("{base_name}_label"),
-            &target,
-            &mut parts,
-            &mut pressed,
-            None,
-            cx,
-        );
-        parts.extend(pressed);
-        (!parts.is_empty()).then_some(parts)
-    } else {
-        None
-    };
+    let label_style = text_handoff::label_style(
+        forwards_label,
+        &text_declarations,
+        &base_name,
+        node,
+        position,
+        cx,
+    );
     let (effects, deferred_effects) = effects::plan(
-        effects::Mixing {
-            mixed_shadows,
-            mixed_gradients,
-            mixed_transforms,
-            mixed_filters,
-            project_filter_slots,
-            compose_gradients,
-            compose_shadows,
-        },
+        mixing,
         component,
         node,
         &own_declarations,
