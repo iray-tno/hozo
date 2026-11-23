@@ -1,5 +1,23 @@
 # @hozo/navigation
 
+## 0.5.0
+
+### Minor Changes
+
+- [#1919](https://github.com/iray-tno/hozo/pull/1919) [`9d20975`](https://github.com/iray-tno/hozo/commit/9d20975684383ed659085fc48dad34f70294505e) Thanks [@iray-tno](https://github.com/iray-tno)! - Add `hozo manifest` and `hozo links` to `@hozo/cli`. They run the same commands as `hozo-manifest` and `hozo-links`. Both old binaries keep working for one minor release and print a deprecation line on stderr.
+  
+  Both now use the `hozo` exit codes: `1` for a stale file under `--check`, and `2` for a command that could not run. A `2` ends its stderr line with a string code such as `[config-not-found]`. `hozo-links` used to exit `1` for configuration errors. `hozo-manifest` used to ignore unknown options and crash on a package it could not read.
+  
+  `hozo-links` now also runs when npm links it into `node_modules/.bin` as a symlink. Before, the linked binary did nothing and exited `0`.
+  
+  `@hozo/navigation` is an optional peer of `@hozo/cli`. Without it, `hozo links` exits `2` with `[missing-package]`.
+
+### Patch Changes
+
+- Updated dependencies [[`cb4b456`](https://github.com/iray-tno/hozo/commit/cb4b4564ddb95d7ecb6f729433bf5c956788b53e), [`ba5beaf`](https://github.com/iray-tno/hozo/commit/ba5beaf2fbaff50a5b6bb1595ee156cae9dd5a1c), [`55a4dff`](https://github.com/iray-tno/hozo/commit/55a4dff1b332a0a275c0c40d2b7516a90e9a720d), [`0001fc4`](https://github.com/iray-tno/hozo/commit/0001fc442e38955770974fb5377002e4deb4b95f), [`ed04074`](https://github.com/iray-tno/hozo/commit/ed04074de82890b87590afb537a0bea99b2751a7), [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b), [`052b447`](https://github.com/iray-tno/hozo/commit/052b447351a669a12c5b8ced61bef5d07dc8a604), [`43680e3`](https://github.com/iray-tno/hozo/commit/43680e3643ba9f3f6e01f5c7aa885feb8e5c7b04), [`35cc5c3`](https://github.com/iray-tno/hozo/commit/35cc5c31ce90497de9a6f345e884af2d20a6bc60), [`5c823ee`](https://github.com/iray-tno/hozo/commit/5c823ee87f1996f7011290af68702ef7f19e5388), [`70643e9`](https://github.com/iray-tno/hozo/commit/70643e959d229a75fcdbd1316f9a972efb4a2622), [`3a3a8d5`](https://github.com/iray-tno/hozo/commit/3a3a8d52d64d0d580d9afaa298977c5c33f295f2), [`b4cc4f6`](https://github.com/iray-tno/hozo/commit/b4cc4f6b4941ed6f9fb63ff1f942dad781b760e5), [`b3cd864`](https://github.com/iray-tno/hozo/commit/b3cd864b49f275244b24f31227ec1f592b6f2e89), [`45eda5b`](https://github.com/iray-tno/hozo/commit/45eda5b451bdf1449c7c16172c03b2a9e743aaa6), [`cca1211`](https://github.com/iray-tno/hozo/commit/cca1211b176ec411112275399fc582a92a50efbe), [`4f62450`](https://github.com/iray-tno/hozo/commit/4f624503a4fb9f4af6f699f7d2deb55b69a72c36), [`ddd7c73`](https://github.com/iray-tno/hozo/commit/ddd7c73d09768ad8fbcf55c40859729b7271ea1a), [`2d28017`](https://github.com/iray-tno/hozo/commit/2d2801735d14c61193610e74bc6178f15b79d07e), [`cabc969`](https://github.com/iray-tno/hozo/commit/cabc9695ae805afa2c690aebcad5657f76f95eac), [`3f1754a`](https://github.com/iray-tno/hozo/commit/3f1754a523e62dc44ccc3da7294e9510e5203302), [`b3cf38b`](https://github.com/iray-tno/hozo/commit/b3cf38b30f2fe748c4f73110d01de2566826355a)]:
+  - @hozo/engine@0.5.0
+  - @hozo/core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
