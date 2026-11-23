@@ -8,11 +8,13 @@ use super::*;
 
 mod authored_style;
 mod child_list;
+mod class_fallback;
 mod class_slots;
 mod effects;
 mod frames;
 mod host;
 mod host_props;
+mod inheritance;
 mod motion_props;
 mod passthrough;
 mod progress;
@@ -22,6 +24,7 @@ mod spreads;
 mod style_attribute;
 mod style_props;
 mod text_handoff;
+mod wrappers;
 
 enum NativeBackdropFilter {
     None,
@@ -366,91 +369,11 @@ pub(super) fn render_node(
     let opaque_here = size_is_opaque(node);
     let publishes_size =
         opaque_here && renders_text(component) && has_relative_descendant(node, theme);
-    let semantic_defaults = semantic_defaults::semantic_defaults(
-        node,
-        theme,
-        &style,
-        inherited,
-        parent_font_size,
-        parent_size_opaque,
-    );
-
-    // `inherited` is text inheritance and belongs to `Text`. The semantic
-    // defaults do not: every one of them happened to be a text property
-    // until `Separator` needed a height, and the gate was quietly deciding
-    // that a default could only ever be about type. Widening it changes
-    // nothing above -- each of those arms matches a primitive that lowers
-    // to `Text` anyway -- and it is what makes a rule one pixel tall.
-    let style: Vec<StyleDeclaration> = if renders_text(component) {
-        // Provenance resolves competing utilities on the *same* element.
-        // A child's own font fallback still outranks an inherited leading;
-        // do not let the parent's Written marker reverse CSS inheritance.
-        // Context is the reference's source of inherited values. A copied
-        // class size/color could mask the parent's later inline override
-        // or replace a relative helper's computed size. Normal lowering
-        // keeps its existing iterator with no per-declaration extra test.
-        let inherited = if cx.text_reference {
-            &[][..]
-        } else {
-            inherited
-        };
-        let inherited: Vec<_> = inherited
-            .iter()
-            .filter(|parent| {
-                !matches!(parent.property, StyleProperty::LineHeight(_))
-                    || !style.iter().any(|own| {
-                        own.condition == parent.condition
-                            && matches!(own.property, StyleProperty::LineHeight(_))
-                    })
-            })
-            .cloned()
-            .collect();
-        inherited
-            .into_iter()
-            .chain(semantic_defaults)
-            .chain(style)
-            .collect()
-    } else {
-        semantic_defaults.into_iter().chain(style).collect()
-    };
-
-    // What an ancestor's `*:`/`**:` wrote for this element, before its
-    // own, so the element's own win -- `dedupe_last_wins` keeps the last
-    // of a property, which is where CSS specificity would land too.
-    let style: Vec<StyleDeclaration> = from_ancestor
-        .direct
-        .iter()
-        .cloned()
-        .chain(from_ancestor.all.iter().cloned())
-        .chain(style)
-        .collect();
-    // And what this element writes for its own subtree, taken out before
-    // anything tries to apply it here.
-    let (subtree, style): (Vec<_>, Vec<_>) = style
-        .into_iter()
-        .partition(|d| d.condition.split_subtree().is_some());
-    let (to_children, to_descendants) = subtree_for_children(&subtree, node, cx.diagnostics);
-    // An ancestor's `**:` keeps going; a parent's `*:` stops here.
-    let descendants: Vec<StyleDeclaration> = from_ancestor
-        .all
-        .iter()
-        .cloned()
-        .chain(to_descendants)
-        .collect();
-    // A child the compiler cannot read may render anything, so a style
-    // meant for "every child" would reach some of them and not others.
-    if !(to_children.is_empty() && descendants.is_empty())
-        && node
-            .children
-            .iter()
-            .any(|c| matches!(c, hozo_ir::Child::Verbatim { .. }))
-    {
-        cx.diagnostics.push(unwired_variant(
-            node,
-            "`*:`/`**:` hands a style to each child, and one of this element's children is an expression or a component the compiler doesn't read. It reaches the children it can see and not that one. On Web the selector reaches all of them.",
-            Severity::Warning,
-        ));
-    }
+    let inheritance::Inheritance {
+        style,
+        to_children,
+        descendants,
+    } = inheritance::inherit(node, component, style, ancestor, cx);
 
     let text_handoff::TextHandoff {
         text_declarations,
@@ -638,132 +561,35 @@ pub(super) fn render_node(
         cx.diagnostics,
     );
 
-    // After the compiled resting styles, so it wins the same way it would in
-    // the source: `cn('p-4', getDynamic())` puts the opaque part last, and RN
-    // resolves a style array last-wins just like JSX's own duplicate-prop
-    // rule. Before the element's state styles, which a caller's class does
-    // not beat on Web either: a disabled button looks disabled whatever
-    // colour it was given (#881).
-    //
-    // A pressable hands the resolver the state it tracks, so a runtime
-    // `active:` or `hover:` class applies as a compiled one does (#886).
-    let runtime_states = !node.class_name_fallback.is_empty()
-        && matches!(component, "Pressable" | "HozoLink" | "TextInput");
-    if runtime_states {
-        cx.runtime_states.push(crate::OwnerCallback {
-            span: node.span,
-            class_prop: "className",
-        });
-    }
-    let class_state = runtime_class_state(node, source, runtime_states);
-    let pattern_classes = if crate::pattern::interaction_slot(node.primitive, "className").is_some()
-    {
-        crate::class_route::PatternClasses::new(
-            node.primitive,
-            "className",
-            node.class_name_fallback
-                .iter()
-                .map(|expr| {
-                    node.root_class_evaluation().map_or_else(
-                        || source_text(source, *expr).to_string(),
-                        |evaluation| evaluation.value(source, *expr),
-                    )
-                })
-                .collect(),
-            !style_array_parts.is_empty() || !pressed_parts.is_empty(),
-            source,
-            None,
-        )
-    } else {
-        None
-    };
-    let fallback: Vec<String> = if let Some(route) = &pattern_classes {
-        route.residuals()
-    } else {
-        node.class_name_fallback
-            .iter()
-            .map(|expr_ref| {
-                let captured = node
-                    .root_class_evaluation()
-                    .map(|evaluation| evaluation.value(source, *expr_ref));
-                let value = captured.unwrap_or_else(|| source_text(source, *expr_ref).into_owned());
-                match (&class_state, deferred_effects) {
-                    (Some(state), 0) => format!("hozoClasses({value}, {state})"),
-                    (None, 0) => format!("hozoClasses({value})"),
-                    (state, effects) => format!(
-                        "hozoClasses({value}, {}, {effects})",
-                        state.as_deref().unwrap_or("undefined")
-                    ),
-                }
-            })
-            .collect()
-    };
-    style_array_parts.splice(state_start..state_start, fallback);
+    let (runtime_states, pattern_classes) = class_fallback::class_fallback(
+        node,
+        component,
+        !style_array_parts.is_empty() || !pressed_parts.is_empty(),
+        deferred_effects,
+        &mut style_array_parts,
+        state_start,
+        cx,
+    );
 
-    // The owner collects events for both inherited styles and child-authored
-    // styles. A Text reads context; putting modality handlers on it does not
-    // update the state its callback consumes.
-    let needs_focus_visible = own_declarations
-        .iter()
-        .chain(text_declarations.iter())
-        .any(|declaration| interaction::uses_focus_visible(&declaration.condition))
-        || (interaction::owns_events(node)
-            && interaction::descendant_uses(node, interaction::uses_focus_visible))
-        || runtime_states;
-    let needs_hover_or_focus =
-        own_declarations
-            .iter()
-            .chain(text_declarations.iter())
-            .any(|declaration| {
-                condition_contains(&declaration.condition, |condition| {
-                    uses_hover(condition) || focus_state(condition).is_some()
-                })
-            })
-            || (interaction::owns_events(node)
-                && interaction::descendant_uses(node, interaction::uses_interaction))
-            || runtime_states;
-    // Navigation stays in HozoLink; the compiler selects the existing state
-    // provider underneath it. A plain link imports no animation machinery.
-    // A host-only pressed style can stay in RN's cheap style callback. Text
-    // needs a provider even for raw children, otherwise its emitted pressed
-    // style is never referenced (or borrows an unrelated outer owner).
-    let needs_interaction_host = needs_hover_or_focus
-        || transition.is_some()
-        || label_style.is_some()
-        || text_declarations
-            .iter()
-            .any(|declaration| interaction::uses_interaction(&declaration.condition));
-    let link_interaction = component == "HozoLink" && needs_interaction_host;
-    if link_interaction {
-        cx.runtime.need_component("HozoPressable");
-    }
-    // `@container`, which on Web is a property and here is a component:
-    // an element has to measure itself before anything below it can query
-    // its width.
-    let container_name =
-        own_declarations
-            .iter()
-            .find_map(|declaration| match &declaration.property {
-                StyleProperty::ContainerName(name) => Some(name.clone()),
-                _ => None,
-            });
-    let declares_container = own_declarations.iter().any(|declaration| {
-        matches!(&declaration.property, StyleProperty::Keyword("container-type", kind) if *kind != "normal")
-    });
-    // And the other half: an element whose styles ask about a container's
-    // width has to read that width from a component boundary away, which
-    // is what `HozoContainerQuery` is for.
-    let raw_text_reads_container = node
-        .children
-        .iter()
-        .any(|child| matches!(child, hozo_ir::Child::Text(_)))
-        && descend
-            .iter()
-            .any(|declaration| condition_contains(&declaration.condition, uses_container_width));
-    let uses_container_query = raw_text_reads_container
-        || own_declarations
-            .iter()
-            .any(|declaration| condition_contains(&declaration.condition, uses_container_width));
+    let host::InteractionNeeds {
+        needs_focus_visible,
+        needs_hover_or_focus,
+        needs_interaction_host,
+        link_interaction,
+    } = host::interaction_needs(
+        node,
+        component,
+        &own_declarations,
+        &text_declarations,
+        runtime_states,
+        transition.is_some() || label_style.is_some(),
+        cx.runtime,
+    );
+    let host::ContainerUse {
+        container_name,
+        declares_container,
+        uses_container_query,
+    } = host::container_use(node, &own_declarations, &descend);
     let renders_backdrop_filter = matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_)))
         && component == "View"
         && !declares_container;
@@ -1027,90 +853,35 @@ pub(super) fn render_node(
         cx.text_depth -= 1;
     }
 
-    let inner = if let Some(grid) = grid {
-        if !child_declarations.is_empty() {
-            cx.diagnostics.push(unwired_variant(
-                node,
-                "grid combined with `space-*`/`divide-*` needs the grid placer to merge those child styles; use `gap-*` for grid spacing",
-                Severity::Error,
-            ));
-        }
-        cx.runtime.need_component("HozoGrid");
-        let row_tracks = grid
-            .row_tracks_js
-            .as_ref()
-            .map(|tracks| format!(" rowTracks={{{tracks}}}"))
-            .unwrap_or_default();
-        let text = format!(
-            "<HozoGrid tracks={{{}}}{row_tracks} columnGap={{{}}} rowGap={{{}}}>{}</HozoGrid>",
-            grid.tracks_js, grid.column_gap, grid.row_gap, inner.text
-        );
-        inner.wrap(text, "</HozoGrid>".len())
-    } else {
-        spaced_children(inner, &child_declarations, &base_name, node, position, cx)
-    };
+    let inner = wrappers::place_children(
+        inner,
+        grid,
+        &child_declarations,
+        &base_name,
+        node,
+        position,
+        cx,
+    );
 
-    let inner = if unified_scope.is_empty() {
-        inner
-    } else {
-        // Outside any grid or spacing wrapper, which must keep the authored
-        // children as their direct children. The scope renders no host.
-        let target = crate::conditions::StyleTarget {
-            owner_facts: &[],
-            owner_events: &[],
-            node,
-            position,
-            interaction_context,
-            pattern_slot: None,
-            composition: Default::default(),
-        };
-        let mut parts = Vec::new();
-        let mut pressed = Vec::new();
-        build_style_entries(
-            &unified_scope,
-            &format!("{base_name}_scope"),
-            &target,
-            &mut parts,
-            &mut pressed,
-            None,
-            cx,
-        );
-        let style = if parts.len() == 1 {
-            parts.remove(0)
-        } else {
-            format!("[{}]", parts.join(", "))
-        };
-        cx.runtime.need_component("HozoInheritedScope");
-        let close = "</HozoInheritedScope>";
-        let text = format!(
-            "<HozoInheritedScope style={{{style}}}>{}{close}",
-            inner.text
-        );
-        inner.wrap(text, close.len())
-    };
+    let inner = wrappers::inherited_scope(
+        inner,
+        &unified_scope,
+        &base_name,
+        node,
+        position,
+        interaction_context,
+        cx,
+    );
 
-    // React Native's TextInput takes no children either.
-    let tag = if measures_host {
-        "HozoContainer"
-    } else if cx.text_unified && rendered_component == "Text" && outermost_text {
-        // Decision 013. Everything that reaches this Text from the file is
-        // already in its own style; it reads only what an ancestor outside
-        // the file could still supply. Its own style is applied last.
-        let handed_down = inherited.iter().chain(node.style.iter());
-        let opaque = crate::text_region::has_opaque(node);
-        if !opaque && crate::text_region::covers_protocol(handed_down, theme) {
-            "Text"
-        } else {
-            if opaque {
-                // A Text rendered in there inherits natively from this host.
-                props_text.push_str(" hozoOpaque");
-            }
-            cx.runtime.need_component("HozoInheritedLeafText");
-            "HozoInheritedLeafText"
-        }
-    } else {
-        rendered_component
-    };
+    let tag = wrappers::host_tag(
+        rendered_component,
+        measures_host,
+        outermost_text,
+        inherited,
+        node,
+        &mut props_text,
+        cx,
+    );
     let mut rendered = if component == "TextInput"
         || rendered_component == "HozoTextInput"
         || component == "Image"
@@ -1134,44 +905,8 @@ pub(super) fn render_node(
         }
         rendered.copies = Some(copies);
     }
-    // Inside the grid item rather than outside it: `HozoGrid` reads its
-    // children's types to place them, so anything between the two would
-    // make a grid item stop looking like one.
-    let rendered = if uses_container_query {
-        cx.runtime.need_component("HozoContainerQuery");
-        let text = format!(
-            "<HozoContainerQuery>{{(__hozoCq) => ({})}}</HozoContainerQuery>",
-            rendered.text
-        );
-        let mut rendered = rendered.wrap(text, ")}</HozoContainerQuery>".len());
-        rendered.forget_scope();
-        rendered
-    } else {
-        rendered
-    };
-    let rendered = if let Some(item) = grid_item {
-        cx.runtime.need_component("HozoGridItem");
-        let start = item
-            .column_start
-            .map(|start| format!(" columnStart={{{start}}}"))
-            .unwrap_or_default();
-        let row_span = if item.row_span > 1 {
-            format!(" rowSpan={{{}}}", item.row_span)
-        } else {
-            String::new()
-        };
-        let row_start = item
-            .row_start
-            .map(|start| format!(" rowStart={{{start}}}"))
-            .unwrap_or_default();
-        let text = format!(
-            "<HozoGridItem columnSpan={{{}}}{start}{row_span}{row_start}>{}</HozoGridItem>",
-            item.span, rendered.text
-        );
-        rendered.wrap(text, "</HozoGridItem>".len())
-    } else {
-        rendered
-    };
+    let rendered = wrappers::container_query(rendered, uses_container_query, cx);
+    let rendered = wrappers::grid_item(rendered, grid_item, cx);
     if let Some(evaluation) = node.root_class_evaluation() {
         let mut rendered = rendered;
         // Written in source order already: no plan needed (#1879).
