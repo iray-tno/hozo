@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { runInNewContext } from 'node:vm'
 import { build, type Plugin } from 'vite'
 import { fixtureNode } from '../../metro/fixtures/fixture-process.mjs'
 import {
@@ -101,7 +102,12 @@ function fixture(t) {
     ],
   }
   const options = { root, css: 'tokens.css', content: { include: ['entry.tsx'], packages: [] } }
-  const run = (consumer = true, extra: Plugin[] = [], configured?: Plugin[]) =>
+  const run = (
+    consumer = true,
+    extra: Plugin[] = [],
+    configured?: Plugin[],
+    format: 'es' | 'cjs' = 'es',
+  ) =>
     build({
       root,
       configFile: false,
@@ -114,7 +120,7 @@ function fixture(t) {
       build: {
         write: false,
         minify: false,
-        lib: { entry, formats: ['es'], cssFileName: 'fixture' },
+        lib: { entry, formats: [format], cssFileName: 'fixture' },
         rolldownOptions: {
           external: (id) => id.startsWith('react/') || id.startsWith('@hozo/engine'),
         },
@@ -1205,29 +1211,62 @@ export const Row=()=> <Panel panelClassName="p-2" style={globalThis.author}/>;`
     JSON.stringify(await f.run(false, [], hozo(options))),
     /hozo-owner-[a-f0-9]{16}-r/,
   )
-  const runCaller = async () =>
-    JSON.stringify(
-      await f.run(
-        true,
-        [],
-        hozoWithOwnerCallers(options, {
-          context: 'packed-owner-caller',
-          edges: f.plan.edges,
-        }),
-      ),
+  const runCaller = async (format?: 'cjs') =>
+    f.run(
+      true,
+      [],
+      hozoWithOwnerCallers(options, {
+        context: 'packed-owner-caller',
+        edges: f.plan.edges,
+      }),
+      format,
     )
-  const lowered = await runCaller()
+  const built = await runCaller('cjs')
+  const lowered = JSON.stringify(built)
   assert.match(lowered, /panelClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
   assert.match(
     readFileSync(`${f.entry}.hozo.css`, 'utf8'),
     /\.hozo-owner-[^\s]+\s*\{[^}]+padding-top:\s*14px/s,
   )
   assert.doesNotMatch(lowered, /hozoFixturePanelStyle|hozoToolbarStyle/)
+  const outputs = (Array.isArray(built) ? built : [built]).flatMap((item) => item.output)
+  const entry = outputs.find((item) => item.type === 'chunk' && item.isEntry)
+  const stylesheet = outputs.find((item) => item.type === 'asset' && item.fileName.endsWith('.css'))
+  assert.ok(entry && entry.type === 'chunk' && stylesheet?.type === 'asset')
+  const compiled = {
+    exports: {} as { Row: () => { type: string; props: Record<string, unknown> } },
+  }
+  const authored = { paddingTop: 31 }
+  let styleReads = 0
+  runInNewContext(entry.code, {
+    module: compiled,
+    exports: compiled.exports,
+    __hozoFixtureRender: true,
+    get author() {
+      styleReads++
+      return authored
+    },
+    require(id: string) {
+      assert.equal(id, 'react/jsx-runtime')
+      return { jsx: (render: (props: unknown) => unknown, props: unknown) => render(props) }
+    },
+  })
+  const rendered = compiled.exports.Row()
+  assert.equal(rendered.type, 'div')
+  const hostClass = String(rendered.props.className)
+  assert.match(hostClass, /^hozo-owner-[a-f0-9]{16}-r\d+-\d+$/)
+  assert.match(
+    String(stylesheet.source),
+    new RegExp(`\\.${hostClass}\\s*\\{[^}]*padding-top:\\s*14px`),
+  )
+  assert.equal(rendered.props.style, authored)
+  assert.equal(styleReads, 1)
+
   writeFileSync(
     f.entry,
     caller.replace('panelClassName="p-2"', 'panelClassName={globalThis.classes}'),
   )
-  const opaque = await runCaller()
+  const opaque = JSON.stringify(await runCaller())
   assert.match(opaque, /panelClassName[^\n]+globalThis\.classes/)
   assert.doesNotMatch(opaque, /hozo-owner-[a-f0-9]{16}-r/)
 
@@ -1237,5 +1276,5 @@ export const Row=()=> <Panel panelClassName="p-2" style={globalThis.author}/>;`
   for (const exported of manifest.exports) exported.owners = []
   writeFileSync(manifestPath, JSON.stringify(manifest))
   writeFileSync(f.entry, caller)
-  assert.doesNotMatch(await runCaller(), /hozo-owner-[a-f0-9]{16}-r/)
+  assert.doesNotMatch(JSON.stringify(await runCaller()), /hozo-owner-[a-f0-9]{16}-r/)
 })

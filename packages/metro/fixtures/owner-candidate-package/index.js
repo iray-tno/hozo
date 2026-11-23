@@ -4,4 +4,5 @@ export function FixturePanel({ panelClassName, style }) {
   return { type: 'div', props: { className: panelClassName, style } }
 }
 
-throw new Error('package entries must not execute during analysis')
+if (globalThis.__hozoFixtureRender !== true)
+  throw new Error('package entries must not execute during analysis')
