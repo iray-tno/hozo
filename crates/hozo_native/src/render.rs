@@ -22,6 +22,7 @@ mod spreads;
 mod style_attribute;
 mod style_props;
 mod text_handoff;
+mod wrappers;
 
 enum NativeBackdropFilter {
     None,
@@ -1027,90 +1028,35 @@ pub(super) fn render_node(
         cx.text_depth -= 1;
     }
 
-    let inner = if let Some(grid) = grid {
-        if !child_declarations.is_empty() {
-            cx.diagnostics.push(unwired_variant(
-                node,
-                "grid combined with `space-*`/`divide-*` needs the grid placer to merge those child styles; use `gap-*` for grid spacing",
-                Severity::Error,
-            ));
-        }
-        cx.runtime.need_component("HozoGrid");
-        let row_tracks = grid
-            .row_tracks_js
-            .as_ref()
-            .map(|tracks| format!(" rowTracks={{{tracks}}}"))
-            .unwrap_or_default();
-        let text = format!(
-            "<HozoGrid tracks={{{}}}{row_tracks} columnGap={{{}}} rowGap={{{}}}>{}</HozoGrid>",
-            grid.tracks_js, grid.column_gap, grid.row_gap, inner.text
-        );
-        inner.wrap(text, "</HozoGrid>".len())
-    } else {
-        spaced_children(inner, &child_declarations, &base_name, node, position, cx)
-    };
+    let inner = wrappers::place_children(
+        inner,
+        grid,
+        &child_declarations,
+        &base_name,
+        node,
+        position,
+        cx,
+    );
 
-    let inner = if unified_scope.is_empty() {
-        inner
-    } else {
-        // Outside any grid or spacing wrapper, which must keep the authored
-        // children as their direct children. The scope renders no host.
-        let target = crate::conditions::StyleTarget {
-            owner_facts: &[],
-            owner_events: &[],
-            node,
-            position,
-            interaction_context,
-            pattern_slot: None,
-            composition: Default::default(),
-        };
-        let mut parts = Vec::new();
-        let mut pressed = Vec::new();
-        build_style_entries(
-            &unified_scope,
-            &format!("{base_name}_scope"),
-            &target,
-            &mut parts,
-            &mut pressed,
-            None,
-            cx,
-        );
-        let style = if parts.len() == 1 {
-            parts.remove(0)
-        } else {
-            format!("[{}]", parts.join(", "))
-        };
-        cx.runtime.need_component("HozoInheritedScope");
-        let close = "</HozoInheritedScope>";
-        let text = format!(
-            "<HozoInheritedScope style={{{style}}}>{}{close}",
-            inner.text
-        );
-        inner.wrap(text, close.len())
-    };
+    let inner = wrappers::inherited_scope(
+        inner,
+        &unified_scope,
+        &base_name,
+        node,
+        position,
+        interaction_context,
+        cx,
+    );
 
-    // React Native's TextInput takes no children either.
-    let tag = if measures_host {
-        "HozoContainer"
-    } else if cx.text_unified && rendered_component == "Text" && outermost_text {
-        // Decision 013. Everything that reaches this Text from the file is
-        // already in its own style; it reads only what an ancestor outside
-        // the file could still supply. Its own style is applied last.
-        let handed_down = inherited.iter().chain(node.style.iter());
-        let opaque = crate::text_region::has_opaque(node);
-        if !opaque && crate::text_region::covers_protocol(handed_down, theme) {
-            "Text"
-        } else {
-            if opaque {
-                // A Text rendered in there inherits natively from this host.
-                props_text.push_str(" hozoOpaque");
-            }
-            cx.runtime.need_component("HozoInheritedLeafText");
-            "HozoInheritedLeafText"
-        }
-    } else {
-        rendered_component
-    };
+    let tag = wrappers::host_tag(
+        rendered_component,
+        measures_host,
+        outermost_text,
+        inherited,
+        node,
+        &mut props_text,
+        cx,
+    );
     let mut rendered = if component == "TextInput"
         || rendered_component == "HozoTextInput"
         || component == "Image"
@@ -1134,44 +1080,8 @@ pub(super) fn render_node(
         }
         rendered.copies = Some(copies);
     }
-    // Inside the grid item rather than outside it: `HozoGrid` reads its
-    // children's types to place them, so anything between the two would
-    // make a grid item stop looking like one.
-    let rendered = if uses_container_query {
-        cx.runtime.need_component("HozoContainerQuery");
-        let text = format!(
-            "<HozoContainerQuery>{{(__hozoCq) => ({})}}</HozoContainerQuery>",
-            rendered.text
-        );
-        let mut rendered = rendered.wrap(text, ")}</HozoContainerQuery>".len());
-        rendered.forget_scope();
-        rendered
-    } else {
-        rendered
-    };
-    let rendered = if let Some(item) = grid_item {
-        cx.runtime.need_component("HozoGridItem");
-        let start = item
-            .column_start
-            .map(|start| format!(" columnStart={{{start}}}"))
-            .unwrap_or_default();
-        let row_span = if item.row_span > 1 {
-            format!(" rowSpan={{{}}}", item.row_span)
-        } else {
-            String::new()
-        };
-        let row_start = item
-            .row_start
-            .map(|start| format!(" rowStart={{{start}}}"))
-            .unwrap_or_default();
-        let text = format!(
-            "<HozoGridItem columnSpan={{{}}}{start}{row_span}{row_start}>{}</HozoGridItem>",
-            item.span, rendered.text
-        );
-        rendered.wrap(text, "</HozoGridItem>".len())
-    } else {
-        rendered
-    };
+    let rendered = wrappers::container_query(rendered, uses_container_query, cx);
+    let rendered = wrappers::grid_item(rendered, grid_item, cx);
     if let Some(evaluation) = node.root_class_evaluation() {
         let mut rendered = rendered;
         // Written in source order already: no plan needed (#1879).
