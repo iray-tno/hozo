@@ -146,7 +146,7 @@ resolved on device.
   conditions within every non-StyleX input at parse time (`jsx.rs`),
   graduated inputs included.
 - **O2** the legacy specificity sort inside `group_by_condition`,
-  `crates/hozo_ir/src/lib.rs`, skipped when a canonical Tailwind input is
+  `crates/hozo_ir/src/grouping.rs`, skipped when a canonical Tailwind input is
   present. `group_by_condition` also groups and coalesces equal
   conditions for the backends; only the sort is an ordering authority.
 - **O3** the shared plan, `TailwindWritePlan::order_scalars`
