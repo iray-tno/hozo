@@ -195,3 +195,57 @@ pub(super) fn stacked_guard(
         leaves_to,
     })
 }
+
+impl Stacked {
+    /// Where the variant's parts land. A frame for `HozoAnimated` needs an
+    /// element that animates, and cannot also wait on an interaction state.
+    pub(super) fn lands(self, animates: bool, node: &Node) -> Result<lands::Lands, Diagnostic> {
+        let Stacked {
+            prefix,
+            uses_interactive_state,
+            enters_from,
+            leaves_to,
+        } = self;
+        if enters_from && leaves_to {
+            Err(unwired_variant(
+                node,
+                "`starting:` and `data-[state=closed]:` in one class are the first frame of an element that is already leaving. Nothing can be both, so it is not applied here.",
+                Severity::Warning,
+            ))
+        } else if leaves_to {
+            match (animates, uses_interactive_state) {
+                (true, false) => Ok(lands::Lands::Exit(prefix)),
+                (true, true) => Err(unwired_variant(
+                    node,
+                    "`data-[state=closed]:` stacked with an interaction state is not wired on React Native: the frame an element leaves to is chosen when `Presence` closes, not as it is pressed or hovered. On Web the same class works.",
+                    Severity::Warning,
+                )),
+                (false, _) => Err(unwired_variant(
+                    node,
+                    EXIT_WITHOUT_TRANSITION,
+                    Severity::Warning,
+                )),
+            }
+        } else if enters_from {
+            match (animates, uses_interactive_state) {
+                (true, false) => Ok(lands::Lands::Starting(prefix)),
+                // The first frame is read once, on mount, and
+                // nothing has been pressed or hovered yet.
+                (true, true) => Err(unwired_variant(
+                    node,
+                    "`starting:` stacked with an interaction state is the first frame of an element that is already being pressed, hovered or focused as it mounts. React Native reads the first frame once, before any of those can be true, so it is not applied here. On Web the same class works.",
+                    Severity::Warning,
+                )),
+                (false, _) => Err(unwired_variant(
+                    node,
+                    STARTING_WITHOUT_TRANSITION,
+                    Severity::Warning,
+                )),
+            }
+        } else if uses_interactive_state {
+            Ok(lands::Lands::Pressed(prefix))
+        } else {
+            Ok(lands::Lands::Conditional(prefix))
+        }
+    }
+}

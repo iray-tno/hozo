@@ -153,6 +153,28 @@ pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnost
             ),
             span: node.span,
         },
-        _ => unreachable!("routed by build_style_entries"),
+        // Listed rather than `_`, so a new `Condition` variant fails to
+        // compile here instead of reaching this at runtime.
+        Condition::Always
+        | Condition::All(_)
+        | Condition::Group(_)
+        | Condition::StartingStyle
+        | Condition::Expr(_)
+        | Condition::Disabled
+        | Condition::Enabled
+        | Condition::Aria(_)
+        | Condition::Environment(_)
+        | Condition::FirstChild
+        | Condition::LastChild
+        | Condition::Structural(_)
+        | Condition::Not(_)
+        | Condition::Pressed
+        | Condition::Hover
+        | Condition::Focus
+        | Condition::FocusVisible
+        | Condition::Responsive(_)
+        | Condition::Width { .. }
+        | Condition::Dark
+        | Condition::Container { .. } => unreachable!("routed by build_style_entries"),
     }
 }

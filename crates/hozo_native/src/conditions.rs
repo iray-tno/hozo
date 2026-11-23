@@ -10,6 +10,7 @@ mod groups;
 mod guards;
 mod hooks;
 mod inline_parts;
+mod lands;
 mod presence;
 mod stacked;
 mod unwired;
@@ -191,7 +192,7 @@ pub(super) fn build_style_entries(
         let guarded = |prefix: &str| -> Vec<String> {
             parts.iter().map(|part| format!("{prefix}{part}")).collect()
         };
-        match &condition {
+        let lands = match &condition {
             Condition::Disabled
             | Condition::Enabled
             | Condition::Aria(_)
@@ -209,83 +210,17 @@ pub(super) fn build_style_entries(
             | Condition::Dark
             | Condition::Container { .. }
             | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown) => {
-                match guards::resolve(&condition, target, source, runtime) {
-                    Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => {
-                        base_parts.extend(parts.clone())
-                    }
-                    Ok(guards::Guard::Known(true)) => conditional.extend(guarded("")),
-                    Ok(guards::Guard::Known(false)) => {}
-                    Ok(guards::Guard::Dynamic(guard)) => {
-                        conditional.extend(guarded(&format!("{guard} && ")))
-                    }
-                    Ok(guards::Guard::Interactive(guard)) => {
-                        pressed_parts.extend(guarded(&format!("{guard} && ")))
-                    }
-                    Ok(guards::Guard::InteractiveScoped {
-                        available,
-                        predicate,
-                    }) => {
-                        pressed_parts.extend(guarded(&format!("({available} && {predicate}) && ")))
-                    }
-                    Ok(guards::Guard::Scoped {
-                        available,
-                        predicate,
-                    }) => conditional.extend(guarded(&format!("({available} && {predicate}) && "))),
-                    Err(reason) => {
-                        diagnostics.push(unwired_variant(node, &reason, Severity::Error))
-                    }
-                }
+                lands::from_guard(
+                    guards::resolve(&condition, target, source, runtime),
+                    condition == Condition::Enabled,
+                    node,
+                )
             }
-            Condition::Always => base_parts.extend(parts.clone()),
+            Condition::Always => Ok(lands::Lands::Base(String::new())),
             Condition::All(conditions) => {
-                if let Some(stacked::Stacked {
-                    prefix,
-                    uses_interactive_state,
-                    enters_from,
-                    leaves_to,
-                }) = stacked::stacked_guard(conditions, target, source, runtime, diagnostics)
-                {
-                    if enters_from && leaves_to {
-                        diagnostics.push(unwired_variant(
-                            node,
-                            "`starting:` and `data-[state=closed]:` in one class are the first frame of an element that is already leaving. Nothing can be both, so it is not applied here.",
-                            Severity::Warning,
-                        ));
-                    } else if leaves_to {
-                        match (frames.as_deref_mut(), uses_interactive_state) {
-                            (Some(frames), false) => frames.exit.extend(guarded(&prefix)),
-                            (Some(_), true) => diagnostics.push(unwired_variant(
-                                node,
-                                "`data-[state=closed]:` stacked with an interaction state is not wired on React Native: the frame an element leaves to is chosen when `Presence` closes, not as it is pressed or hovered. On Web the same class works.",
-                                Severity::Warning,
-                            )),
-                            (None, _) => diagnostics.push(unwired_variant(
-                                node,
-                                EXIT_WITHOUT_TRANSITION,
-                                Severity::Warning,
-                            )),
-                        }
-                    } else if enters_from {
-                        match (frames.as_deref_mut(), uses_interactive_state) {
-                            (Some(frames), false) => frames.starting.extend(guarded(&prefix)),
-                            // The first frame is read once, on mount, and
-                            // nothing has been pressed or hovered yet.
-                            (Some(_), true) => diagnostics.push(unwired_variant(
-                                node,
-                                "`starting:` stacked with an interaction state is the first frame of an element that is already being pressed, hovered or focused as it mounts. React Native reads the first frame once, before any of those can be true, so it is not applied here. On Web the same class works.",
-                                Severity::Warning,
-                            )),
-                            (None, _) => diagnostics.push(unwired_variant(
-                                node,
-                                STARTING_WITHOUT_TRANSITION,
-                                Severity::Warning,
-                            )),
-                        }
-                    } else if uses_interactive_state {
-                        pressed_parts.extend(guarded(&prefix));
-                    } else {
-                        conditional.extend(guarded(&prefix));
-                    }
+                match stacked::stacked_guard(conditions, target, source, runtime, diagnostics) {
+                    Some(stacked) => stacked.lands(frames.is_some(), node),
+                    None => Ok(lands::Lands::Nowhere),
                 }
             }
             Condition::Group(inner) => match group_state(inner, interaction_context) {
@@ -295,8 +230,8 @@ pub(super) fn build_style_entries(
                 // form where they are in scope. Putting them in the other
                 // one emitted `hovered && …` against an identifier that
                 // does not exist there.
-                Some(state) => pressed_parts.extend(guarded(&format!("{state} && "))),
-                None => diagnostics.push(unwired_variant(
+                Some(state) => Ok(lands::Lands::Pressed(format!("{state} && "))),
+                None => Err(unwired_variant(
                     node,
                     &group_unwired_message(inner, interaction_context),
                     Severity::Error,
@@ -310,54 +245,30 @@ pub(super) fn build_style_entries(
             Condition::DataAttribute(_)
                 if !presence_closed(&condition) && !target.owner_facts.is_empty() =>
             {
-                match guards::resolve(&condition, target, source, runtime) {
-                    Ok(guards::Guard::InteractiveScoped {
-                        available,
-                        predicate,
-                    }) => {
-                        pressed_parts.extend(guarded(&format!("({available} && {predicate}) && ")))
-                    }
-                    Ok(guards::Guard::Known(true)) => conditional.extend(guarded("")),
-                    Ok(guards::Guard::Known(false)) => {}
-                    Ok(guards::Guard::Dynamic(guard)) => {
-                        conditional.extend(guarded(&format!("{guard} && ")))
-                    }
-                    Ok(guards::Guard::Interactive(guard)) => {
-                        pressed_parts.extend(guarded(&format!("{guard} && ")))
-                    }
-                    Ok(guards::Guard::Scoped {
-                        available,
-                        predicate,
-                    }) => conditional.extend(guarded(&format!("({available} && {predicate}) && "))),
-                    Err(reason) => {
-                        diagnostics.push(unwired_variant(node, &reason, Severity::Error))
-                    }
-                }
+                lands::from_guard(
+                    guards::resolve(&condition, target, source, runtime),
+                    false,
+                    node,
+                )
             }
-            Condition::DataAttribute(_) if presence_closed(&condition) => {
-                match frames.as_deref_mut() {
-                    Some(frames) => frames.exit.extend(guarded("")),
-                    None => diagnostics.push(unwired_variant(
-                        node,
-                        EXIT_WITHOUT_TRANSITION,
-                        Severity::Warning,
-                    )),
-                }
-            }
+            Condition::DataAttribute(_) if presence_closed(&condition) => lands::frame(
+                lands::Lands::Exit(String::new()),
+                frames.is_some(),
+                EXIT_WITHOUT_TRANSITION,
+                node,
+            ),
             // The first frame of an enter animation (decision 007).
             // `HozoAnimated` starts from these values and transitions to
             // the element's style, which is what `@starting-style` does on
             // Web -- so the entry is handed over as `hozoStarting` rather
             // than joining the style array, where it would win and never
             // leave.
-            Condition::StartingStyle => match frames.as_deref_mut() {
-                Some(frames) => frames.starting.extend(guarded("")),
-                None => diagnostics.push(unwired_variant(
-                    node,
-                    STARTING_WITHOUT_TRANSITION,
-                    Severity::Warning,
-                )),
-            },
+            Condition::StartingStyle => lands::frame(
+                lands::Lands::Starting(String::new()),
+                frames.is_some(),
+                STARTING_WITHOUT_TRANSITION,
+                node,
+            ),
             Condition::Expr(expr) => {
                 let guard = render_condition_expr(source, expr);
                 // A JS guard decides whether its classes are present, and
@@ -366,14 +277,31 @@ pub(super) fn build_style_entries(
                 // as Tailwind's order places the class, so it stays there:
                 // `cx('p-4', on && 'p-2')` keeps 16px when `on` holds. An
                 // unranked input keeps the old base-then-guards layout.
-                let parts = guarded(&format!("({guard}) && "));
-                if canonical_input {
-                    base_parts.extend(parts);
+                let prefix = format!("({guard}) && ");
+                Ok(if canonical_input {
+                    lands::Lands::Base(prefix)
                 } else {
-                    conditional.extend(parts);
+                    lands::Lands::Conditional(prefix)
+                })
+            }
+            other => Err(unwired::unwired_diagnostic(other, node)),
+        };
+        match lands {
+            Ok(lands::Lands::Base(prefix)) => base_parts.extend(guarded(&prefix)),
+            Ok(lands::Lands::Conditional(prefix)) => conditional.extend(guarded(&prefix)),
+            Ok(lands::Lands::Pressed(prefix)) => pressed_parts.extend(guarded(&prefix)),
+            Ok(lands::Lands::Exit(prefix)) => {
+                if let Some(frames) = frames.as_deref_mut() {
+                    frames.exit.extend(guarded(&prefix));
                 }
             }
-            other => diagnostics.push(unwired::unwired_diagnostic(other, node)),
+            Ok(lands::Lands::Starting(prefix)) => {
+                if let Some(frames) = frames.as_deref_mut() {
+                    frames.starting.extend(guarded(&prefix));
+                }
+            }
+            Ok(lands::Lands::Nowhere) => {}
+            Err(diagnostic) => diagnostics.push(diagnostic),
         }
         if canonical_input {
             // These two buckets describe where a guard gets its value, not
@@ -385,10 +313,10 @@ pub(super) fn build_style_entries(
             has_interactive |= pressed_parts.len() > interactive_start;
             ordered_states.extend(pressed_parts.drain(interactive_start..));
         }
-        // No catch-all arm above, deliberately: a new `Condition` variant
-        // must fail to compile here rather than quietly joining the set
-        // that gets computed and dropped. That is exactly how the eight
-        // variants this function now reports went unnoticed.
+        // `unwired_diagnostic` lists every variant this match routes, so a
+        // new `Condition` fails to compile there rather than quietly joining
+        // the set that gets computed and dropped. That is exactly how the
+        // eight variants it now reports went unnoticed.
         if !props.is_empty() {
             // A rule that applies only in dark mode resolves its colours
             // against the dark palette -- whether it got here from a paired
