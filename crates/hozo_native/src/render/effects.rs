@@ -21,6 +21,7 @@ pub(super) struct Effects {
 
 /// Which effect families this element composes, decided from its own
 /// declarations before its style entries are built.
+#[derive(Clone, Copy)]
 pub(super) struct Mixing {
     pub(super) mixed_shadows: bool,
     pub(super) mixed_gradients: bool,
@@ -257,4 +258,91 @@ pub(super) fn compose_unmixed(
         )];
     }
     parts
+}
+
+/// `space-*`/`divide-*` belong to the children, not here. Web gives them
+/// their own rule with a child-scoped selector; the equivalent on this
+/// platform is a style handed to `HozoSpaced`, which decides at render
+/// time which children receive it -- see that component for why the
+/// decision can't be made here.
+///
+/// Returns the children's declarations, the element's own (with base effect
+/// layers folded where they compose), and which effect families compose.
+pub(super) fn own_declarations(
+    own_declarations: Vec<StyleDeclaration>,
+    node: &Node,
+    component: &str,
+    grid: bool,
+    grid_item: bool,
+) -> (Vec<StyleDeclaration>, Vec<StyleDeclaration>, Mixing) {
+    let own_declarations = own_declarations.into_iter().filter(|d| {
+        if grid && grid_absorbs(&d.property) {
+            return false;
+        }
+        if grid_item
+            && matches!(
+                d.property,
+                StyleProperty::GridColumn(_)
+                    | StyleProperty::GridColumnStart(_)
+                    | StyleProperty::GridColumnEnd(_)
+                    | StyleProperty::GridRow(_)
+                    | StyleProperty::GridRowStart(_)
+                    | StyleProperty::GridRowEnd(_)
+            )
+        {
+            return false;
+        }
+        !matches!(
+            d.property,
+            StyleProperty::TransitionProperty(_)
+                | StyleProperty::TransitionDuration(..)
+                | StyleProperty::TransitionDelay(..)
+                | StyleProperty::TransitionTimingFunction(..)
+        )
+    });
+    let (child_declarations, own_declarations): (Vec<_>, Vec<_>) =
+        own_declarations.partition(|d| style::is_child_scoped(&d.property));
+    let mixed_effect_boundary = matches!(node.primitive, Primitive::View | Primitive::Pressable)
+        && component != "HozoAnimated"
+        && !node.props.has_spread()
+        && !node.class_name_fallback.is_empty();
+    let mixed_shadows = mixed_effect_boundary && crate::shadows::can_mix(&own_declarations);
+    let mixed_gradients = mixed_effect_boundary && crate::gradients::can_mix(&own_declarations);
+    let mixed_transforms = mixed_effect_boundary && crate::transforms::can_mix(&own_declarations);
+    let project_filter_slots =
+        component != "HozoAnimated" && crate::filters::can_compose(&own_declarations);
+    let mixed_filters =
+        mixed_effect_boundary && project_filter_slots && crate::filters::can_mix(&own_declarations);
+    let compose_gradients = mixed_gradients
+        || (component != "HozoAnimated"
+            && crate::gradients::split_across_conditions(&own_declarations));
+    let compose_shadows = mixed_shadows
+        || (component != "HozoAnimated"
+            && crate::shadows::split_across_conditions(&own_declarations));
+    // Copying base effect registers into every condition would overwrite a
+    // different active condition's value when the runtime joins the slots.
+    let own_declarations = style::fold_base_layers(
+        own_declarations,
+        style::ComposedLayers {
+            // If the emitted objects write identical slots, the conditional
+            // literal already replaces all the base slots. Otherwise the
+            // composer reads them independently, so no base copy is needed.
+            filters: project_filter_slots,
+            gradients: compose_gradients,
+            shadows: compose_shadows,
+        },
+    );
+    (
+        child_declarations,
+        own_declarations,
+        Mixing {
+            mixed_shadows,
+            mixed_gradients,
+            mixed_transforms,
+            mixed_filters,
+            project_filter_slots,
+            compose_gradients,
+            compose_shadows,
+        },
+    )
 }

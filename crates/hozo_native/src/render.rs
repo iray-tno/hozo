@@ -17,6 +17,7 @@ mod host_props;
 mod inheritance;
 mod motion_props;
 mod passthrough;
+mod prepare;
 mod progress;
 mod refusals;
 mod semantic_defaults;
@@ -117,37 +118,7 @@ pub(super) fn render_node(
     // isn't a valid style value at all, so it must not be used there.
     let mut pressed_parts: Vec<String> = Vec::new();
 
-    // Web concatenates an unresolvable `className` back on and lets the
-    // browser's CSS engine match it. React Native has no className and no
-    // CSS engine, so the string is handed to the generated resolver
-    // instead (see `render_candidate_module`), which looks each class up in
-    // the project-wide candidate map. Warning rather than error: the styles
-    // do arrive for supported candidates scanned somewhere in the project.
-    // Registered patterns resolve with their actual owner's state; ordinary
-    // primitives keep their existing callback/prop state path below.
-    for expr_ref in &node.class_name_fallback {
-        let code = hozo_parser::class_fallback_code(&source_text(source, *expr_ref), "className");
-        let message = if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
-            "`className` can't be resolved at build time. Its pattern slot resolves it on device \
-             from the project-wide candidate map with that owner's available state. \
-             Use a static string for build-time validation; runtime condition support remains limited."
-                .to_string()
-        } else {
-            format!(
-                "`{}` can't be resolved at build time, so it's resolved on device from the \
-                 project-wide candidate map. Conditional utilities (`hover:`, `md:`, `pressed:`) \
-                 can't be carried that way and will warn at runtime -- write those as a static \
-                 className so they compile to a real style variant.",
-                source_text(source, *expr_ref)
-            )
-        };
-        cx.diagnostics.push(Diagnostic {
-            code,
-            severity: Severity::Warning,
-            message: message + hozo_parser::class_fallback_note(code),
-            span: node.span,
-        });
-    }
+    class_fallback::warn_unresolved(node, source, cx.diagnostics);
 
     // Some CSS concepts are props on this platform rather than styles, so
     // they're absorbed before the refusal check below -- otherwise the
@@ -192,41 +163,7 @@ pub(super) fn render_node(
     ));
     let layout = crate::pattern_layout::adapt(node.primitive, "className", style);
     let style = layout.style;
-    // A skeleton's animation runs only when motion is allowed, whatever the
-    // class said: `animate-pulse` on one is read as
-    // `motion-safe:animate-pulse` (decision 007, section 5). The Web half is
-    // a base CSS rule; here it is the same guard a written `motion-safe:`
-    // gets. The Web rule covers the skeleton's descendants too, so this
-    // does.
-    let style = if node.primitive == Primitive::Skeleton || from_ancestor.in_skeleton {
-        style
-            .into_iter()
-            .map(|declaration| match declaration.property {
-                // Already said, so not said twice.
-                _ if condition_contains(&declaration.condition, |condition| {
-                    matches!(
-                        condition,
-                        Condition::Environment(hozo_ir::Environment::MotionSafe)
-                    )
-                }) =>
-                {
-                    declaration
-                }
-                StyleProperty::Animation(_)
-                | StyleProperty::AnimationName(_)
-                | StyleProperty::ThemeAnimation(_) => StyleDeclaration {
-                    condition: Condition::all(vec![
-                        Condition::Environment(hozo_ir::Environment::MotionSafe),
-                        declaration.condition.clone(),
-                    ]),
-                    ..declaration
-                },
-                _ => declaration,
-            })
-            .collect()
-    } else {
-        style
-    };
+    let style = prepare::motion_safe_skeleton(style, node, from_ancestor.in_skeleton);
     let grid = native_grid(&style, theme, cx.runtime);
     let grid_item = native_grid_item(&style, grid_columns, grid_rows);
     // The fast Native transition path is deliberately narrow: opacity on
@@ -237,60 +174,9 @@ pub(super) fn render_node(
     // consumes -- they are Web-only on an element with nothing to animate
     // and lowered on one with something.
     let ambient_transition = ambient_transition(node, &style);
-    // A keyframe animation's `animation-*` longhands are its timing, read
-    // into `useHozoKeyframes` -- Web-only on an element with no keyframes
-    // and lowered on one with them, as the transition ones above are.
-    let has_keyframes = style.iter().any(|declaration| match &declaration.property {
-        StyleProperty::AnimationName(_) => true,
-        // Only one the theme can run: an unresolved name renders nothing
-        // animated, so the element stays what it was.
-        StyleProperty::ThemeAnimation(name) => theme
-            .animation(name)
-            .is_some_and(|animation| animation.keyframes.is_some()),
-        _ => false,
-    });
-    // A style holding `Animated` values only moves on an `Animated`
-    // component: a plain `View` or `Text` is handed objects it cannot read. Tailwind's
-    // four loops and a project's own keyframes both produce one.
-    let animated_style = has_keyframes
-        || style.iter().any(|declaration| {
-            matches!(&declaration.property, StyleProperty::Animation(name) if *name != hozo_ir::Animation::None)
-        });
+    let (has_keyframes, animated_style) = prepare::animation(&style, theme);
 
-    // `react-native-svg` takes paint as *props*, not as style, so on an
-    // SVG element these three stop being Web-only and become something to
-    // lower. The refusal that used to name them said the library "is a
-    // separate dependency with its own props, not a style Hozo can lower
-    // to" -- true about the style and beside the point about the props,
-    // which is exactly the sort of asymmetry the compiler is for: one
-    // class, `fill-blue-500`, becomes a CSS declaration on Web and an
-    // attribute here.
-    let svg_paint: Vec<(&'static str, String)> = if matches!(node.primitive, Primitive::Svg(_)) {
-        style
-            .iter()
-            .filter_map(|declaration| match &declaration.property {
-                // Trimmed: the style resolver returns a JavaScript string
-                // literal, quotes included, because that is what a
-                // StyleSheet entry needs. A JSX attribute brings its own.
-                StyleProperty::Fill(color) => Some((
-                    "fill",
-                    crate::style::resolve_theme_color(color, theme)
-                        .trim_matches('\'')
-                        .to_string(),
-                )),
-                StyleProperty::Stroke(color) => Some((
-                    "stroke",
-                    crate::style::resolve_theme_color(color, theme)
-                        .trim_matches('\'')
-                        .to_string(),
-                )),
-                StyleProperty::StrokeWidth(width) => Some(("strokeWidth", format!("{{{width}}}"))),
-                _ => None,
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
+    let svg_paint = prepare::svg_paint(node, &style, theme);
     let backdrop_filter = refusals::report_refused(
         &style,
         refusals::Lowered {
@@ -309,45 +195,13 @@ pub(super) fn render_node(
         cx.diagnostics,
     );
 
-    let (mut component, extra_props) = markup::native_component(node, cx.diagnostics);
-    // A ruby whose word only React Native can read hands the label to a
-    // component, and the reading has to be identifiable there -- a plain
-    // `Text` is not, since `HozoRuby` compares by identity to decide what
-    // the word is. Before `rendered_component`, which reads `component`.
-    if node.primitive == Primitive::Ruby && component == "HozoRuby" {
-        cx.runtime.need_component("HozoRuby");
-    }
-    if in_dynamic_ruby && node.primitive == Primitive::RubyText {
-        component = "HozoRubyText";
-        cx.runtime.need_component("HozoRubyText");
-    }
-    // Recorded here, where the tag is decided, and only for the primitives
-    // Hozo lowered: a carried `Child::Verbatim` keeps whatever the author
-    // imported and must not be imported over.
-    if !matches!(node.primitive, Primitive::Svg(_)) {
-        cx.runtime.need_native(component);
-    }
-    // A transition on something that is not a control. `Pressable` has its
-    // own path above, driven by the four interaction booleans; this one is
-    // driven by the style changing, which is the shape an ambient
-    // condition arrives in -- `dark:bg-black` is already resolved to a
-    // guarded array by the time it renders, and what the element sees is
-    // the array becoming a different array.
-    if ambient_transition.is_some() && component == "View" {
-        component = "HozoAnimated";
-        cx.runtime.need_component("HozoAnimated");
-    }
-    if animated_style {
-        let animated = match component {
-            "View" => Some("Animated.View"),
-            "Text" => Some("Animated.Text"),
-            _ => None,
-        };
-        if let Some(animated) = animated {
-            component = animated;
-            cx.runtime.need_native("Animated");
-        }
-    }
+    let (component, extra_props) = host::base_component(
+        node,
+        in_dynamic_ruby,
+        ambient_transition.is_some(),
+        animated_style,
+        cx,
+    );
 
     // Only `Text` can hold text on this platform -- a raw string inside a
     // View or Pressable is a runtime crash there ("Text strings must be
@@ -384,67 +238,12 @@ pub(super) fn render_node(
         unified_scope,
     } = text_handoff::hand_down_text(node, component, &style, inherited, parent_font_size, cx);
 
-    // `space-*`/`divide-*` belong to the children, not here. Web gives them
-    // their own rule with a child-scoped selector; the equivalent on this
-    // platform is a style handed to `HozoSpaced`, which decides at render
-    // time which children receive it -- see that component for why the
-    // decision can't be made here.
-    let own_declarations = own_declarations.into_iter().filter(|d| {
-        if grid.is_some() && grid_absorbs(&d.property) {
-            return false;
-        }
-        if grid_item.is_some()
-            && matches!(
-                d.property,
-                StyleProperty::GridColumn(_)
-                    | StyleProperty::GridColumnStart(_)
-                    | StyleProperty::GridColumnEnd(_)
-                    | StyleProperty::GridRow(_)
-                    | StyleProperty::GridRowStart(_)
-                    | StyleProperty::GridRowEnd(_)
-            )
-        {
-            return false;
-        }
-        !matches!(
-            d.property,
-            StyleProperty::TransitionProperty(_)
-                | StyleProperty::TransitionDuration(..)
-                | StyleProperty::TransitionDelay(..)
-                | StyleProperty::TransitionTimingFunction(..)
-        )
-    });
-    let (child_declarations, own_declarations): (Vec<_>, Vec<_>) =
-        own_declarations.partition(|d| style::is_child_scoped(&d.property));
-    let mixed_effect_boundary = matches!(node.primitive, Primitive::View | Primitive::Pressable)
-        && component != "HozoAnimated"
-        && !node.props.has_spread()
-        && !node.class_name_fallback.is_empty();
-    let mixed_shadows = mixed_effect_boundary && crate::shadows::can_mix(&own_declarations);
-    let mixed_gradients = mixed_effect_boundary && crate::gradients::can_mix(&own_declarations);
-    let mixed_transforms = mixed_effect_boundary && crate::transforms::can_mix(&own_declarations);
-    let project_filter_slots =
-        component != "HozoAnimated" && crate::filters::can_compose(&own_declarations);
-    let mixed_filters =
-        mixed_effect_boundary && project_filter_slots && crate::filters::can_mix(&own_declarations);
-    let compose_gradients = mixed_gradients
-        || (component != "HozoAnimated"
-            && crate::gradients::split_across_conditions(&own_declarations));
-    let compose_shadows = mixed_shadows
-        || (component != "HozoAnimated"
-            && crate::shadows::split_across_conditions(&own_declarations));
-    // Copying base effect registers into every condition would overwrite a
-    // different active condition's value when the runtime joins the slots.
-    let own_declarations = style::fold_base_layers(
+    let (child_declarations, own_declarations, mixing) = effects::own_declarations(
         own_declarations,
-        style::ComposedLayers {
-            // If the emitted objects write identical slots, the conditional
-            // literal already replaces all the base slots. Otherwise the
-            // composer reads them independently, so no base copy is needed.
-            filters: project_filter_slots,
-            gradients: compose_gradients,
-            shadows: compose_shadows,
-        },
+        node,
+        component,
+        grid.is_some(),
+        grid_item.is_some(),
     );
 
     let mut frames = crate::conditions::AnimatedFrames::default();
@@ -469,9 +268,9 @@ pub(super) fn render_node(
             && pattern_style_prop.is_none(),
         pattern_slot: Some("className"),
         composition: hozo_ir::OwnerSlotComposition {
-            filters: project_filter_slots,
-            shadows: compose_shadows,
-            gradients: compose_gradients,
+            filters: mixing.project_filter_slots,
+            shadows: mixing.compose_shadows,
+            gradients: mixing.compose_gradients,
         },
     };
     let state_start = build_style_entries(
@@ -504,45 +303,16 @@ pub(super) fn render_node(
             cx,
         );
     }
-    // The label's text styles, by state, for `HozoPressable` to hand to a
-    // label that arrives as `children`. Compiled here like any other entry;
-    // only which element they land on waits for runtime.
-    let label_style = if forwards_label {
-        let mut parts = Vec::new();
-        let mut pressed = Vec::new();
-        let target = crate::conditions::StyleTarget {
-            owner_facts: &[],
-            owner_events: &[],
-            node,
-            position,
-            interaction_context: true,
-            pattern_slot: None,
-            composition: Default::default(),
-        };
-        build_style_entries(
-            &text_declarations,
-            &format!("{base_name}_label"),
-            &target,
-            &mut parts,
-            &mut pressed,
-            None,
-            cx,
-        );
-        parts.extend(pressed);
-        (!parts.is_empty()).then_some(parts)
-    } else {
-        None
-    };
+    let label_style = text_handoff::label_style(
+        forwards_label,
+        &text_declarations,
+        &base_name,
+        node,
+        position,
+        cx,
+    );
     let (effects, deferred_effects) = effects::plan(
-        effects::Mixing {
-            mixed_shadows,
-            mixed_gradients,
-            mixed_transforms,
-            mixed_filters,
-            project_filter_slots,
-            compose_gradients,
-            compose_shadows,
-        },
+        mixing,
         component,
         node,
         &own_declarations,
@@ -650,38 +420,18 @@ pub(super) fn render_node(
         ));
     }
 
-    // The official StyleX residue lands before Hozo's generated `style`, so
-    // it cannot replace the declarations that were successfully lowered.
-    let mut props_text = node
-        .props
-        .stylex_residuals
-        .iter()
-        .map(|residual| format!(" {{...({})}}", residual.render_expression(source)))
-        .collect::<String>();
-    if let Some(prop) = layout.scroll_prop {
-        props_text.push_str(&format!(" {prop}={{true}}"));
-    }
-    if !backdrop_parts.is_empty() {
-        let prop = crate::pattern::backdrop_style_prop(node.primitive, "className")
-            .expect("a backdrop style must have a catalogued owner");
-        props_text.push_str(&format!(" {prop}={{[{}]}}", backdrop_parts.join(", ")));
-    }
-    if let Some(radius) = &layout.backdrop_blur {
-        props_text.push_str(&format!(" hozoBackdropBlur={{{radius}}}"));
-    }
-    if link_interaction {
-        props_text.push_str(" hozoLinkComponent={HozoPressable}");
-    }
-    if rendered_component == "HozoBackdropFilter" {
-        if let Some(NativeBackdropFilter::Blur(radius)) = &backdrop_filter {
-            props_text.push_str(&format!(" hozoBlurRadius={{{radius}}}"));
-        }
-    }
-    if node.primitive == Primitive::Progress {
-        if let Some(value) = progress::accessibility_value(node, source) {
-            props_text.push_str(&value);
-        }
-    }
+    let mut props_text = host_props::leading_props(
+        node,
+        host_props::Leading {
+            scroll_prop: layout.scroll_prop,
+            backdrop_parts: &backdrop_parts,
+            backdrop_blur: layout.backdrop_blur.as_ref(),
+            backdrop_filter: backdrop_filter.as_ref(),
+            link_interaction,
+        },
+        rendered_component,
+        source,
+    );
 
     // An authored `style` joins the array instead of becoming a second
     // `style` attribute.
@@ -712,32 +462,15 @@ pub(super) fn render_node(
     // with the spreads where those are emitted (`spread_style`).
     let mut held = crate::spread_style::HeldStyles::new(&node.props.passthrough);
     style_array_parts = effects::compose_mixed(style_array_parts, &effects, cx.runtime);
-    if (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some() {
-        if !authored_style.is_empty() {
-            held.emit(
-                &mut props_text,
-                &format!(" style={{[{}]}}", authored_style.join(", ")),
-            );
-        }
-    } else if !authored_style.is_empty()
-        && !style_array_parts.is_empty()
-        && (!node.class_name_fallback.is_empty()
-            || crate::edge_projection::writes_logical_inline(&node.style))
-    {
-        // Yoga prefers a class's `paddingEnd` to the author's `paddingRight`
-        // whatever the order; the helper lets the author's edge win, on the
-        // side React Native would give it alone (#2050). An opaque class may
-        // write any edge, so it takes the same boundary.
-        cx.runtime.need_component("hozoAuthoredEdges");
-        cx.runtime.need_native("I18nManager");
-        style_array_parts = vec![format!(
-            "hozoAuthoredEdges([{}], [{}], I18nManager.isRTL, I18nManager.doLeftAndRightSwapInRTL)",
-            style_array_parts.join(", "),
-            authored_style.join(", ")
-        )];
-    } else {
-        style_array_parts.extend(authored_style);
-    }
+    style_array_parts = authored_style::compose(
+        style_array_parts,
+        authored_style,
+        (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some(),
+        node,
+        &mut held,
+        &mut props_text,
+        cx.runtime,
+    );
 
     style_array_parts = effects::compose_unmixed(style_array_parts, &effects, cx.runtime);
 
