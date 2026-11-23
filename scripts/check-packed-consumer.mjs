@@ -448,8 +448,7 @@ async function main() {
     }
     // `hozo init` over the Vite starter as it ships (RFC 013 step 5): the
     // starter's own config and stylesheet, the guide's App, and the packed
-    // CLI doing what the guide says to do by hand. Its install goes through
-    // the workspace overrides, so `@hozo/*` resolve to these tarballs.
+    // CLI doing what the guide says to do by hand.
     if (!wasi) {
       const app = path.join(work, 'init-vite')
       cpSync(path.join(root, 'scripts/fixtures/starters/vite'), app, { recursive: true })
@@ -464,6 +463,29 @@ async function main() {
       writeFileSync(path.join(app, 'pnpm-workspace.yaml'), workspaceYaml(tarballs))
       writeFileSync(path.join(app, '.gitignore'), 'node_modules\ndist\n')
       pnpm('install-init-vite', ['install', '--ignore-scripts'], app)
+      // pnpm add <name>@<version> looks the version up on the registry
+      // before applying workspace overrides. Check the install plan, then
+      // install the candidate tarballs explicitly so an unpublished release
+      // can exercise the same CLI writes, setup checks and production build.
+      const plan = JSON.parse(
+        pnpm('plan-init-vite', ['exec', 'hozo', 'init', '--format', 'json'], app),
+      )
+      const initVersion = compilerManifest.version
+      assert.equal(plan.version, initVersion)
+      assert.equal(plan.written, false)
+      assert.deepEqual(plan.install, {
+        commands: [
+          `pnpm add @hozo/core@${initVersion}`,
+          `pnpm add -D @hozo/vite@${initVersion} @hozo/compiler@${initVersion}`,
+        ],
+        ran: false,
+      })
+      pnpm('install-init-vite-core', ['add', tarballs['@hozo/core'], '--ignore-scripts'], app)
+      pnpm(
+        'install-init-vite-dev',
+        ['add', '-D', tarballs['@hozo/vite'], tarballs['@hozo/compiler'], '--ignore-scripts'],
+        app,
+      )
       const git = (...args) =>
         command(
           'git-init-vite',
@@ -475,7 +497,12 @@ async function main() {
       git('add', '-A')
       git('commit', '-q', '-m', 'starter')
       // Exits 1 if square finds a setup error after the edits.
-      pnpm('hozo-init-vite', ['exec', 'hozo', 'init', '--write'], app)
+      const applied = JSON.parse(
+        pnpm('hozo-init-vite', ['exec', 'hozo', 'init', '--write', '--format', 'json'], app),
+      )
+      assert.equal(applied.written, true)
+      assert.deepEqual(applied.install.commands, [])
+      assert.ok(Array.isArray(applied.setup), 'init must run square on the installed tarballs')
       const config = readFileSync(path.join(app, 'vite.config.ts'), 'utf8')
       const theme = path.join(app, 'src/theme.css')
       assert.match(config, /plugins: \[hozo\(\{ css: 'src\/theme\.css' \}\), react\(\)\]/)
