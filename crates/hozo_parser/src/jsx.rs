@@ -29,6 +29,7 @@ use oxc_syntax::scope::ScopeFlags;
 use build::build_node;
 use enclosing::enclosing_component;
 
+mod accessibility_props;
 mod atoms;
 mod build;
 mod children;
