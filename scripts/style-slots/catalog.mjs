@@ -1467,7 +1467,7 @@ export const ownerShadow = {
         {
           id: 'scrim',
           when: { eq: ['present', true] },
-          nativeHost: 'View',
+          nativeHost: 'Pressable',
           webHost: 'div',
           events: [],
         },
@@ -1836,7 +1836,7 @@ export const ownerShadow = {
         {
           id: 'scrim',
           when: { eq: ['present', true] },
-          nativeHost: 'View',
+          nativeHost: 'Pressable',
           webHost: 'div',
           events: [],
         },
@@ -2571,7 +2571,7 @@ export const ownerShadow = {
         {
           id: 'scrim',
           when: { eq: ['present', true] },
-          nativeHost: 'View',
+          nativeHost: 'Pressable',
           webHost: null,
           events: [],
         },

@@ -6,6 +6,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { createCompiler } from '@hozo/compiler'
+import { parseOwnerPackageShadow } from '@hozo/compiler/project'
 import * as esbuild from 'esbuild'
 import { transformHozoSource } from './transform.ts'
 
@@ -22,6 +23,27 @@ function flattenStyle(style: unknown): Record<string, unknown> {
   if (Array.isArray(style)) return Object.assign({}, ...style.map(flattenStyle))
   if (typeof style === 'object') return { ...(style as Record<string, unknown>) }
   return {}
+}
+
+function assertScrimHost(
+  owner: 'Drawer.scrim' | 'BottomSheet.scrim',
+  captured: ReturnType<typeof loadNativePatternModule>['captured'],
+  backgroundColor: string,
+) {
+  const manifest = parseOwnerPackageShadow(
+    readFileSync(new URL('../../patterns/hozo.manifest.json', import.meta.url), 'utf8'),
+  )
+  const shape = manifest.owners?.contracts
+    .find((contract) => contract.owner === owner)
+    ?.shapes.find((shape) => shape.id === 'scrim')
+  assert.ok(shape, `${owner} must declare its scrim shape`)
+  const hosts = captured.filter(
+    (entry) => flattenStyle(entry.props.style).backgroundColor === backgroundColor,
+  )
+  assert.equal(hosts.length, 1, `${owner} must deliver its marker to exactly one Native host`)
+  assert.equal(hosts[0]!.host, shape.nativeHost, `${owner} must declare the actual host`)
+  assert.deepEqual(shape.events, [], 'the resting carrier does not receive interaction state')
+  return flattenStyle(hosts[0]!.props.style)
 }
 
 function loadNativePatternModule(
@@ -235,7 +257,7 @@ export function Fallback() {
   assert.match(transformed, /hozoPanelStyle=\{__hozoOwner\d+_Plan\d+\}/)
   assert.doesNotMatch(transformed, /scrimClassName="bg-\[#000000\]/)
   assert.doesNotMatch(transformed, /panelClassName="pt-6/)
-  // Stateless scrim refuses hover: and keeps the runtime path.
+  // The prepared carrier has no state input; hover: keeps the runtime path.
   assert.match(transformed, /scrimClassName="hover:opacity-50"/)
 
   const { code } = esbuild.transformSync(transformed, {
@@ -269,9 +291,8 @@ export function Fallback() {
   renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
   assert.equal(classResolverCalls, 0, 'prepared Drawer literals must never call hozoClasses')
 
-  const scrimHost = drawerMod.captured.find((entry) => entry.host === 'Pressable')!
-  assert.equal(flattenStyle(scrimHost.props.style).backgroundColor, '#000000')
-  assert.equal(flattenStyle(scrimHost.props.style).opacity, 0.5)
+  const scrimStyle = assertScrimHost('Drawer.scrim', drawerMod.captured, '#000000')
+  assert.equal(scrimStyle.opacity, 0.5)
 
   const views = drawerMod.captured.filter((entry) => entry.host === 'View')
   const panelHost = views[views.length - 1]!
@@ -1353,6 +1374,9 @@ export function StatefulHandle() {
     </BottomSheet>
   )
 }
+export function StatefulScrim() {
+  return <BottomSheet open scrimClassName="active:opacity-50">Body</BottomSheet>
+}
 `
   const transformed = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
   assert.ok(transformed)
@@ -1366,6 +1390,7 @@ export function StatefulHandle() {
   assert.doesNotMatch(transformed, /handleBarClassName="w-8/)
   // Two-shape BottomSheet.handle retains stateful literals when decorative shape lacks hover:.
   assert.match(transformed, /handleClassName="py-2 hover:bg-\[#444444\]"/)
+  assert.match(transformed, /scrimClassName="active:opacity-50"/)
 
   const { code } = esbuild.transformSync(transformed, {
     loader: 'tsx',
@@ -1417,7 +1442,7 @@ export function StatefulHandle() {
 
   // Resizable shape: Pressables [0: scrim, 1: handle]; Views [0: root, 1: sheet, 2: handleBar]
   const resizable = renderCase([0.5, 1])
-  assert.equal(resizable.pressables[0]!.backgroundColor, '#010101')
+  assertScrimHost('BottomSheet.scrim', sheetMod.captured, '#010101')
   assert.equal(resizable.views[1]!.backgroundColor, '#fafafa')
   assert.equal(resizable.views[1]!.paddingTop, 16)
   assert.equal(resizable.pressables[1]!.backgroundColor, '#111111')
@@ -1428,7 +1453,7 @@ export function StatefulHandle() {
 
   // Decorative shape: Pressables [0: scrim]; Views [0: root, 1: sheet, 2: decorativeHandle, 3: handleBar]
   const decorative = renderCase([1])
-  assert.equal(decorative.pressables[0]!.backgroundColor, '#010101')
+  assertScrimHost('BottomSheet.scrim', sheetMod.captured, '#010101')
   assert.equal(decorative.views[1]!.backgroundColor, '#fafafa')
   assert.equal(decorative.views[2]!.backgroundColor, '#111111')
   assert.equal(decorative.views[3]!.backgroundColor, '#333333')

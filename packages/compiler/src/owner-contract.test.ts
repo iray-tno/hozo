@@ -322,6 +322,7 @@ test('single-platform contracts declare null host/carrier on the absent platform
   const scrim = parsed().contracts.find((row) => row.owner === 'NativeSelect.scrim')!
   assert.equal(scrim.audit, 'audited')
   assert.deepEqual(scrim.abi, { nativePreparedProp: 'hozoScrimStyle', webClassProp: null })
+  assert.equal(scrim.shapes[0]!.nativeHost, 'Pressable')
   assert.equal(scrim.shapes[0]!.inputs, undefined)
   const option = parsed().contracts.find((row) => row.owner === 'NativeSelect.option')!
   assert.equal(option.audit, 'audited')
@@ -365,7 +366,7 @@ test('single-platform contracts declare null host/carrier on the absent platform
     entry.shapes[0]!.events = ['pressed', 'hovered']
   }, /full control snapshot/)
 })
-test('Drawer scrim and panel contracts declare stateless box and split-text View hosts (#2046)', () => {
+test('Drawer scrim and panel contracts declare a resting Pressable and split-text View (#2046)', () => {
   const scrim = parsed().contracts.find((row) => row.owner === 'Drawer.scrim')!
   assert.equal(scrim.audit, 'audited')
   assert.deepEqual(scrim.abi, {
@@ -377,7 +378,7 @@ test('Drawer scrim and panel contracts declare stateless box and split-text View
     {
       id: 'scrim',
       when: { eq: ['present', true] },
-      nativeHost: 'View',
+      nativeHost: 'Pressable',
       webHost: 'div',
       events: [],
     },
