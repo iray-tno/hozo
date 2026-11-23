@@ -26,7 +26,7 @@ export const catalogFile = path.join(root, 'packages', 'compiler', 'diagnostics.
 
 /** Each variant's doc comment, keyed by the code `as_str` spells it as. */
 function summaries() {
-  const source = readFileSync(path.join(root, 'crates', 'hozo_ir', 'src', 'lib.rs'), 'utf8')
+  const source = readFileSync(path.join(root, 'crates', 'hozo_ir', 'src', 'diagnostics.rs'), 'utf8')
   const enumBody = source.match(/pub enum DiagnosticCode \{\n([\s\S]*?)\n\}/)?.[1]
   if (!enumBody) throw new Error('`pub enum DiagnosticCode` not found in hozo_ir')
   const docs = new Map()

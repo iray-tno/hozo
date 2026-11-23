@@ -69,7 +69,7 @@ runtime provenance/sorting mechanism.
 
 ## Evidence
 
-- `crates/hozo_ir/src/lib.rs`: source-aware `group_by_condition` regression
+- `crates/hozo_ir/src/grouping.rs`: source-aware `group_by_condition` regression
   keeps focus/active/later-focus apart and checks conjunction specificity.
 - `packages/compiler/src/interaction-order.test.ts`: all 16 owner-state
   combinations, both input orders, ordinary/inherited Native, StyleX argument
