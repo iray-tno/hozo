@@ -47,6 +47,7 @@ mod scope;
 mod scroll_props;
 mod spread;
 mod text;
+mod text_input_props;
 mod validate;
 
 pub use primitives::is_primitive_name;
