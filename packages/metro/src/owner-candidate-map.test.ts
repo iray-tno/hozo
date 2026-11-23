@@ -542,10 +542,12 @@ test('fixture child output can trigger cancellation without blocking the parent 
 }, async (t) => {
   const f = fixture(t)
   const controller = new AbortController()
-  const child = fixtureNode(
-    ['-e', "process.stderr.write('fixture-started');setInterval(()=>{},1000)"],
-    f.root,
-    { signal: controller.signal },
+  const child = f.trackChild(
+    fixtureNode(
+      ['-e', "process.stderr.write('fixture-started');setInterval(()=>{},1000)"],
+      f.root,
+      { signal: AbortSignal.any([controller.signal, t.signal]), timeout: 0 },
+    ),
   )
   child.child.stderr!.once('data', () => controller.abort())
   await assert.rejects(child, (error: Error & { stderr?: string }) => {
@@ -554,6 +556,36 @@ test('fixture child output can trigger cancellation without blocking the parent 
     return true
   })
   assert.ok(child.child.exitCode !== null || child.child.signalCode !== null)
+})
+
+test('owner cancellation closes fixture children before removing their cwd', {
+  timeout: 10000,
+}, async (t) => {
+  const f = fixture(t)
+  const receipt = path.join(f.root, 'cancelled-owner.json')
+  const child = f.trackChild(
+    fixtureNode(
+      ['--test', fileURLToPath(new URL('../fixtures/owner-cancelled-child.mjs', import.meta.url))],
+      f.root,
+      {
+        signal: t.signal,
+        env: {
+          ...process.env,
+          // Run an independent test runner, not another worker of this one.
+          NODE_TEST_CONTEXT: undefined,
+          HOZO_METRO_FIXTURE_RECEIPT: receipt,
+        },
+      },
+    ),
+  )
+  await assert.rejects(child, (error: Error & { code?: number }) => {
+    assert.equal(error.code, 1, 'nested owner must report its intentional cancellation')
+    return true
+  })
+  const observed = JSON.parse(readFileSync(receipt, 'utf8'))
+  assert.equal(observed.closed, true)
+  assert.equal(observed.removed, true)
+  assert.match(observed.stderr, /fixture-started/)
 })
 
 test('a packed non-Hozo dependency supplies runtime candidates and opt-in Native owner delivery', {
@@ -572,7 +604,17 @@ test('a packed non-Hozo dependency supplies runtime candidates and opt-in Native
   assert.ok(npm, 'the pinned Node distribution must provide its npm CLI')
   const run = async (args: string[], cwd: string) => {
     try {
-      return (await fixtureNode([npm, ...args], cwd, { signal: t.signal })).stdout
+      // CLI startup alone can consume the helper's 15 s cutoff (#2174).
+      // Pack/install share this test's existing 30 s deadline via its signal;
+      // neither command gets a new budget, and the helper still waits for close.
+      return (
+        await f.trackChild(
+          fixtureNode([npm, ...args], cwd, {
+            signal: t.signal,
+            timeout: 0,
+          }),
+        )
+      ).stdout
     } catch (error) {
       throw new Error(`Fixture npm ${args[0]} failed (no retry); see child output/cause`, {
         cause: error,

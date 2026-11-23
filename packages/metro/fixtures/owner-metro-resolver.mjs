@@ -21,7 +21,17 @@ export function ownerMetroFixture(t) {
   const { resolve } = fromMetro('metro-resolver')
   const version = fromMetro('metro-resolver/package.json').version
   const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'hozo-real-metro-owner-')))
-  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const children = []
+  t.after(async () => {
+    // The test runner starts cleanup immediately on cancellation, before the
+    // body can finish awaiting the child. Windows still holds its cwd open.
+    await Promise.allSettled(children)
+    rmSync(root, { recursive: true, force: true })
+  })
+  const trackChild = (pending) => {
+    children.push(pending)
+    return pending
+  }
   const bridge = path.join(root, 'node_modules/bridge'),
     first = path.join(root, 'node_modules/kit')
   const second = path.join(bridge, 'node_modules/kit'),
@@ -128,5 +138,5 @@ export function ownerMetroFixture(t) {
     resolveRequest: resolve,
   }
   const delegate = (ctx, specifier, platform) => resolve(ctx, specifier, platform)
-  return { root, bridge, first, second, roots, context, delegate, version }
+  return { root, bridge, first, second, roots, context, delegate, version, trackChild }
 }
