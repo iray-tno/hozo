@@ -186,6 +186,13 @@ package-name-only contract fallback. The standalone and explicit
 experiment baselines remain separate, and replacing installed manifests
 requires restarting Metro.
 
+**Owner delivery in ordinary Next.js.** The config freezes the same
+Patterns/Form manifest contracts. Both loaders select the physical
+package with the bundler's resolver and watch the captured inputs.
+When the resolver has no physical owner, the ordinary class prop stays
+in place; the compiled-in owner table is not a fallback for either
+bundler. Restart Next.js after replacing a captured owner manifest.
+
 ### 5. Text publication is a field of the contract
 
 Whether an owner hands text metrics and paint to its children is

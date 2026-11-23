@@ -25,14 +25,24 @@ function fixture(t: TestContext) {
     path.join(root, 'src', 'tone.ts'),
     `export const tone=()=> 'md:hidden sm:block hidden bg-brand'`,
   )
+  return { root, file, entry, palette, source, options: loaderOptions(root) }
+}
+
+function loaderOptions(root: string) {
   const config = withHozo({}, { root }) as unknown as {
     turbopack: { rules: { '*.tsx': { loaders: { options: HozoLoaderOptions }[] } } }
   }
-  const options = config.turbopack.rules['*.tsx'].loaders[0]!.options
-  return { root, file, entry, palette, source, options }
+  return config.turbopack.rules['*.tsx'].loaders[0]!.options
 }
 
-function invoke(options: HozoLoaderOptions, source: string, file: string, query = '') {
+function invoke(
+  options: HozoLoaderOptions,
+  source: string,
+  file: string,
+  query = '',
+  resolveImport: (directory: string, specifier: string) => Promise<string | undefined> = async () =>
+    undefined,
+) {
   const dependencies = new Set<string>()
   const missing = new Set<string>()
   const warnings: Error[] = []
@@ -44,7 +54,7 @@ function invoke(options: HozoLoaderOptions, source: string, file: string, query 
         getOptions: () => options,
         addDependency: (file: string) => dependencies.add(file),
         addMissingDependency: (file: string) => missing.add(file),
-        getResolve: () => async () => undefined,
+        getResolve: () => resolveImport,
         emitWarning: (error: Error) => warnings.push(error),
         async: () => (error: Error | undefined, code: string) =>
           error ? reject(error) : resolve(code),
@@ -54,6 +64,127 @@ function invoke(options: HozoLoaderOptions, source: string, file: string, query 
   })
   return { work, dependencies, missing, warnings }
 }
+
+test('the default Next loader uses the captured owner contract of the resolved package instance', async (t) => {
+  const { root, file } = fixture(t)
+  const name = '@hozo/patterns'
+  const bridge = path.join(root, 'node_modules', 'bridge')
+  function install(parent: string, classProp: string) {
+    const dir = path.join(parent, 'node_modules', name)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ name, main: 'index.js', hozo: { manifest: './hozo.manifest.json' } }),
+    )
+    const entry = path.join(dir, 'index.js')
+    writeFileSync(entry, 'export const Toolbar = props => props')
+    const manifest = path.join(dir, 'hozo.manifest.json')
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        version: 2,
+        textForwarding: {},
+        textPublish: [],
+        compiledByConsumer: false,
+        helpers: [],
+        candidates: [],
+        exports: [{ name: 'Toolbar', owners: ['Toolbar.root'] }],
+        owners: {
+          schema: 'rfc010-owner-shadow-0',
+          contracts: [
+            {
+              owner: 'Toolbar.root',
+              classProp,
+              audit: 'audited',
+              bindings: ['present'],
+              abi: { nativePreparedProp: null, webClassProp: classProp },
+              authoredStyles: [],
+              shapes: [
+                {
+                  id: 'root',
+                  when: { eq: ['present', true] },
+                  nativeHost: null,
+                  webHost: 'div',
+                  events: [],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    )
+    return { entry, manifest }
+  }
+  const top = install(root, 'rootClassName')
+  const nested = install(bridge, 'nestedClassName')
+  writeFileSync(
+    path.join(root, 'package.json'),
+    JSON.stringify({ name: 'app', dependencies: { [name]: '1', bridge: '1' } }),
+  )
+  writeFileSync(
+    path.join(bridge, 'package.json'),
+    JSON.stringify({
+      name: 'bridge',
+      main: 'Consumer.tsx',
+      dependencies: { [name]: '2' },
+      hozo: { manifest: './hozo.manifest.json' },
+    }),
+  )
+  writeFileSync(
+    path.join(bridge, 'hozo.manifest.json'),
+    JSON.stringify({
+      version: 2,
+      textForwarding: {},
+      textPublish: [],
+      compiledByConsumer: true,
+      helpers: [],
+      candidates: [],
+      exports: [],
+      owners: null,
+    }),
+  )
+  const input = `'use client'\nimport {Toolbar} from '${name}';export const A=()=> <Toolbar rootClassName="pt-2" nestedClassName="pt-5" className="pt-9"/>`
+  writeFileSync(path.join(bridge, 'Consumer.tsx'), input)
+  writeFileSync(file, `${input}\nexport {A as B} from 'bridge';`)
+  const nestedImporterDir = path.join(root, 'src', 'other')
+  mkdirSync(nestedImporterDir)
+  const nestedFile = path.join(nestedImporterDir, 'Consumer.tsx')
+  writeFileSync(nestedFile, input)
+  const options = loaderOptions(root)
+  assert.ok(options.ownerRoutes)
+  const state = await nextTailwindProject(options)
+  t.after(() => state.invalidate())
+  const observedImports: string[] = []
+  const resolveImport = async (directory: string, specifier: string) => {
+    assert.equal(specifier, name)
+    observedImports.push(directory)
+    return directory === nestedImporterDir ? nested.entry : top.entry
+  }
+  for (const [importer, selected, untouched, padding] of [
+    [file, 'rootClassName', 'nestedClassName="pt-5"', 14],
+    [nestedFile, 'nestedClassName', 'rootClassName="pt-2"', 35],
+  ] as const) {
+    const request = invoke(options, input, importer, '', resolveImport)
+    const code = await request.work
+    assert.match(code, /^'use client'\nimport [^\n]+preflight\.css/)
+    assert.match(code, new RegExp(`${selected}=\\{"hozo-owner-`))
+    assert.ok(code.includes(untouched))
+    assert.ok(code.includes('className="pt-9"'))
+    assert.match(
+      readFileSync(`${importer}.hozo.css`, 'utf8'),
+      new RegExp(`padding-top: ${padding}px`),
+    )
+    assert.ok(request.dependencies.has(top.manifest))
+    assert.ok(request.dependencies.has(nested.manifest))
+  }
+  assert.deepEqual(observedImports, [path.dirname(file), nestedImporterDir])
+  assert.doesNotMatch(await invoke(options, input, file).work, /hozo-owner-/)
+  writeFileSync(nested.manifest, `${readFileSync(nested.manifest, 'utf8')}\n`)
+  await assert.rejects(
+    invoke(options, input, file, '', resolveImport).work,
+    /manifest input changed.*restart Next.js/,
+  )
+})
 
 test('the actual default loader emits common scalar winners for both orders and replaces its CSS epoch', async (t) => {
   const { file, palette, options } = fixture(t)

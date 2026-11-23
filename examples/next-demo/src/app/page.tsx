@@ -3,6 +3,7 @@ import * as stylex from '@stylexjs/stylex'
 
 import { cardStyles } from '@theme/stylex-index'
 import { accentFor } from '../variants'
+import { OwnerToolbar } from './owner-toolbar'
 
 export default function Home() {
   return (
@@ -20,6 +21,7 @@ export default function Home() {
         <View className={accentFor(true)}>Runtime class</View>
       </View>
       <View {...stylex.props(cardStyles.root)}>Aliased StyleX sheet</View>
+      <OwnerToolbar />
     </Section>
   )
 }

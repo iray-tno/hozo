@@ -150,6 +150,14 @@ test('generated names import from one leaf each, through core unless the owner i
   )
 })
 
+test('generated Web runtime imports preserve the client directive prologue', () => {
+  const prologue = "// 日本語\n'use client'\n'use strict';"
+  const source = `${prologue}\nimport { Dialog } from '@hozo/core'\nexport const Page=()=> <Dialog visible/>`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)
+  assert.ok(lowered)
+  assert.ok(lowered.code.startsWith(`${prologue}\nimport { HozoDialog }`), lowered.code)
+})
+
 // #670. The issue's repro: a component that takes the name the lowered
 // Dialog imports. The bundler used to reject the *generated* import line.
 test('a module that binds a name lowering imports is refused, naming the binding', () => {

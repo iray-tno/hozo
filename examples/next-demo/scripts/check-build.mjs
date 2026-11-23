@@ -20,6 +20,12 @@ const artifacts = filesUnder(dist).filter((file) => /\.(?:js|mjs|css|html)$/.tes
 const output = artifacts.map((file) => readFileSync(file, 'utf8')).join('\n')
 const html = readFileSync(path.join(dist, 'server', 'app', 'index.html'), 'utf8')
 const notes = readFileSync(path.join(dist, 'server', 'app', 'notes.html'), 'utf8')
+const css = artifacts
+  .filter((file) => file.endsWith('.css'))
+  .map((file) => readFileSync(file, 'utf8'))
+  .join('\n')
+const toolbar = html.match(/<div\b[^>]*aria-label="Manifest toolbar"[^>]*>/)?.[0]
+const ownerClass = toolbar?.match(/\bclass="[^"]*\b(hozo-owner-[a-f0-9]{16}-r\d+-\d+)\b/)?.[1]
 
 /**
  * The words of the MDX page that are prose rather than classes.
@@ -74,6 +80,10 @@ const checks = [
   [!/class="[^"]*\bp-8\b/.test(html), 'an authored utility class survived to the DOM'],
   // The compiler's own output reached the browser as CSS.
   [GENERATED_CLASS.test(output), 'no Hozo-generated CSS in the build output'],
+  [
+    ownerClass && new RegExp(`\\.${ownerClass}\\s*\\{[^}]*padding-top:\\s*13px`).test(css),
+    'the ordinary manifest owner recipe did not reach the Toolbar host and its shipped CSS',
+  ],
   // The entry is read without being bundled. Its runtime reference and root
   // declaration must survive, including the bundler's color conversion.
   [

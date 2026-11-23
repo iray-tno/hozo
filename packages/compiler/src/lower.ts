@@ -35,7 +35,7 @@ import type {
   ReactNativeImportSpecifier,
   StylexExternalBinding,
 } from './index.ts'
-import { reactNativeImports, topLevelBindings } from './index.ts'
+import { inspectOwnerClassSlots, reactNativeImports, topLevelBindings } from './index.ts'
 import { semanticModuleEligible, type UnloweredReactNativeJsxPolicy } from './project.ts'
 import { type SourceCopy, type SourceEdit, SourceProvenance } from './source-provenance.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
@@ -616,6 +616,15 @@ export function cssFileNameFor(file: string): string {
 
 export function sideEffectImport(specifier: string): string {
   return `import ${JSON.stringify(specifier)}\n`
+}
+
+/** @internal Keep React's client/server boundary ahead of every generated
+ * import. Skip the parser when the first token cannot start a prologue. */
+export function webModuleImportEdit(source: string, imports: string, file: string): SourceEdit {
+  const couldHavePrologue =
+    /^(?:\s|\/\/[^\n\r\u2028\u2029]*|\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\/)*(?:['"]|#!)/.test(source)
+  const at = couldHavePrologue ? inspectOwnerClassSlots(source, [], file).insertionOffset : 0
+  return { spanStart: at, spanEnd: at, replacement: at === 0 ? imports : `\n${imports}` }
 }
 
 export interface LoweredModule {
@@ -1272,20 +1281,19 @@ function lowerModuleUnchecked<T = never>(
       next = withoutImport
     }
 
-    // One import for the whole module, after the splicing so it lands at
-    // the top of the file rather than inside a span. Metro does the same for
-    // the Native backend's hooks; this is the Web half of that contract.
+    // Insert after the prologue so a generated runtime import does not
+    // turn a Next.js client module into a server module.
     const runtimeImports = [...new Set(components.flatMap((component) => component.runtimeImports))]
     if (runtimeImports.length > 0) {
       assertRuntimeImportsUnbound(next, runtimeImports, file)
-      const replacement = generatedRuntimeImports(runtimeImports.sort())
+      const edit = webModuleImportEdit(next, generatedRuntimeImports(runtimeImports.sort()), file)
       options.observe?.({
         stage: 'edits',
         source: next,
         diagnostics: [],
-        edits: [{ spanStart: 0, spanEnd: 0, replacement }],
+        edits: [edit],
       })
-      next = `${replacement}${next}`
+      next = next.slice(0, edit.spanStart) + edit.replacement + next.slice(edit.spanEnd)
     }
 
     next = rehome(next, true)

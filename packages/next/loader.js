@@ -11,11 +11,18 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 
-import { lowerModule, lowerModuleOrPrepare, sideEffectImport } from '@hozo/compiler/lower'
+import { inspectStaticModuleImports } from '@hozo/compiler'
+import {
+  lowerModule,
+  lowerModuleOrPrepare,
+  sideEffectImport,
+  webModuleImportEdit,
+} from '@hozo/compiler/lower'
 import {
   importSpecifier,
   resolveStylexRequests,
   scannableFile,
+  semanticModuleEligible,
   TailwindCandidateUniverse,
   webBaseCssFor,
   writeFileIfChanged,
@@ -89,12 +96,20 @@ export default function hozoLoader(source) {
           ],
           (specifier, importer) => resolveFromLoader(this, specifier, importer),
         )
+        const auditedOwners = await resolveOwnerContracts(
+          this,
+          state.ownerRoutes,
+          source,
+          absoluteFile,
+        )
         request.check()
         if (registryChanged || (resolvedCurrent && reexportSpecifiers.length > 0)) {
           state.compiler.setStylexModules(state.stylexModules.moduleSources())
         }
 
-        const policy = { unloweredReactNativeJsx: options.unloweredReactNativeJsx }
+        // An empty selection is deliberate: the bundler must not guess an
+        // owner contract from the standalone compiler's package names.
+        const policy = { unloweredReactNativeJsx: options.unloweredReactNativeJsx, auditedOwners }
         let lowered
         for (;;) {
           const universe = state.universe
@@ -160,16 +175,21 @@ export default function hozoLoader(source) {
         // from one designated entry: the candidate sheet has to be present
         // whichever module the dynamic className lives in, and a bundler
         // resolves the repeated import to a single module in its graph.
-        const code =
+        const imports =
           // The base layer first. Preflight is element selectors only, so
           // every utility outranks it on specificity either way, but order
           // is what decides the ties and there is no reason to leave them
           // to the graph.
           sideEffectImport(importSpecifier(file, options.preflightPath)) +
           sideEffectImport(`./${lowered.cssFileName}`) +
-          sideEffectImport(importSpecifier(file, options.candidateCssPath)) +
-          lowered.code
-        callback(null, code)
+          sideEffectImport(importSpecifier(file, options.candidateCssPath))
+        const edit = webModuleImportEdit(lowered.code, imports, absoluteFile)
+        callback(
+          null,
+          lowered.code.slice(0, edit.spanStart) +
+            edit.replacement +
+            lowered.code.slice(edit.spanEnd),
+        )
       } catch (error) {
         callback(error)
       } finally {
@@ -202,6 +222,27 @@ function resolveFromLoader(loader, specifier, importer) {
       complete(error || typeof result !== 'string' ? undefined : result)
     })
   })
+}
+
+async function resolveOwnerContracts(loader, routes, source, importer) {
+  if (
+    !routes ||
+    !semanticModuleEligible(importer, 'web') ||
+    !routes.specifiers.some((specifier) => source.includes(specifier))
+  )
+    return []
+  const imports = new Set(
+    inspectStaticModuleImports(source, importer).bindings.map(({ source }) => source),
+  )
+  const selected = await Promise.all(
+    routes.specifiers
+      .filter((specifier) => imports.has(specifier))
+      .map(async (specifier) => {
+        const entry = await resolveFromLoader(loader, specifier, importer)
+        return entry ? routes.forResolvedImport(entry, specifier) : []
+      }),
+  )
+  return selected.flat()
 }
 
 /** Project font faces and Tailwind's optional base layer. */
