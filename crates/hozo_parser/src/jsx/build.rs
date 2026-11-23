@@ -1,20 +1,18 @@
 //! One JSX element converted into a `Node`.
 
-use hozo_ir::{
-    ConditionExpr, Diagnostic, HeadingLevel, Node, Primitive, PropSet, SourceSpan,
-    StyleDeclaration, SvgElement,
-};
+use hozo_ir::{ConditionExpr, Diagnostic, Node, Primitive, PropSet, SourceSpan, StyleDeclaration};
 use oxc_ast::ast::{
     JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXElement, JSXExpression,
 };
 use oxc_span::GetSpan;
 
+use super::accessibility_props;
 use super::children::build_children;
 use super::class_name;
 use super::element_name::element_primitive;
-use super::props::{
-    attribute_literal, capture_flag, capture_prop_expr, object_literal_keys, passthrough_prop,
-};
+use super::label_props;
+use super::navigation_props;
+use super::props::{capture_flag, capture_prop_expr, passthrough_prop};
 use super::responder;
 use super::role::accessibility_role_from_value;
 use super::scope::Scope;
@@ -231,150 +229,9 @@ pub(super) fn build_node(
                     responder::fields(&mut props, name).expect("a responder prop, checked above");
                 capture_prop_expr(attr, field, passthrough, scope, diagnostics, consumed)
             }
-            "testID" => capture_prop_expr(
-                attr,
-                &mut props.test_id,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "nativeID" => {
-                // Kept as text as well as as a span: two elements sharing
-                // an id break every reference to either, and the check for
-                // that needs the value rather than where it was written.
-                props.native_id_literal = attribute_literal(&attr.value);
-                capture_prop_expr(
-                    attr,
-                    &mut props.native_id,
-                    &mut props.passthrough,
-                    scope,
-                    diagnostics,
-                    consumed,
-                )
+            name if accessibility_props::reads(primitive, name) => {
+                accessibility_props::capture(name, attr, &mut props, scope, diagnostics, consumed)
             }
-            "pointerEvents" => capture_prop_expr(
-                attr,
-                &mut props.pointer_events,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "accessibilityState" => {
-                props.accessibility_state_keys = object_literal_keys(attr);
-                capture_prop_expr(
-                    attr,
-                    &mut props.accessibility_state,
-                    &mut props.passthrough,
-                    scope,
-                    diagnostics,
-                    consumed,
-                )
-            }
-            "aria-invalid" => {
-                props.aria_invalid = match &attr.value {
-                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                        Some(to_expr_ref(container.expression.span()))
-                    }
-                    Some(JSXAttributeValue::StringLiteral(literal)) => {
-                        Some(to_expr_ref(literal.span))
-                    }
-                    _ => None,
-                };
-                props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed));
-            }
-            "accessibilityValue" => {
-                props.accessibility_value_keys = object_literal_keys(attr);
-                capture_prop_expr(
-                    attr,
-                    &mut props.accessibility_value,
-                    &mut props.passthrough,
-                    scope,
-                    diagnostics,
-                    consumed,
-                )
-            }
-            "accessibilityLiveRegion" => capture_prop_expr(
-                attr,
-                &mut props.accessibility_live_region,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "focusable" => match &attr.value {
-                None => props.focusable = Some(ConditionExpr::Static(true)),
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.focusable = Some(match &container.expression {
-                        // Read as the constant it is, so `focusable={false}`
-                        // becomes `tabIndex={-1}` rather than a ternary over
-                        // a literal -- and so the disabled check can tell it
-                        // from an expression it cannot see into.
-                        JSXExpression::BooleanLiteral(literal) => {
-                            ConditionExpr::Static(literal.value)
-                        }
-                        expression => ConditionExpr::Ref(to_expr_ref(expression.span())),
-                    });
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "onLayout" => capture_prop_expr(
-                attr,
-                &mut props.on_layout,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "level" if primitive == Primitive::Heading => match &attr.value {
-                Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.heading_level = literal
-                        .value
-                        .parse::<u8>()
-                        .ok()
-                        .filter(|level| (1..=6).contains(level))
-                        .map(HeadingLevel::Static);
-                    if props.heading_level.is_none() {
-                        props.passthrough.push(passthrough_prop(
-                            attr,
-                            scope,
-                            diagnostics,
-                            consumed,
-                        ));
-                    }
-                }
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.heading_level = match &container.expression {
-                        JSXExpression::NumericLiteral(literal)
-                            if literal.value.fract() == 0.0
-                                && (1.0..=6.0).contains(&literal.value) =>
-                        {
-                            Some(HeadingLevel::Static(literal.value as u8))
-                        }
-                        _ => Some(HeadingLevel::Dynamic(to_expr_ref(
-                            container.expression.span(),
-                        ))),
-                    };
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "ordered" if primitive == Primitive::List => match &attr.value {
-                None => props.list_ordered = Some(ConditionExpr::Static(true)),
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.list_ordered =
-                        Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
             name if scroll_props::reads(primitive, name) => {
                 scroll_props::capture(name, attr, &mut props, scope, diagnostics, consumed)
             }
@@ -388,107 +245,12 @@ pub(super) fn build_node(
                 diagnostics,
                 consumed,
             ),
-            "replace"
-                if matches!(
-                    primitive,
-                    Primitive::Link
-                        | Primitive::Button
-                        | Primitive::Pressable
-                        | Primitive::Svg(SvgElement::Link)
-                ) =>
-            {
-                capture_flag(
-                    attr,
-                    &mut props.navigation_replace,
-                    &mut props.passthrough,
-                    scope,
-                    diagnostics,
-                    consumed,
-                )
+            name if navigation_props::reads(primitive, name) => {
+                navigation_props::capture(name, attr, &mut props, scope, diagnostics, consumed)
             }
-            "prefetch"
-                if matches!(
-                    primitive,
-                    Primitive::Link
-                        | Primitive::Button
-                        | Primitive::Pressable
-                        | Primitive::Svg(SvgElement::Link)
-                ) =>
-            {
-                capture_flag(
-                    attr,
-                    &mut props.navigation_prefetch,
-                    &mut props.passthrough,
-                    scope,
-                    diagnostics,
-                    consumed,
-                )
+            name if label_props::reads(primitive, name) => {
+                label_props::capture(name, attr, &mut props, scope, diagnostics, consumed)
             }
-            // Both spellings are accepted and neither is passed through:
-            // the two platforms name this prop differently, so the value is
-            // captured here and each backend writes it under its own name.
-            // Re-emitting the source spelling verbatim would put
-            // `accessibilityLabel` on a DOM `<input>`, where React drops it
-            // and the field ends up with no accessible name at all -- the
-            // exact failure the diagnostic exists to prevent.
-            //
-            // The *value* is never touched. Hozo diagnoses the absence of
-            // a name and never invents or rewrites one: a name guessed from
-            // a placeholder or a nearby heading is how a field comes to be
-            // announced as something it isn't, which is worse than being
-            // announced as nothing.
-            "accessibilityLabel" | "aria-label" => match &attr.value {
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.accessibility_label = Some(to_expr_ref(container.expression.span()));
-                }
-                Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.accessibility_label = Some(to_expr_ref(literal.span));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "accessibilityHint" | "aria-description" => match &attr.value {
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.accessibility_hint = Some(to_expr_ref(container.expression.span()));
-                }
-                Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.accessibility_hint = Some(to_expr_ref(literal.span));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "src" if primitive == Primitive::Image => match &attr.value {
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.image_src = Some(to_expr_ref(container.expression.span()));
-                }
-                Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.image_src = Some(to_expr_ref(literal.span));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "defaultSource" if primitive == Primitive::Image => capture_prop_expr(
-                attr,
-                &mut props.image_default_source,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "alt" if primitive == Primitive::Image => match &attr.value {
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.accessibility_label = Some(to_expr_ref(container.expression.span()));
-                }
-                Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.accessibility_label = Some(to_expr_ref(literal.span));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
             "open" => match &attr.value {
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
                     props.open = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
