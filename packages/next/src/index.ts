@@ -21,6 +21,7 @@ import path from 'node:path'
 
 import { cssFileNameFor } from '@hozo/compiler/lower'
 import {
+  carrierOwnerRoutes,
   discoverTransformedSources,
   type HozoProjectOptions,
   preflightCssPath,
@@ -48,6 +49,8 @@ export interface HozoLoaderOptions extends HozoNextOptions {
   /** Full ordering seed, separate from the runtime-only candidate cache. */
   orderingCandidates: readonly string[]
   orderingKey: string
+  /** Content-addressed owner inputs shared by webpack and Turbopack workers. */
+  ownerRoutes?: { file: string; sha256: string }
 }
 
 /**
@@ -212,6 +215,16 @@ function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptio
   )
   const candidateCssPath = path.join(project.dir, 'candidates.css')
   const preflightPath = preflightCssPath(project.dir)
+  const snapshot =
+    carriers && carrierOwnerRoutes(carriers, ['@hozo/patterns', '@hozo/form']).snapshot
+  let ownerRoutes: HozoLoaderOptions['ownerRoutes']
+  if (snapshot?.instances.length) {
+    const text = JSON.stringify(snapshot)
+    const sha256 = createHash('sha256').update(text).digest('hex')
+    const file = path.join(project.dir, `owner-routes-${sha256}.json`)
+    writeFileIfChanged(file, text)
+    ownerRoutes = { file, sha256 }
+  }
   // Rendered with no theme: the theme is loaded asynchronously and this
   // runs synchronously. The loader rewrites the file with the real theme
   // before any module that imports it is compiled, and an empty file here
@@ -285,6 +298,7 @@ function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptio
     candidateCssPath,
     preflightPath,
     orderingCandidates: [...orderingCandidates].sort(),
+    ...(ownerRoutes && { ownerRoutes }),
   }
   return {
     ...loaderOptions,

@@ -8,6 +8,9 @@ import path from 'node:path'
 import { createCompiler, openCandidateCache, type Theme } from '@hozo/compiler'
 import {
   CACHE_DIR,
+  type CarrierOwnerSnapshot,
+  readBoundedUtf8File,
+  restoreCarrierOwnerRoutes,
   StylexModuleCache,
   TailwindCandidateUniverse,
   TailwindPreparationCancelled,
@@ -55,6 +58,15 @@ function capturedFilesCurrent(snapshot: ProjectTailwindSnapshot, options: HozoLo
   return true
 }
 
+type OwnerRoutes = ReturnType<typeof restoreCarrierOwnerRoutes>
+
+function readOwnerRoutes(reference: NonNullable<HozoLoaderOptions['ownerRoutes']>): OwnerRoutes {
+  const text = readBoundedUtf8File(reference.file, 8_388_608)
+  if (createHash('sha256').update(text).digest('hex') !== reference.sha256)
+    throw new Error('[hozo] Next owner snapshot hash mismatch; restart Next.js')
+  return restoreCarrierOwnerRoutes(JSON.parse(text) as CarrierOwnerSnapshot)
+}
+
 export class NextTailwindProject {
   readonly cache: ReturnType<typeof openCandidateCache>
   readonly stylexModules: StylexModuleCache
@@ -62,6 +74,7 @@ export class NextTailwindProject {
   readonly session: TailwindProjectSession | undefined
   readonly watchFiles: readonly string[]
   readonly missingFiles: ReadonlySet<string>
+  readonly ownerRoutes?: OwnerRoutes
   readonly theme: Theme | undefined
   stylexGraphResolved = false
   classOrder: string[] = []
@@ -83,11 +96,24 @@ export class NextTailwindProject {
   ) {
     this.#snapshot = snapshot
     this.theme = theme
-    this.watchFiles = snapshot?.watchFiles ?? discoveryPaths(options)
+    this.ownerRoutes = options.ownerRoutes && readOwnerRoutes(options.ownerRoutes)
+    const cssInputs = snapshot?.watchFiles ?? discoveryPaths(options)
+    this.watchFiles =
+      this.ownerRoutes && options.ownerRoutes
+        ? [...new Set([...cssInputs, options.ownerRoutes.file, ...this.ownerRoutes.inputs.keys()])]
+        : cssInputs
     this.missingFiles = new Set(
       this.watchFiles.filter((file) => !statSync(file, { throwIfNoEntry: false })),
     )
     this.#stamp = stamp(this.watchFiles)
+    for (const [file, sha256] of this.ownerRoutes?.inputs ?? []) {
+      let actual: string | undefined
+      try {
+        actual = createHash('sha256').update(readBoundedUtf8File(file, 65_536)).digest('hex')
+      } catch {}
+      if (actual !== sha256)
+        throw new Error(`[hozo] Next owner manifest input changed: ${file}; restart Next.js`)
+    }
     this.cache = openCandidateCache(
       path.join(options.root, CACHE_DIR, 'candidates.json'),
       options.sources,
@@ -228,7 +254,7 @@ async function openProject(options: HozoLoaderOptions) {
   const value = new NextTailwindProject(options, snapshot, theme)
   // Capture the metadata stamp before validating bytes: otherwise an edit
   // between validation and construction could bless old CSS with a new stamp.
-  if (snapshot && (!capturedFilesCurrent(snapshot, options) || !value.isCurrent())) {
+  if ((snapshot && !capturedFilesCurrent(snapshot, options)) || !value.isCurrent()) {
     value.invalidate()
     throw new TailwindPreparationCancelled('TAILWIND_PROJECT_INVALIDATED')
   }

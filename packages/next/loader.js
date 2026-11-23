@@ -11,11 +11,13 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 
+import { inspectStaticModuleImports } from '@hozo/compiler'
 import { lowerModule, lowerModuleOrPrepare, sideEffectImport } from '@hozo/compiler/lower'
 import {
   importSpecifier,
   resolveStylexRequests,
   scannableFile,
+  semanticModuleEligible,
   TailwindCandidateUniverse,
   webBaseCssFor,
   writeFileIfChanged,
@@ -89,12 +91,20 @@ export default function hozoLoader(source) {
           ],
           (specifier, importer) => resolveFromLoader(this, specifier, importer),
         )
+        const auditedOwners = await resolveOwnerContracts(
+          this,
+          state.ownerRoutes,
+          source,
+          absoluteFile,
+        )
         request.check()
         if (registryChanged || (resolvedCurrent && reexportSpecifiers.length > 0)) {
           state.compiler.setStylexModules(state.stylexModules.moduleSources())
         }
 
-        const policy = { unloweredReactNativeJsx: options.unloweredReactNativeJsx }
+        // An empty selection is deliberate: the bundler must not guess an
+        // owner contract from the standalone compiler's package names.
+        const policy = { unloweredReactNativeJsx: options.unloweredReactNativeJsx, auditedOwners }
         let lowered
         for (;;) {
           const universe = state.universe
@@ -202,6 +212,27 @@ function resolveFromLoader(loader, specifier, importer) {
       complete(error || typeof result !== 'string' ? undefined : result)
     })
   })
+}
+
+async function resolveOwnerContracts(loader, routes, source, importer) {
+  if (
+    !routes ||
+    !semanticModuleEligible(importer, 'web') ||
+    !routes.specifiers.some((specifier) => source.includes(specifier))
+  )
+    return []
+  const imports = new Set(
+    inspectStaticModuleImports(source, importer).bindings.map(({ source }) => source),
+  )
+  const selected = await Promise.all(
+    routes.specifiers
+      .filter((specifier) => imports.has(specifier))
+      .map(async (specifier) => {
+        const entry = await resolveFromLoader(loader, specifier, importer)
+        return entry ? routes.forResolvedImport(entry, specifier) : []
+      }),
+  )
+  return selected.flat()
 }
 
 /** Project font faces and Tailwind's optional base layer. */
