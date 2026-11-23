@@ -80,3 +80,37 @@ pub(super) fn class_fallback(
     style_array_parts.splice(state_start..state_start, fallback);
     (runtime_states, pattern_classes)
 }
+
+/// Web concatenates an unresolvable `className` back on and lets the
+/// browser's CSS engine match it. React Native has no className and no
+/// CSS engine, so the string is handed to the generated resolver
+/// instead (see `render_candidate_module`), which looks each class up in
+/// the project-wide candidate map. Warning rather than error: the styles
+/// do arrive for supported candidates scanned somewhere in the project.
+/// Registered patterns resolve with their actual owner's state; ordinary
+/// primitives keep their existing callback/prop state path below.
+pub(super) fn warn_unresolved(node: &Node, source: &str, diagnostics: &mut Vec<Diagnostic>) {
+    for expr_ref in &node.class_name_fallback {
+        let code = hozo_parser::class_fallback_code(&source_text(source, *expr_ref), "className");
+        let message = if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
+            "`className` can't be resolved at build time. Its pattern slot resolves it on device \
+             from the project-wide candidate map with that owner's available state. \
+             Use a static string for build-time validation; runtime condition support remains limited."
+                .to_string()
+        } else {
+            format!(
+                "`{}` can't be resolved at build time, so it's resolved on device from the \
+                 project-wide candidate map. Conditional utilities (`hover:`, `md:`, `pressed:`) \
+                 can't be carried that way and will warn at runtime -- write those as a static \
+                 className so they compile to a real style variant.",
+                source_text(source, *expr_ref)
+            )
+        };
+        diagnostics.push(Diagnostic {
+            code,
+            severity: Severity::Warning,
+            message: message + hozo_parser::class_fallback_note(code),
+            span: node.span,
+        });
+    }
+}

@@ -230,3 +230,56 @@ pub(super) fn container_use(
         uses_container_query,
     }
 }
+
+/// The component the markup lowers to, before an interaction, size or
+/// container need replaces it: a ruby's runtime parts, an ambient
+/// transition's `HozoAnimated`, or an `Animated` host for keyframes.
+/// Returns it with the props the markup adds.
+pub(super) fn base_component(
+    node: &Node,
+    in_dynamic_ruby: bool,
+    ambient_transition: bool,
+    animated_style: bool,
+    cx: &mut NativeRenderContext<'_>,
+) -> (&'static str, Vec<(&'static str, String)>) {
+    let (mut component, extra_props) = markup::native_component(node, cx.diagnostics);
+    // A ruby whose word only React Native can read hands the label to a
+    // component, and the reading has to be identifiable there -- a plain
+    // `Text` is not, since `HozoRuby` compares by identity to decide what
+    // the word is. Before `rendered_component`, which reads `component`.
+    if node.primitive == Primitive::Ruby && component == "HozoRuby" {
+        cx.runtime.need_component("HozoRuby");
+    }
+    if in_dynamic_ruby && node.primitive == Primitive::RubyText {
+        component = "HozoRubyText";
+        cx.runtime.need_component("HozoRubyText");
+    }
+    // Recorded here, where the tag is decided, and only for the primitives
+    // Hozo lowered: a carried `Child::Verbatim` keeps whatever the author
+    // imported and must not be imported over.
+    if !matches!(node.primitive, Primitive::Svg(_)) {
+        cx.runtime.need_native(component);
+    }
+    // A transition on something that is not a control. `Pressable` has its
+    // own path above, driven by the four interaction booleans; this one is
+    // driven by the style changing, which is the shape an ambient
+    // condition arrives in -- `dark:bg-black` is already resolved to a
+    // guarded array by the time it renders, and what the element sees is
+    // the array becoming a different array.
+    if ambient_transition && component == "View" {
+        component = "HozoAnimated";
+        cx.runtime.need_component("HozoAnimated");
+    }
+    if animated_style {
+        let animated = match component {
+            "View" => Some("Animated.View"),
+            "Text" => Some("Animated.Text"),
+            _ => None,
+        };
+        if let Some(animated) = animated {
+            component = animated;
+            cx.runtime.need_native("Animated");
+        }
+    }
+    (component, extra_props)
+}
