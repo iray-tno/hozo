@@ -166,3 +166,34 @@ pub(crate) fn data_fact_key(selector: &str) -> Option<String> {
     }
     Some(format!("data-{name}={value}"))
 }
+
+/// The `states` table: each class's groups, as the keys it needs and the
+/// pairs it applies, with its owner rank when ranks can change the order.
+pub(super) fn write_states(
+    body: &mut String,
+    states: &[(&String, Vec<StateGroup>)],
+    emit_owner_ranks: bool,
+) {
+    body.push_str("const states = {\n");
+    for (name, groups) in states {
+        let groups: Vec<String> = groups
+            .iter()
+            .map(|group| {
+                let keys: Vec<String> = group.keys.iter().map(|key| quote(key)).collect();
+                let pairs: Vec<String> = group
+                    .pairs
+                    .iter()
+                    .map(|(key, value)| format!("{key}: {value}"))
+                    .collect();
+                let order = group
+                    .order
+                    .filter(|_| emit_owner_ranks)
+                    .map(|key| format!(", {key}"))
+                    .unwrap_or_default();
+                format!("[[{}], {{ {} }}{order}]", keys.join(", "), pairs.join(", "))
+            })
+            .collect();
+        body.push_str(&format!("  {}: [{}],\n", quote(name), groups.join(", ")));
+    }
+    body.push_str("}\n\n");
+}
