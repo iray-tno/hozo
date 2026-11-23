@@ -6,9 +6,11 @@
 use super::text::*;
 use super::*;
 
+mod authored_style;
 mod child_list;
 mod class_slots;
 mod effects;
+mod frames;
 mod host;
 mod host_props;
 mod motion_props;
@@ -712,91 +714,33 @@ pub(super) fn render_node(
     } else {
         None
     };
-    let own_entries = &cx.style_entries[own_entry_start..own_entry_end];
-    let mixed_metric_defaults = effects::mixed_metric_defaults(component, node, own_entries);
-    let mixed_registers = mixed_metric_defaults.is_some() && theme.has_utility_leading_registers();
-    let transform_specs = if mixed_transforms
-        || (own_declarations
-            .iter()
-            .any(|d| crate::transforms::is_control(&d.property))
-            && own_declarations
-                .iter()
-                .any(|d| d.condition != Condition::Always))
-        || crate::transforms::split_across_entries(own_entries)
-    {
-        crate::transforms::specs(own_entries, theme)
-    } else {
-        String::new()
-    };
-    let filter_specs = if mixed_filters
-        || (project_filter_slots && crate::filters::split_across_entries(own_entries))
-    {
-        crate::filters::specs(own_entries)
-    } else {
-        String::new()
-    };
-    let gradient_specs = if compose_gradients {
-        crate::gradients::specs(&cx.style_entries[own_entry_start..], theme)
-    } else {
-        String::new()
-    };
-    let shadow_specs = if compose_shadows {
-        crate::shadows::specs(&cx.style_entries[own_entry_start..], theme)
-    } else {
-        String::new()
-    };
-    let mixed_shadows = mixed_shadows && !shadow_specs.is_empty();
-    let mixed_gradients = mixed_gradients && !gradient_specs.is_empty();
-    let mixed_transforms = mixed_transforms && !transform_specs.is_empty();
-    let mixed_filters = mixed_filters && !filter_specs.is_empty();
-    let deferred_effects = u8::from(mixed_shadows) * crate::candidate::DEFER_SHADOW
-        + u8::from(mixed_gradients) * crate::candidate::DEFER_GRADIENT
-        + u8::from(mixed_transforms) * crate::candidate::DEFER_TRANSFORM
-        + u8::from(mixed_filters) * crate::candidate::DEFER_FILTER
-        + u8::from(mixed_registers) * crate::candidate::DEFER_TEXT_METRICS;
+    let (effects, deferred_effects) = effects::plan(
+        effects::Mixing {
+            mixed_shadows,
+            mixed_gradients,
+            mixed_transforms,
+            mixed_filters,
+            project_filter_slots,
+            compose_gradients,
+            compose_shadows,
+        },
+        component,
+        node,
+        &own_declarations,
+        own_entry_start,
+        own_entry_end,
+        cx,
+    );
     let starting_parts = frames.starting;
     let exit_parts = frames.exit;
-    if own_declarations
-        .iter()
-        .any(|d| crate::transforms::is_control(&d.property))
-        && (!starting_parts.is_empty() || !exit_parts.is_empty())
-    {
-        cx.diagnostics.push(unwired_variant(node,
-            "Transform resets with starting/exit animation frames are not wired on Native yet. Use explicit transform values for these animation endpoints.",
-            Severity::Error));
-    }
-    // What `HozoAnimated` can start from is what it can interpolate. A
-    // `starting:w-0` is `@starting-style` on Web and animates there; here
-    // the width would be applied as the first frame and then jump, which is
-    // worse than not applying it -- so it is left out and named.
-    if !starting_parts.is_empty() || !exit_parts.is_empty() {
-        let mut fixed: Vec<String> = own_declarations
-            .iter()
-            .filter(|declaration| {
-                crate::condition_contains(&declaration.condition, |condition| {
-                    matches!(condition, Condition::StartingStyle)
-                        || crate::conditions::presence_closed(condition)
-                })
-            })
-            .filter(|declaration| !crate::transition::interpolatable(&declaration.property))
-            .flat_map(|declaration| crate::style::property_and_value(&declaration.property, theme))
-            .map(|(key, _)| format!("`{key}`"))
-            .collect();
-        fixed.dedup();
-        if !fixed.is_empty() {
-            cx.diagnostics.push(crate::conditions::unwired_variant(
-                node,
-                &format!(
-                    "`starting:` and `data-[state=closed]:` on React Native animate opacity, \
-                     transforms and colours -- what `HozoAnimated` can interpolate. {} would be a \
-                     frame that jumps rather than moves, so it is not applied here. On Web the \
-                     same class works.",
-                    fixed.join(", ")
-                ),
-                hozo_ir::Severity::Warning,
-            ));
-        }
-    }
+    frames::refuse_unmovable_frames(
+        node,
+        &own_declarations,
+        &starting_parts,
+        &exit_parts,
+        theme,
+        cx.diagnostics,
+    );
 
     // After the compiled resting styles, so it wins the same way it would in
     // the source: `cn('p-4', getDynamic())` puts the opaque part last, and RN
@@ -1037,46 +981,14 @@ pub(super) fn render_node(
     // an opaque class may carry gap, so it needs the same bounded boundary.
     let project_authored_gap = !node.class_name_fallback.is_empty() || has_gap(&node.style);
     let mut project_spread_gap = project_authored_gap;
-    let authored_style: Vec<String> = node
-        .props
-        .passthrough
-        .iter()
-        .filter(|prop| prop.name.as_deref() == Some("style"))
-        .filter_map(|prop| {
-            let text = &source[prop.span.0.start as usize..prop.span.0.end as usize];
-            let value = text.split_once('=')?.1.trim();
-            // `style={expr}`. A string is not a style React Native accepts,
-            // so anything else is left where it was.
-            let inner = value.strip_prefix('{')?.strip_suffix('}')?;
-            Some(if project_authored_gap {
-                cx.runtime.need_component("hozoAuthoredStyle");
-                format!(
-                    "hozoAuthoredStyle({})",
-                    hozo_ir::attribute_capture::slice(source, inner.trim())
-                )
-            } else {
-                hozo_ir::attribute_capture::slice(source, inner.trim()).into_owned()
-            })
-        })
-        .collect();
+    let authored_style =
+        authored_style::authored_style(node, project_authored_gap, source, cx.runtime);
     // Pattern callbacks are a private generated-code ABI, not an authored
     // style function. Keep the caller's style separate and last, so a state
     // class cannot override it or put a function inside an RN style array.
     // Style attributes a spread could replace are held here and composed
     // with the spreads where those are emitted (`spread_style`).
     let mut held = crate::spread_style::HeldStyles::new(&node.props.passthrough);
-    let effects = effects::Effects {
-        shadow_specs,
-        gradient_specs,
-        filter_specs,
-        transform_specs,
-        mixed_shadows,
-        mixed_gradients,
-        mixed_filters,
-        mixed_transforms,
-        metric_defaults: mixed_metric_defaults,
-        mixed_registers,
-    };
     style_array_parts = effects::compose_mixed(style_array_parts, &effects, cx.runtime);
     if (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some() {
         if !authored_style.is_empty() {
