@@ -34,19 +34,50 @@ independently audited contracts.
 
 On `76bb7926` the inventory has 0 pending out of 100 pattern slots (46
 component-managed), 0 pending out of 52 form slots, and 98 contracts declared
-`audited` with none `unknown`. The owner migration evidence is already split
-among the Chromium/Native comparisons in
-[`caller-composition.test.mjs`](../../examples/storybook-demo/scripts/caller-composition.test.mjs)
-and the real component implementations driven with Native host stand-ins in
-[`form-owner-contracts.test.ts`](../../packages/metro/src/form-owner-contracts.test.ts)
-and [`patterns-owner-contracts.test.ts`](../../packages/metro/src/patterns-owner-contracts.test.ts).
-The Form cases include single-platform hosts (#2045, #2095); the Patterns
-cases cover the migrated slots and roots (#2046, #2137) and the audited
-Primitive facts (#2149). Use these tests for Phase B rather than repeating the
-spikes. They are not yet joined by public owner, platform and declared shape:
-the status script's independently verified rows are still only for its
-selected receipt scope. Do not turn the 98 declarations into a Contract audit
-percentage.
+`audited` with none `unknown`. The declaration count alone is not an audit.
+
+### Phase B: the shipped owner shapes and their host tests
+
+The two shipped [Patterns](../../packages/patterns/hozo.manifest.json) and
+[Form](../../packages/form/hozo.manifest.json) manifests declare **98 owners,
+99 shapes and 193 applicable shape/platform pairs** (95 Web, 98 Native).
+Count each non-null host once per shape, not once per public export alias,
+utility, or interaction state. A component named below covers its declared
+owner prefix, not every public prop.
+
+Web receipts are marker assertions on the real component's DOM in
+[`caller-composition.test.mjs`](../../examples/storybook-demo/scripts/caller-composition.test.mjs).
+Native receipts use real component implementations with host stand-ins in the
+[`patterns-owner-contracts`](../../packages/metro/src/patterns-owner-contracts.test.ts)
+or [`form-owner-contracts`](../../packages/metro/src/form-owner-contracts.test.ts)
+suite. The compiler-only comparisons and the declared host inventory do not
+substitute for those renders.
+
+| Owner groups in the manifests | Web | Native | Host receipts |
+| --- | ---: | ---: | --- |
+| BottomSheet, Drawer, Popover | 12 | 12 | #2046 secondary slots, #2137 roots; both BottomSheet handle shapes, and #2245 Native scrim host corrections |
+| Accordion, RadioGroup, ResizablePane, Slider, Splitter, Tabs, Tree | 22 | 22 | #2046 prepared slots and #2137 additional roots |
+| CodeBlock | 8 | 8 | #2046 figure, line/gutter, insert/delete/mark, copy and caption |
+| Alert, Checkbox, Switch, Toolbar, Tooltip | 5 | 5 | #2137 box/text and Toolbar placement; Native Tooltip renders through its real FloatingPositioner to a View |
+| Form, SubmitButton, FileDropzone | 4 | 3 | #2045 root delivery; #2095 Web-only FileDropzone active slot, driven by drag enter/leave on the compiled caller |
+| Field, TextArea | 8 | 8 | #2045 labelled text, required/description/error, input and count |
+| NativeSelect | 1 | 5 | #2045 control; #2095 Native-only indicator, sheet, scrim and option; #2245 actual scrim host |
+| Calendar | 5 | 5 | #2045 root, header, grid, month navigation and day |
+| DatePicker, DateRangePicker, DateTimePicker | 25 | 25 | #2045 trigger and Done state; the same fixtures separately assert the root, open dialog and all forwarded Calendar hosts for each picker |
+| TimePicker | 5 | 5 | #2045 root, field, value, period and step |
+| **Applicable declared pairs** | **95** | **98** | |
+
+For a stateful owner, the third-rung claim is where a marker lands, not
+exhaustive agreement over all states. The decorative BottomSheet handle
+has only a resting-style receipt; it does not acquire a press state.
+`Animated.View` is the View host for the Native Popover panel. Missing hosts
+are explicit: FileDropzone's active slot is Web-only and four NativeSelect
+slots are Native-only. The #2149 Primitive comparisons are separate; those
+slots are not part of the two manifests' prepared-owner denominator.
+
+This is an index to existing tests, not a dashboard or a change to the
+status script's selected receipt scope. It does not raise the global RFC 010
+Contract audit rate, attest to device event delivery, or change audit labels.
 
 ## Separate claims
 
