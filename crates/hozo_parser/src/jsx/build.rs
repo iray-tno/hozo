@@ -13,14 +13,14 @@ use super::children::build_children;
 use super::class_name;
 use super::element_name::element_primitive;
 use super::props::{
-    attribute_literal, capture_flag, capture_literal, capture_prop_expr, object_literal_keys,
-    passthrough_prop,
+    attribute_literal, capture_flag, capture_prop_expr, object_literal_keys, passthrough_prop,
 };
 use super::responder;
 use super::role::accessibility_role_from_value;
 use super::scope::Scope;
 use super::scroll_props;
 use super::spread;
+use super::text_input_props;
 use super::validate::{
     validate_enter_motion, validate_flex_direction, validate_focusable_disabled,
     validate_semantic_children,
@@ -503,78 +503,9 @@ pub(super) fn build_node(
                     .passthrough
                     .push(passthrough_prop(attr, scope, diagnostics, consumed));
             }
-            "onChangeText" if primitive == Primitive::TextInput => capture_prop_expr(
-                attr,
-                &mut props.text_input.on_change_text,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "editable" if primitive == Primitive::TextInput => capture_flag(
-                attr,
-                &mut props.text_input.editable,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "readOnly" if primitive == Primitive::TextInput => capture_flag(
-                attr,
-                &mut props.text_input.read_only,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "autoCorrect" if primitive == Primitive::TextInput => capture_flag(
-                attr,
-                &mut props.text_input.auto_correct,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "multiline" if primitive == Primitive::TextInput => capture_flag(
-                attr,
-                &mut props.text_input.multiline,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "secureTextEntry" if primitive == Primitive::TextInput => capture_flag(
-                attr,
-                &mut props.text_input.secure_text_entry,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "numberOfLines" if primitive == Primitive::TextInput => capture_prop_expr(
-                attr,
-                &mut props.text_input.number_of_lines,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "keyboardType" if primitive == Primitive::TextInput => capture_literal(
-                attr,
-                &mut props.text_input.keyboard_type,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "inputMode" if primitive == Primitive::TextInput => capture_literal(
-                attr,
-                &mut props.text_input.input_mode,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
+            name if text_input_props::reads(primitive, name) => {
+                text_input_props::capture(name, attr, &mut props, scope, diagnostics, consumed)
+            }
             "placeholder" => {
                 props.has_placeholder = true;
                 props
