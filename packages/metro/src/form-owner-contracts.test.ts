@@ -851,12 +851,12 @@ export function Screen() {
         value={{ year: 2026, month: 9, day: 12 }}
         locale="en-US"
         firstDayOfWeek={1}
-        className="pt-2 text-[#112233]"
+        className="pt-[11px] text-[#112233]"
         triggerClassName="pt-3 bg-[#101010] aria-expanded:bg-[#202020] disabled:bg-[#303030]"
-        dialogClassName="pt-4"
-        calendarClassName="pt-5"
-        headerClassName="pt-6"
-        gridClassName="pt-7"
+        dialogClassName="pt-[17px]"
+        calendarClassName="pt-[23px]"
+        headerClassName="pt-[29px]"
+        gridClassName="pt-[37px]"
         monthButtonClassName="pt-1 bg-[#404040]"
         dayClassName="pt-1 bg-[#505050] aria-selected:bg-[#606060]"
       />
@@ -867,12 +867,12 @@ export function Screen() {
         value={{ start: { year: 2026, month: 9, day: 12 }, end: { year: 2026, month: 9, day: 14 } }}
         locale="en-US"
         firstDayOfWeek={1}
-        className="pt-2"
+        className="pt-[11px]"
         triggerClassName="pt-3 aria-expanded:bg-[#223344]"
-        dialogClassName="pt-4"
-        calendarClassName="pt-5"
-        headerClassName="pt-6"
-        gridClassName="pt-7"
+        dialogClassName="pt-[17px]"
+        calendarClassName="pt-[23px]"
+        headerClassName="pt-[29px]"
+        gridClassName="pt-[37px]"
         monthButtonClassName="pt-1 bg-[#414141]"
         dayClassName="pt-1 bg-[#515151] data-[hozo-range-start]:bg-[#616161]"
       />
@@ -883,12 +883,12 @@ export function Screen() {
         value={{ year: 2026, month: 9, day: 12, hour: 9, minute: 30 }}
         locale="en-US"
         firstDayOfWeek={1}
-        className="pt-2"
+        className="pt-[11px]"
         triggerClassName="pt-3 aria-expanded:bg-[#334455]"
-        dialogClassName="pt-4"
-        calendarClassName="pt-5"
-        headerClassName="pt-6"
-        gridClassName="pt-7"
+        dialogClassName="pt-[17px]"
+        calendarClassName="pt-[23px]"
+        headerClassName="pt-[29px]"
+        gridClassName="pt-[37px]"
         monthButtonClassName="pt-1 bg-[#424242]"
         dayClassName="pt-1 bg-[#525252] aria-selected:bg-[#626262]"
         doneClassName="pt-5 bg-[#707070]"
@@ -954,15 +954,39 @@ export function Screen() {
   renderToStaticMarkup(React.createElement(screenMod.exports.Screen))
   assert.equal(classResolverCalls, 0, 'prepared date pickers must never call hozoClasses')
 
-  const dpTrigger = datePickerMod.captured.find((entry) => entry.host === 'Pressable')!
-  assert.equal(flattenStyle(dpTrigger.props.style).paddingTop, 12)
-  assert.equal(flattenStyle(dpTrigger.props.style).backgroundColor, '#202020')
-  const dpViews = datePickerMod.captured.filter((entry) => entry.host === 'View')
-  assert.equal(flattenStyle(dpViews[0]!.props.style).paddingTop, 8)
-  assert.equal(flattenStyle(dpViews[1]!.props.style).paddingTop, 16)
-  assert.equal(flattenStyle(dpViews[2]!.props.style).paddingTop, 20)
-  assert.equal(flattenStyle(dpViews[3]!.props.style).paddingTop, 24)
-  assert.equal(flattenStyle(dpViews[4]!.props.style).paddingTop, 28)
+  // The carriers for these three wrappers are distinct even though they all
+  // delegate calendar chrome. Check each real wrapper and the real Calendar
+  // it renders; a forwarded prop on the wrapper alone is not host evidence.
+  for (const [name, rendered, triggerBg, monthBg, dayBg] of [
+    ['DatePicker', datePickerMod, '#202020', '#404040', '#606060'],
+    ['DateRangePicker', rangePickerMod, '#223344', '#414141', '#616161'],
+    ['DateTimePicker', dateTimePickerMod, '#334455', '#424242', '#626262'],
+  ] as const) {
+    const views = rendered.captured.filter((entry) => entry.host === 'View')
+    assert.deepEqual(
+      views.slice(0, 5).map((entry) => flattenStyle(entry.props.style).paddingTop),
+      [11, 17, 23, 29, 37],
+      `${name}: root, dialog, calendar, header, grid`,
+    )
+    assert.equal(views[1]!.props.accessibilityViewIsModal, true, `${name}: dialog host`)
+
+    const buttons = rendered.captured.filter((entry) => entry.host === 'Pressable')
+    assert.equal(
+      flattenStyle(buttons[0]!.props.style).backgroundColor,
+      triggerBg,
+      `${name}: trigger`,
+    )
+    for (const label of ['hozo.calendar.previousMonth', 'hozo.calendar.nextMonth']) {
+      const button = buttons.find((entry) => entry.props.accessibilityLabel === label)
+      assert.ok(button, `${name}: ${label} Pressable`)
+      assert.equal(flattenStyle(button.props.style).backgroundColor, monthBg, `${name}: ${label}`)
+    }
+    const day = buttons.find((entry) =>
+      String(entry.props.accessibilityLabel).includes('September 12, 2026'),
+    )
+    assert.ok(day, `${name}: Calendar day Pressable`)
+    assert.equal(flattenStyle(day.props.style).backgroundColor, dayBg, `${name}: calendar day`)
+  }
 
   const dtpPressables = dateTimePickerMod.captured.filter((entry) => entry.host === 'Pressable')
   const doneButton = dtpPressables[dtpPressables.length - 1]!

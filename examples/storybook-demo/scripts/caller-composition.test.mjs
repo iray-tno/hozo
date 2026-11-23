@@ -6759,6 +6759,9 @@ test('DatePicker, DateRangePicker and DateTimePicker deliver markers and match C
     'p-2 bg-[#112233] text-[#ffffff] hover:bg-[#223344] active:bg-[#334455] focus-visible:bg-[#445566] aria-expanded:bg-[#556677] disabled:bg-[#667788]'
   const doneClasses =
     'p-2 bg-[#212121] text-[#ffffff] hover:bg-[#313131] active:bg-[#414141] focus-visible:bg-[#515151]'
+  const calendarSlots = `className="pt-[11px]" dialogClassName="pt-[17px]"
+        calendarClassName="pt-[23px]" headerClassName="pt-[29px]" gridClassName="pt-[37px]"
+        monthButtonClassName="bg-[#414141]" dayClassName="bg-[#515151]"`
   const source = `import { DatePicker, DateRangePicker, DateTimePicker } from '@hozo/form'
 export function Screen({ open = false, disabled = false }) {
   return (
@@ -6769,14 +6772,8 @@ export function Screen({ open = false, disabled = false }) {
         accessibilityLabel="Departure"
         today={{ year: 2026, month: 9, day: 24 }}
         defaultMonth={{ year: 2026, month: 9 }}
-        className="pt-2"
+        ${calendarSlots}
         triggerClassName="${triggerClasses}"
-        dialogClassName="pt-3"
-        calendarClassName="pt-4"
-        headerClassName="pt-5"
-        gridClassName="pt-6"
-        monthButtonClassName="p-1"
-        dayClassName="p-1"
       />
       <DateRangePicker
         defaultOpen={open}
@@ -6784,9 +6781,8 @@ export function Screen({ open = false, disabled = false }) {
         accessibilityLabel="Stay"
         today={{ year: 2026, month: 9, day: 24 }}
         defaultMonth={{ year: 2026, month: 9 }}
-        className="pt-2"
+        ${calendarSlots}
         triggerClassName="${triggerClasses}"
-        dialogClassName="pt-3"
       />
       <DateTimePicker
         defaultOpen={open}
@@ -6794,9 +6790,8 @@ export function Screen({ open = false, disabled = false }) {
         accessibilityLabel="Meeting"
         today={{ year: 2026, month: 9, day: 24 }}
         defaultMonth={{ year: 2026, month: 9 }}
-        className="pt-2"
+        ${calendarSlots}
         triggerClassName="${triggerClasses}"
-        dialogClassName="pt-3"
         doneClassName="${doneClasses}"
       >
         {() => null}
@@ -6865,11 +6860,11 @@ export function Screen({ open = false, disabled = false }) {
     const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
     return m ? `rgb(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)})` : hex
   }
-  assert.equal(flat(nativeElements.DatePicker.hozoDatePickerStyle()).paddingTop, 8)
-  assert.equal(flat(nativeElements.DatePicker.hozoDialogStyle()).paddingTop, 12)
-  assert.equal(flat(nativeElements.DatePicker.hozoCalendarStyle()).paddingTop, 16)
-  assert.equal(flat(nativeElements.DatePicker.hozoHeaderStyle()).paddingTop, 20)
-  assert.equal(flat(nativeElements.DatePicker.hozoGridStyle()).paddingTop, 24)
+  assert.equal(flat(nativeElements.DatePicker.hozoDatePickerStyle()).paddingTop, 11)
+  assert.equal(flat(nativeElements.DatePicker.hozoDialogStyle()).paddingTop, 17)
+  assert.equal(flat(nativeElements.DatePicker.hozoCalendarStyle()).paddingTop, 23)
+  assert.equal(flat(nativeElements.DatePicker.hozoHeaderStyle()).paddingTop, 29)
+  assert.equal(flat(nativeElements.DatePicker.hozoGridStyle()).paddingTop, 37)
 
   const page = await browser.newPage()
   const cdp = await page.context().newCDPSession(page)
@@ -6991,24 +6986,34 @@ export function Screen({ open = false, disabled = false }) {
     // Open dialog & DateTimePicker done button markers/states.
     const openHtml = renderToStaticMarkup(createElement(webMod.exports.Screen, { open: true }))
     await page.setContent(`<!doctype html><style>${web.css}</style>${openHtml}`)
-    const openMarkers = await page.evaluate(() => {
-      const dialog = document.querySelector('#wrap > div:nth-child(1) [role="dialog"]')
-      const cal = dialog.querySelector('[role="group"]')
-      const header = cal.firstElementChild
-      const grid = cal.querySelector('table[role="grid"]')
-      return {
-        dialogPaddingTop: parseFloat(getComputedStyle(dialog).paddingTop),
-        calPaddingTop: parseFloat(getComputedStyle(cal).paddingTop),
-        headerPaddingTop: parseFloat(getComputedStyle(header).paddingTop),
-        gridPaddingTop: parseFloat(getComputedStyle(grid).paddingTop),
-      }
-    })
-    assert.deepEqual(openMarkers, {
-      dialogPaddingTop: 12,
-      calPaddingTop: 16,
-      headerPaddingTop: 20,
-      gridPaddingTop: 24,
-    })
+    for (const [index, name] of ['DatePicker', 'DateRangePicker', 'DateTimePicker'].entries()) {
+      const openMarkers = await page
+        .locator(`#wrap > div:nth-child(${index + 1})`)
+        .evaluate((root) => {
+          const dialog = root.querySelector('div[role="dialog"]')
+          const cal = dialog.querySelector('div[role="group"]')
+          const header = cal.firstElementChild
+          const grid = cal.querySelector('table[role="grid"]')
+          return {
+            boxPadding: [root, dialog, cal, header, grid].map((el) =>
+              parseFloat(getComputedStyle(el).paddingTop),
+            ),
+            monthButtons: [...header.querySelectorAll('button')].map(
+              (el) => getComputedStyle(el).backgroundColor,
+            ),
+            day: getComputedStyle(grid.querySelector('td[role="gridcell"]')).backgroundColor,
+          }
+        })
+      assert.deepEqual(
+        openMarkers,
+        {
+          boxPadding: [11, 17, 23, 29, 37],
+          monthButtons: ['rgb(65, 65, 65)', 'rgb(65, 65, 65)'],
+          day: 'rgb(81, 81, 81)',
+        },
+        `${name}: root, dialog, calendar, header, grid and controls`,
+      )
+    }
 
     for (const [label, pseudo, facts] of [
       ['done/rest', [], { hovered: false, pressed: false, focused: false, focusVisible: false }],
@@ -7533,17 +7538,6 @@ export function Screen() {
   probeMod.exports.Screen()
   assert.match(compiledActiveClass, /^hozo-owner-/)
 
-  const webMod = { exports: {} }
-  runInNewContext(webJs, {
-    module: webMod,
-    exports: webMod.exports,
-    h: createElement,
-    require: (id) => {
-      if (id === '@hozo/form') return { FileDropzone, NativeSelect }
-      throw new Error(`unexpected web import ${id}`)
-    },
-  })
-
   // Native compiles NativeSelect's 4 Native-only props and leaves FileDropzone.activeClassName untouched.
   const nativeCode = transformHozoSource(source, '/app/Screen.tsx', '/app', compiler)
   assert.ok(nativeCode)
@@ -7553,35 +7547,63 @@ export function Screen() {
   assert.match(nativeCode, /hozoScrimStyle=\{__hozoOwner\d+_Plan\d+\}/)
   assert.match(nativeCode, /hozoOptionStyle=\{__hozoOwner\d+_Plan\d+\}/)
 
-  const html = renderToStaticMarkup(createElement(webMod.exports.Screen))
+  // Mount the compiled caller and let the real component apply the prepared
+  // active class in response to drag events. Adding it in the test would
+  // only exercise the selector, not the owner's delivery of it.
+  const fixture = await build({
+    stdin: {
+      contents: `${web.code}
+        import {createElement} from 'react';
+        import {createRoot} from 'react-dom/client';
+        import {flushSync} from 'react-dom';
+        const root = createRoot(document.getElementById('fixture'));
+        flushSync(() => root.render(createElement(Screen)));`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('..', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
   const page = await browser.newPage()
   try {
-    await page.setContent(`<!doctype html><style>${web.css}</style>${html}`)
-    const styles = await page.evaluate((activeClass) => {
-      const button = document.querySelector('#wrap button[aria-label="Upload"]')
-      const resting = {
+    await page.setContent(`<!doctype html><style>${web.css}</style><div id="fixture"></div>`)
+    await page.addScriptTag({ content: fixture.outputFiles[0].text })
+    const button = page.getByRole('button', { name: 'Upload', exact: true })
+    const observe = () =>
+      button.evaluate((button) => ({
         paddingTop: parseFloat(getComputedStyle(button).paddingTop),
         backgroundColor: getComputedStyle(button).backgroundColor,
         borderTopColor: getComputedStyle(button).borderTopColor,
-      }
-      button.classList.add(...activeClass.split(' '))
-      const active = {
-        paddingTop: parseFloat(getComputedStyle(button).paddingTop),
-        backgroundColor: getComputedStyle(button).backgroundColor,
-        borderTopColor: getComputedStyle(button).borderTopColor,
-      }
-      return { resting, active }
-    }, compiledActiveClass)
-    assert.deepEqual(styles.resting, {
+      }))
+    const resting = {
       paddingTop: 8,
       backgroundColor: 'rgb(17, 17, 17)',
       borderTopColor: 'rgb(34, 34, 34)',
-    })
-    assert.deepEqual(styles.active, {
+    }
+    assert.deepEqual(await observe(), resting)
+    const dispatch = async (event, active) => {
+      await button.dispatchEvent(event)
+      await page.waitForFunction(
+        ({ activeClass, active }) => {
+          const button = document.querySelector('#wrap button[aria-label="Upload"]')
+          return button?.classList.contains(activeClass) === active
+        },
+        { activeClass: compiledActiveClass, active },
+        { timeout: 5000 },
+      )
+    }
+    await dispatch('dragenter', true)
+    assert.deepEqual(await observe(), {
       paddingTop: 8,
       backgroundColor: 'rgb(51, 102, 153)',
       borderTopColor: 'rgb(0, 85, 170)',
     })
+    await dispatch('dragleave', false)
+    assert.deepEqual(await observe(), resting)
   } finally {
     await page.close()
   }

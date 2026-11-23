@@ -64,6 +64,7 @@ function loadNativePatternModule(
     Modal: host('Modal'),
     ScrollView: host('ScrollView'),
     FlatList: host('FlatList'),
+    useWindowDimensions: () => ({ width: 640, height: 480 }),
     Animated: {
       View: AnimatedView,
       Value: class {
@@ -84,7 +85,7 @@ function loadNativePatternModule(
       flatten: flattenStyle,
     },
   }
-  const cache = new Map<string, unknown>()
+  const cache = new Map<string, Record<string, unknown>>()
   const localRequire = (specifier: string): unknown => {
     if (specifier === 'react') return React
     if (specifier === 'react-native') return rn
@@ -137,7 +138,11 @@ function loadNativePatternModule(
           done: () => {},
         }),
         Portal: ({ children }: { children?: React.ReactNode }) => children ?? null,
-        FloatingPositioner: host('FloatingPositioner'),
+        get FloatingPositioner() {
+          return loadTsFile(
+            path.join(root, 'packages/behaviors/src/floating-positioner.native.tsx'),
+          ).FloatingPositioner
+        },
         useHoverTrigger: ({ open }: { open?: boolean }) => ({
           isOpen: Boolean(open),
           triggerProps: { onHoverIn: () => {}, onHoverOut: () => {}, onLongPress: () => {} },
@@ -163,8 +168,8 @@ function loadNativePatternModule(
         }),
       }
     }
-    const loadTsFile = (target: string) => {
-      if (cache.has(target)) return cache.get(target)
+    function loadTsFile(target: string): Record<string, unknown> {
+      if (cache.has(target)) return cache.get(target)!
       const depCode = esbuild.transformSync(readFileSync(target, 'utf8'), {
         loader: target.endsWith('.tsx') ? 'tsx' : 'ts',
         format: 'cjs',
@@ -1905,7 +1910,9 @@ export function Unsupported() {
   assert.equal(alertText.color, '#ffffff')
 
   const tooltipBox = flattenStyle(
-    tooltipMod.captured.find((e) => e.host === 'FloatingPositioner')!.props.style,
+    tooltipMod.captured.find(
+      (e) => e.host === 'View' && flattenStyle(e.props.style).position === 'absolute',
+    )!.props.style,
   )
   const tooltipText = flattenStyle(tooltipMod.captured.find((e) => e.host === 'Text')!.props.style)
   assert.equal(tooltipBox.backgroundColor, '#223344')
