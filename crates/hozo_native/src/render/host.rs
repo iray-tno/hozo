@@ -122,3 +122,111 @@ pub(super) fn measures_host(
     }
     measures_host
 }
+
+/// What the element's interaction states need from its host.
+pub(super) struct InteractionNeeds {
+    pub(super) needs_focus_visible: bool,
+    pub(super) needs_hover_or_focus: bool,
+    pub(super) needs_interaction_host: bool,
+    pub(super) link_interaction: bool,
+}
+
+pub(super) fn interaction_needs(
+    node: &Node,
+    component: &str,
+    own_declarations: &[StyleDeclaration],
+    text_declarations: &[StyleDeclaration],
+    runtime_states: bool,
+    has_transition_or_label: bool,
+    runtime: &mut RuntimeNeeds,
+) -> InteractionNeeds {
+    // The owner collects events for both inherited styles and child-authored
+    // styles. A Text reads context; putting modality handlers on it does not
+    // update the state its callback consumes.
+    let needs_focus_visible = own_declarations
+        .iter()
+        .chain(text_declarations.iter())
+        .any(|declaration| interaction::uses_focus_visible(&declaration.condition))
+        || (interaction::owns_events(node)
+            && interaction::descendant_uses(node, interaction::uses_focus_visible))
+        || runtime_states;
+    let needs_hover_or_focus =
+        own_declarations
+            .iter()
+            .chain(text_declarations.iter())
+            .any(|declaration| {
+                condition_contains(&declaration.condition, |condition| {
+                    uses_hover(condition) || focus_state(condition).is_some()
+                })
+            })
+            || (interaction::owns_events(node)
+                && interaction::descendant_uses(node, interaction::uses_interaction))
+            || runtime_states;
+    // Navigation stays in HozoLink; the compiler selects the existing state
+    // provider underneath it. A plain link imports no animation machinery.
+    // A host-only pressed style can stay in RN's cheap style callback. Text
+    // needs a provider even for raw children, otherwise its emitted pressed
+    // style is never referenced (or borrows an unrelated outer owner).
+    let needs_interaction_host = needs_hover_or_focus
+        || has_transition_or_label
+        || text_declarations
+            .iter()
+            .any(|declaration| interaction::uses_interaction(&declaration.condition));
+    let link_interaction = component == "HozoLink" && needs_interaction_host;
+    if link_interaction {
+        runtime.need_component("HozoPressable");
+    }
+    InteractionNeeds {
+        needs_focus_visible,
+        needs_hover_or_focus,
+        needs_interaction_host,
+        link_interaction,
+    }
+}
+
+/// Whether the element declares a container, its name, and whether it (or
+/// its raw text) asks about a container's width.
+pub(super) struct ContainerUse {
+    pub(super) container_name: Option<String>,
+    pub(super) declares_container: bool,
+    pub(super) uses_container_query: bool,
+}
+
+pub(super) fn container_use(
+    node: &Node,
+    own_declarations: &[StyleDeclaration],
+    descend: &[StyleDeclaration],
+) -> ContainerUse {
+    // `@container`, which on Web is a property and here is a component:
+    // an element has to measure itself before anything below it can query
+    // its width.
+    let container_name =
+        own_declarations
+            .iter()
+            .find_map(|declaration| match &declaration.property {
+                StyleProperty::ContainerName(name) => Some(name.clone()),
+                _ => None,
+            });
+    let declares_container = own_declarations.iter().any(|declaration| {
+        matches!(&declaration.property, StyleProperty::Keyword("container-type", kind) if *kind != "normal")
+    });
+    // And the other half: an element whose styles ask about a container's
+    // width has to read that width from a component boundary away, which
+    // is what `HozoContainerQuery` is for.
+    let raw_text_reads_container = node
+        .children
+        .iter()
+        .any(|child| matches!(child, hozo_ir::Child::Text(_)))
+        && descend
+            .iter()
+            .any(|declaration| condition_contains(&declaration.condition, uses_container_width));
+    let uses_container_query = raw_text_reads_container
+        || own_declarations
+            .iter()
+            .any(|declaration| condition_contains(&declaration.condition, uses_container_width));
+    ContainerUse {
+        container_name,
+        declares_container,
+        uses_container_query,
+    }
+}

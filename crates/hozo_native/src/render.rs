@@ -8,6 +8,7 @@ use super::*;
 
 mod authored_style;
 mod child_list;
+mod class_fallback;
 mod class_slots;
 mod effects;
 mod frames;
@@ -639,132 +640,35 @@ pub(super) fn render_node(
         cx.diagnostics,
     );
 
-    // After the compiled resting styles, so it wins the same way it would in
-    // the source: `cn('p-4', getDynamic())` puts the opaque part last, and RN
-    // resolves a style array last-wins just like JSX's own duplicate-prop
-    // rule. Before the element's state styles, which a caller's class does
-    // not beat on Web either: a disabled button looks disabled whatever
-    // colour it was given (#881).
-    //
-    // A pressable hands the resolver the state it tracks, so a runtime
-    // `active:` or `hover:` class applies as a compiled one does (#886).
-    let runtime_states = !node.class_name_fallback.is_empty()
-        && matches!(component, "Pressable" | "HozoLink" | "TextInput");
-    if runtime_states {
-        cx.runtime_states.push(crate::OwnerCallback {
-            span: node.span,
-            class_prop: "className",
-        });
-    }
-    let class_state = runtime_class_state(node, source, runtime_states);
-    let pattern_classes = if crate::pattern::interaction_slot(node.primitive, "className").is_some()
-    {
-        crate::class_route::PatternClasses::new(
-            node.primitive,
-            "className",
-            node.class_name_fallback
-                .iter()
-                .map(|expr| {
-                    node.root_class_evaluation().map_or_else(
-                        || source_text(source, *expr).to_string(),
-                        |evaluation| evaluation.value(source, *expr),
-                    )
-                })
-                .collect(),
-            !style_array_parts.is_empty() || !pressed_parts.is_empty(),
-            source,
-            None,
-        )
-    } else {
-        None
-    };
-    let fallback: Vec<String> = if let Some(route) = &pattern_classes {
-        route.residuals()
-    } else {
-        node.class_name_fallback
-            .iter()
-            .map(|expr_ref| {
-                let captured = node
-                    .root_class_evaluation()
-                    .map(|evaluation| evaluation.value(source, *expr_ref));
-                let value = captured.unwrap_or_else(|| source_text(source, *expr_ref).into_owned());
-                match (&class_state, deferred_effects) {
-                    (Some(state), 0) => format!("hozoClasses({value}, {state})"),
-                    (None, 0) => format!("hozoClasses({value})"),
-                    (state, effects) => format!(
-                        "hozoClasses({value}, {}, {effects})",
-                        state.as_deref().unwrap_or("undefined")
-                    ),
-                }
-            })
-            .collect()
-    };
-    style_array_parts.splice(state_start..state_start, fallback);
+    let (runtime_states, pattern_classes) = class_fallback::class_fallback(
+        node,
+        component,
+        !style_array_parts.is_empty() || !pressed_parts.is_empty(),
+        deferred_effects,
+        &mut style_array_parts,
+        state_start,
+        cx,
+    );
 
-    // The owner collects events for both inherited styles and child-authored
-    // styles. A Text reads context; putting modality handlers on it does not
-    // update the state its callback consumes.
-    let needs_focus_visible = own_declarations
-        .iter()
-        .chain(text_declarations.iter())
-        .any(|declaration| interaction::uses_focus_visible(&declaration.condition))
-        || (interaction::owns_events(node)
-            && interaction::descendant_uses(node, interaction::uses_focus_visible))
-        || runtime_states;
-    let needs_hover_or_focus =
-        own_declarations
-            .iter()
-            .chain(text_declarations.iter())
-            .any(|declaration| {
-                condition_contains(&declaration.condition, |condition| {
-                    uses_hover(condition) || focus_state(condition).is_some()
-                })
-            })
-            || (interaction::owns_events(node)
-                && interaction::descendant_uses(node, interaction::uses_interaction))
-            || runtime_states;
-    // Navigation stays in HozoLink; the compiler selects the existing state
-    // provider underneath it. A plain link imports no animation machinery.
-    // A host-only pressed style can stay in RN's cheap style callback. Text
-    // needs a provider even for raw children, otherwise its emitted pressed
-    // style is never referenced (or borrows an unrelated outer owner).
-    let needs_interaction_host = needs_hover_or_focus
-        || transition.is_some()
-        || label_style.is_some()
-        || text_declarations
-            .iter()
-            .any(|declaration| interaction::uses_interaction(&declaration.condition));
-    let link_interaction = component == "HozoLink" && needs_interaction_host;
-    if link_interaction {
-        cx.runtime.need_component("HozoPressable");
-    }
-    // `@container`, which on Web is a property and here is a component:
-    // an element has to measure itself before anything below it can query
-    // its width.
-    let container_name =
-        own_declarations
-            .iter()
-            .find_map(|declaration| match &declaration.property {
-                StyleProperty::ContainerName(name) => Some(name.clone()),
-                _ => None,
-            });
-    let declares_container = own_declarations.iter().any(|declaration| {
-        matches!(&declaration.property, StyleProperty::Keyword("container-type", kind) if *kind != "normal")
-    });
-    // And the other half: an element whose styles ask about a container's
-    // width has to read that width from a component boundary away, which
-    // is what `HozoContainerQuery` is for.
-    let raw_text_reads_container = node
-        .children
-        .iter()
-        .any(|child| matches!(child, hozo_ir::Child::Text(_)))
-        && descend
-            .iter()
-            .any(|declaration| condition_contains(&declaration.condition, uses_container_width));
-    let uses_container_query = raw_text_reads_container
-        || own_declarations
-            .iter()
-            .any(|declaration| condition_contains(&declaration.condition, uses_container_width));
+    let host::InteractionNeeds {
+        needs_focus_visible,
+        needs_hover_or_focus,
+        needs_interaction_host,
+        link_interaction,
+    } = host::interaction_needs(
+        node,
+        component,
+        &own_declarations,
+        &text_declarations,
+        runtime_states,
+        transition.is_some() || label_style.is_some(),
+        cx.runtime,
+    );
+    let host::ContainerUse {
+        container_name,
+        declares_container,
+        uses_container_query,
+    } = host::container_use(node, &own_declarations, &descend);
     let renders_backdrop_filter = matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_)))
         && component == "View"
         && !declares_container;
