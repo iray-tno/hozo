@@ -1,5 +1,75 @@
 # @hozo/patterns
 
+## 0.5.0
+
+### Minor Changes
+
+- [#2080](https://github.com/iray-tno/hozo/pull/2080) [`8e7ebb0`](https://github.com/iray-tno/hozo/commit/8e7ebb0db6f0712b255717e8041a692a719dde23) Thanks [@iray-tno](https://github.com/iray-tno)! - `@hozo/patterns`, `@hozo/form` and `@hozo/ui` now ship version 2 of `hozo.manifest.json`. It carries the package's exports, with the compiler primitive each one is where it is one, the owner contracts per class prop, `textPublish` (the pattern components that render a string child inside a `View`), the classes the package's own code requests, its class joiners, and whether its sources are compiled by the consumer. `@hozo/form` ships a manifest for the first time.
+  
+  The compiler reads `textForwarding` from version 1 and version 2 alike, and still reads the version 1 files that `hozo manifest` writes. A compiler from before this release reads nothing from a version 2 manifest, so upgrade `@hozo/compiler` together with these packages, or text styles handed to a nested Text from `@hozo/ui`'s components are lost on React Native.
+
+- [#2134](https://github.com/iray-tno/hozo/pull/2134) [`b3cd864`](https://github.com/iray-tno/hozo/commit/b3cd864b49f275244b24f31227ec1f592b6f2e89) Thanks [@iray-tno](https://github.com/iray-tno)! - Add WindowedTable for data with declared column widths and a fixed row height.
+  Native renders rows through HozoFlatList; Web keeps every row in a semantic table.
+
+### Patch Changes
+
+- [#1770](https://github.com/iray-tno/hozo/pull/1770) [`1585408`](https://github.com/iray-tno/hozo/commit/1585408e2fa23581c6b4b9a51fc8fc978d7e035b) Thanks [@iray-tno](https://github.com/iray-tno)! - `Dialog` takes `closeOnBackdropPress`, off by default, which calls `onClose` when the backdrop around the panel is pressed. On the Web a press on the panel's own padding, or a drag that starts in the panel and ends outside, does not count. On React Native a press layer under the panel, hidden from screen readers, calls `onClose`.
+
+- [#1770](https://github.com/iray-tno/hozo/pull/1770) [`14a5d69`](https://github.com/iray-tno/hozo/commit/14a5d69df011aefe076fe95ce9f4e539e63dbcf6) Thanks [@iray-tno](https://github.com/iray-tno)! - `Dialog` on the Web stays shown while it animates out. When `open` turns false it sets `data-state="closed"`, waits for the transition or animation that starts, then calls `close()` and restores focus. With no exit in the stylesheet it closes at once, as before. A Dialog unmounted while open now gives focus back too.
+
+- [#1770](https://github.com/iray-tno/hozo/pull/1770) [`fd2f761`](https://github.com/iray-tno/hozo/commit/fd2f7613690fd5d95a78abc9bbdfd5cf3e7ccec4) Thanks [@iray-tno](https://github.com/iray-tno)! - `Dialog` takes `accessibilityLabelledBy`, the id of an element inside that names it, so a dialog named by its heading does not repeat the heading in `accessibilityLabel`. It becomes `aria-labelledby` on the Web, where it wins over `accessibilityLabel`. On React Native it reaches Android, and `accessibilityLabel` is kept beside it, because iOS has no equivalent.
+
+- [#1728](https://github.com/iray-tno/hozo/pull/1728) [`43d6add`](https://github.com/iray-tno/hozo/commit/43d6add1b83dce0acda189ce9a1b610fb4a9d70d) Thanks [@iray-tno](https://github.com/iray-tno)! - A mouse press on a `Splitter` or `ResizablePane` handle, a `BottomSheet` drag handle or a `Slider` no longer leaves it `:focus-visible` in Chromium. It is still focused, so the arrow keys work straight after a drag, but a keyboard focus ring no longer stays lit after every mouse drag.
+
+- [#2245](https://github.com/iray-tno/hozo/pull/2245) [`92dd0bf`](https://github.com/iray-tno/hozo/commit/92dd0bfd1da00d8d94ab6e62d6643c4b4a32b7e7) Thanks [@iray-tno](https://github.com/iray-tno)! - Declare Drawer, BottomSheet and NativeSelect's Native scrims as Pressable hosts in their styling contracts. Prepared resting styles and runtime interaction styles continue to use their existing paths.
+
+- [#2113](https://github.com/iray-tno/hozo/pull/2113) [`42d209a`](https://github.com/iray-tno/hozo/commit/42d209a28c68625bd53c9020a72d4aed4ca38008) Thanks [@iray-tno](https://github.com/iray-tno)! - Add `data-hozo-state=open` / `data-hozo-state=closed` owner facts, data-only `View` shapes, and `heading` Web host support, and route all five `Accordion` slots through audited owner contracts on Web and Native.
+
+- [#2140](https://github.com/iray-tno/hozo/pull/2140) [`5b34340`](https://github.com/iray-tno/hozo/commit/5b34340442f3b965a2ab2478a2126976cc2083c2) Thanks [@iray-tno](https://github.com/iray-tno)! - Compile static `Alert` and `Tooltip` root `className` literals through audited owner contracts on Web and Native instead of resolving them via `hozoClasses` at runtime.
+
+- [#2123](https://github.com/iray-tno/hozo/pull/2123) [`b506b18`](https://github.com/iray-tno/hozo/commit/b506b1878a8cbb9cd2bf51f53dab020270562553) Thanks [@iray-tno](https://github.com/iray-tno)! - Allow stateless `span` Web hosts for `View` owners and route all four `BottomSheet` slots (`scrimClassName`, `sheetClassName`, `handleClassName`, `handleBarClassName`) through audited owner contracts on Web and Native by default.
+
+- [#2123](https://github.com/iray-tno/hozo/pull/2123) [`81d27ab`](https://github.com/iray-tno/hozo/commit/81d27ab01c4b732472499d098c847210355bad53) Thanks [@iray-tno](https://github.com/iray-tno)! - Add `data-code-mark*` owner facts and `figure` / `figcaption` Web host support, and route all eight `CodeBlock` slots (`className`, `lineClassName`, `gutterClassName`, `insClassName`, `delClassName`, `markClassName`, `copyClassName`, `captionClassName`) through audited owner contracts on Web and Native by default.
+
+- [#2102](https://github.com/iray-tno/hozo/pull/2102) [`f12c2ce`](https://github.com/iray-tno/hozo/commit/f12c2ce32150fc8a8fb8df93a8935fed65b46105) Thanks [@iray-tno](https://github.com/iray-tno)! - Route `Drawer` `scrimClassName` and `panelClassName` through audited `@hozo/patterns` owner contracts and the Native prepared-style carrier path by default.
+
+- [#2102](https://github.com/iray-tno/hozo/pull/2102) [`7a2afc1`](https://github.com/iray-tno/hozo/commit/7a2afc14f3e738bbe31afc3a65a4dba03c0e7783) Thanks [@iray-tno](https://github.com/iray-tno)! - Route `Popover` `triggerClassName` and `panelClassName` literals through audited owner contracts on Web and Native.
+
+- [#2102](https://github.com/iray-tno/hozo/pull/2102) [`27537d4`](https://github.com/iray-tno/hozo/commit/27537d4b7e3333b193d60304e749be53ed9de4ff) Thanks [@iray-tno](https://github.com/iray-tno)! - Add `aria-checked` owner fact and ARIA interactive `div` host support, and route `RadioGroup` `optionClassName` literals through audited owner contracts on Web and Native.
+
+- [#2113](https://github.com/iray-tno/hozo/pull/2113) [`4d5c352`](https://github.com/iray-tno/hozo/commit/4d5c35264598f870cfb6b5687e237bd9af03cb41) Thanks [@iray-tno](https://github.com/iray-tno)! - Add `section` Web host support and route `ResizablePane` `className`, `paneClassName`, and `handleClassName` literals through audited owner contracts on Web and Native.
+
+- [#2140](https://github.com/iray-tno/hozo/pull/2140) [`08f95e3`](https://github.com/iray-tno/hozo/commit/08f95e344e8efe417430d9a676e96a8ac9f46b52) Thanks [@iray-tno](https://github.com/iray-tno)! - Route `Accordion`, `BottomSheet`, `Drawer`, and `Popover` root `className` slots through audited owner contracts on Web and Native by default.
+
+- [#2140](https://github.com/iray-tno/hozo/pull/2140) [`1621dc6`](https://github.com/iray-tno/hozo/commit/1621dc6ac4b182d3ee6ced3e8167ba9d922feb07) Thanks [@iray-tno](https://github.com/iray-tno)! - Route `RadioGroup`, `Slider`, `Tabs`, and `Tree` root `className` slots through audited owner contracts on Web and Native by default.
+
+- [#2113](https://github.com/iray-tno/hozo/pull/2113) [`99f46c1`](https://github.com/iray-tno/hozo/commit/99f46c196afb2a77572c41db22b4169163cffb48) Thanks [@iray-tno](https://github.com/iray-tno)! - Allow focus-only interactive `View` shapes and route `Slider` `thumbClassName`, `fillClassName`, and `railClassName` literals through audited owner contracts on Web and Native.
+
+- [#2113](https://github.com/iray-tno/hozo/pull/2113) [`42e3b9e`](https://github.com/iray-tno/hozo/commit/42e3b9ef734f5304436a5ccbb1136d79b7d5c033) Thanks [@iray-tno](https://github.com/iray-tno)! - Add `data-dragging` and `data-collapsed` owner facts and route `Splitter` `className` literals through audited owner contracts on Web and Native.
+
+- [#2123](https://github.com/iray-tno/hozo/pull/2123) [`6e69d43`](https://github.com/iray-tno/hozo/commit/6e69d43e99239ccf5263d7690739621f2946c767) Thanks [@iray-tno](https://github.com/iray-tno)! - Route all three `Tabs` slots (`tabListClassName`, `tabClassName`, `panelClassName`) through audited owner contracts on Web and Native by default.
+
+- [#2140](https://github.com/iray-tno/hozo/pull/2140) [`efcd384`](https://github.com/iray-tno/hozo/commit/efcd3845c0dc073439bc8458c734ac62fa98b215) Thanks [@iray-tno](https://github.com/iray-tno)! - Compile static `Checkbox` and `Switch` root `className` literals through audited owner contracts on Web and Native, including `data-hozo-state={checked,unchecked,mixed}` facts, instead of resolving them via `hozoClasses` at runtime.
+
+- [#2140](https://github.com/iray-tno/hozo/pull/2140) [`78f638c`](https://github.com/iray-tno/hozo/commit/78f638ce8383370c956074530c05a9db04856d64) Thanks [@iray-tno](https://github.com/iray-tno)! - Promote `Toolbar.root` to `audited` and route static `Toolbar` root `className` literals through the prepared owner contract by default on Web and Native.
+
+- [#2102](https://github.com/iray-tno/hozo/pull/2102) [`cd0e5fd`](https://github.com/iray-tno/hozo/commit/cd0e5fd3e6c151d55917cb6eba0f3b5dde96fb52) Thanks [@iray-tno](https://github.com/iray-tno)! - Route `Tree` `rowClassName` literals through audited owner contracts on Web and Native.
+
+- [#1760](https://github.com/iray-tno/hozo/pull/1760) [`b4cc4f6`](https://github.com/iray-tno/hozo/commit/b4cc4f6b4941ed6f9fb63ff1f942dad781b760e5) Thanks [@iray-tno](https://github.com/iray-tno)! - `Popover` is exported from `@hozo/core`, as `Dialog` and `Menu` are. Its trigger takes `triggerAccessibilityLabel`, `triggerAccessibilityHint` and `triggerTestID`, so an icon-only trigger has a name of its own and a test id, on the Web and on React Native.
+
+- [#2154](https://github.com/iray-tno/hozo/pull/2154) [`d85fee1`](https://github.com/iray-tno/hozo/commit/d85fee1b6162dde219133022cc3833f74768164a) Thanks [@iray-tno](https://github.com/iray-tno)! - Audit `CommandPalette` (`className`, `scrimClassName`, `panelClassName`, `listClassName`) with `NonControl` constant facts on Web and Native, and stop inventing Native pointer interaction on its decorative scrim.
+
+- [#2154](https://github.com/iray-tno/hozo/pull/2154) [`135e8f2`](https://github.com/iray-tno/hozo/commit/135e8f2d7746b69e9643ba3748002bf354559215) Thanks [@iray-tno](https://github.com/iray-tno)! - Audit `Avatar`, `Pagination`, and `Stepper` root `className` slots with `NonControl` constant facts on Web and Native.
+
+- [#2154](https://github.com/iray-tno/hozo/pull/2154) [`e75af0b`](https://github.com/iray-tno/hozo/commit/e75af0ba22c10d74b67026272c704bc0e9fba7ab) Thanks [@iray-tno](https://github.com/iray-tno)! - Audit `ColorPicker` (`className`, `sliderClassName`) and `Dialog` (`className`) slots with `NonControl` constant facts on Web and Native.
+
+- [#2059](https://github.com/iray-tno/hozo/pull/2059) [`cca1211`](https://github.com/iray-tno/hozo/commit/cca1211b176ec411112275399fc582a92a50efbe) Thanks [@iray-tno](https://github.com/iray-tno)! - RFC 006's whole-component Native text inheritance route is removed, now that [decision 013](https://github.com/iray-tno/hozo/blob/main/docs/decisions/013-text-inheritance-compiled-where-visible.md) is the default. The internal `textInheritance` and `textStatic` compile options are gone. So are the generated components that only that route emitted: `HozoInheritedText`, `HozoInheritedView`, `HozoInheritedRelativeText`, `HozoInheritedPressable` and `HozoInheritedLabel`, with their `@hozo/core/generated/*` and `@hozo/primitives/generated/*` entries. Compiled output never referred to them unless the internal option was set. Native Chip's internal `hozoInheritedLabel` and `hozoInheritedText` props are gone too, along with the colour-motion field of the inheritance protocol, which only RFC 006's pressable published.
+- Updated dependencies [[`e5c848d`](https://github.com/iray-tno/hozo/commit/e5c848de8f4ff732fc7fc4a2d343e34938df1800), [`cb4b456`](https://github.com/iray-tno/hozo/commit/cb4b4564ddb95d7ecb6f729433bf5c956788b53e), [`ba5beaf`](https://github.com/iray-tno/hozo/commit/ba5beaf2fbaff50a5b6bb1595ee156cae9dd5a1c), [`43d6add`](https://github.com/iray-tno/hozo/commit/43d6add1b83dce0acda189ce9a1b610fb4a9d70d), [`0001fc4`](https://github.com/iray-tno/hozo/commit/0001fc442e38955770974fb5377002e4deb4b95f), [`ed04074`](https://github.com/iray-tno/hozo/commit/ed04074de82890b87590afb537a0bea99b2751a7), [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b), [`052b447`](https://github.com/iray-tno/hozo/commit/052b447351a669a12c5b8ced61bef5d07dc8a604), [`43680e3`](https://github.com/iray-tno/hozo/commit/43680e3643ba9f3f6e01f5c7aa885feb8e5c7b04), [`35cc5c3`](https://github.com/iray-tno/hozo/commit/35cc5c31ce90497de9a6f345e884af2d20a6bc60), [`b4bc0e3`](https://github.com/iray-tno/hozo/commit/b4bc0e3bec63c02a0d97b55b256714985385372f), [`5c823ee`](https://github.com/iray-tno/hozo/commit/5c823ee87f1996f7011290af68702ef7f19e5388), [`70643e9`](https://github.com/iray-tno/hozo/commit/70643e959d229a75fcdbd1316f9a972efb4a2622), [`9a5c4ac`](https://github.com/iray-tno/hozo/commit/9a5c4ac57fdc996649a323c72b4be55aeb221cd7), [`3a3a8d5`](https://github.com/iray-tno/hozo/commit/3a3a8d52d64d0d580d9afaa298977c5c33f295f2), [`81d27ab`](https://github.com/iray-tno/hozo/commit/81d27ab01c4b732472499d098c847210355bad53), [`45eda5b`](https://github.com/iray-tno/hozo/commit/45eda5b451bdf1449c7c16172c03b2a9e743aaa6), [`cca1211`](https://github.com/iray-tno/hozo/commit/cca1211b176ec411112275399fc582a92a50efbe), [`4f62450`](https://github.com/iray-tno/hozo/commit/4f624503a4fb9f4af6f699f7d2deb55b69a72c36), [`ddd7c73`](https://github.com/iray-tno/hozo/commit/ddd7c73d09768ad8fbcf55c40859729b7271ea1a), [`2d28017`](https://github.com/iray-tno/hozo/commit/2d2801735d14c61193610e74bc6178f15b79d07e), [`cabc969`](https://github.com/iray-tno/hozo/commit/cabc9695ae805afa2c690aebcad5657f76f95eac), [`3f1754a`](https://github.com/iray-tno/hozo/commit/3f1754a523e62dc44ccc3da7294e9510e5203302), [`b3cf38b`](https://github.com/iray-tno/hozo/commit/b3cf38b30f2fe748c4f73110d01de2566826355a)]:
+  - @hozo/primitives@0.5.0
+  - @hozo/engine@0.5.0
+  - @hozo/behaviors@0.5.0
+  - @hozo/typography@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
