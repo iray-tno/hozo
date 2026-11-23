@@ -1,8 +1,6 @@
 //! One JSX element converted into a `Node`.
 
-use hozo_ir::{
-    ConditionExpr, Diagnostic, Node, Primitive, PropSet, SourceSpan, StyleDeclaration, SvgElement,
-};
+use hozo_ir::{ConditionExpr, Diagnostic, Node, Primitive, PropSet, SourceSpan, StyleDeclaration};
 use oxc_ast::ast::{
     JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXElement, JSXExpression,
 };
@@ -12,6 +10,8 @@ use super::accessibility_props;
 use super::children::build_children;
 use super::class_name;
 use super::element_name::element_primitive;
+use super::label_props;
+use super::navigation_props;
 use super::props::{capture_flag, capture_prop_expr, passthrough_prop};
 use super::responder;
 use super::role::accessibility_role_from_value;
@@ -245,107 +245,12 @@ pub(super) fn build_node(
                 diagnostics,
                 consumed,
             ),
-            "replace"
-                if matches!(
-                    primitive,
-                    Primitive::Link
-                        | Primitive::Button
-                        | Primitive::Pressable
-                        | Primitive::Svg(SvgElement::Link)
-                ) =>
-            {
-                capture_flag(
-                    attr,
-                    &mut props.navigation_replace,
-                    &mut props.passthrough,
-                    scope,
-                    diagnostics,
-                    consumed,
-                )
+            name if navigation_props::reads(primitive, name) => {
+                navigation_props::capture(name, attr, &mut props, scope, diagnostics, consumed)
             }
-            "prefetch"
-                if matches!(
-                    primitive,
-                    Primitive::Link
-                        | Primitive::Button
-                        | Primitive::Pressable
-                        | Primitive::Svg(SvgElement::Link)
-                ) =>
-            {
-                capture_flag(
-                    attr,
-                    &mut props.navigation_prefetch,
-                    &mut props.passthrough,
-                    scope,
-                    diagnostics,
-                    consumed,
-                )
+            name if label_props::reads(primitive, name) => {
+                label_props::capture(name, attr, &mut props, scope, diagnostics, consumed)
             }
-            // Both spellings are accepted and neither is passed through:
-            // the two platforms name this prop differently, so the value is
-            // captured here and each backend writes it under its own name.
-            // Re-emitting the source spelling verbatim would put
-            // `accessibilityLabel` on a DOM `<input>`, where React drops it
-            // and the field ends up with no accessible name at all -- the
-            // exact failure the diagnostic exists to prevent.
-            //
-            // The *value* is never touched. Hozo diagnoses the absence of
-            // a name and never invents or rewrites one: a name guessed from
-            // a placeholder or a nearby heading is how a field comes to be
-            // announced as something it isn't, which is worse than being
-            // announced as nothing.
-            "accessibilityLabel" | "aria-label" => match &attr.value {
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.accessibility_label = Some(to_expr_ref(container.expression.span()));
-                }
-                Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.accessibility_label = Some(to_expr_ref(literal.span));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "accessibilityHint" | "aria-description" => match &attr.value {
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.accessibility_hint = Some(to_expr_ref(container.expression.span()));
-                }
-                Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.accessibility_hint = Some(to_expr_ref(literal.span));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "src" if primitive == Primitive::Image => match &attr.value {
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.image_src = Some(to_expr_ref(container.expression.span()));
-                }
-                Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.image_src = Some(to_expr_ref(literal.span));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "defaultSource" if primitive == Primitive::Image => capture_prop_expr(
-                attr,
-                &mut props.image_default_source,
-                &mut props.passthrough,
-                scope,
-                diagnostics,
-                consumed,
-            ),
-            "alt" if primitive == Primitive::Image => match &attr.value {
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.accessibility_label = Some(to_expr_ref(container.expression.span()));
-                }
-                Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.accessibility_label = Some(to_expr_ref(literal.span));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
             "open" => match &attr.value {
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
                     props.open = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
