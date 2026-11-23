@@ -596,7 +596,7 @@
                 true
               ]
             },
-            "nativeHost": "View",
+            "nativeHost": "Pressable",
             "webHost": "div",
             "events": []
           }
@@ -1350,7 +1350,7 @@
                 true
               ]
             },
-            "nativeHost": "View",
+            "nativeHost": "Pressable",
             "webHost": "div",
             "events": []
           }

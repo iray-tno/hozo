@@ -34,7 +34,7 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     package: '@hozo/patterns',
     exports: ['Drawer', 'HozoDrawer'],
     shadow:
-      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Drawer.scrim","classProp":"scrimClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoScrimStyle","webClassProp":"scrimClassName"},"authoredStyles":[{"prop":"scrimStyle","order":0}],"shapes":[{"id":"scrim","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"Drawer.scrim","classProp":"scrimClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoScrimStyle","webClassProp":"scrimClassName"},"authoredStyles":[{"prop":"scrimStyle","order":0}],"shapes":[{"id":"scrim","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"div","events":[]}]}]}',
   },
   {
     owner: 'Drawer.panel',
@@ -174,7 +174,7 @@ export const AUDITED_OWNER_CONTRACTS: readonly AuditedOwnerContract[] = [
     package: '@hozo/patterns',
     exports: ['BottomSheet', 'HozoBottomSheet'],
     shadow:
-      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.scrim","classProp":"scrimClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoScrimStyle","webClassProp":"scrimClassName"},"authoredStyles":[{"prop":"scrimStyle","order":0}],"shapes":[{"id":"scrim","when":{"eq":["present",true]},"nativeHost":"View","webHost":"div","events":[]}]}]}',
+      '{"schema":"rfc010-owner-shadow-0","contracts":[{"owner":"BottomSheet.scrim","classProp":"scrimClassName","audit":"audited","bindings":["present"],"abi":{"nativePreparedProp":"hozoScrimStyle","webClassProp":"scrimClassName"},"authoredStyles":[{"prop":"scrimStyle","order":0}],"shapes":[{"id":"scrim","when":{"eq":["present",true]},"nativeHost":"Pressable","webHost":"div","events":[]}]}]}',
   },
   {
     owner: 'BottomSheet.sheet',
