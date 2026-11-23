@@ -14,6 +14,7 @@ mod effects;
 mod frames;
 mod host;
 mod host_props;
+mod inheritance;
 mod motion_props;
 mod passthrough;
 mod progress;
@@ -368,91 +369,11 @@ pub(super) fn render_node(
     let opaque_here = size_is_opaque(node);
     let publishes_size =
         opaque_here && renders_text(component) && has_relative_descendant(node, theme);
-    let semantic_defaults = semantic_defaults::semantic_defaults(
-        node,
-        theme,
-        &style,
-        inherited,
-        parent_font_size,
-        parent_size_opaque,
-    );
-
-    // `inherited` is text inheritance and belongs to `Text`. The semantic
-    // defaults do not: every one of them happened to be a text property
-    // until `Separator` needed a height, and the gate was quietly deciding
-    // that a default could only ever be about type. Widening it changes
-    // nothing above -- each of those arms matches a primitive that lowers
-    // to `Text` anyway -- and it is what makes a rule one pixel tall.
-    let style: Vec<StyleDeclaration> = if renders_text(component) {
-        // Provenance resolves competing utilities on the *same* element.
-        // A child's own font fallback still outranks an inherited leading;
-        // do not let the parent's Written marker reverse CSS inheritance.
-        // Context is the reference's source of inherited values. A copied
-        // class size/color could mask the parent's later inline override
-        // or replace a relative helper's computed size. Normal lowering
-        // keeps its existing iterator with no per-declaration extra test.
-        let inherited = if cx.text_reference {
-            &[][..]
-        } else {
-            inherited
-        };
-        let inherited: Vec<_> = inherited
-            .iter()
-            .filter(|parent| {
-                !matches!(parent.property, StyleProperty::LineHeight(_))
-                    || !style.iter().any(|own| {
-                        own.condition == parent.condition
-                            && matches!(own.property, StyleProperty::LineHeight(_))
-                    })
-            })
-            .cloned()
-            .collect();
-        inherited
-            .into_iter()
-            .chain(semantic_defaults)
-            .chain(style)
-            .collect()
-    } else {
-        semantic_defaults.into_iter().chain(style).collect()
-    };
-
-    // What an ancestor's `*:`/`**:` wrote for this element, before its
-    // own, so the element's own win -- `dedupe_last_wins` keeps the last
-    // of a property, which is where CSS specificity would land too.
-    let style: Vec<StyleDeclaration> = from_ancestor
-        .direct
-        .iter()
-        .cloned()
-        .chain(from_ancestor.all.iter().cloned())
-        .chain(style)
-        .collect();
-    // And what this element writes for its own subtree, taken out before
-    // anything tries to apply it here.
-    let (subtree, style): (Vec<_>, Vec<_>) = style
-        .into_iter()
-        .partition(|d| d.condition.split_subtree().is_some());
-    let (to_children, to_descendants) = subtree_for_children(&subtree, node, cx.diagnostics);
-    // An ancestor's `**:` keeps going; a parent's `*:` stops here.
-    let descendants: Vec<StyleDeclaration> = from_ancestor
-        .all
-        .iter()
-        .cloned()
-        .chain(to_descendants)
-        .collect();
-    // A child the compiler cannot read may render anything, so a style
-    // meant for "every child" would reach some of them and not others.
-    if !(to_children.is_empty() && descendants.is_empty())
-        && node
-            .children
-            .iter()
-            .any(|c| matches!(c, hozo_ir::Child::Verbatim { .. }))
-    {
-        cx.diagnostics.push(unwired_variant(
-            node,
-            "`*:`/`**:` hands a style to each child, and one of this element's children is an expression or a component the compiler doesn't read. It reaches the children it can see and not that one. On Web the selector reaches all of them.",
-            Severity::Warning,
-        ));
-    }
+    let inheritance::Inheritance {
+        style,
+        to_children,
+        descendants,
+    } = inheritance::inherit(node, component, style, ancestor, cx);
 
     let text_handoff::TextHandoff {
         text_declarations,
