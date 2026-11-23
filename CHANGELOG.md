@@ -1,5 +1,88 @@
 # Hozo changelog
 
+## 0.5.0
+
+Hozo 0.5.0 adds the `hozo` CLI, makes Tailwind's class order the default
+throughout the compiler, and uses one Native text inheritance rule. Ordinary
+Vite, Metro and Next.js builds read styling contracts from the installed
+component packages. Public npm packages and Rust library crates still
+release together.
+
+### Upgrading from 0.4
+
+- **Update installed `@hozo/*` packages together and restart the bundler.**
+  Metro, Vite and Next.js no longer scan source merely because a dependency
+  is under `@hozo/`. Ordinary builds capture class candidates from installed
+  manifests. An incomplete capture stops the build and names the package,
+  including older Hozo manifests that lack this data. For your own
+  source-distributed package, publish a v2 manifest with
+  `hozo manifest --sources <glob> --compiled-by-consumer`. Use
+  `--compiled-by-consumer` only if the app compiles those sources. An explicit
+  `content.packages` list remains a source-scanning override and disables
+  the automatic capture.
+- **Check conflicting classes that used to rely on their written order.**
+  A captured project uses its own Tailwind ordering; standalone calls and
+  builds without a captured CSS context use Hozo's built-in Tailwind facts.
+  For example, with default spacing, `p-4 p-2` now selects 16px in the
+  standalone compiler. `TAILWIND_ORDER_AS_WRITTEN` names conflicts still
+  left in written order around unrankable classes. Remove the losing class
+  if its order mattered.
+- **Native text can inherit across component and `children` boundaries.**
+  Visible text still gets its styles at build time. Only where Hozo cannot
+  see the relationship does the nearest text-styled container supply the
+  missing fields at runtime. If a migration needs the old behavior,
+  set `nativeTextInheritance: 'compiled'` in Metro's `withHozo` options.
+  The older experimental whole-component options (`textInheritance` and
+  `textStatic`) and their generated component entry points are removed.
+  Regenerate compiled output made with that experiment.
+
+### The `hozo` CLI
+
+- `npx @hozo/cli dry-fit .` measures what Hozo would lower in an existing
+  React Native project. `hozo square` checks configuration, peers, theme
+  tokens and code; `--compare` and `--fail-on new-errors` support a CI
+  baseline. `dry-fit --file-signal` lets a corpus supply named file
+  counters in its JSON report.
+- `hozo init` previews setup changes for supported Vite, TanStack Start,
+  Astro, Next.js, Metro and Vite-based Storybook projects. Pass `--write`
+  to apply the changes. `hozo add` copies editable `@hozo/ui` components
+  and the theme, with support for rewriting imports and comparing updates.
+- `hozo show <file>` shows compiled Web and Native output, where each
+  class list is resolved, and why a utility was refused. `hozo explain`
+  reads the diagnostic catalog. `hozo manifest` and `hozo links` are also
+  available through the CLI. The old `hozo-migration-audit`,
+  `hozo-manifest` and `hozo-links` commands keep their previous stdout
+  in 0.5 and print a deprecation notice on stderr.
+
+### Styling and components
+
+- Supported, statically known `tailwind-merge` calls and imported helpers
+  can resolve at build time. Opaque values or custom merge configurations
+  keep the original call. Scoped themes, font tokens and conditional
+  transforms, filters, gradients, shadows and RTL edges have additional
+  Web/Native parity fixes.
+- Patterns and form controls can use prepared owner styles, including
+  Drawer, BottomSheet, Popover, Tabs, CodeBlock and date pickers.
+  Style literals stay at the caller where supported; dynamic values
+  retain their runtime paths. The [owner evidence index](docs/measurements/styling-fact-status.md)
+  describes the tested shapes and their limits. Third-party v2 manifests
+  can supply candidates; third-party owner authoring is not a public API.
+- Build diagnostics now flag classes missing from the runtime candidate
+  map. Native development builds also warn about unknown runtime classes;
+  use `markerClasses` for names meant only as application or test markers.
+  Native `TextInput` can use supported `placeholder-shown:` styles and
+  lower `selection:bg-*` to its selection color.
+- `SubmitButton` submits a Hozo `Form`. `WindowedTable` uses fixed row
+  heights and declared column widths to window Native rows while keeping
+  a semantic Web table. `Dialog` supports optional backdrop dismissal.
+  Web `Image` forwards intrinsic sizing and load hints without the
+  compiler; Web `Video` can use the browser's own playback and poster
+  attributes even on pages that never hydrate.
+
+The release ships the eight native Node compiler bindings. The optional
+WASI binding is exercised in packed-consumer tests, but is not published
+in 0.5.0.
+
 ## 0.4.0
 
 Hozo 0.4.0 adds code blocks and resizable panes, follows a site's own dark-mode
