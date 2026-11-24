@@ -48,20 +48,31 @@ fn metric_in_px(key: &str, length: f64) -> StyleProperty {
 pub(crate) fn fold_font_relative(
     declarations: &[StyleDeclaration],
     inherited: &[StyleDeclaration],
+    theme: &Theme,
 ) -> Vec<StyleDeclaration> {
+    let absolute_size = |length: &Length| {
+        if length.css_expression().is_some() || length.unresolved_unit().is_some() {
+            return None;
+        }
+        let size = length.px(theme);
+        size.is_finite().then_some(size)
+    };
     let font_size = |condition: &Condition| -> Option<f64> {
         let find = |list: &[StyleDeclaration], want: &Condition| {
-            list.iter()
-                .rev()
-                .find_map(|d| match (&d.property, &d.condition) {
-                    (StyleProperty::FontSize(Length::Px(px)), c) if c == want => Some(*px),
-                    _ => None,
-                })
+            list.iter().rev().find_map(|d| {
+                let StyleProperty::FontSize(length) = &d.property else {
+                    return None;
+                };
+                // A winning but not computable size is not the absence of
+                // a write. Do not fold against an earlier/ancestor size.
+                (&d.condition == want).then(|| absolute_size(length))
+            })
         };
         find(declarations, condition)
             .or_else(|| find(declarations, &Condition::Always))
             .or_else(|| find(inherited, condition))
             .or_else(|| find(inherited, &Condition::Always))
+            .flatten()
     };
 
     let explicit_leading = |condition: &Condition| {
@@ -114,7 +125,10 @@ pub(crate) fn fold_font_relative(
             continue;
         }
         for font in declarations {
-            let StyleProperty::FontSize(Length::Px(size)) = &font.property else {
+            let StyleProperty::FontSize(length) = &font.property else {
+                continue;
+            };
+            let Some(size) = absolute_size(length) else {
                 continue;
             };
             if font.condition == Condition::Always || metric.condition == font.condition {

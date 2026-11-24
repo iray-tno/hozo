@@ -160,6 +160,7 @@ pub(super) fn render_node(
     let style = lower_inline_flex(fold_font_relative(
         field_style.as_deref().unwrap_or(&node.style),
         inherited,
+        theme,
     ));
     let layout = crate::pattern_layout::adapt(node.primitive, "className", style);
     let style = layout.style;

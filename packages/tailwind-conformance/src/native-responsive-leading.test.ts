@@ -61,6 +61,7 @@ test('a child font fallback is not overridden by a View ancestor leading', () =>
 
 for (const [classes, small, medium, large] of [
   ['text-lg sm:text-xl leading-relaxed', 29.25, 32.5, 32.5],
+  ['text-[1.125rem] sm:text-[1.25rem] leading-relaxed', 29.25, 32.5, 32.5],
   ['leading-relaxed sm:text-xl text-lg', 29.25, 32.5, 32.5],
   ['text-lg sm:text-xl leading-6', 24, 24, 24],
   ['leading-6 sm:text-xl text-lg', 24, 24, 24],

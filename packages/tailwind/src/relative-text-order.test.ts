@@ -81,6 +81,7 @@ test('Native Text resolves relative candidates against the final local size', as
     ['text-lg leading-loose leading-tight tracking-wide tracking-tight', '{classes}'],
     ['tracking-[2px] tracking-wide leading-6 leading-tight text-lg', '{classes}'],
     ['text-xl leading-[1.25em] tracking-[0.1em]', '{classes}'],
+    ['text-[1.25rem] leading-tight tracking-wide', '{classes}'],
   ]
   const names = cases
     .map(([classes]) => classes!)
@@ -151,4 +152,9 @@ test('Native Text resolves relative candidates against the final local size', as
   const web = compiler.prepareWebModule(source(em)).emit(final)[0]!
   assert.match(web.css, /line-height: 1\.25em;/)
   assert.match(web.css, /letter-spacing: 0\.1em;/)
+  assert.deepEqual(render('text-[1.25rem] leading-tight tracking-wide', '{classes}').resolved, {
+    fontSize: 20,
+    lineHeight: 25,
+    letterSpacing: 0.5,
+  })
 })
