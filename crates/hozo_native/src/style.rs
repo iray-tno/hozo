@@ -529,6 +529,9 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // (`BaseViewProps`' `outlineStyle{OutlineStyle::Solid}`), and writing
         // it would override a written style earlier in the array.
         StyleProperty::OutlineStyle(BorderStyle::Default) => Vec::new(),
+        // A CSS forced-colors fallback, not a request to read a Native
+        // environment flag. The ordinary outline-none projection remains.
+        StyleProperty::OutlineHiddenForcedColors => Vec::new(),
         StyleProperty::OutlineStyle(s) => vec![("outlineStyle", border_style_literal(s))],
         StyleProperty::OutlineColor(c) => vec![("outlineColor", resolve_color(c))],
         StyleProperty::OutlineOffset(l) => vec![("outlineOffset", number(l, theme))],

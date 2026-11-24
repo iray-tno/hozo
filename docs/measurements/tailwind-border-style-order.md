@@ -119,19 +119,17 @@ Verification:
 Policy **scalar-order-v54**. Both are `OutlineStyle(None)` in Hozo, a
 written style like `outline-dashed`, and now rank. Tailwind's
 `outline-hidden` adds an `@media (forced-colors: active)` branch beside
-its declarations, which Hozo does not emit. `forced_colors_fallback` reads
+its declarations. Hozo emits that branch on Web for both static and scanned
+runtime classes. `forced_colors_fallback` reads
 that branch as a refinement, not a second place in the order, but only
 beside declarations of the rule's own: alone, it is the `forced-colors:`
 variant. (A first draft accepted it anywhere, and the built-in descriptor
 equivalence test caught `forced-colors:translate-x-4` turning
 declaration-less.)
 
-Two output gaps are independent of order and are listed in
-[known gaps](tailwind-known-gaps.md):
-
-- Native has no `none` outline style. It writes `outlineWidth: 0`, which a
-  later width can override where Tailwind's register would not.
-- The forced-colors fallback is not emitted.
+Native has no `none` outline style. It writes `outlineWidth: 0`, which a
+later width can override where Tailwind's register would not. This remains
+listed in [known gaps](tailwind-known-gaps.md).
 
 Verification:
 

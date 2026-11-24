@@ -44,6 +44,7 @@ pub(super) fn render_shape(
                         | StyleProperty::OutlineStyle(BorderStyle::Default)
                 )
         });
+    let has_forced_outline = props.contains(&StyleProperty::OutlineHiddenForcedColors);
     let props = props.as_slice();
 
     // Some utilities target something other than the element itself, so
@@ -106,8 +107,11 @@ pub(super) fn render_shape(
         rest.into_iter().partition(|p| is_border_spacing(p));
     let (text_shadow_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
         rest.into_iter().partition(|p| is_text_shadow(p));
-    let (snap_props, own_props): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
+    let (snap_props, mut own_props): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
         rest.into_iter().partition(|p| is_scroll_snap(p));
+    if has_forced_outline {
+        own_props.retain(|p| !matches!(p, StyleProperty::OutlineHiddenForcedColors));
+    }
 
     let mut rules: Vec<String> = Vec::new();
     // `needs_content` on its own is a rule: the hoisted `::before` that
@@ -313,6 +317,12 @@ pub(super) fn render_shape(
             body.push_str(&format!("  {name}: {value};\n"));
         }
         rules.push(format!("{target}::placeholder {{\n{body}}}"));
+    }
+
+    if has_forced_outline {
+        rules.push(format!(
+            "@media (forced-colors: active) {{\n  {target} {{\n    outline: 2px solid transparent;\n    outline-offset: 2px;\n  }}\n}}"
+        ));
     }
 
     // Nested innermost-last, so the first variant written is the outermost

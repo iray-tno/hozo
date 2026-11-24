@@ -224,6 +224,8 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::PlaceholderColor(c) => ("color", color_var(c)),
         StyleProperty::OutlineWidth(l) => ("outline-width", length_px(l, theme)),
         StyleProperty::OutlineStyle(s) => ("outline-style", border_style_keyword(s).to_string()),
+        // Emitted under the forced-colors media query by render_shape.
+        StyleProperty::OutlineHiddenForcedColors => ("outline", String::new()),
         StyleProperty::OutlineColor(c) => ("outline-color", color_var(c)),
         StyleProperty::OutlineOffset(l) => ("outline-offset", length_px(l, theme)),
         // Child-scoped; `render_rule` partitions these into their own rule

@@ -754,6 +754,10 @@ pub enum StyleProperty {
     PlaceholderColor(Color),
     OutlineWidth(Length),
     OutlineStyle(BorderStyle),
+    /// The browser-only high-contrast fallback of Tailwind's outline-hidden.
+    /// Separate from outline-style so an ordinary outline writer cannot
+    /// erase the forced-colors branch by replacing the base declaration.
+    OutlineHiddenForcedColors,
     OutlineColor(Color),
     OutlineOffset(Length),
     /// `divide-*`: like `space-*`, these style the element's *children*
