@@ -3,6 +3,33 @@
 
 use crate::*;
 
+/// The scalar used by the Native compiler and the generated candidate map.
+/// Leave the IR spelling alone: a CSS em length, unlike a line-height ratio,
+/// is inherited as its computed length on Web.
+pub(crate) fn relative_metric(property: &StyleProperty) -> Option<(&'static str, f64)> {
+    use hozo_ir::{LengthUnit::Em, LetterSpacing, LineHeight};
+    let (key, scale) = match property {
+        StyleProperty::LineHeight(LineHeight::Ratio(scale))
+        | StyleProperty::LineHeight(LineHeight::Length(Length::Unit(scale, Em))) => {
+            ("lineHeight", *scale)
+        }
+        StyleProperty::LetterSpacing(LetterSpacing::Em(scale)) => ("letterSpacing", scale.0),
+        StyleProperty::LetterSpacing(LetterSpacing::Px(Length::Unit(scale, Em))) => {
+            ("letterSpacing", *scale)
+        }
+        _ => return None,
+    };
+    scale.is_finite().then_some((key, scale))
+}
+
+fn metric_in_px(key: &str, length: f64) -> StyleProperty {
+    if key == "lineHeight" {
+        StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(length)))
+    } else {
+        StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Px(Length::Px(length)))
+    }
+}
+
 /// Rewrites the font-relative text metrics into absolute ones, against a
 /// font size set on the same element.
 ///
@@ -56,23 +83,15 @@ pub(crate) fn fold_font_relative(
             ) || !explicit_leading(&d.condition)
         })
         .map(|declaration| {
+            let Some((key, scale)) = relative_metric(&declaration.property) else {
+                return declaration.clone();
+            };
             let Some(size) = font_size(&declaration.condition) else {
                 return declaration.clone();
             };
-            let property = match &declaration.property {
-                StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) => {
-                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(size * ratio)))
-                }
-                StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(em)) => {
-                    StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Px(Length::Px(
-                        size * em.0,
-                    )))
-                }
-                _ => return declaration.clone(),
-            };
             StyleDeclaration {
                 source: declaration.source,
-                property,
+                property: metric_in_px(key, size * scale),
                 condition: declaration.condition.clone(),
             }
         })
@@ -84,15 +103,13 @@ pub(crate) fn fold_font_relative(
     // must belong to the same metric family to suppress it.
     let mut tracking_projections = Vec::new();
     for metric in declarations {
-        let (scale, leading) = match &metric.property {
-            StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) => (*ratio, true),
-            StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(em))
-                if metric.condition == Condition::Always =>
-            {
-                (em.0, false)
-            }
-            _ => continue,
+        let Some((key, scale)) = relative_metric(&metric.property) else {
+            continue;
         };
+        let leading = key == "lineHeight";
+        if !leading && metric.condition != Condition::Always {
+            continue;
+        }
         if font_size(&metric.condition).is_none() {
             continue;
         }
@@ -127,13 +144,7 @@ pub(crate) fn fold_font_relative(
             };
             let projected = StyleDeclaration {
                 source: metric.source,
-                property: if leading {
-                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(size * scale)))
-                } else {
-                    StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Px(Length::Px(
-                        size * scale,
-                    )))
-                },
+                property: metric_in_px(key, size * scale),
                 condition,
             };
             if leading {

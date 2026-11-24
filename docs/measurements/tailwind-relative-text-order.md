@@ -32,7 +32,10 @@ keeps its fallback provenance, so an explicit `leading-*` still beats it.
   leading and em tracking. A dynamic Text that depends on an ancestor's
   font size, a style supplied by a spread, and conditional metric candidates
   are not covered by that path. Listed in the gaps index.
-- Arbitrary em lengths, as above.
+- Explicit em lengths such as `leading-[1.25em]` and `tracking-[0.1em]`
+  use the same Native projection when the size is known, and still emit an em
+  length on Web. This does not graduate arbitrary em lengths into the
+  shared ordering domain.
 
 ## Verification
 

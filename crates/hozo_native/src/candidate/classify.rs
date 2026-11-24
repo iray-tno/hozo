@@ -109,8 +109,14 @@ pub(super) fn classify_candidates<'n>(
             .iter()
             .flat_map(|(_, properties)| properties.clone())
             .collect();
+        // This is a side-table write for a Text, not a bare RN style.
+        let relative_metric = match properties.as_slice() {
+            [property] => crate::text::relative_metric(property),
+            _ => None,
+        };
         if let Some(reason) = properties
             .iter()
+            .filter(|_| relative_metric.is_none())
             .find_map(|property| property.unsupported_on_native_with_theme(theme))
         {
             if let Some(plan) = plan.as_deref_mut() {
@@ -123,10 +129,14 @@ pub(super) fn classify_candidates<'n>(
         // iteration -- a style key can now borrow from the property it
         // came from (an arbitrary property's name is the author's text,
         // not a literal in this binary).
-        let pairs: Vec<(String, String)> = style_pairs(&properties, theme)
-            .into_iter()
-            .map(|(key, value)| (key.to_string(), value))
-            .collect();
+        let pairs: Vec<(String, String)> = if relative_metric.is_some() {
+            Vec::new()
+        } else {
+            style_pairs(&properties, theme)
+                .into_iter()
+                .map(|(key, value)| (key.to_string(), value))
+                .collect()
+        };
         if let Some(token) = unresolved_colour(&pairs) {
             if let Some(plan) = plan.as_deref_mut() {
                 plan.refused(name, "unresolved-theme-color");
@@ -136,29 +146,19 @@ pub(super) fn classify_candidates<'n>(
         }
         let gradient = crate::gradients::metadata(&properties, theme);
         let shadow = crate::shadows::metadata(&properties, theme);
-        // Neither ratio can be written into a React Native style. Carry
-        // the number to Text, which can read the size of the selected styles.
-        let relative_metric = match properties.as_slice() {
-            [StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio))] if ratio.is_finite() => {
-                Some(("lineHeight", *ratio))
-            }
-            [StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(em))] if em.0.is_finite() => {
-                Some(("letterSpacing", em.0))
-            }
-            _ => None,
-        };
         if pairs.is_empty() && gradient.is_none() && shadow.is_none() && relative_metric.is_none() {
             if let Some(plan) = plan.as_deref_mut() {
                 plan.refused(name, "no-native-output");
             }
             continue;
         }
-        explicit_leading |= properties.iter().any(|property| {
-            matches!(
-                property,
-                StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_))
-            )
-        });
+        explicit_leading |= relative_metric.is_none()
+            && properties.iter().any(|property| {
+                matches!(
+                    property,
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_))
+                )
+            });
         if let Some(plan) = plan.as_deref_mut() {
             plan.style(
                 name,

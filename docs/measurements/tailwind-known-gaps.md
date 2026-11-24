@@ -31,7 +31,7 @@ reason, not an oversight.
 
 | Barrier | Why | Found in |
 | --- | --- | --- |
-| Arbitrary relative lengths (`leading-[1em]`, `tracking-[1em]`) | An em length is not a ratio; static folding does not resolve it. | [tailwind-relative-text-order](tailwind-relative-text-order.md) |
+| Arbitrary relative lengths (`leading-[1em]`, `tracking-[1em]`) | Native resolves explicit em with a known size, but this arbitrary form still lacks an assessed shared order. | [tailwind-relative-text-order](tailwind-relative-text-order.md) |
 | Opaque arbitrary passthrough classes (`columns-(--layout)`, `cursor-[…]`, `text-[150%]`, `text-[length:…]`) | A generic write with an owned name is not modelled. Readable arbitrary column counts/widths/auto now use the named ownership; unknown variables and two-value shorthands still do not. | [tailwind-columns-underline-offset-order](tailwind-columns-underline-offset-order.md) |
 | `line-clamp-*`, `object-position`, masks, text shadows | Several declarations, or a Web-only keyword table, or registers not yet modelled. | [tailwind-columns-underline-offset-order](tailwind-columns-underline-offset-order.md) |
 | Named and nested relations, custom dark selectors, pseudo-elements, arbitrary selectors | Weights not read from a closed set of shapes. | [tailwind-relation-order](tailwind-relation-order.md), [tailwind-selector-order](tailwind-selector-order.md) |

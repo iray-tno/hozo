@@ -80,6 +80,7 @@ test('Native Text resolves relative candidates against the final local size', as
     ['leading-tight tracking-wide', `\`text-lg \${classes}\``],
     ['text-lg leading-loose leading-tight tracking-wide tracking-tight', '{classes}'],
     ['tracking-[2px] tracking-wide leading-6 leading-tight text-lg', '{classes}'],
+    ['text-xl leading-[1.25em] tracking-[0.1em]', '{classes}'],
   ]
   const names = cases
     .map(([classes]) => classes!)
@@ -94,6 +95,8 @@ test('Native Text resolves relative candidates against the final local size', as
   for (const [candidate, key] of [
     ['leading-tight', 'lineHeight'],
     ['tracking-wide', 'letterSpacing'],
+    ['leading-[1.25em]', 'lineHeight'],
+    ['tracking-[0.1em]', 'letterSpacing'],
   ]) {
     const entry = plan.entries.find((entry) => entry.candidate === candidate)
     assert.deepEqual(entry?.groups[0]?.nativeKeys, [])
@@ -139,4 +142,13 @@ test('Native Text resolves relative candidates against the final local size', as
     lineHeight: 22.5,
     letterSpacing: 0.45,
   })
+  const em = 'text-xl leading-[1.25em] tracking-[0.1em]'
+  assert.deepEqual(render(em, '{classes}').resolved, {
+    fontSize: 20,
+    lineHeight: 25,
+    letterSpacing: 2,
+  })
+  const web = compiler.prepareWebModule(source(em)).emit(final)[0]!
+  assert.match(web.css, /line-height: 1\.25em;/)
+  assert.match(web.css, /letter-spacing: 0\.1em;/)
 })
