@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -p . --noEmit",
-    "test": "node --test --test-concurrency=1 scripts/check-runtime.test.mjs && tsc -p . --noEmit"
+    "test": "vite build && node --test --test-concurrency=1 scripts/check-runtime.test.mjs scripts/check-web-a2ui.test.mjs scripts/check-native-parity.test.mjs && tsc -p . --noEmit"
   },
   "dependencies": {
     "@hozo/core": "workspace:*",

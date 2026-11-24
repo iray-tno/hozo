@@ -13,18 +13,8 @@ import type { A2uiAction, ChildList } from './protocol.ts'
 
 export { HOZO_A2UI_CATALOG_ID }
 
-// Static class literals so Hozo compiles every text variant and tone cleanly on
-// both Web and Native without falling back to uncompiled dynamic strings.
-const VARIANT_HEADING = 'text-xl font-bold'
-const VARIANT_SUBHEADING = 'text-base font-semibold'
-const VARIANT_BODY = 'text-sm font-normal'
-const VARIANT_CAPTION = 'text-xs font-normal'
-
-const TONE_BODY = 'text-hozo-text-body'
-const TONE_SUBTLE = 'text-hozo-text-subtle'
-const TONE_ACCENT = 'text-hozo-accent-text'
-const TONE_DANGER = 'text-hozo-danger-text'
-
+// Inline ternaries inside `cx(...)` so Hozo compiles every bounded variant and
+// tone statically on both Web and Native with zero runtime fallback warnings.
 function A2uiText({
   text,
   variant = 'body',
@@ -34,23 +24,28 @@ function A2uiText({
   variant?: 'heading' | 'subheading' | 'body' | 'caption'
   tone?: 'body' | 'subtle' | 'accent' | 'danger'
 }) {
-  const variantClass =
-    variant === 'heading'
-      ? VARIANT_HEADING
-      : variant === 'subheading'
-        ? VARIANT_SUBHEADING
-        : variant === 'caption'
-          ? VARIANT_CAPTION
-          : VARIANT_BODY
-  const toneClass =
-    tone === 'subtle'
-      ? TONE_SUBTLE
-      : tone === 'accent'
-        ? TONE_ACCENT
-        : tone === 'danger'
-          ? TONE_DANGER
-          : TONE_BODY
-  return <Text className={cx(variantClass, toneClass)}>{text}</Text>
+  return (
+    <Text
+      className={cx(
+        variant === 'heading'
+          ? 'text-xl font-bold'
+          : variant === 'subheading'
+            ? 'text-base font-semibold'
+            : variant === 'caption'
+              ? 'text-xs font-normal'
+              : 'text-sm font-normal',
+        tone === 'subtle'
+          ? 'text-hozo-text-subtle'
+          : tone === 'accent'
+            ? 'text-hozo-accent-text'
+            : tone === 'danger'
+              ? 'text-hozo-danger-text'
+              : 'text-hozo-text-body',
+      )}
+    >
+      {text}
+    </Text>
+  )
 }
 
 /**
