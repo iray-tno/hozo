@@ -179,6 +179,12 @@ function configureHozo(
   let candidateCssPath = ''
   let preflightPath = ''
   let includedFiles = new Set<string>()
+  // `content: { include: [] }` declares that no file's plain classes are
+  // Hozo's to style: the project generates their CSS some other way, such as
+  // Tailwind's own plugin during a migration. Every file is then outside the
+  // walk on purpose, and Hozo cannot see the rules that style its classes, so
+  // the missing-class check would report every class in the project (#2250).
+  const walksNothing = options.content?.include?.length === 0
   // Which files under `node_modules` the transform compiles and scans.
   const admitted = (file: string) =>
     includedFiles.has(file) || ownerCallerFiles.has(file) || carrierSource(file)
@@ -402,7 +408,7 @@ function configureHozo(
         const current = await currentEpoch((message) => this.warn(message))
         checkRequest()
         const compiler = current.compiler
-        if (file && !scannable && !isDerivedModule && checksRuntimeClasses(file))
+        if (file && !scannable && !isDerivedModule && !walksNothing && checksRuntimeClasses(file))
           // Outside the walk, so its classes never reach the candidate
           // stylesheet: one resolved at run time has no rule (#2048).
           for (const diagnostic of classesMissingFromRuntimeMap(

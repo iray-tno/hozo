@@ -883,3 +883,29 @@ export const Demo = ({ size }) => <View className={widths[size]} />
     missing.join('\n'),
   )
 })
+
+test('an empty content.include hands plain classes to another stylesheet, so none is reported missing (#2250)', async () => {
+  // Envarly's migration setup: Tailwind's own plugin styles every plain
+  // className, and Hozo is told to walk nothing.
+  const root = project({
+    'App.tsx': `import { View } from '@hozo/core'
+const widths = { wide: 'w-96', narrow: 'w-32' }
+export const App = ({ size }) => (
+  <div className="flex flex-col h-screen overflow-hidden">
+    <View className={widths[size]} />
+  </div>
+)
+`,
+  })
+  const { warnings, logger } = collectWarnings()
+  const server = await serve(
+    root,
+    { content: { include: [] }, unloweredReactNativeJsx: 'allow' },
+    {},
+    [],
+    [],
+    logger,
+  )
+  await server.transformRequest('/App.tsx')
+  assert.ok(!warnings.some((w) => w.includes('CLASS_NOT_IN_RUNTIME_MAP')), warnings.join('\n'))
+})
