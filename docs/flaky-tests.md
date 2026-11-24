@@ -22,7 +22,6 @@ investigation moves.
 | The Native Dialog returning focus to its opener | device a11y checks | [#484](https://github.com/iray-tno/hozo/issues/484) |
 | The `android` job, before any test runs ("Android framework readiness timed out") | `.github/workflows` | [#1525](https://github.com/iray-tno/hozo/issues/1525) |
 | The `ios` showcase smoke, capturing the Kumimono disassembled frame ("spawnSync xcrun ETIMEDOUT") | `examples/native-showcase` | [#2152](https://github.com/iray-tno/hozo/issues/2152) |
-| Chromium Audio's decoded-clock playback-rate observation | `packages/media/tests/browser-audio.test.mjs` | [#2121](https://github.com/iray-tno/hozo/issues/2121) |
 | The packed non-Hozo dependency test, `npm pack` killed at the 15 s fixture timeout under a full `pnpm test` ("Fixture npm pack failed") | `packages/metro/src/owner-candidate-map.test.ts` | [#2174](https://github.com/iray-tno/hozo/issues/2174) |
 
 ## Not flaky: the Storybook audits on a lowered priority
