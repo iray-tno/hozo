@@ -883,3 +883,73 @@ export const Demo = ({ size }) => <View className={widths[size]} />
     missing.join('\n'),
   )
 })
+
+test('an empty content.include hands plain classes to another stylesheet, so none is reported missing (#2250)', async () => {
+  // Envarly's migration setup: Tailwind's own plugin styles every plain
+  // className, and Hozo is told to walk nothing.
+  const root = project({
+    'App.tsx': `import { View } from '@hozo/core'
+const widths = { wide: 'w-96', narrow: 'w-32' }
+export const App = ({ size }) => (
+  <div className="flex flex-col h-screen overflow-hidden">
+    <View className={widths[size]} />
+  </div>
+)
+`,
+  })
+  const { warnings, logger } = collectWarnings()
+  const server = await serve(
+    root,
+    { content: { include: [] }, unloweredReactNativeJsx: 'allow' },
+    {},
+    [],
+    [],
+    logger,
+  )
+  await server.transformRequest('/App.tsx')
+  assert.ok(!warnings.some((w) => w.includes('CLASS_NOT_IN_RUNTIME_MAP')), warnings.join('\n'))
+})
+
+test('with Tailwind’s Vite plugin beside Hozo, a file outside a partial walk is not reported', async () => {
+  // A migration that hands Hozo one folder and leaves the rest to Tailwind.
+  const root = project({
+    'hozo/Card.tsx': `import { View } from '@hozo/core'\nexport const Card = () => <View className="p-4" />\n`,
+    'legacy/Page.tsx': `export const Page = () => <div className="flex flex-col h-screen" />\n`,
+  })
+  // Only the name is read; a stand-in keeps the test off Tailwind's own build.
+  const tailwind = (name: string) => ({ name })
+  const { warnings, logger } = collectWarnings()
+  const server = await serve(
+    root,
+    { content: { include: ['hozo/**'] }, unloweredReactNativeJsx: 'allow' },
+    {},
+    [tailwind('@tailwindcss/vite:scan'), tailwind('@tailwindcss/vite:generate:serve')],
+    [],
+    logger,
+  )
+  await server.transformRequest('/legacy/Page.tsx')
+  assert.ok(!warnings.some((w) => w.includes('CLASS_NOT_IN_RUNTIME_MAP')), warnings.join('\n'))
+})
+
+test('without Tailwind’s plugin, the same partial walk still reports the file outside it', async () => {
+  const root = project({
+    'hozo/Card.tsx': `import { View } from '@hozo/core'\nexport const Card = () => <View className="p-4" />\n`,
+    'legacy/Page.tsx': `export const Page = () => <div className="flex flex-col h-screen" />\n`,
+  })
+  const { warnings, logger } = collectWarnings()
+  const server = await serve(
+    root,
+    { content: { include: ['hozo/**'] }, unloweredReactNativeJsx: 'allow' },
+    {},
+    [{ name: 'tailwindcss-lookalike' }],
+    [],
+    logger,
+  )
+  await server.transformRequest('/legacy/Page.tsx')
+  const missing = warnings.filter((w) => w.includes('CLASS_NOT_IN_RUNTIME_MAP'))
+  assert.ok(missing.length > 0, warnings.join('\n'))
+  assert.ok(
+    missing.every((w) => /Page\.tsx:1/.test(w)),
+    missing.join('\n'),
+  )
+})

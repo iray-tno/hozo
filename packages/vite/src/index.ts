@@ -179,6 +179,18 @@ function configureHozo(
   let candidateCssPath = ''
   let preflightPath = ''
   let includedFiles = new Set<string>()
+  // `content: { include: [] }` declares that no file's plain classes are
+  // Hozo's to style: the project generates their CSS some other way, such as
+  // Tailwind's own plugin during a migration. Every file is then outside the
+  // walk on purpose, and Hozo cannot see the rules that style its classes, so
+  // the missing-class check would report every class in the project (#2250).
+  const walksNothing = options.content?.include?.length === 0
+  // Tailwind's own Vite plugin, beside this one, generates a rule for every
+  // class written in the sources it scans, whether or not Hozo walks them.
+  // A class outside Hozo's walk is then not missing, so the same check is
+  // off. Set from the resolved config; a project without that plugin keeps
+  // the check exactly as before.
+  let tailwindStylesClasses = false
   // Which files under `node_modules` the transform compiles and scans.
   const admitted = (file: string) =>
     includedFiles.has(file) || ownerCallerFiles.has(file) || carrierSource(file)
@@ -402,7 +414,14 @@ function configureHozo(
         const current = await currentEpoch((message) => this.warn(message))
         checkRequest()
         const compiler = current.compiler
-        if (file && !scannable && !isDerivedModule && checksRuntimeClasses(file))
+        if (
+          file &&
+          !scannable &&
+          !isDerivedModule &&
+          !walksNothing &&
+          !tailwindStylesClasses &&
+          checksRuntimeClasses(file)
+        )
           // Outside the walk, so its classes never reach the candidate
           // stylesheet: one resolved at run time has no rule (#2048).
           for (const diagnostic of classesMissingFromRuntimeMap(
@@ -813,6 +832,11 @@ function configureHozo(
           throw new Error('[hozo] owner candidates require a production build')
         root = options.root ?? config.root
         resolvedConfig = config
+        // `@tailwindcss/vite` registers `:scan` and `:generate:*` plugins.
+        // Optional because a caller driving the hooks directly may hand in a
+        // partial config, as this package's own tests do.
+        tailwindStylesClasses =
+          config.plugins?.some((plugin) => plugin.name.startsWith('@tailwindcss/vite:')) ?? false
       },
 
       configureServer(devServer) {
