@@ -9,6 +9,7 @@ import { hozoAuthoredEdges } from '../../engine/src/authored-edges.ts'
 import {
   createClassResolver,
   hozoMixedTextMetricStyles,
+  hozoRelativeTextMetricStyles,
   hozoTextMetricStyles,
 } from '../../engine/src/class-resolver.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
@@ -219,6 +220,7 @@ test('mixed Text and TextInput use candidate default identities without a candid
         h: (_type: unknown, props: Record<string, unknown>) => props,
         hozoClasses,
         hozoMixedTextMetricStyles,
+        hozoRelativeTextMetricStyles,
         hozoAuthoredStyle: (style: unknown) => style,
         hozoAuthoredEdges,
         I18nManager: { isRTL: false, doLeftAndRightSwapInRTL: true },

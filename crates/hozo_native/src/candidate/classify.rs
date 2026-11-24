@@ -16,6 +16,7 @@ pub(super) struct Classified<'n> {
     pub(super) transitions: Vec<(&'n String, Option<&'static str>, String)>,
     pub(super) font_defaults: Vec<&'n String>,
     pub(super) leading_registers: Vec<(&'n String, f64)>,
+    pub(super) relative_text_metrics: Vec<(&'n String, &'static str, f64)>,
     pub(super) explicit_leading: bool,
 }
 
@@ -36,6 +37,7 @@ pub(super) fn classify_candidates<'n>(
     let mut transitions: Vec<(&String, Option<&'static str>, String)> = Vec::new();
     let mut font_defaults = Vec::new();
     let mut leading_registers = Vec::new();
+    let mut relative_text_metrics = Vec::new();
     let mut explicit_leading = false;
     for name in class_names {
         let Some(mut utility) = hozo_parser::resolve_class_name(name) else {
@@ -134,7 +136,18 @@ pub(super) fn classify_candidates<'n>(
         }
         let gradient = crate::gradients::metadata(&properties, theme);
         let shadow = crate::shadows::metadata(&properties, theme);
-        if pairs.is_empty() && gradient.is_none() && shadow.is_none() {
+        // Neither ratio can be written into a React Native style. Carry
+        // the number to Text, which can read the size of the selected styles.
+        let relative_metric = match properties.as_slice() {
+            [StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio))] if ratio.is_finite() => {
+                Some(("lineHeight", *ratio))
+            }
+            [StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(em))] if em.0.is_finite() => {
+                Some(("letterSpacing", em.0))
+            }
+            _ => None,
+        };
+        if pairs.is_empty() && gradient.is_none() && shadow.is_none() && relative_metric.is_none() {
             if let Some(plan) = plan.as_deref_mut() {
                 plan.refused(name, "no-native-output");
             }
@@ -153,7 +166,11 @@ pub(super) fn classify_candidates<'n>(
                 &pairs,
                 gradient.as_ref(),
                 shadow.as_ref(),
+                relative_metric.map(|(key, _)| key),
             );
+        }
+        if let Some((key, scale)) = relative_metric {
+            relative_text_metrics.push((name, key, scale));
         }
         if let Some(metadata) = crate::transforms::metadata(&properties, theme) {
             transforms.push((name, metadata));
@@ -188,6 +205,7 @@ pub(super) fn classify_candidates<'n>(
         transitions,
         font_defaults,
         leading_registers,
+        relative_text_metrics,
         explicit_leading,
     }
 }

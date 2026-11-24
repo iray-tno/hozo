@@ -127,6 +127,7 @@ fn render_candidate_module_impl(
         transitions,
         font_defaults,
         leading_registers,
+        relative_text_metrics,
         explicit_leading,
     } = classify::classify_candidates(class_names, theme, &mut plan);
 
@@ -266,6 +267,17 @@ fn render_candidate_module_impl(
         },
         &states,
     );
+    if !relative_text_metrics.is_empty() {
+        body.push_str("const relativeTextMetrics = new Map([\n");
+        for (name, key, scale) in &relative_text_metrics {
+            body.push_str(&format!(
+                "  [styles[{}], [{}, {scale}]],\n",
+                quote(name),
+                quote(key),
+            ));
+        }
+        body.push_str("])\n\n");
+    }
     let (compose, effect_mask) = pipeline::compose(pipeline::Needs {
         gradients: needs_gradient_slots,
         shadows: needs_shadow_slots,
@@ -356,6 +368,9 @@ fn render_candidate_module_impl(
     }
     if uses_leading_registers {
         out.push_str("hozoClasses.leadingRegisters = leadingRegisters\n");
+    }
+    if !relative_text_metrics.is_empty() {
+        out.push_str("hozoClasses.relativeTextMetrics = relativeTextMetrics\n");
     }
     if effect_mask != 0 {
         out.push_str(&format!("hozoClasses.effectMask = {effect_mask}\n"));

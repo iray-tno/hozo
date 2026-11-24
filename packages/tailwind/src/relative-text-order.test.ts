@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createCompiler, prepareFinalTailwindContext } from '@hozo/compiler'
-import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
+import { runInNewContext } from 'node:vm'
+import { createCompiler, openCandidateCache, prepareFinalTailwindContext } from '@hozo/compiler'
+import { transformSync } from 'esbuild'
+import {
+  createClassResolver,
+  hozoMixedTextMetricStyles,
+  hozoRelativeTextMetricStyles,
+  hozoTextMetricStyles,
+} from '../../engine/src/class-resolver.ts'
+import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 // #1230. Ratio leading (`leading-tight`) and em tracking (`tracking-wide`)
 // had no ownership entry, so an input with one kept its authored order:
@@ -63,4 +71,72 @@ test('Native sizes the leading Web keeps against the font size', async () => {
     assert.ok(fontSize > 0, native.styles)
     assert.equal(lineHeight, fontSize * ratio, classes)
   }
+})
+
+test('Native Text resolves relative candidates against the final local size', async () => {
+  const cases = [
+    ['text-lg leading-tight tracking-wide', '{classes}'],
+    ['text-xl leading-tight tracking-wide', '{classes}'],
+    ['leading-tight tracking-wide', `\`text-lg \${classes}\``],
+    ['text-lg leading-loose leading-tight tracking-wide tracking-tight', '{classes}'],
+    ['tracking-[2px] tracking-wide leading-6 leading-tight text-lg', '{classes}'],
+  ]
+  const names = cases
+    .map(([classes]) => classes!)
+    .join(' ')
+    .split(' ')
+  const final = await context([...new Set(names)])
+  const theme = await loadTheme(css, tailwindPackageDir())
+  const compiler = createCompiler(theme)
+  const cache = openCandidateCache()
+  cache.scanFile('candidates.ts', JSON.stringify(names.join(' ')), 0)
+  const plan = cache.renderNativeModulePlan(final, theme)
+  for (const [candidate, key] of [
+    ['leading-tight', 'lineHeight'],
+    ['tracking-wide', 'letterSpacing'],
+  ]) {
+    const entry = plan.entries.find((entry) => entry.candidate === candidate)
+    assert.deepEqual(entry?.groups[0]?.nativeKeys, [])
+    assert.deepEqual(entry?.groups[0]?.compositionKeys, [`relativeText:${key}`])
+  }
+  const hozoClasses = runInNewContext(
+    `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}\nhozoClasses`,
+    { createClassResolver, hozoTextMetricStyles },
+  )
+  const render = (classes: string, attr: string) => {
+    const result = compiler
+      .prepareNativeModule(
+        `import {Text} from '@hozo/core';export const A=({classes})=> <Text className=${attr}>a</Text>`,
+      )
+      .emit(final).components[0]!
+    const style = runInNewContext(
+      transformSync(`const hozoStyles=${result.styles};(${result.jsx})`, {
+        loader: 'tsx',
+        jsxFactory: 'h',
+      }).code,
+      {
+        Text: 'Text',
+        classes,
+        hozoClasses,
+        hozoMixedTextMetricStyles,
+        hozoRelativeTextMetricStyles,
+        h: (_type: unknown, props: { style: unknown }) => props.style,
+      },
+    )
+    return { jsx: result.jsx, resolved: Object.assign({}, ...[style].flat(Infinity)) }
+  }
+  for (const [classes, attr] of cases) {
+    const literal = attr === '{classes}' ? classes! : `text-lg ${classes}`
+    const compiled = render('', JSON.stringify(literal))
+    const runtime = render(classes!, attr!.startsWith('`') ? `{${attr}}` : attr!)
+    assert.doesNotMatch(compiled.jsx, /hozoRelativeTextMetricStyles/)
+    assert.match(runtime.jsx, /hozoRelativeTextMetricStyles/)
+    for (const key of ['fontSize', 'lineHeight', 'letterSpacing'])
+      assert.equal(runtime.resolved[key], compiled.resolved[key], `${literal} ${key}`)
+  }
+  assert.deepEqual(render(cases[0]![0]!, '{classes}').resolved, {
+    fontSize: 18,
+    lineHeight: 22.5,
+    letterSpacing: 0.45,
+  })
 })

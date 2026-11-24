@@ -28,9 +28,10 @@ keeps its fallback provenance, so an explicit `leading-*` still beats it.
 
 ## Not covered
 
-- The generated Native map refuses ratio leading and em tracking
-  (`no-native-output`) before and after: a runtime class string has no font
-  size to multiply by there. Listed in the gaps index.
+- A dynamic Native Text with a local font size can resolve scanned ratio
+  leading and em tracking. A dynamic Text that depends on an ancestor's
+  font size, a style supplied by a spread, and conditional metric candidates
+  are not covered by that path. Listed in the gaps index.
 - Arbitrary em lengths, as above.
 
 ## Verification

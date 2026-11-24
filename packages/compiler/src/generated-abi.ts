@@ -46,6 +46,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoMenu: '@hozo/core/generated/menu',
   HozoMeter: '@hozo/core/generated/meter',
   hozoMixedTextMetricStyles: '@hozo/core/generated/class-resolver',
+  hozoRelativeTextMetricStyles: '@hozo/core/generated/class-resolver',
   HozoModal: '@hozo/rn-compat/generated/modal',
   HozoOtpInput: '@hozo/core/generated/otp-input',
   HozoPagination: '@hozo/core/generated/pagination',

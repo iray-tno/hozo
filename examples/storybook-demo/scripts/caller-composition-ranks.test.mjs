@@ -16,6 +16,7 @@ import Yoga from 'yoga-layout'
 import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
 import {
   hozoMixedTextMetricStyles,
+  hozoRelativeTextMetricStyles,
   hozoTextMetricStyles,
 } from '../../../packages/engine/src/class-resolver.ts'
 import { hozoDomStyle } from '../../../packages/engine/src/dom-style.ts'
@@ -310,6 +311,7 @@ test('an overlapping custom leading register reaches ordinary Web and Native can
               HozoText: 'text',
               hozoClasses,
               hozoMixedTextMetricStyles,
+              hozoRelativeTextMetricStyles,
             },
           )
           for (const own of [undefined, { lineHeight: 53 }]) {
@@ -574,6 +576,7 @@ test('absolute metric fallback preserves mixed tiers and projects cross-input le
               Text: 'text',
               hozoClasses,
               hozoMixedTextMetricStyles: project,
+              hozoRelativeTextMetricStyles,
             },
           )
         const renderNative = render(hozoMixedTextMetricStyles)
