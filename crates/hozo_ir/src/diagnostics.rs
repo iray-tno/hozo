@@ -271,6 +271,8 @@ pub enum DiagnosticCode {
     /// project scan at startup; a file outside the scan's `content`, or one
     /// edited since, can carry a class that is not in it. Reported by the
     /// bundler integration, which holds that map, not by the compiler.
+    /// `@hozo/vite` does not report it when `content.include` is empty,
+    /// because the project then styles its plain classes with other CSS.
     ClassNotInRuntimeMap,
     /// A prop whose value decides something the compiler has to write down
     /// once, and whose value isn't known until runtime.
