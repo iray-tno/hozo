@@ -78,49 +78,81 @@ pub(crate) fn fold_font_relative(
         })
         .collect();
 
-    // A ratio must be recomputed when a font-size condition changes. CSS
-    // retains --tw-leading and multiplies at used-value time; RN needs the
-    // corresponding absolute number under the intersection of both guards.
-    // No runtime measurement or extra subscription: reuse existing guards.
-    for leading in declarations {
-        let StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) = &leading.property else {
-            continue;
+    // Relative values are multiplied at used-value time in CSS. RN needs
+    // an absolute number under the intersection of both existing guards.
+    // Tracking and leading use the same projection, but a competing write
+    // must belong to the same metric family to suppress it.
+    let mut tracking_projections = Vec::new();
+    for metric in declarations {
+        let (scale, leading) = match &metric.property {
+            StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) => (*ratio, true),
+            StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(em))
+                if metric.condition == Condition::Always =>
+            {
+                (em.0, false)
+            }
+            _ => continue,
         };
-        if font_size(&leading.condition).is_none() {
+        if font_size(&metric.condition).is_none() {
             continue;
         }
         for font in declarations {
             let StyleProperty::FontSize(Length::Px(size)) = &font.property else {
                 continue;
             };
-            if font.condition == Condition::Always || leading.condition == font.condition {
+            if font.condition == Condition::Always || metric.condition == font.condition {
                 continue;
             }
-            if leading.condition == Condition::Always
+            if metric.condition == Condition::Always
                 && declarations.iter().any(|d| {
                     d.condition == font.condition
-                        && matches!(
-                            d.property,
-                            StyleProperty::LineHeight(
-                                hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)
+                        && if leading {
+                            matches!(
+                                d.property,
+                                StyleProperty::LineHeight(
+                                    hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)
+                                )
                             )
-                        )
+                        } else {
+                            matches!(d.property, StyleProperty::LetterSpacing(_))
+                        }
                 })
             {
                 continue;
             }
-            let condition = if leading.condition == Condition::Always {
+            let condition = if metric.condition == Condition::Always {
                 font.condition.clone()
             } else {
-                Condition::all(vec![leading.condition.clone(), font.condition.clone()])
+                Condition::all(vec![metric.condition.clone(), font.condition.clone()])
             };
-            folded.push(StyleDeclaration {
-                source: leading.source,
-                property: StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(
-                    size * ratio,
-                ))),
+            let projected = StyleDeclaration {
+                source: metric.source,
+                property: if leading {
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(size * scale)))
+                } else {
+                    StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Px(Length::Px(
+                        size * scale,
+                    )))
+                },
                 condition,
-            });
+            };
+            if leading {
+                folded.push(projected);
+            } else {
+                tracking_projections.push(projected);
+            }
+        }
+    }
+    if !tracking_projections.is_empty() {
+        // These are recomputations of the *base* tracking, not new
+        // declarations at the font-size variant's cascade priority.
+        // Keep their font-size order, but let explicitly guarded tracking
+        // win even if its breakpoint is narrower than the font's.
+        if let Some(base) = folded.iter().rposition(|entry| {
+            entry.condition == Condition::Always
+                && matches!(entry.property, StyleProperty::LetterSpacing(_))
+        }) {
+            folded.splice(base + 1..base + 1, tracking_projections);
         }
     }
     folded

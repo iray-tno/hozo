@@ -8,6 +8,43 @@ const react = require('react')
 const renderer = require('react-test-renderer')
 const stub = require('react-native')
 
+for (const [classes, expected] of [
+  ['text-lg sm:text-xl tracking-wide md:tracking-[2px]', [0.45, 0.5, 2]],
+  ['text-lg sm:tracking-[2px] md:text-xl tracking-wide', [0.45, 2, 2]],
+] as const) {
+  test(`Native keeps responsive em tracking behind explicit tracking: ${classes}`, () => {
+    const { C } = loadNativeModule(`import {Text} from '@hozo/core';
+    export function C(){return <Text className="${classes}">Text</Text>}`)
+    let tree: ReturnType<typeof renderer.create>
+    renderer.act(() => {
+      stub.Dimensions.__hozoSetWindow({ width: 639 })
+      tree = renderer.create(react.createElement(C))
+    })
+    const text = tree.root.findByType('Text')
+    try {
+      for (const [width, index] of [
+        [639, 0],
+        [640, 1],
+        [768, 2],
+        [640, 1],
+        [639, 0],
+      ] as const) {
+        renderer.act(() => stub.Dimensions.__hozoSetWindow({ width }))
+        assert.equal(tree.root.findByType('Text'), text)
+        const style = stub.StyleSheet.flatten(text.props.style)
+        assert.equal(
+          style.fontSize,
+          width >= (classes.includes('sm:text-xl') ? 640 : 768) ? 20 : 18,
+        )
+        assert.equal(style.letterSpacing, expected[index])
+      }
+    } finally {
+      renderer.act(() => tree.unmount())
+      renderer.act(() => stub.Dimensions.__hozoSetWindow({ width: 800 }))
+    }
+  })
+}
+
 test('a child font fallback is not overridden by a View ancestor leading', () => {
   const { C } = loadNativeModule(`import {View, Text} from '@hozo/core';
     export function C(){return <View className="text-lg leading-relaxed"><Text className="text-xl">Child</Text></View>}`)
