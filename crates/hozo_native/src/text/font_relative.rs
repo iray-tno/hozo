@@ -13,6 +13,13 @@ pub(crate) fn relative_metric(property: &StyleProperty) -> Option<(&'static str,
         | StyleProperty::LineHeight(LineHeight::Length(Length::Unit(scale, Em))) => {
             ("lineHeight", *scale)
         }
+        StyleProperty::LineHeight(LineHeight::Length(Length::Css(css))) => {
+            let percent = css.strip_suffix('%')?.parse::<f64>().ok()?;
+            if !percent.is_finite() || percent < 0.0 {
+                return None;
+            }
+            ("lineHeight", percent / 100.0)
+        }
         StyleProperty::LetterSpacing(LetterSpacing::Em(scale)) => ("letterSpacing", scale.0),
         StyleProperty::LetterSpacing(LetterSpacing::Px(Length::Unit(scale, Em))) => {
             ("letterSpacing", *scale)

@@ -259,7 +259,13 @@ pub(super) fn from_prefix(
         "leading" => Some(or_raw(
             "line-height",
             value,
-            match length() {
+            // A percent is a CSS length here, not an inherited ratio.
+            // Keep its spelling on Web and let Native use a known font size.
+            match length().or_else(|| {
+                let percent = value.strip_suffix('%')?.parse::<f64>().ok()?;
+                (percent.is_finite() && percent >= 0.0)
+                    .then(|| hozo_ir::Length::Css(value.to_string()))
+            }) {
                 Some(l) => Some(StyleProperty::LineHeight(LineHeight::Length(l))),
                 // Unitless, which CSS reads as a multiple of the font size.
                 None => number().map(|n| StyleProperty::LineHeight(LineHeight::Ratio(n))),
