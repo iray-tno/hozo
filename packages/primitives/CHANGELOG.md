@@ -1,5 +1,13 @@
 # @hozo/primitives
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [[`cf3f4f0`](https://github.com/iray-tno/hozo/commit/cf3f4f0ab1dea633d5709a4a8efd2361de69c7d3), [`e908356`](https://github.com/iray-tno/hozo/commit/e908356bcdacc1810533237abaf9bf061bd1223d)]:
+  - @hozo/behaviors@0.5.1
+  - @hozo/engine@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes

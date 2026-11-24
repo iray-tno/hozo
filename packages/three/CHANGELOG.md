@@ -1,5 +1,13 @@
 # @hozo/three
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @hozo/canvas@0.5.1
+  - @hozo/engine@0.5.1
+
 ## 0.5.0
 
 ### Patch Changes

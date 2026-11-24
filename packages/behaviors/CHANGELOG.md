@@ -1,5 +1,13 @@
 # @hozo/behaviors
 
+## 0.5.1
+
+### Patch Changes
+
+- [#2259](https://github.com/iray-tno/hozo/pull/2259) [`cf3f4f0`](https://github.com/iray-tno/hozo/commit/cf3f4f0ab1dea633d5709a4a8efd2361de69c7d3) Thanks [@iray-tno](https://github.com/iray-tno)! - `FocusScope` no longer pulls focus back to the opener when focus has already left for another element. Tab out of a non-modal `Popover` now goes on to the next control instead of landing back on the trigger. Escape, and an outside press that leaves focus on nothing, still return focus to the opener.
+
+- [#2259](https://github.com/iray-tno/hozo/pull/2259) [`e908356`](https://github.com/iray-tno/hozo/commit/e908356bcdacc1810533237abaf9bf061bd1223d) Thanks [@iray-tno](https://github.com/iray-tno)! - Setting `disabled` on an open `Tooltip` (through `useHoverTrigger`) now closes it and keeps it closed, including a controlled `open`, and `onOpenChange(false)` is called. Before, `disabled` froze an open tooltip on screen, for example over the popup its trigger had just opened. Enabling it again does not bring the old tooltip back.
+
 ## 0.5.0
 
 ### Patch Changes

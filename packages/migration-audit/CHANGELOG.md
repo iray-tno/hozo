@@ -1,5 +1,13 @@
 # @hozo/migration-audit
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @hozo/compiler@0.5.1
+  - @hozo/tailwind@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes
