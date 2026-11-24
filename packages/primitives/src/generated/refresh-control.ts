@@ -1,1 +1,1 @@
-export { HozoRefreshControl, type HozoRefreshControlProps } from '../index.ts'
+export { HozoRefreshControl, type HozoRefreshControlProps } from '../scroll-view.ts'

@@ -1,1 +1,1 @@
-export { HozoScrollView, type HozoScrollViewProps } from '../index.ts'
+export { HozoScrollView, type HozoScrollViewProps } from '../scroll-view.ts'

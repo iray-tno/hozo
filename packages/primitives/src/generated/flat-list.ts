@@ -4,4 +4,4 @@ export {
   type HozoFlatListLayout,
   type HozoFlatListProps,
   type HozoFlatListRenderInfo,
-} from '../index.ts'
+} from '../flat-list.ts'
