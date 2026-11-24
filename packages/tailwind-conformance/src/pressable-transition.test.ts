@@ -33,7 +33,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import test from 'node:test'
 
-import { renderNative, type Tree } from './native-render.ts'
+import { loadNativeModule, renderNative, type Tree } from './native-render.ts'
 
 const require = createRequire(import.meta.url)
 
@@ -156,3 +156,314 @@ test('the runtime component keeps the base style under an animated one', () => {
   assert.equal(style.__callback, undefined)
   assert.equal(typeof style.backgroundColor, 'object', 'the animated value should win at the end')
 })
+
+test('toggling disabled on a compiled transition-colors Pressable retargets backgroundColor without resetting progress (#2273)', () => {
+  const { Animated } = require('react-native') as {
+    Animated: {
+      __hozoTimings: Array<{
+        value: { value: number; setValue: (v: number) => void }
+        config: { toValue: number; useNativeDriver: boolean }
+      }>
+      __hozoResetTimings: () => void
+    }
+  }
+  const { blendColor } = require('@hozo/engine') as {
+    blendColor: (from: string, to: string, fraction: number) => string
+  }
+  const react = require('react') as {
+    createElement: (type: unknown, props?: unknown, ...children: unknown[]) => unknown
+  }
+  const renderer = require('react-test-renderer') as {
+    create: (element: unknown) => {
+      toJSON: () => Tree
+      update: (element: unknown) => void
+      unmount: () => void
+    }
+    act: (callback: () => void) => void
+  }
+
+  const compiled = loadNativeModule(`
+import { Pressable, Text } from '@hozo/core'
+export function GateButton({ disabled }: { disabled: boolean }) {
+  return (
+    <Pressable
+      disabled={disabled}
+      className="rounded-lg bg-blue-600 p-3 transition-colors duration-200 hover:bg-blue-700 disabled:bg-slate-200"
+      testID="gate"
+    >
+      <Text className="font-bold text-white">Approve</Text>
+    </Pressable>
+  )
+}
+`)
+
+  Animated.__hozoResetTimings()
+  let root:
+    | { toJSON: () => Tree; update: (element: unknown) => void; unmount: () => void }
+    | undefined
+  const readBg = () => {
+    const button = find(root!.toJSON(), 'gate')
+    assert.ok(button, 'compiled gate button missing')
+    return flatten(button.props.style).backgroundColor as {
+      __animatedInterpolation: { inputRange: number[]; outputRange: string[] }
+    }
+  }
+
+  try {
+    renderer.act(() => {
+      root = renderer.create(react.createElement(compiled.GateButton, { disabled: true }))
+    })
+    assert.equal(Animated.__hozoTimings.length, 0, 'mount must not start an animation')
+    assert.deepEqual(readBg().__animatedInterpolation, {
+      inputRange: [0, 1],
+      outputRange: ['#e2e8f0', '#e2e8f0'],
+    })
+
+    // Toggling `disabled` from true -> false without any pointer event must
+    // transition the animated background from disabled slate to active blue.
+    renderer.act(() => {
+      root!.update(react.createElement(compiled.GateButton, { disabled: false }))
+    })
+    assert.equal(Animated.__hozoTimings.length, 1)
+    assert.equal(Animated.__hozoTimings[0].config.toValue, 1)
+    assert.equal(Animated.__hozoTimings[0].config.useNativeDriver, false)
+    assert.deepEqual(readBg().__animatedInterpolation, {
+      inputRange: [0, 1],
+      outputRange: ['#e2e8f0', '#155dfc'],
+    })
+
+    // Re-disabling mid-flight blends from the observed position without
+    // resetting progress to zero.
+    const progressNode = Animated.__hozoTimings[0].value
+    renderer.act(() => progressNode.setValue(0.5))
+    renderer.act(() => {
+      root!.update(react.createElement(compiled.GateButton, { disabled: true }))
+    })
+    assert.equal(progressNode.value, 0.5, 'retargeting must not reset progress to zero')
+    assert.equal(Animated.__hozoTimings.length, 2)
+    assert.equal(Animated.__hozoTimings[1].config.toValue, 1.5)
+    assert.deepEqual(readBg().__animatedInterpolation, {
+      inputRange: [0.5, 1.5],
+      outputRange: [blendColor('#e2e8f0', '#155dfc', 0.5), '#e2e8f0'],
+    })
+
+    // Re-rendering with the same disabled prop must not restart the animation.
+    renderer.act(() => {
+      root!.update(react.createElement(compiled.GateButton, { disabled: true }))
+    })
+    assert.equal(Animated.__hozoTimings.length, 2)
+  } finally {
+    renderer.act(() => root?.unmount())
+  }
+})
+
+test('non-interaction opacity, transform, and static style prop changes retarget without doubling interaction timings (#2273)', () => {
+  const { Animated } = require('react-native') as {
+    Animated: {
+      __hozoTimings: Array<{
+        value: { value: number }
+        config: { toValue: number; useNativeDriver: boolean }
+      }>
+      __hozoResetTimings: () => void
+    }
+  }
+  const react = require('react') as {
+    createElement: (type: unknown, props?: unknown, ...children: unknown[]) => unknown
+  }
+  const renderer = require('react-test-renderer') as {
+    create: (element: unknown) => {
+      root: { findByType: (type: string) => { props: Record<string, unknown> } }
+      toJSON: () => Tree
+      update: (element: unknown) => void
+      unmount: () => void
+    }
+    act: (callback: () => void) => void
+  }
+  const { HozoPressable } = require('../../primitives/src/pressable.native.tsx') as {
+    HozoPressable: unknown
+  }
+  const motion = {
+    duration: 150,
+    delay: 0,
+    easing: 'linear',
+    opacity: true,
+    transform: true,
+    colors: true,
+  }
+
+  Animated.__hozoResetTimings()
+  let root: ReturnType<typeof renderer.create> | undefined
+  const renderFn = (locked: boolean) =>
+    react.createElement(HozoPressable, {
+      hozoTransition: { ...motion },
+      disabled: locked,
+      style: (state: Record<string, boolean>) => ({
+        opacity: locked ? 0.5 : state.pressed ? 0.8 : 1,
+        backgroundColor: locked ? '#f1f5f9' : state.hovered ? '#432dd7' : '#4f39f6',
+        transform: [{ scale: locked ? 0.95 : 1 }],
+      }),
+    })
+
+  try {
+    renderer.act(() => {
+      root = renderer.create(renderFn(true))
+    })
+    assert.equal(Animated.__hozoTimings.length, 0)
+
+    // Unlocking via prop update animates opacity, scaleX, scaleY, and colour.
+    renderer.act(() => root!.update(renderFn(false)))
+    assert.equal(Animated.__hozoTimings.length, 4)
+    assert.deepEqual(
+      Animated.__hozoTimings.map((t) => t.config.toValue),
+      [1, 1, 1, 1],
+    )
+
+    // Pointer hover runs synchronously once and does not double-start on commit.
+    Animated.__hozoResetTimings()
+    renderer.act(() => {
+      ;(root!.root.findByType('Pressable').props.onHoverIn as (e: unknown) => void)({})
+    })
+    assert.equal(Animated.__hozoTimings.length, 1, 'hover changed colour only, once')
+    const bg = flatten(root!.toJSON()?.props.style).backgroundColor as {
+      __animatedInterpolation: { outputRange: string[] }
+    }
+    assert.equal(bg.__animatedInterpolation.outputRange[1], '#432dd7')
+  } finally {
+    renderer.act(() => root?.unmount())
+  }
+
+  // Plain object styles (not a callback) also retarget on prop changes.
+  Animated.__hozoResetTimings()
+  let plainRoot: ReturnType<typeof renderer.create> | undefined
+  try {
+    renderer.act(() => {
+      plainRoot = renderer.create(
+        react.createElement(HozoPressable, {
+          hozoTransition: motion,
+          style: { opacity: 0.4, backgroundColor: '#f1f5f9' },
+        }),
+      )
+    })
+    assert.equal(Animated.__hozoTimings.length, 0)
+    renderer.act(() => {
+      plainRoot!.update(
+        react.createElement(HozoPressable, {
+          hozoTransition: motion,
+          style: { opacity: 1, backgroundColor: '#4f39f6' },
+        }),
+      )
+    })
+    assert.equal(Animated.__hozoTimings.length, 2)
+    const plainBg = flatten(plainRoot!.toJSON()?.props.style).backgroundColor as {
+      __animatedInterpolation: { outputRange: string[] }
+    }
+    assert.deepEqual(plainBg.__animatedInterpolation.outputRange, ['#f1f5f9', '#4f39f6'])
+  } finally {
+    renderer.act(() => plainRoot?.unmount())
+  }
+})
+
+for (const strict of [false, true]) {
+  test(`an abandoned speculative render does not mutate TransitionPressable colours; strict=${strict} (#2273)`, async () => {
+    const { Animated } = require('react-native') as {
+      Animated: {
+        __hozoTimings: Array<{ value: { value: number }; config: { toValue: number } }>
+        __hozoResetTimings: () => void
+      }
+    }
+    const react = require('react') as {
+      Fragment: unknown
+      StrictMode: unknown
+      Suspense: unknown
+      startTransition: (cb: () => void) => void
+      createElement: (type: unknown, props?: unknown, ...children: unknown[]) => unknown
+    }
+    const renderer = require('react-test-renderer') as {
+      create: (element: unknown) => {
+        toJSON: () => Tree
+        update: (element: unknown) => void
+        unmount: () => void
+      }
+      act: (callback: () => Promise<void> | void) => Promise<void>
+    }
+    const { HozoPressable } = require('../../primitives/src/pressable.native.tsx') as {
+      HozoPressable: unknown
+    }
+    const motion = {
+      duration: 100,
+      delay: 0,
+      easing: 'linear',
+      opacity: false,
+      transform: false,
+      colors: true,
+    }
+
+    Animated.__hozoResetTimings()
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const seen: string[] = []
+    function Hold({ hold }: { hold: boolean }) {
+      if (hold) throw pending
+      return null
+    }
+    function Probe({ bg, hold }: { bg: string; hold: boolean }) {
+      seen.push(bg)
+      return react.createElement(
+        HozoPressable,
+        { hozoTransition: motion, style: () => ({ backgroundColor: bg }) },
+        react.createElement(Hold, { hold }),
+      )
+    }
+    const scene = (bg: string, hold = false) =>
+      react.createElement(
+        strict ? react.StrictMode : react.Fragment,
+        null,
+        react.createElement(
+          react.Suspense,
+          { fallback: react.createElement('Pending') },
+          react.createElement(Probe, { bg, hold }),
+        ),
+      )
+
+    let root: ReturnType<typeof renderer.create> | undefined
+    try {
+      await renderer.act(async () => {
+        root = renderer.create(scene('#f1f5f9'))
+      })
+      assert.equal(Animated.__hozoTimings.length, 0)
+      await renderer.act(async () => {
+        react.startTransition(() => root!.update(scene('#4f39f6', true)))
+      })
+      assert.ok(seen.includes('#4f39f6'), 'speculative render must actually run')
+      assert.equal(Animated.__hozoTimings.length, 0, 'abandoned render must not start a timing')
+      const bg = flatten(root!.toJSON()?.props.style).backgroundColor as {
+        __animatedInterpolation: { outputRange: string[] }
+      }
+      assert.deepEqual(bg.__animatedInterpolation.outputRange, ['#f1f5f9', '#f1f5f9'])
+      await renderer.act(async () => {
+        root!.update(scene('#0000ff', false))
+      })
+      const committedBg = flatten(root!.toJSON()?.props.style).backgroundColor as {
+        __animatedInterpolation: { outputRange: string[] }
+      }
+      assert.deepEqual(committedBg.__animatedInterpolation.outputRange, ['#f1f5f9', '#0000ff'])
+      assert.equal(Animated.__hozoTimings.length, 1)
+      await renderer.act(async () => {
+        release()
+        await pending
+      })
+      const settledBg = flatten(root!.toJSON()?.props.style).backgroundColor as {
+        __animatedInterpolation: { outputRange: string[] }
+      }
+      assert.equal(settledBg.__animatedInterpolation.outputRange[1], '#0000ff')
+      assert.equal(Animated.__hozoTimings.length, 1)
+    } finally {
+      await renderer.act(async () => {
+        root?.unmount()
+        release()
+      })
+    }
+  })
+}

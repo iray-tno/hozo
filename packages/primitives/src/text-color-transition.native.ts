@@ -5,7 +5,7 @@ import type { HozoTransition } from './pressable.native.tsx'
 
 type Spec = Pick<HozoTransition, 'duration' | 'delay' | 'easing'>
 
-function easingFor(name: Spec['easing']) {
+export function easingFor(name: Spec['easing']) {
   switch (name) {
     case 'linear':
       return Easing.linear

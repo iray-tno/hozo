@@ -182,16 +182,22 @@ test('Link transitions use the existing drivers and focus-visible text colour tr
     renderer.act(() => host().props.onFocus({ nativeEvent: {} }))
     stub.Animated.__hozoResetTimings()
     // Focus stays true: only modality changes. HozoText must still schedule
-    // the colour transition rather than comparing focused/hovered alone.
+    // the colour transition rather than comparing focused/hovered alone, while
+    // the owner skips scheduling an empty JS-thread colour driver when no owner
+    // colour changed (#2273).
     renderer.act(() => host().props.onPointerDown({ nativeEvent: {} }))
     assert.equal(
       stub.Animated.__hozoTimings.filter(
         (timing: { config: { duration: number; useNativeDriver: boolean } }) =>
           timing.config.duration === 200 && !timing.config.useNativeDriver,
       ).length,
-      2,
-      'the owner and its inherited text each schedule their colour driver',
+      1,
+      'the inherited text schedules its colour driver without a no-op owner colour timing',
     )
+    const textColor = style(root!.root.findByType('Text') as unknown as Tree).color as {
+      __animatedInterpolation?: { outputRange: string[] }
+    }
+    assert.equal(textColor.__animatedInterpolation?.outputRange[1], '#6a7282')
   } finally {
     renderer.act(() => root?.unmount())
   }
