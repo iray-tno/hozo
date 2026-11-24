@@ -69,6 +69,7 @@ apps/
   landing/    Landing site, interactive REPL playground, and the live conformance matrix.
 
 examples/
+  a2ui-spike/           @hozo/example-a2ui-spike          — Phase 1 A2UI v1.0 renderer spike over @hozo/ui on Web and Native (#2251).
   astro-demo/           @hozo/example-astro               — Astro, with static components and an island.
   expo-router-demo/     @hozo/example-expo-router-demo    — Real Expo Router type and production-export fixture for @hozo/navigation.
   login-demo/           login-demo                        — Phase 0 benchmark app -- exercises @hozo/core through @hozo/vite end to end.

@@ -1,0 +1,35 @@
+{
+  "name": "@hozo/example-a2ui-spike",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Phase 1 A2UI v1.0 renderer spike over @hozo/ui on Web and Native (#2251).",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p . --noEmit",
+    "test": "node --test --test-concurrency=1 scripts/check-runtime.test.mjs && tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "@hozo/core": "workspace:*",
+    "@hozo/ui": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@hozo/compiler": "workspace:*",
+    "@hozo/metro": "workspace:*",
+    "@hozo/tailwind": "workspace:*",
+    "@hozo/vite": "workspace:*",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "esbuild": "0.28.2",
+    "playwright-core": "^1.63.0",
+    "react-test-renderer": "^19.2.8",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1"
+  }
+}
