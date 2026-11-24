@@ -152,14 +152,40 @@ export function FocusScope({
       }
     }
 
+    // Where focus is going as it leaves the scope. Closing can run inside that
+    // very `focusout` -- a non-modal popover closes from its `onBlur`, and
+    // React flushes the cleanup below synchronously for a discrete event --
+    // when `activeElement` is still `<body>` and the destination is only
+    // known from `relatedTarget`.
+    let leavingTo: Element | null = null
+    const handleFocusOut = (event: FocusEvent) => {
+      const next = event.relatedTarget
+      leavingTo = next instanceof Element && !container.contains(next) ? next : null
+    }
+    const handleFocusIn = () => {
+      leavingTo = null
+    }
+
     container.addEventListener('keydown', handleKeyDown)
+    container.addEventListener('focusout', handleFocusOut)
+    container.addEventListener('focusin', handleFocusIn)
 
     return () => {
       clearTimeout(retry)
       container.removeEventListener('keydown', handleKeyDown)
+      container.removeEventListener('focusout', handleFocusOut)
+      container.removeEventListener('focusin', handleFocusIn)
       if (restoreFocus) {
         const opener = openerRef.current
+        // Restore only focus the scope still holds, or that closing left on
+        // nothing. When focus has already gone somewhere else -- Tab out of a
+        // non-modal popover, a click on another field -- the person sent it
+        // there, and pulling it back to the opener costs them a step (#2257).
+        const current = leavingTo?.isConnected ? leavingTo : document.activeElement
+        const stranded =
+          current === null || current === document.body || container.contains(current)
         if (
+          stranded &&
           opener &&
           shouldRestoreFocus({
             focusable: opener.isConnected && !opener.hasAttribute('disabled'),
