@@ -1,5 +1,43 @@
 # Hozo changelog
 
+## 0.5.1
+
+Hozo 0.5.1 fixes regressions and overlay bugs that an app migrating from
+Tailwind found on 0.5.0. There is nothing to change when upgrading from
+0.5.0, but two overlay fixes change behavior that you may have worked around
+(see below).
+
+### Vite
+
+- **`CLASS_NOT_IN_RUNTIME_MAP` no longer floods a project that styles its
+  plain classes with other CSS.** 0.5.0 reported every class in a file
+  outside Hozo's `content` walk. A project that sets
+  `content: { include: [] }` therefore got a warning for every class it had,
+  hundreds in a real app, although each class still applied. The warning is
+  now off in that case. It is also off when Tailwind's own Vite plugin
+  (`@tailwindcss/vite`) is in the config, because that plugin writes a rule
+  for every class it scans. A project with neither is checked as before,
+  and Metro is unchanged.
+
+### Popover and Tooltip
+
+- **Pressing the trigger of an open `Popover` closes it.** In 0.5.0 the
+  press closed the panel and then reopened it at once, so the trigger
+  could only open it. This also fixes `@hozo/ui`'s `Popover`.
+- **Tab out of a non-modal `Popover` moves on to the next control.**
+  `FocusScope` used to send focus back to the trigger on every close. It now
+  returns focus only when focus is still in the panel or has gone nowhere,
+  as with Escape or a press on empty page. This applies to every overlay
+  built on `FocusScope`, not only `Popover`.
+- **A disabled `Tooltip` closes and stays closed.** In 0.5.0, setting
+  `disabled` on an open tooltip froze it on screen, for example over a popup
+  its trigger had just opened. A controlled `open={true}` is now overridden
+  by `disabled` too, and `onOpenChange(false)` is called.
+
+If you added a workaround for any of these on 0.5.0, such as a capture-phase
+handler on a `Popover` trigger or forcing `open={false}` on a disabled
+`Tooltip`, you can remove it.
+
 ## 0.5.0
 
 Hozo 0.5.0 adds the `hozo` CLI, makes Tailwind's class order the default
