@@ -26,66 +26,49 @@
 // owns the project walk and the file-deletion signal, while the cache in
 // Rust owns scanning, staleness, and persistence.
 
-import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
-import {
-  type CandidateCache,
-  inspectStaticModuleImports,
-  scanTailwindOrderCandidates,
-} from '@hozo/compiler'
+import { scanTailwindOrderCandidates } from '@hozo/compiler'
 import { formatDiagnostic, reportDiagnostics } from '@hozo/compiler/diagnostics'
-import {
-  foldedPrimitiveCalls,
-  type LowerModuleOptions,
-  lowerModule,
-  lowerModuleOrPrepare,
-  prepareOwnerLowerModule,
-  sideEffectImport,
-} from '@hozo/compiler/lower'
+import { type LowerModuleOptions, sideEffectImport } from '@hozo/compiler/lower'
 import {
   CACHE_DIR,
-  type CarrierClosure,
-  type CarrierTrip,
-  carrierGuard,
-  carrierOwnerRoutes,
-  carrierSourceFiles,
-  carrierSources,
-  carrierTripMessage,
   checksRuntimeClasses,
   classesMissingFromRuntimeMap,
-  discoverOwnerPackageCallers,
   discoverSources,
   type FileFactStore,
   findClassHelpers,
   type HozoProjectOptions,
   importSpecifier,
   isTransformedSource,
-  locateDeclaredPackage,
   type OwnerContractRequest,
-  preflightCssPath,
-  readBoundedUtf8File,
-  requireCarrierClosure,
   resolveClassHelpers,
   resolveStylexRequests,
   type StylexModuleCache,
   scannableFile,
   scanProject,
   scanSummary,
-  TailwindCandidateUniverse,
   TailwindPreparationCancelled,
-  webBaseCssFor,
   withOwnerPackageCandidates,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
-import { preflightCss } from '@hozo/tailwind'
-import { type Plugin, type ResolvedConfig, transformWithOxc, type ViteDevServer } from 'vite'
+import type { Plugin, ResolvedConfig } from 'vite'
 import { contentRevision, ViteCandidateInventory } from './candidate-inventory.ts'
 import { injectedDependencies } from './injected-deps.ts'
-import { captureViteOwnerCandidates, type ViteOwnerCandidatePlan } from './owner-candidates.ts'
-import { ViteOwnerPreflightUnavailable } from './owner-preflight.ts'
-import { discoverViteOwnerSourcePlan, guardViteOwnerFallbackRoots } from './owner-source-plan.ts'
-import { discoveryPaths, openViteTailwindEpoch, type ViteTailwindEpoch } from './tailwind-epoch.ts'
+import type { ViteOwnerCandidatePlan } from './owner-candidates.ts'
+import {
+  type ViteModuleResolve,
+  type ViteOwnerPreflightPolicy,
+  ViteOwnerSession,
+} from './owner-session.ts'
+import { ViteStylesheetSession } from './stylesheet-session.ts'
+import {
+  finalizeTransformedSource,
+  lowerWithNamespaceRetry,
+  syncStylexModuleGraph,
+  unfoldTransformedSource,
+  writeFailedInventory,
+} from './transform-helpers.ts'
 
 /**
  * The same options every Hozo integration takes, under this one's name.
@@ -99,8 +82,6 @@ import { discoveryPaths, openViteTailwindEpoch, type ViteTailwindEpoch } from '.
  * module would run Tailwind's resolver hundreds of times for one answer.
  */
 export type HozoOptions = HozoProjectOptions
-
-const builtInOwnerPackages = ['@hozo/patterns', '@hozo/form']
 
 export function hozo(options: HozoOptions = {}): Plugin[] {
   return configureHozo(options)
@@ -145,7 +126,7 @@ export function hozoWithOwnerCallers(options: HozoOptions, plan: ViteOwnerCaller
  */
 export function hozoWithDiscoveredOwnerCallers(
   options: HozoOptions,
-  preflight: 'strict' | 'ordinary-fallback' = 'strict',
+  preflight: ViteOwnerPreflightPolicy = 'strict',
 ): Plugin[] {
   if (!['strict', 'ordinary-fallback'].includes(preflight))
     throw new Error('[hozo] invalid owner preflight policy')
@@ -158,26 +139,14 @@ function configureHozo(
   callerBindings: readonly Omit<OwnerContractRequest, 'entry'>[] = [],
   discoverCallers = false,
   discoverOwnerSources = false,
-  ownerPreflight: 'strict' | 'ordinary-fallback' = 'strict',
+  ownerPreflight: ViteOwnerPreflightPolicy = 'strict',
 ): Plugin[] {
-  // One matching compiler/session per stylesheet epoch, never per file.
   let root = process.cwd()
-  // The frozen package manifests this build's candidates came from, and the
-  // guard for every module loaded after them (#2047).
-  let carriers: CarrierClosure | undefined
-  let ownerRoutes: ReturnType<typeof carrierOwnerRoutes> | undefined
-  let changedOwnerInput: string | undefined
-  let guard: ((file: string) => CarrierTrip | undefined) | undefined
-  // Source those packages ship for this build to compile, admitted from the
-  // capture rather than from the walk's file list.
-  let carrierSource: (file: string) => boolean = () => false
-  let cache: CandidateCache
+  let resolvedConfig: ResolvedConfig | undefined
   let stylexModules: StylexModuleCache
   // Decision 014's per-file records, from buildStart's scan. Undefined until
   // then, and for a transform with no scan, which then reads as before.
   let facts: FileFactStore | undefined
-  let candidateCssPath = ''
-  let preflightPath = ''
   let includedFiles = new Set<string>()
   // `content: { include: [] }` declares that no file's plain classes are
   // Hozo's to style: the project generates their CSS some other way, such as
@@ -191,156 +160,26 @@ function configureHozo(
   // off. Set from the resolved config; a project without that plugin keeps
   // the check exactly as before.
   let tailwindStylesClasses = false
-  // Which files under `node_modules` the transform compiles and scans.
-  const admitted = (file: string) =>
-    includedFiles.has(file) || ownerCallerFiles.has(file) || carrierSource(file)
-  let server: ViteDevServer | undefined
-  let resolvedConfig: ResolvedConfig | undefined
-  let preflight = ''
-  // The candidate order Tailwind would use, refreshed whenever the set
-  // changes. Held rather than recomputed per write because the write path
-  // is synchronous and this is not: `getClassOrder` needs the project's
-  // design system.
-  let classOrder: string[] = []
-  let epoch: ViteTailwindEpoch | undefined
-  let pendingEpoch: Promise<ViteTailwindEpoch> | undefined
-  let epochGeneration = 0
-  let candidateGeneration = 0
-  let universe = new TailwindCandidateUniverse([])
-  let sheetUniverseKey = ''
-  const orderingSources = new Map<string, { file: string; names: readonly string[] }>()
-  const transformedIds = new Set<string>()
-  const requests = new Map<string, { token: symbol; file: string }>()
   let inventory: ViteCandidateInventory | undefined
   let inventoryPath = ''
-  let owners: Awaited<ReturnType<typeof captureViteOwnerCandidates>> | undefined
-  let ownerSourceFiles: readonly string[] | undefined
-  let ownerCallerFiles = new Set<string>()
-  let ownerFallback: ViteOwnerPreflightUnavailable | undefined
+  const requests = new Map<string, { token: symbol; file: string }>()
 
-  function validateOwnerGraph(graph: Parameters<NonNullable<typeof owners>['validateGraph']>[0]) {
-    if (
-      ownerSourceFiles &&
-      JSON.stringify(discoverSources(root, options.content)) !== JSON.stringify(ownerSourceFiles)
+  const stylesheets = new ViteStylesheetSession(options)
+  const ownerSession = new ViteOwnerSession({
+    ownerPlan,
+    callerBindings,
+    discoverCallers,
+    discoverOwnerSources,
+    ownerPreflight,
+  })
+
+  // Which files under `node_modules` the transform compiles and scans.
+  const admitted = (file: string) => includedFiles.has(file) || ownerSession.admits(file)
+
+  const refreshCandidates = (warn: (message: string) => void) =>
+    stylesheets.refreshCandidates(root, warn, stylexModules, () =>
+      ownerSession.validateBeforePublish(),
     )
-      throw new Error('[hozo] owner configured source set changed; rebuild before publication')
-    owners?.validateGraph(graph)
-    ownerFallback?.validate()
-    for (const [file, hash] of ownerRoutes?.inputs ?? []) {
-      let actual: string | undefined
-      try {
-        actual = createHash('sha256').update(readBoundedUtf8File(file, 65_536)).digest('hex')
-      } catch {}
-      if (actual !== hash)
-        throw new Error(
-          `[hozo] owner manifest input changed during the build: ${file}; restart or rebuild`,
-        )
-    }
-  }
-
-  function updateUniverse() {
-    const next = new TailwindCandidateUniverse([
-      ...cache.candidates(),
-      ...[...orderingSources.values()].flatMap((entry) => entry.names),
-    ])
-    if (next.key === universe.key) return false
-    universe = next
-    return true
-  }
-
-  function rememberCandidates(key: string, file: string, names: readonly string[]) {
-    const normalized = [...new Set(names)].sort()
-    if (JSON.stringify(orderingSources.get(key)?.names) === JSON.stringify(normalized)) return false
-    orderingSources.set(key, { file: path.resolve(file), names: normalized })
-    return true
-  }
-
-  async function currentEpoch(warn: (message: string) => void): Promise<ViteTailwindEpoch> {
-    if (epoch) return epoch
-    if (!pendingEpoch) {
-      const generation = epochGeneration
-      pendingEpoch = openViteTailwindEpoch(root, options, warn).then((next) => {
-        if (generation !== epochGeneration) {
-          next.invalidate()
-          throw new TailwindPreparationCancelled('TAILWIND_PROJECT_INVALIDATED')
-        }
-        if (!next.isCurrent()) {
-          next.invalidate()
-          pendingEpoch = undefined
-          return currentEpoch(warn)
-        }
-        if (stylexModules) next.compiler.setStylexModules(stylexModules.moduleSources())
-        epoch = next
-        return next
-      })
-      const pending = pendingEpoch
-      void pending.catch(() => {
-        if (pendingEpoch === pending) pendingEpoch = undefined
-      })
-    }
-    return pendingEpoch
-  }
-
-  async function refreshCandidates(warn: (message: string) => void) {
-    for (;;) {
-      const generation = ++candidateGeneration
-      const nextUniverse = universe
-      const current = await currentEpoch(warn)
-      const next = await current.classOrder(nextUniverse.candidates)
-      current.check()
-      if (generation !== candidateGeneration) return
-      if (nextUniverse.key !== universe.key) continue
-      owners?.validate()
-      classOrder = next
-      sheetUniverseKey = nextUniverse.key
-      writeCandidateCss()
-      return
-    }
-  }
-
-  function invalidateTransforms() {
-    if (!server) return
-    for (const environment of Object.values(server.environments)) {
-      for (const id of transformedIds) {
-        const module = environment.moduleGraph.getModuleById(id)
-        if (module) environment.moduleGraph.invalidateModule(module)
-      }
-    }
-    server.ws.send({ type: 'full-reload' })
-  }
-
-  /// Regenerates the project-wide candidate stylesheet and, in dev, makes
-  /// the already-loaded module pick it up. The file lives under
-  /// `node_modules`, which Vite's watcher ignores by default, so the
-  /// invalidation has to be explicit rather than left to the watcher.
-  function writeCandidateCss() {
-    // Before the invalidation below, not after: the two stylesheets are
-    // one update, and a reload that saw only half of it would be a page
-    // styled against the previous answer.
-    writePreflightCss()
-    if (!writeFileIfChanged(candidateCssPath, cache.renderCss(epoch?.theme, classOrder)))
-      return false
-    const module = server?.moduleGraph.getModuleById(candidateCssPath)
-    if (module) {
-      void server?.reloadModule(module)
-    }
-    return true
-  }
-
-  /// The base layer Tailwind's utilities are authored against, which Hozo
-  /// does not otherwise ship. Written on the same terms as the candidate
-  /// stylesheet -- always present, contents decided by the option and by
-  /// whether the project uses Tailwind at all -- and invalidated the same
-  /// way, since it lives under `node_modules` where the watcher does not
-  /// look.
-  function writePreflightCss() {
-    const css = webBaseCssFor(options.fontFaceCss, options.preflight, preflight, cache.usesTailwind)
-    if (!writeFileIfChanged(preflightPath, css)) return
-    const module = server?.moduleGraph.getModuleById(preflightPath)
-    if (module) {
-      void server?.reloadModule(module)
-    }
-  }
 
   /**
    * The work itself, shared by both passes below.
@@ -354,21 +193,22 @@ function configureHozo(
   const pass = (accepts: (file: string) => boolean): Pick<Plugin, 'transform'> => ({
     async transform(code, id) {
       const file = scannableFile(id, admitted)
-      if (file && !accepts(file)) return
-      if (!file) return
+      if (!file || !accepts(file)) return
+
       const request = Symbol(id)
-      const ownerEpoch = owners
-      const fallbackEpoch = ownerFallback
+      const checkOwnerEpoch = ownerSession.captureRequestGuard()
       const requestId = JSON.stringify([this.environment?.name ?? 'default', id])
-      requests.set(requestId, { token: request, file: path.resolve(file) })
+      const absoluteFile = path.resolve(file)
+      requests.set(requestId, { token: request, file: absoluteFile })
       const checkRequest = () => {
-        ownerEpoch?.check()
-        fallbackEpoch?.check()
-        if (changedOwnerInput)
-          throw new Error(`[hozo] owner manifest input changed: ${changedOwnerInput}; restart Vite`)
+        checkOwnerEpoch()
         if (requests.get(requestId)?.token !== request)
           throw new TailwindPreparationCancelled('TAILWIND_MODULE_SUPERSEDED')
       }
+      const resolveModule: ViteModuleResolve = (specifier, importer) =>
+        this.resolve(specifier, importer, { skipSelf: true })
+      const warn = (message: string) => this.warn(message)
+
       try {
         const isDerivedModule = id.includes('?')
         let candidateMeta: Record<string, unknown> | undefined = isDerivedModule
@@ -378,9 +218,8 @@ function configureHozo(
         // A transformed source is not in the project walk -- see
         // `TRANSFORMABLE` -- so it has to be admitted here or its classes
         // would never reach the candidate set at all.
-        const scannable =
-          file && !isDerivedModule && (admitted(path.resolve(file)) || isTransformedSource(file))
-        if (file && scannable) {
+        const scannable = !isDerivedModule && (admitted(absoluteFile) || isTransformedSource(file))
+        if (scannable) {
           // For the `pre` pass `code` is still the source as written, which
           // is what the scanner expects. For the second pass it is the JSX
           // another plugin produced, which is the first form of that file
@@ -388,127 +227,65 @@ function configureHozo(
           // `scanProject`'s walk used, so a file scanned there isn't
           // recorded twice under two spellings.
           const modifiedMs = statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0
-          const cacheChanged = cache.scanFile(path.resolve(file), code, modifiedMs)
+          const cacheChanged = stylesheets.cache.scanFile(absoluteFile, code, modifiedMs)
           // Capture the facts belonging to this exact input before any await
           // can let another module revise the shared physical-file entry.
           if (inventory) {
-            const record = cache.exportFile(path.resolve(file))
+            const record = stylesheets.cache.exportFile(absoluteFile)
             if (record) candidateMeta = inventory.transformMeta(id, code, record)
           }
-          const sourceChanged = rememberCandidates(
+          const sourceChanged = stylesheets.rememberCandidates(
             JSON.stringify(['lexical', file]),
             file,
             scanTailwindOrderCandidates(code),
           )
-          const orderChanged = (cacheChanged || sourceChanged) && updateUniverse()
-          if (orderChanged) invalidateTransforms()
+          const orderChanged = (cacheChanged || sourceChanged) && stylesheets.updateUniverse()
+          if (orderChanged) stylesheets.invalidateTransforms()
           if (cacheChanged || orderChanged) {
             // Do not publish a provisional sheet or let a late old order
             // overwrite the current candidate revision.
-            await refreshCandidates((message) => this.warn(message))
+            await refreshCandidates(warn)
             checkRequest()
           }
-          stylexGraphChanged = stylexModules.scanFile(path.resolve(file), code, modifiedMs)
+          stylexGraphChanged = stylexModules.scanFile(absoluteFile, code, modifiedMs)
         }
 
-        const current = await currentEpoch((message) => this.warn(message))
+        const current = await stylesheets.currentEpoch(root, warn, stylexModules)
         checkRequest()
         const compiler = current.compiler
         if (
-          file &&
           !scannable &&
           !isDerivedModule &&
           !walksNothing &&
           !tailwindStylesClasses &&
           checksRuntimeClasses(file)
-        )
+        ) {
           // Outside the walk, so its classes never reach the candidate
           // stylesheet: one resolved at run time has no rule (#2048).
           for (const diagnostic of classesMissingFromRuntimeMap(
             code,
             file,
-            new Set(cache.candidates()),
+            new Set(stylesheets.cache.candidates()),
             compiler,
             options.sources,
             options.markerClasses,
           ))
             this.warn(formatDiagnostic(diagnostic))
-        const absoluteFile = path.resolve(file)
-        const reexportSpecifiers = stylexModules.reexportSpecifiers(absoluteFile)
-        if (stylexGraphChanged) {
-          await resolveStylexRequests(
-            stylexModules,
-            stylexModules.resolutionRequests(),
-            async (specifier, importer) => {
-              const resolved = await this.resolve(specifier, importer, { skipSelf: true })
-              return resolved?.id
-            },
-          )
         }
-        const importRequests = code.includes('@stylexjs/stylex')
-          ? stylexModules
-              .importSpecifiers(absoluteFile)
-              .filter(
-                (specifier) =>
-                  specifier !== '@stylexjs/stylex' && !compiler.sources.includes(specifier),
-              )
-              .map((specifier) => ({ importer: absoluteFile, specifier }))
-          : []
-        const resolvedCurrent = await resolveStylexRequests(
+
+        await syncStylexModuleGraph(
           stylexModules,
-          [
-            ...importRequests,
-            ...reexportSpecifiers.map((specifier) => ({ importer: absoluteFile, specifier })),
-          ],
-          async (specifier, importer) => {
-            const resolved = await this.resolve(specifier, importer, { skipSelf: true })
-            return resolved?.id
-          },
+          compiler,
+          absoluteFile,
+          code,
+          stylexGraphChanged,
+          resolveModule,
         )
-        if (stylexGraphChanged || (resolvedCurrent && reexportSpecifiers.length > 0)) {
-          compiler.setStylexModules(stylexModules.moduleSources())
-        }
-        // A `.mdx` arrives here as whatever the MDX plugin produced. Told
-        // `jsx: true` it produces JSX and everything below works; told
-        // nothing it folds the document to `_jsx()` calls, and Hozo reads
-        // JSX. `@astrojs/mdx` exposes no `jsx` option at all (#137), so on
-        // Astro this was never a setting anybody forgot.
-        //
-        // So the calls are put back as JSX before Hozo reads them, and the
-        // step at the end of this same transform -- `transformWithOxc`,
-        // which hands the file to oxc as `.tsx` -- folds them again. That
-        // pairing is why the un-fold lives here rather than in
-        // `lowerModule`: it is only sound for a file this pass is going to
-        // fold back, and every other integration is handed real JSX.
-        //
-        // What it cannot put back stays folded, and that is what is
-        // reported. `unfoldJsxCalls` declines anything with no JSX spelling
-        // -- a computed prop key, a spread child -- rather than
-        // approximating it, so the warning now names exactly the calls that
-        // are still passing through uncompiled instead of all of them.
+
         let source = code
         let jsxImportSource: string | undefined
         if (isTransformedSource(file)) {
-          const unfolded = compiler.unfoldJsxCalls(code)
-          source = unfolded?.code ?? code
-          // Folded back with the runtime it was folded with. Astro's MDX
-          // output calls `_jsx` from `astro/jsx-runtime`; re-folded under
-          // this project's default the same tree is built by React's
-          // runtime, and Astro renders that as the string `[object
-          // Object]` -- no error, on a page whose stylesheet came out
-          // correct. Measured on `apps/landing`.
-          jsxImportSource = unfolded?.importSource
-          const folded = foldedPrimitiveCalls(source, compiler.sources)
-          if (folded.length > 0) {
-            this.warn(
-              `${file}: ${folded.join(', ')} reached Hozo as _jsx() calls that cannot be written ` +
-                'as JSX -- a computed prop name or a spread child -- so nothing there was lowered ' +
-                'and those class names are passing through uncompiled. Pass `jsx: true` to the ' +
-                'MDX plugin so Hozo sees the JSX; on Astro, where `@astrojs/mdx` has no such ' +
-                'option, move this markup into a .tsx component and import it -- that compiles ' +
-                'fully and needs no client directive.',
-            )
-          }
+          ;({ source, jsxImportSource } = unfoldTransformedSource(code, file, compiler, warn))
         }
 
         // The project's own class-joining functions this file calls (#964),
@@ -519,194 +296,53 @@ function configureHozo(
           source,
           absoluteFile,
           async (specifier, importer) => {
-            const resolved = await this.resolve(specifier, importer, { skipSelf: true })
+            const resolved = await resolveModule(specifier, importer)
             return resolved?.external ? undefined : resolved?.id
           },
           (dependency) => this.addWatchFile(dependency),
           // The helper files' records from the scan, re-read only on change.
           facts,
         )
-        // An empty selection is authoritative, including a pre-output
-        // fallback. Vite never switches to the standalone catalog.
-        let auditedOwners: LowerModuleOptions['auditedOwners'] = []
-        const routes = ownerRoutes
-        if (routes?.specifiers.some((specifier) => source.includes(specifier))) {
-          const imports = new Set(
-            inspectStaticModuleImports(source, absoluteFile).bindings.map(({ source }) => source),
-          )
-          const selected = await Promise.all(
-            routes.specifiers
-              .filter((specifier) => imports.has(specifier))
-              .map(async (specifier) => {
-                const entry = await this.resolve(specifier, absoluteFile, { skipSelf: true })
-                if (!entry) return []
-                // SSR can leave the bare import for Node rather than return
-                // a file. Use that importer's Node package, not the app root.
-                const physical =
-                  entry.external && entry.id === specifier
-                    ? locateDeclaredPackage(path.dirname(absoluteFile), specifier)
-                    : entry.id
-                return physical ? routes.forResolvedImport(physical, specifier) : []
-              }),
-          )
-          auditedOwners = selected.flat()
-        }
+        const auditedOwners = await ownerSession.resolveAuditedOwners(
+          source,
+          absoluteFile,
+          resolveModule,
+        )
         compiler.setClassHelpers(resolveClassHelpers(options.classHelpers, helpers))
         checkRequest()
         current.check()
+
         // Helpers are installed immediately before the actual parse. StyleX
         // registry changes are installed only when its graph/epoch changes,
         // not rebuilt for every warm file. Actual parsed candidates, rather
         // than an early lexical scan alone, decide context completeness.
-        const policy = { unloweredReactNativeJsx: options.unloweredReactNativeJsx, auditedOwners }
-        let lowered: ReturnType<typeof lowerModule>
-        // Emit once during transform, before Vite consumes the companion
-        // stylesheet. Rank-free module output does not need a final graph.
-        for (;;) {
-          const requestedUniverse = universe
-          let emittedKey = requestedUniverse.key
-          const bindings = callerBindings.length
-            ? callerBindings.filter((binding) => binding.importer === absoluteFile)
-            : undefined
-          const discovered =
-            discoverCallers && owners && !id.includes('?')
-              ? discoverOwnerPackageCallers(
-                  owners.lease,
-                  absoluteFile,
-                  owners.sourceImports(absoluteFile),
-                ).requests
-              : undefined
-          if ((bindings?.length || discovered?.length) && !id.includes('?')) {
-            if (!current.session || !owners)
-              throw new Error(
-                '[hozo] owner callers require a captured stylesheet and package epoch',
-              )
-            const selectedOwners = owners
-            const ownerRequests =
-              discovered ??
-              bindings!.map((binding) => {
-                const captured = selectedOwners.lease.capture.bindings.find(
-                  (edge) =>
-                    edge.importer === binding.importer && edge.specifier === binding.specifier,
-                )
-                if (!captured) throw new Error('[hozo] owner caller edge was not captured')
-                return { ...binding, entry: captured.entry }
-              })
-            const [output] = await current.session.emit(
-              requestId,
-              [
-                (compiler) => {
-                  const module = prepareOwnerLowerModule(
-                    source,
-                    id,
-                    absoluteFile,
-                    compiler,
-                    root,
-                    selectedOwners.lease,
-                    ownerRequests,
-                    stylexModules,
-                    policy,
-                  )
-                  try {
-                    emittedKey = new TailwindCandidateUniverse([
-                      ...requestedUniverse.candidates,
-                      ...module.candidates,
-                    ]).key
-                    if (
-                      rememberCandidates(
-                        JSON.stringify(['actual', requestId]),
-                        file,
-                        module.candidates,
-                      ) &&
-                      updateUniverse()
-                    )
-                      invalidateTransforms()
-                    return module
-                  } catch (error) {
-                    module.dispose()
-                    throw error
-                  }
-                },
-              ],
-              requestedUniverse.candidates,
-            )
-            lowered = output!.lowered
-            if (discoverOwnerSources)
-              candidateMeta = {
-                ...candidateMeta,
-                hozoOwnerDelivery: {
-                  schema: 1,
-                  scope: 'configured-static-source-capture',
-                  capture: {
-                    fingerprint: selectedOwners.lease.capture.fingerprint,
-                    sources: selectedOwners.sourceObservations,
-                    unassessedImports: selectedOwners.unassessedImports,
-                    edges: selectedOwners.lease.capture.bindings.map(
-                      ({ importer, specifier, entry }) => ({ importer, specifier, entry }),
-                    ),
-                  },
-                  owners: output!.owners.map((owner) => ({
-                    identity: owner.identity,
-                    fingerprint: owner.preview.contextFingerprint,
-                    findings: owner.preview.findings,
-                  })),
-                },
-              }
-          } else
-            lowered = current.session
-              ? await current.session.runModule(
-                  requestId,
-                  requestedUniverse,
-                  (compiler, context) => {
-                    const result = lowerModuleOrPrepare(
-                      source,
-                      id,
-                      file,
-                      compiler,
-                      root,
-                      context,
-                      stylexModules,
-                      policy,
-                    )
-                    if (result.kind === 'prepared') {
-                      emittedKey = new TailwindCandidateUniverse([
-                        ...requestedUniverse.candidates,
-                        ...result.module.candidates,
-                      ]).key
-                      if (
-                        rememberCandidates(
-                          JSON.stringify(['actual', requestId]),
-                          file,
-                          result.module.candidates,
-                        ) &&
-                        updateUniverse()
-                      )
-                        invalidateTransforms()
-                    }
-                    return result
-                  },
-                )
-              : lowerModule(source, id, file, compiler, root, stylexModules, policy)
-          current.check()
-          checkRequest()
-          // Only exceptional namespace expansion retries; ordinary warm
-          // transforms keep the direct actual-parse path. Never deliver a
-          // result from a different candidate namespace after an await.
-          if (!current.session || emittedKey === universe.key) break
-          compiler.setClassHelpers(resolveClassHelpers(options.classHelpers, helpers))
-          compiler.setStylexModules(stylexModules.moduleSources())
+        const policy: LowerModuleOptions = {
+          unloweredReactNativeJsx: options.unloweredReactNativeJsx,
+          auditedOwners,
         }
-        if (sheetUniverseKey !== universe.key)
-          await refreshCandidates((message) => this.warn(message))
+        const { lowered, ownerDelivery } = await lowerWithNamespaceRetry({
+          source,
+          id,
+          file,
+          absoluteFile,
+          requestId,
+          root,
+          current,
+          stylesheets,
+          ownerSession,
+          stylexModules,
+          policy,
+          reinstallHelpers: () =>
+            compiler.setClassHelpers(resolveClassHelpers(options.classHelpers, helpers)),
+          checkRequest,
+        })
+        if (ownerDelivery) candidateMeta = { ...candidateMeta, hozoOwnerDelivery: ownerDelivery }
+
+        if (stylesheets.sheetUniverseKey !== stylesheets.universe.key) await refreshCandidates(warn)
         current.check()
         checkRequest()
-        if (discoverOwnerSources)
-          candidateMeta = {
-            ...candidateMeta,
-            hozoOwnerAdmission: ownerFallback
-              ? { schema: 1, route: 'ordinary-fallback', reason: ownerFallback.reason }
-              : { schema: 1, route: 'captured', fingerprint: owners?.lease.capture.fingerprint },
-          }
+        const admission = ownerSession.admissionMeta()
+        if (admission) candidateMeta = { ...candidateMeta, hozoOwnerAdmission: admission }
         if (!lowered) return candidateMeta ? { meta: candidateMeta } : undefined
 
         // Shared with Metro and Next, which is new: this warned on
@@ -714,62 +350,36 @@ function configureHozo(
         // The difference looked deliberate and wasn't -- every error Hozo
         // can emit today comes from the Native backend, so this had simply
         // never been handed one.
-        reportDiagnostics(lowered.diagnostics, file, (message) => this.warn(message))
+        reportDiagnostics(lowered.diagnostics, file, warn)
 
-        let next = lowered.code
         writeFileIfChanged(lowered.cssPath, lowered.css)
         // Imported from every lowered file rather than from one designated
         // entry: the candidate sheet has to be present whichever module the
         // dynamic className lives in, and Vite resolves the repeated import
         // to a single module in the graph.
-        // Generate the declarations through JSON.stringify: Storybook's
-        // extensionless-import checker inspects preset dependency source and
-        // otherwise mistakes our code-generating string for a real import.
-        next =
-          // First of the three: element selectors lose to every utility on
-          // specificity, so a base layer that landed after them would be a
-          // base layer with no effect on the cases it exists for.
-          sideEffectImport(importSpecifier(file, preflightPath)) +
+        // First of the three: element selectors lose to every utility on
+        // specificity, so a base layer that landed after them would be a
+        // base layer with no effect on the cases it exists for.
+        const next =
+          sideEffectImport(importSpecifier(file, stylesheets.preflightPath)) +
           sideEffectImport(`./${lowered.cssFileName}`) +
-          sideEffectImport(importSpecifier(file, candidateCssPath)) +
-          next
+          sideEffectImport(importSpecifier(file, stylesheets.candidateCssPath)) +
+          lowered.code
 
-        // A transformed source is JSX in a file whose extension says
-        // otherwise, and Vite decides whether to parse JSX from exactly that
-        // extension -- `OxcOptions` omits `lang`, so no project setting can
-        // say "treat `.mdx` as JSX". Left alone, the run fails at
-        // `vite:oxc` with "JSX syntax is disabled", which names neither MDX
-        // nor Hozo.
-        //
-        // So Hozo finishes what it started, under the project's own oxc
-        // settings rather than a second opinion about them. Only for these
-        // files: everything else arrives with an extension Vite already
-        // understands.
-        //
-        // `.tsx` and not `.jsx`, which is not cosmetic. `referencesHozoPrimitive`
-        // deliberately leaves the `@hozo/core` import in place and relies on the
-        // bundler eliding it once nothing refers to it -- and that elision is a
-        // *TypeScript* rule. Named `.jsx` the import survived to import
-        // analysis, which then failed to resolve `@hozo/core` from a temporary
-        // project that has no node_modules. MDX output is plain JS with JSX,
-        // which is a subset of TSX, so reading it as TSX costs nothing.
         if (isTransformedSource(file) && resolvedConfig) {
-          const compiled = await transformWithOxc(
+          const compiled = await finalizeTransformedSource(
             next,
-            `${file}.tsx`,
-            jsxImportSource
-              ? { jsx: { runtime: 'automatic', importSource: jsxImportSource } }
-              : undefined,
-            undefined,
+            file,
+            jsxImportSource,
             resolvedConfig,
           )
           current.check()
           checkRequest()
-          transformedIds.add(id)
+          stylesheets.recordTransformed(id)
           return { code: compiled.code, map: compiled.map ?? null, meta: candidateMeta }
         }
 
-        transformedIds.add(id)
+        stylesheets.recordTransformed(id)
         return { code: next, map: null, meta: candidateMeta }
       } finally {
         if (requests.get(requestId)?.token === request) requests.delete(requestId)
@@ -791,7 +401,7 @@ function configureHozo(
    *   2. this pass reads that JSX and lowers it
    *   3. something compiles the JSX this leaves behind
    *
-   * Step 3 is this pass too -- see `transformWithOxc` below -- which is
+   * Step 3 is this pass too -- see `finalizeTransformedSource` -- which is
    * what lets step 2 be an ordinary plugin rather than a `pre` one. That
    * matters, because `pre` only worked when the MDX plugin was `pre` *and*
    * registered first, and a host can register it second: Astro's
@@ -828,8 +438,7 @@ function configureHozo(
       },
 
       configResolved(config) {
-        if ((ownerPlan || discoverOwnerSources) && config.command !== 'build')
-          throw new Error('[hozo] owner candidates require a production build')
+        ownerSession.assertBuildCommand(config.command)
         root = options.root ?? config.root
         resolvedConfig = config
         // `@tailwindcss/vite` registers `:scan` and `:generate:*` plugins.
@@ -840,22 +449,13 @@ function configureHozo(
       },
 
       configureServer(devServer) {
-        server = devServer
+        stylesheets.setServer(devServer)
       },
 
       async buildStart() {
-        owners?.invalidate()
-        owners = undefined
-        ownerRoutes = undefined
-        changedOwnerInput = undefined
-        ownerSourceFiles = undefined
-        ownerCallerFiles = new Set()
-        ownerFallback?.invalidate()
-        ownerFallback = undefined
-        epochGeneration++
-        epoch?.invalidate()
-        epoch = undefined
-        pendingEpoch = undefined
+        ownerSession.reset()
+        stylesheets.invalidateEpoch()
+
         const environment = this.environment?.name ?? 'default'
         inventory =
           resolvedConfig?.command === 'build'
@@ -875,107 +475,35 @@ function configureHozo(
             JSON.stringify({ schema: 1, status: 'collecting', finalOrderingReady: false }),
           )
         }
-        const current = await currentEpoch((message) => this.warn(message))
-        // Automatic assessment uses the SAME source discovery/scan as normal
-        // compilation, captured before asynchronous resolution and CSS output.
-        const discoveredProject = discoverOwnerSources
-          ? scanProject(root, options.content, options.sources)
-          : undefined
-        if (discoveredProject) ownerSourceFiles = [...discoveredProject.files]
-        let selectedPlan: ViteOwnerCandidatePlan | undefined
-        try {
-          selectedPlan = discoverOwnerSources
-            ? discoverViteOwnerSourcePlan(discoveredProject!.files)
-            : ownerPlan
-          if (selectedPlan) {
-            if (!current.snapshot)
-              throw new Error('[hozo] owner candidates require a Tailwind snapshot')
-            const context = createHash('sha256')
-              .update(
-                JSON.stringify([
-                  'vite-owner-candidates-0',
-                  root,
-                  selectedPlan.context,
-                  current.snapshot.serialize(),
-                  options.sources,
-                  options.classHelpers,
-                  options.fontAvailability,
-                  options.preflight,
-                  resolvedConfig?.resolve.conditions,
-                  resolvedConfig?.resolve.alias,
-                ]),
-              )
-              .digest('hex')
-            owners = await captureViteOwnerCandidates(
-              selectedPlan,
-              async ({ importer, specifier }) =>
-                this.resolve(specifier, importer, { skipSelf: true }),
-              context,
-            )
-          }
-        } catch (error) {
-          if (
-            ownerPreflight !== 'ordinary-fallback' ||
-            !(error instanceof ViteOwnerPreflightUnavailable)
-          )
-            throw error
-          ownerFallback = selectedPlan
-            ? error
-            : guardViteOwnerFallbackRoots(discoveredProject!.files, error)
-          ownerFallback.validate()
-          for (const file of ownerFallback.watchFiles) this.addWatchFile(file)
-          this.warn(`[hozo] owner preflight ${error.reason}; using ordinary lowering before output`)
-        }
-        if (owners) {
-          for (const file of owners.watchFiles) this.addWatchFile(file)
-          if (discoverOwnerSources) {
-            // Discovery is not permission to transform every dependency. Only
-            // snapshotted physical callers with selected manifest contracts
-            // borrow the existing ordinary transform/companion-CSS path.
-            for (const file of owners.sourceFiles)
-              if (
-                discoverOwnerPackageCallers(owners.lease, file, owners.sourceImports(file)).requests
-                  .length
-              )
-                ownerCallerFiles.add(path.resolve(file))
-          }
-          inventory?.observeOwnerPackages(owners.contributions)
-        }
+
+        const warn = (message: string) => this.warn(message)
+        const current = await stylesheets.currentEpoch(root, warn, stylexModules)
+        const discoveredProject = await ownerSession.initialize({
+          root,
+          options,
+          resolvedConfig,
+          current,
+          inventory,
+          resolve: (specifier, importer) => this.resolve(specifier, importer, { skipSelf: true }),
+          addWatchFile: (file) => this.addWatchFile(file),
+          warn,
+        })
         for (const dependency of current.watchFiles) this.addWatchFile(dependency)
 
         // The whole project, not just what the bundler happens to reach: a
         // class can be produced by a module the graph never resolves
         // statically.
-        // The packages with a Hozo manifest this app can reach (#2047),
-        // captured before any module is resolved. Their manifests' candidates
-        // are the only ones packages contribute, and an incomplete capture
-        // throws before any output. The experimental owner paths above bring
-        // their own; an explicit `content.packages` names sources to scan.
-        carriers =
-          ownerPlan || (discoverOwnerSources && !ownerFallback)
-            ? undefined
-            : requireCarrierClosure(root, options.content, {
-                platform: 'web',
-                epoch: 'vite-carriers-0',
-              })
-        guard = carriers && carrierGuard(carriers)
-        ownerRoutes = carriers && carrierOwnerRoutes(carriers, builtInOwnerPackages)
-        for (const file of ownerRoutes?.inputs.keys() ?? []) this.addWatchFile(file)
-        carrierSource = carriers ? carrierSources(carriers) : () => false
         const project =
-          (carriers ? undefined : discoveredProject) ??
-          scanProject(
-            root,
-            options.content,
-            options.sources,
-            carriers?.carriers.length ? carriers.contributions : undefined,
-          )
-        cache = owners
-          ? withOwnerPackageCandidates(project, owners.contributions, options.sources)
+          (ownerSession.hasCarriers() ? undefined : discoveredProject) ??
+          scanProject(root, options.content, options.sources, ownerSession.carrierContributions())
+        const ownerContributions = ownerSession.ownerContributions()
+        const cache = ownerContributions
+          ? withOwnerPackageCandidates(project, ownerContributions, options.sources)
           : project.cache
+        stylesheets.initProject(project.dir, cache)
         stylexModules = project.stylexModules
         facts = project.facts
-        orderingSources.clear()
+
         // Ordering names from the scan's own records, not a second read
         // (decision 014). Only the experimental inventory still wants source.
         for (const file of project.files) {
@@ -985,7 +513,7 @@ function configureHozo(
               readFileSync(file, 'utf8'),
               cache.exportFile(file),
             )
-          rememberCandidates(
+          stylesheets.rememberCandidates(
             JSON.stringify(['lexical', file]),
             file,
             project.facts.get(file)?.order ?? [],
@@ -993,15 +521,14 @@ function configureHozo(
         }
         // The captured carriers' source, which this build compiles: in the
         // ordering seed before the first transform, as the walk's files are.
-        if (carriers)
-          for (const file of carrierSourceFiles(carriers))
-            rememberCandidates(
-              JSON.stringify(['lexical', file]),
-              file,
-              project.facts.get(file)?.order ?? [],
-            )
+        for (const file of ownerSession.carrierSourceFiles())
+          stylesheets.rememberCandidates(
+            JSON.stringify(['lexical', file]),
+            file,
+            project.facts.get(file)?.order ?? [],
+          )
         project.facts.persist()
-        updateUniverse()
+        stylesheets.updateUniverse()
         await resolveStylexRequests(
           stylexModules,
           stylexModules.resolutionRequests(),
@@ -1012,91 +539,49 @@ function configureHozo(
         )
         current.compiler.setStylexModules(stylexModules.moduleSources())
         includedFiles = new Set(project.files)
-        candidateCssPath = path.join(project.dir, 'candidates.css')
-        preflightPath = preflightCssPath(project.dir)
-        // Read once for the process rather than per write: it is a file on
-        // disk that cannot change under a running build.
-        preflight = preflightCss()
-        await refreshCandidates((message) => this.warn(message))
+        await refreshCandidates(warn)
         if (options.debug) {
           this.info(scanSummary(project.stats))
         }
       },
 
       async watchChange(id, change) {
-        if (ownerRoutes?.inputs.has(path.resolve(id))) {
-          changedOwnerInput = path.resolve(id)
-          invalidateTransforms()
+        const ownerChange = ownerSession.handleWatchChange(id)
+        if (ownerChange === 'owner-input-changed') {
+          stylesheets.invalidateTransforms()
           return
         }
-        if (ownerFallback?.watchFiles.includes(path.resolve(id))) {
-          ownerFallback.invalidate()
-          return
-        }
-        if (owners?.watches(id)) {
-          owners.invalidate()
-          return
-        }
+        if (ownerChange === 'handled') return
+
         const absolute = path.resolve(id)
         for (const [requestId, request] of requests) {
           if (request.file === absolute) requests.delete(requestId)
         }
-        let orderChanged = false
-        for (const [key, entry] of orderingSources) {
-          // Keep the lexical seed until the replacement source arrives:
-          // an unrelated code edit should not drop/re-add every static name
-          // and rebuild the whole project's namespace twice.
-          if (
-            entry.file === absolute &&
-            (change.event === 'delete' || key.startsWith('["actual",'))
-          ) {
-            orderingSources.delete(key)
-            orderChanged = true
-          }
-        }
-        // Dependencies can sit outside the project. During acquisition,
-        // conservatively invalidate root CSS edits before imports are known.
-        const dependency =
-          epoch?.watchFiles.includes(absolute) ??
-          discoveryPaths(root, options.css).includes(absolute)
-        if (
-          dependency ||
-          (!epoch?.snapshot &&
-            path.extname(absolute) === '.css' &&
-            !absolute.endsWith('.hozo.css') &&
-            absolute !== candidateCssPath &&
-            absolute !== preflightPath)
-        ) {
-          epochGeneration++
-          epoch?.invalidate()
-          epoch = undefined
-          pendingEpoch = undefined
-          const next = await currentEpoch((message) => this.warn(message))
+        let orderChanged = stylesheets.dropOrderingForFile(absolute, change.event === 'delete')
+        if (stylesheets.isStylesheetDependency(absolute, root)) {
+          stylesheets.invalidateEpoch()
+          const warn = (message: string) => this.warn(message)
+          const next = await stylesheets.currentEpoch(root, warn, stylexModules)
           for (const file of next.watchFiles) this.addWatchFile?.(file)
-          await refreshCandidates((message) => this.warn(message))
-          invalidateTransforms()
+          await refreshCandidates(warn)
+          stylesheets.invalidateTransforms()
           return
         }
         // Without this a deleted file's classes would stay in the stylesheet
         // for as long as the cache file survives, since nothing else ever
         // revisits an entry that stopped being scanned.
         if (change.event === 'delete') {
-          const absolute = path.resolve(id)
           includedFiles.delete(absolute)
-          for (const moduleId of transformedIds) {
-            if (path.resolve(moduleId.split('?')[0]!) === absolute) transformedIds.delete(moduleId)
-          }
-          if (cache?.forget(absolute)) orderChanged = true
+          if (stylesheets.forgetDeletedFile(absolute)) orderChanged = true
           if (stylexModules?.forget(absolute)) {
-            epoch?.compiler.setStylexModules(stylexModules.moduleSources())
+            stylesheets.epoch?.compiler.setStylexModules(stylexModules.moduleSources())
           }
         }
-        if (orderChanged && updateUniverse()) {
+        if (orderChanged && stylesheets.updateUniverse()) {
           await refreshCandidates((message) => this.warn(message))
-          invalidateTransforms()
+          stylesheets.invalidateTransforms()
         }
         if (change.event === 'create') {
-          const absolute = path.resolve(id)
           const relative = path.relative(root, absolute).replaceAll('\\', '/')
           if (
             discoverSources(root, { ...options.content, include: [relative] }).includes(absolute)
@@ -1115,8 +600,8 @@ function configureHozo(
       // capture at buildStart did not hold would ship classes with no rules,
       // so the build stops and names it. Nothing is loaded here.
       load(id) {
-        const trip = guard?.(id)
-        if (trip) this.error(carrierTripMessage(carriers!, trip))
+        const message = ownerSession.guardLoad(id)
+        if (message) this.error(message)
         return null
       },
 
@@ -1125,25 +610,19 @@ function configureHozo(
       },
 
       async buildEnd(error) {
-        cache?.persist()
+        stylesheets.persistCache()
         stylexModules?.persist()
         if (!inventory) return
         if (error) {
-          owners?.invalidate()
-          writeFileIfChanged(
-            inventoryPath,
-            JSON.stringify({ schema: 1, status: 'failed', finalOrderingReady: false }),
-          )
+          ownerSession.invalidateOwners()
+          writeFailedInventory(inventoryPath)
           return
         }
-        if (owners || ownerFallback) {
+        if (ownerSession.hasActiveGraphGuard()) {
           try {
-            validateOwnerGraph(this)
+            ownerSession.validateGraph(this, root, options.content)
           } catch (error) {
-            writeFileIfChanged(
-              inventoryPath,
-              JSON.stringify({ schema: 1, status: 'failed', finalOrderingReady: false }),
-            )
+            writeFailedInventory(inventoryPath)
             throw error
           }
         }
@@ -1165,37 +644,23 @@ function configureHozo(
           `${JSON.stringify(inventory.reconcile(authored, modules), null, 2)}\n`,
         )
       },
+
       generateBundle: {
         order: 'post',
         handler() {
           try {
-            validateOwnerGraph(this)
+            ownerSession.validateGraph(this, root, options.content)
           } catch (error) {
-            if (inventory)
-              writeFileIfChanged(
-                inventoryPath,
-                JSON.stringify({ schema: 1, status: 'failed', finalOrderingReady: false }),
-              )
+            if (inventory) writeFailedInventory(inventoryPath)
             throw error
           }
         },
       },
+
       closeBundle() {
-        owners?.invalidate()
-        owners = undefined
-        ownerRoutes = undefined
-        changedOwnerInput = undefined
-        ownerSourceFiles = undefined
-        ownerCallerFiles.clear()
-        ownerFallback?.invalidate()
-        ownerFallback = undefined
-        epochGeneration++
-        epoch?.invalidate()
-        epoch = undefined
-        pendingEpoch = undefined
+        ownerSession.reset()
+        stylesheets.resetForClose()
         requests.clear()
-        transformedIds.clear()
-        orderingSources.clear()
         inventory = undefined
       },
     },
