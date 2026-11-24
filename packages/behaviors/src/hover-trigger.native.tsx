@@ -96,7 +96,12 @@ export function useHoverTrigger({
   const group = useTooltipGroup()
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen)
   const isControlled = controlledOpen !== undefined
-  const isOpen = isControlled ? controlledOpen : uncontrolledOpen
+  const requestedOpen = isControlled ? controlledOpen : uncontrolledOpen
+  // `disabled` closes an open tooltip and keeps it closed (#2256). It is how
+  // a caller keeps a hint off a popup its trigger has just opened, so
+  // freezing the tooltip where it was would cover what it was disabled to
+  // uncover. Read here so a controlled `open` obeys it too.
+  const isOpen = !disabled && requestedOpen
 
   const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -114,7 +119,7 @@ export function useHoverTrigger({
 
   const changeOpen = useCallback(
     (nextOpen: boolean) => {
-      if (disabled) return
+      if (disabled && nextOpen) return
       if (!isControlled) {
         setUncontrolledOpen(nextOpen)
       }
@@ -127,6 +132,14 @@ export function useHoverTrigger({
     },
     [disabled, isControlled, onOpenChange, group, id],
   )
+
+  // Tell the owner and the group that disabling closed it, and drop a
+  // pending open, so enabling it again does not bring a stale tooltip back.
+  useEffect(() => {
+    if (!disabled) return
+    clearTimers()
+    if (requestedOpen) changeOpen(false)
+  }, [disabled, requestedOpen, clearTimers, changeOpen])
 
   const effectiveOpenDelay = group?.getEffectiveOpenDelay() ?? customOpenDelay ?? 700
   const effectiveCloseDelay = group?.getCloseDelay() ?? customCloseDelay ?? 300

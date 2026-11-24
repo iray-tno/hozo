@@ -172,7 +172,16 @@ export function HozoPopover({
           className="z-50"
         >
           {() => (
-            <DismissableLayer onDismiss={leaving ? undefined : () => change(false)}>
+            <DismissableLayer
+              onDismiss={leaving ? undefined : () => change(false)}
+              // A press on the trigger is outside the layer, and is the
+              // trigger's to handle: dismissing on its `pointerdown` closed the
+              // panel, and the `click` that follows toggled it straight back
+              // open, so the trigger could never close it (#2255).
+              onPointerDownOutside={(event) => {
+                if (triggerRef.current?.contains(event.target as Node)) event.preventDefault()
+              }}
+            >
               {/*
                 `aria-modal` and the trap travel together or not at all. The
                 prop's own comment has the reasoning; what matters here is that
