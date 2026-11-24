@@ -2,9 +2,14 @@ use super::*;
 
 mod arbitrary_relations;
 mod base_specificity;
+mod candidates;
 mod control_variant;
+mod css_composition;
 mod disabled_navigation;
+mod host_bridges;
+mod inputs_and_navigation;
 mod open_variant;
+mod primitives_and_patterns;
 mod remaining_variants;
 mod rendering;
 mod roles;
