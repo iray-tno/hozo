@@ -399,6 +399,26 @@
         "$TURBO_ROOT$/packages/three/src/**"
       ]
     },
+    "@hozo/example-a2ui-spike#test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/ui/src/theme.css",
+        "$TURBO_ROOT$/packages/ui/src/button.tsx",
+        "$TURBO_ROOT$/packages/ui/src/card.tsx",
+        "$TURBO_ROOT$/packages/ui/src/stack.tsx",
+        "$TURBO_ROOT$/packages/ui/src/status.tsx",
+        "$TURBO_ROOT$/packages/metro/src/**",
+        "$TURBO_ROOT$/packages/primitives/src/**",
+        "$TURBO_ROOT$/packages/patterns/src/alert.native.tsx",
+        "$TURBO_ROOT$/packages/patterns/src/text-style.native.ts",
+        "$TURBO_ROOT$/packages/semantics/src/**",
+        "$TURBO_ROOT$/packages/behaviors/src/i18n.ts",
+        "$TURBO_ROOT$/packages/behaviors/src/text-child.native.tsx",
+        "$TURBO_ROOT$/packages/behaviors/src/pressable-interaction.ts",
+        "$TURBO_ROOT$/packages/engine/src/**"
+      ]
+    },
     "test:performance": {
       "dependsOn": ["^build"],
       "cache": false
