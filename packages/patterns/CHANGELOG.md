@@ -1,5 +1,16 @@
 # @hozo/patterns
 
+## 0.5.1
+
+### Patch Changes
+
+- [#2259](https://github.com/iray-tno/hozo/pull/2259) [`f5df34f`](https://github.com/iray-tno/hozo/commit/f5df34f217907007af93a1a3edb801a1009733e8) Thanks [@iray-tno](https://github.com/iray-tno)! - Pressing the trigger of an open `Popover` now closes it. The press used to close the panel on `pointerdown` and reopen it on the `click` that followed, so the trigger could open the panel but never close it. This also fixes `@hozo/ui`'s `Popover`, which is built on this one.
+- Updated dependencies [[`cf3f4f0`](https://github.com/iray-tno/hozo/commit/cf3f4f0ab1dea633d5709a4a8efd2361de69c7d3), [`e908356`](https://github.com/iray-tno/hozo/commit/e908356bcdacc1810533237abaf9bf061bd1223d)]:
+  - @hozo/behaviors@0.5.1
+  - @hozo/engine@0.5.1
+  - @hozo/primitives@0.5.1
+  - @hozo/typography@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes

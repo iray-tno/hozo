@@ -1,5 +1,20 @@
 # @hozo/vite
 
+## 0.5.1
+
+### Patch Changes
+
+- [#2252](https://github.com/iray-tno/hozo/pull/2252) [`adb71ba`](https://github.com/iray-tno/hozo/commit/adb71bac91db873c97c14ce687244f3d8b29c1c2) Thanks [@iray-tno](https://github.com/iray-tno)! - `CLASS_NOT_IN_RUNTIME_MAP` no longer fires on every class in a project that sets `content: { include: [] }`. An empty `include` says that Hozo styles none of the project's plain `className`s, for example while Tailwind's own Vite plugin still generates their CSS during a migration. Hozo cannot see those rules, so it no longer reports the classes as missing. With a non-empty `include`, a file outside it is still checked as before.
+
+- [#2252](https://github.com/iray-tno/hozo/pull/2252) [`39ca6b8`](https://github.com/iray-tno/hozo/commit/39ca6b8375fc4353ea06a5f1ef4412ba216580d6) Thanks [@iray-tno](https://github.com/iray-tno)! - `CLASS_NOT_IN_RUNTIME_MAP` is no longer reported in a project that also runs Tailwind's own Vite plugin (`@tailwindcss/vite`). That plugin generates a rule for every class written in the sources it scans, so a class in a file outside Hozo's `content` is not missing. This covers a migration that hands Hozo some folders and leaves the rest to Tailwind. A project without that plugin is checked exactly as before.
+- Updated dependencies [[`f5df34f`](https://github.com/iray-tno/hozo/commit/f5df34f217907007af93a1a3edb801a1009733e8)]:
+  - @hozo/patterns@0.5.1
+  - @hozo/compiler@0.5.1
+  - @hozo/engine@0.5.1
+  - @hozo/primitives@0.5.1
+  - @hozo/rn-compat@0.5.1
+  - @hozo/tailwind@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes

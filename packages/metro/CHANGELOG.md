@@ -1,5 +1,17 @@
 # @hozo/metro
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [[`f5df34f`](https://github.com/iray-tno/hozo/commit/f5df34f217907007af93a1a3edb801a1009733e8)]:
+  - @hozo/patterns@0.5.1
+  - @hozo/compiler@0.5.1
+  - @hozo/engine@0.5.1
+  - @hozo/primitives@0.5.1
+  - @hozo/svg@0.5.1
+  - @hozo/tailwind@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes

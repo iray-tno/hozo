@@ -1,5 +1,12 @@
 # @hozo/storybook
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [[`adb71ba`](https://github.com/iray-tno/hozo/commit/adb71bac91db873c97c14ce687244f3d8b29c1c2), [`39ca6b8`](https://github.com/iray-tno/hozo/commit/39ca6b8375fc4353ea06a5f1ef4412ba216580d6)]:
+  - @hozo/vite@0.5.1
+
 ## 0.5.0
 
 ### Patch Changes

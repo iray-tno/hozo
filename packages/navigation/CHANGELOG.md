@@ -1,5 +1,13 @@
 # @hozo/navigation
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @hozo/core@0.5.1
+  - @hozo/engine@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes
