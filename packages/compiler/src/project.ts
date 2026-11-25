@@ -25,7 +25,7 @@ import { withOwnerPackageCandidates } from './owner-package-candidates.ts'
 import type { OwnerPackageContributions } from './owner-package-contributions.ts'
 import { StylexModuleCache, type StylexResolutionRequest } from './stylex-project.ts'
 import { TAILWIND_MERGE_CONFIG, TAILWIND_MERGE_ENTRY_DIGESTS } from './tw-merge-config.ts'
-import { gitIgnoredSync, walkFiles } from './walk.ts'
+import { inheritedGitIgnoredSync, walkFiles } from './walk.ts'
 
 export { readBoundedUtf8File } from './bounded-data.ts'
 export {
@@ -529,7 +529,7 @@ function notIgnoredAbove(root: string): (file: string) => boolean {
   const gitRoot = gitRootAbove(root)
   // Nothing above to inherit from, or the walk already read it in place.
   if (gitRoot === undefined || gitRoot === path.resolve(root)) return () => true
-  const ignored = gitIgnoredSync(gitRoot)
+  const ignored = inheritedGitIgnoredSync(gitRoot, root)
   return (file) => !ignored(file)
 }
 
