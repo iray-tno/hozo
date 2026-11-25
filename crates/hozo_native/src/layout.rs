@@ -1,7 +1,10 @@
 //! Layout values React Native takes in another form: inline flex, safe-area
 //! insets and viewport units.
 
-use hozo_ir::{AlignSelf, Display, StyleDeclaration, StyleProperty};
+use hozo_ir::{
+    AlignSelf, Dimension, Display, Length, LengthUnit, PropertyValue, StyleDeclaration,
+    StyleProperty,
+};
 
 use super::conditions::RuntimeHook;
 
@@ -47,7 +50,7 @@ pub(super) fn is_safe_area_inset(prop: &StyleProperty) -> bool {
 
 /// The inline style object for a group's safe-area insets, if it has any.
 ///
-/// The same treatment as `viewport_object` and for the same reason: the
+/// Like viewport styles, this cannot go in the StyleSheet: the
 /// number is not knowable at build time and changes with the device --
 /// rotate a phone and the notch moves from the top to the side.
 ///
@@ -75,54 +78,69 @@ pub(super) fn safe_area_object(props: &[StyleProperty]) -> Option<String> {
 }
 
 pub(super) fn is_viewport_sized(prop: &StyleProperty) -> bool {
-    viewport_dimension(prop).is_some()
+    viewport_value(prop).is_some()
 }
 
-/// The RN style key a property needs and the runtime expression for its
-/// value, if the value is relative to the viewport.
-pub(super) fn viewport_dimension(prop: &StyleProperty) -> Option<(&'static str, String)> {
-    let axis = |dim: &hozo_ir::Dimension| match dim {
-        hozo_ir::Dimension::ViewportWidth(pct) => Some(viewport_share("width", *pct)),
-        hozo_ir::Dimension::ViewportHeight(pct) => Some(viewport_share("height", *pct)),
-        hozo_ir::Dimension::Length(hozo_ir::Length::Unit(pct, hozo_ir::LengthUnit::Vw)) => {
-            Some(viewport_share("width", *pct))
+/// Keys shared by the StyleSheet and viewport paths. React Native has no
+/// vertical writing mode; inline edges still follow layout direction.
+pub(super) fn window_layout_keys(prop: &StyleProperty) -> Option<&'static [&'static str]> {
+    use StyleProperty::*;
+    Some(match prop {
+        Width(_) | InlineSize(_) => &["width"],
+        Height(_) | BlockSize(_) => &["height"],
+        MinWidth(_) | MinInlineSize(_) => &["minWidth"],
+        MinHeight(_) | MinBlockSize(_) => &["minHeight"],
+        MaxWidth(_) | MaxInlineSize(_) => &["maxWidth"],
+        MaxHeight(_) | MaxBlockSize(_) => &["maxHeight"],
+        MarginTop(_) | MarginBlockStart(_) => &["marginTop"],
+        MarginBottom(_) | MarginBlockEnd(_) => &["marginBottom"],
+        MarginLeft(_) => &["marginLeft"],
+        MarginRight(_) => &["marginRight"],
+        MarginInlineStart(_) => &["marginStart"],
+        MarginInlineEnd(_) => &["marginEnd"],
+        PaddingTop(_) | PaddingBlockStart(_) => &["paddingTop"],
+        PaddingBottom(_) | PaddingBlockEnd(_) => &["paddingBottom"],
+        PaddingLeft(_) => &["paddingLeft"],
+        PaddingRight(_) => &["paddingRight"],
+        PaddingInlineStart(_) => &["paddingStart"],
+        PaddingInlineEnd(_) => &["paddingEnd"],
+        InsetTop(_) | InsetBlockStart(_) => &["top"],
+        InsetBottom(_) | InsetBlockEnd(_) => &["bottom"],
+        InsetLeft(_) => &["left"],
+        InsetRight(_) => &["right"],
+        InsetInlineStart(_) => &["start"],
+        InsetInlineEnd(_) => &["end"],
+        InsetInline(_) => &["start", "end"],
+        InsetBlock(_) => &["top", "bottom"],
+        _ => return None,
+    })
+}
+
+/// Only layout slots with an explicit Native projection use the window.
+/// The unit itself does not decide which style keys can accept it.
+fn viewport_value(prop: &StyleProperty) -> Option<String> {
+    window_layout_keys(prop)?;
+    let length = match prop.value() {
+        PropertyValue::Length(length) | PropertyValue::Dimension(Dimension::Length(length)) => {
+            length
         }
-        hozo_ir::Dimension::Length(hozo_ir::Length::Unit(pct, hozo_ir::LengthUnit::Vh)) => {
-            Some(viewport_share("height", *pct))
+        PropertyValue::Dimension(Dimension::ViewportWidth(pct)) if pct.is_finite() => {
+            return Some(viewport_share("width", *pct));
         }
-        hozo_ir::Dimension::Css(text) | hozo_ir::Dimension::Length(hozo_ir::Length::Css(text)) => {
-            viewport_calc(text)
+        PropertyValue::Dimension(Dimension::ViewportHeight(pct)) if pct.is_finite() => {
+            return Some(viewport_share("height", *pct));
         }
-        _ => None,
-    };
-    let padding = match prop {
-        StyleProperty::PaddingTop(length) => Some(("paddingTop", length)),
-        StyleProperty::PaddingRight(length) => Some(("paddingRight", length)),
-        StyleProperty::PaddingBottom(length) => Some(("paddingBottom", length)),
-        StyleProperty::PaddingLeft(length) => Some(("paddingLeft", length)),
-        _ => None,
-    };
-    if let Some((key, length)) = padding {
-        return axis(&hozo_ir::Dimension::Length(length.clone())).map(|value| (key, value));
-    }
-    let (key, dim) = match prop {
-        StyleProperty::Width(d) => ("width", d),
-        StyleProperty::Height(d) => ("height", d),
-        StyleProperty::MinWidth(d) => ("minWidth", d),
-        StyleProperty::MinHeight(d) => ("minHeight", d),
-        StyleProperty::MaxWidth(d) => ("maxWidth", d),
-        StyleProperty::MaxHeight(d) => ("maxHeight", d),
-        // The logical sizes map to the same two axes on this platform, so a
-        // viewport value on them resolves the same way.
-        StyleProperty::BlockSize(d) => ("height", d),
-        StyleProperty::InlineSize(d) => ("width", d),
-        StyleProperty::MinBlockSize(d) => ("minHeight", d),
-        StyleProperty::MinInlineSize(d) => ("minWidth", d),
-        StyleProperty::MaxBlockSize(d) => ("maxHeight", d),
-        StyleProperty::MaxInlineSize(d) => ("maxWidth", d),
+        PropertyValue::Dimension(Dimension::Css(text)) => return viewport_calc(text),
         _ => return None,
     };
-    axis(dim).map(|value| (key, value))
+    match length {
+        Length::Unit(pct, LengthUnit::Vw) if pct.is_finite() => Some(viewport_share("width", *pct)),
+        Length::Unit(pct, LengthUnit::Vh) if pct.is_finite() => {
+            Some(viewport_share("height", *pct))
+        }
+        Length::Css(text) => viewport_calc(text),
+        _ => None,
+    }
 }
 
 /// `pct` percent of the window along `axis`, as the runtime expression.
@@ -153,15 +171,16 @@ pub(super) fn viewport_calc(text: &str) -> Option<String> {
     }
     let mut parts: Vec<String> = Vec::new();
     let mut viewport = false;
-    let mut sign = '+';
-    for token in inner.split_whitespace() {
-        if token == "+" || token == "-" {
-            sign = token.chars().next()?;
-            continue;
-        }
+    let mut tokens = inner.split_whitespace();
+    let mut operator = None;
+    loop {
+        let token = tokens.next()?;
         let split = token.find(|c: char| c.is_ascii_alphabetic())?;
         let (number, unit) = token.split_at(split);
         let number: f64 = number.parse().ok()?;
+        if !number.is_finite() {
+            return None;
+        }
         let term = match unit {
             "vw" => {
                 viewport = true;
@@ -176,18 +195,20 @@ pub(super) fn viewport_calc(text: &str) -> Option<String> {
             "rem" => format!("{}", number * 16.0),
             _ => return None,
         };
-        parts.push(if parts.is_empty() && sign == '+' {
-            term
-        } else {
-            format!("{sign} {term}")
+        parts.push(match operator {
+            Some(op) => format!("{op} {term}"),
+            None => term,
         });
-        sign = '+';
+        operator = match tokens.next() {
+            None => break,
+            Some(op @ ("+" | "-")) => Some(op),
+            Some(_) => return None,
+        };
     }
-    (viewport && !parts.is_empty()).then(|| parts.join(" "))
+    viewport.then(|| parts.join(" "))
 }
 
-/// The inline style object for a group's viewport-relative sizes, if it has
-/// any.
+/// Move a group's viewport-relative styles out of its StyleSheet entry.
 ///
 /// These can't go in the StyleSheet: `StyleSheet.create` is evaluated once
 /// at module load, and the value changes when the device rotates. The object
@@ -200,13 +221,34 @@ pub(super) fn viewport_calc(text: &str) -> Option<String> {
 /// viewport. It does not account for notches or a home indicator -- a
 /// full-bleed layout still wants a safe-area inset on top of this, exactly
 /// as it does on Web.
-pub(super) fn viewport_object(props: &[StyleProperty]) -> Option<String> {
-    let mut pairs: Vec<String> = Vec::new();
-    for prop in props {
-        let Some((key, value)) = viewport_dimension(prop) else {
-            continue;
-        };
-        pairs.push(format!("{key}: {value}"));
+pub(super) fn take_viewport_object(props: &mut Vec<StyleProperty>) -> Option<String> {
+    // Check without allocation on the ordinary path. The group is already
+    // ordered; do not let the inline object (after the static entry) give
+    // an earlier write priority over a later alias for the same Native key.
+    if !props.iter().any(is_viewport_sized) {
+        return None;
     }
+    let mut seen = std::collections::HashSet::new();
+    let mut remaining = Vec::new();
+    let mut pairs: Vec<String> = Vec::new();
+    for prop in props.drain(..).rev() {
+        if let Some(keys) = window_layout_keys(&prop) {
+            if let Some(value) = viewport_value(&prop) {
+                for &key in keys.iter().rev() {
+                    if seen.insert(key) {
+                        pairs.push(format!("{key}: {value}"));
+                    }
+                }
+                continue;
+            }
+            if prop.unsupported_on_native().is_none() {
+                seen.extend(keys.iter().copied());
+            }
+        }
+        remaining.push(prop);
+    }
+    pairs.reverse();
+    remaining.reverse();
+    *props = remaining;
     (!pairs.is_empty()).then(|| format!("{{ {} }}", pairs.join(", ")))
 }

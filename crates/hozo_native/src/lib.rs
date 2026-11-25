@@ -94,7 +94,8 @@ use environment::{
 };
 use expr::{escape_jsx_text, native_flag, render_condition_expr, source_text};
 use layout::{
-    is_safe_area_inset, is_viewport_sized, lower_inline_flex, safe_area_object, viewport_object,
+    is_safe_area_inset, is_viewport_sized, lower_inline_flex, safe_area_object,
+    take_viewport_object,
 };
 pub use lower::{
     lower, lower_forwarded, lower_forwarded_with_evidence, lower_text_reference, lower_text_unified,

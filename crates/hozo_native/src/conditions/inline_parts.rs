@@ -15,7 +15,7 @@ pub(super) struct InlineParts {
 /// Takes the group's inline values out of `props`, registering the hooks
 /// they read, and returns what is left for the StyleSheet beside them.
 pub(super) fn inline_parts(
-    props: Vec<StyleProperty>,
+    mut props: Vec<StyleProperty>,
     condition: &Condition,
     declarations: &[StyleDeclaration],
     node: &Node,
@@ -28,8 +28,7 @@ pub(super) fn inline_parts(
     // inline object read from a hook instead, so it stays in the same
     // style array -- and therefore in the same last-wins order -- as the
     // static entry it sits beside.
-    let (viewport_props, props): (Vec<_>, Vec<_>) = props.into_iter().partition(is_viewport_sized);
-    let viewport = viewport_object(&viewport_props);
+    let viewport = take_viewport_object(&mut props);
     if viewport.is_some() {
         runtime.hooks.push(RuntimeHook::Viewport);
     }
