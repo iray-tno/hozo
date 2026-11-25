@@ -1,5 +1,5 @@
 use hozo_ir::{
-    Breakpoint, Condition, Display, GridLine, GridSpan, GridTracks, StyleDeclaration,
+    Breakpoint, Condition, Display, GridLine, GridSpan, GridTracks, Length, StyleDeclaration,
     StyleProperty, Theme,
 };
 
@@ -219,18 +219,18 @@ fn responsive_gap(
     column: bool,
     runtime: &mut RuntimeNeeds,
 ) -> String {
-    let mut base = 0.0;
-    let mut responsive: Vec<(Breakpoint, f64)> = Vec::new();
+    let mut base = None;
+    let mut responsive = Vec::new();
     for declaration in declarations {
-        let value = match &declaration.property {
-            StyleProperty::Gap(length) => Some(length.px(theme)),
-            StyleProperty::ColumnGap(length) if column => Some(length.px(theme)),
-            StyleProperty::RowGap(length) if !column => Some(length.px(theme)),
-            _ => None,
+        let length = match &declaration.property {
+            StyleProperty::Gap(length) => length,
+            StyleProperty::ColumnGap(length) if column => length,
+            StyleProperty::RowGap(length) if !column => length,
+            _ => continue,
         };
-        let Some(value) = value else { continue };
+        let value = (&declaration.property, length);
         match declaration.condition {
-            Condition::Always => base = value,
+            Condition::Always => base = Some(value),
             Condition::Responsive(bp) => {
                 if let Some(entry) = responsive.iter_mut().find(|(known, _)| known == &bp) {
                     entry.1 = value;
@@ -238,12 +238,25 @@ fn responsive_gap(
                     responsive.push((bp, value));
                 }
             }
-            _ => return base.to_string(),
+            // `native_grid` excludes other conditions before selecting
+            // tracks and gaps; no new Grid variant policy is added here.
+            _ => unreachable!("checked grid condition"),
         }
     }
+    // Resolve only the winners, with the same expression used by the
+    // outer View's row/column gap. A shadowed viewport value needs no hook.
+    let resolve = |(property, length): (&StyleProperty, &Length), runtime: &mut RuntimeNeeds| {
+        if let Some(value) = crate::layout::viewport_value(property) {
+            runtime.hooks.push(RuntimeHook::Viewport);
+            value
+        } else {
+            length.px(theme).to_string()
+        }
+    };
     responsive.sort_by_key(|(bp, _)| breakpoint_rank(bp));
-    let mut value = base.to_string();
+    let mut value = base.map_or_else(|| "0".to_string(), |base| resolve(base, runtime));
     for (bp, gap) in responsive {
+        let gap = resolve(gap, runtime);
         runtime.hooks.push(RuntimeHook::Breakpoint(bp));
         value = format!(
             "{} ? {gap} : ({value})",

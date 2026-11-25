@@ -139,8 +139,8 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 618,
-    "refused": 2195,
+    "covered": 621,
+    "refused": 2192,
     "noOp": 32,
     "silent": 0
   },
