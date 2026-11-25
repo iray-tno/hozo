@@ -45,6 +45,73 @@ test('a compiled component builds the tree it was meant to', () => {
   assert.deepEqual(text.props.style, { fontSize: 20, lineHeight: 28 })
 })
 
+test('viewport-relative spacing and sizing follow the app window in LTR and RTL', () => {
+  type Window = { width: number; height: number }
+  const { Dimensions, I18nManager, StyleSheet } = require('react-native') as {
+    Dimensions: {
+      get: (name: string) => Window
+      __hozoSetWindow: (window: Window) => void
+    }
+    I18nManager: { isRTL: boolean }
+    StyleSheet: { flatten: (style: unknown) => Record<string, unknown> }
+  }
+  const previousWindow = Dimensions.get('window')
+  const wasRtl = I18nManager.isRTL
+  const react = require('react')
+  const renderer = require('react-test-renderer')
+  const { C } = loadNativeModule(`
+    import { View } from '@hozo/core'
+    export function C() {
+      return <View className="absolute left-[10vw] inset-s-2 inset-y-[10vh] top-4
+         px-[5vw] pbs-[5vh] mbs-[calc(10vh_-_1rem)] min-inline-[50vw]" />
+    }
+  `)
+  let root: { toJSON: () => Tree; unmount: () => void } | undefined
+  try {
+    for (const isRTL of [false, true]) {
+      const style = () => StyleSheet.flatten(root?.toJSON()?.props.style)
+      renderer.act(() => {
+        I18nManager.isRTL = isRTL
+        Dimensions.__hozoSetWindow({ width: 400, height: 800 })
+        root = renderer.create(react.createElement(C))
+      })
+      assert.deepEqual(style(), {
+        position: 'absolute',
+        start: isRTL ? 8 : 40,
+        ...(isRTL ? { end: 40 } : {}),
+        top: 16,
+        bottom: 80,
+        paddingStart: 20,
+        paddingEnd: 20,
+        paddingTop: 40,
+        marginTop: 64,
+        minWidth: 200,
+      })
+      renderer.act(() => Dimensions.__hozoSetWindow({ width: 800, height: 400 }))
+      assert.deepEqual(style(), {
+        position: 'absolute',
+        start: isRTL ? 8 : 80,
+        ...(isRTL ? { end: 80 } : {}),
+        top: 16,
+        bottom: 40,
+        paddingStart: 40,
+        paddingEnd: 40,
+        paddingTop: 20,
+        marginTop: 24,
+        minWidth: 400,
+      })
+      renderer.act(() => root?.unmount())
+      root = undefined
+    }
+  } finally {
+    renderer.act(() => {
+      root?.unmount()
+      Dimensions.__hozoSetWindow(previousWindow)
+      I18nManager.isRTL = wasRtl
+    })
+  }
+})
+
 test('semantic document primitives retain native accessibility intent', () => {
   const tree = renderNative(
     `

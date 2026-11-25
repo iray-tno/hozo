@@ -42,8 +42,8 @@ pub(super) use effects::{
 use hozo_ir::{
     Align, AlignSelf, Axis, BorderStyle, Color, DecorationStyle, Dimension, Display, Edge,
     FilterFunction, FlexDirection, FlexShorthand, GradientKind, GradientStop, Justify, Length,
-    LetterSpacing, LineHeight, Overflow, Position, Radius, StyleProperty, TextAlign, TextTransform,
-    Theme, TransformFunction,
+    LetterSpacing, LineHeight, Overflow, Position, PropertyValue, Radius, StyleProperty, TextAlign,
+    TextTransform, Theme, TransformFunction,
 };
 
 /// Maps one `StyleProperty` to one or more `(rn-style-key, value)` pairs
@@ -158,45 +158,50 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         }
         StyleProperty::RowGap(l) => vec![("rowGap", number(l, theme))],
         StyleProperty::ColumnGap(l) => vec![("columnGap", number(l, theme))],
-        StyleProperty::MarginTop(d) => vec![("marginTop", dimension_value(d, theme))],
-        StyleProperty::MarginRight(d) => vec![("marginRight", dimension_value(d, theme))],
-        StyleProperty::MarginBottom(d) => vec![("marginBottom", dimension_value(d, theme))],
-        StyleProperty::MarginLeft(d) => vec![("marginLeft", dimension_value(d, theme))],
-        StyleProperty::PaddingTop(l) => vec![("paddingTop", number(l, theme))],
-        StyleProperty::PaddingRight(l) => vec![("paddingRight", number(l, theme))],
-        StyleProperty::PaddingBottom(l) => vec![("paddingBottom", number(l, theme))],
-        StyleProperty::PaddingLeft(l) => vec![("paddingLeft", number(l, theme))],
-        // RN's own direction-relative props; they resolve against
-        // `I18nManager.isRTL` at runtime, same role as CSS's inline-start/end.
-        StyleProperty::MarginInlineStart(d) => vec![("marginStart", dimension_value(d, theme))],
-        StyleProperty::MarginInlineEnd(d) => vec![("marginEnd", dimension_value(d, theme))],
-        StyleProperty::PaddingInlineStart(l) => vec![("paddingStart", number(l, theme))],
-        StyleProperty::PaddingInlineEnd(l) => vec![("paddingEnd", number(l, theme))],
-        StyleProperty::Width(d) => vec![("width", dimension_value(d, theme))],
-        StyleProperty::Height(d) => vec![("height", dimension_value(d, theme))],
-        StyleProperty::MinWidth(d) => vec![("minWidth", dimension_value(d, theme))],
         StyleProperty::FlexBasis(d) => vec![("flexBasis", dimension_value(d, theme))],
-        // The block/inline logical sizes only differ from height/width
-        // under a vertical `writing-mode`, which React Native has no
-        // concept of -- the same assumption `py-*` already lowers under.
-        StyleProperty::BlockSize(d) => vec![("height", dimension_value(d, theme))],
-        StyleProperty::InlineSize(d) => vec![("width", dimension_value(d, theme))],
-        StyleProperty::MaxBlockSize(d) => vec![("maxHeight", dimension_value(d, theme))],
-        StyleProperty::MaxInlineSize(d) => vec![("maxWidth", dimension_value(d, theme))],
-        StyleProperty::MinBlockSize(d) => vec![("minHeight", dimension_value(d, theme))],
-        StyleProperty::MinInlineSize(d) => vec![("minWidth", dimension_value(d, theme))],
-        StyleProperty::MarginBlockStart(d) => vec![("marginTop", dimension_value(d, theme))],
-        StyleProperty::MarginBlockEnd(d) => vec![("marginBottom", dimension_value(d, theme))],
-        StyleProperty::PaddingBlockStart(l) => vec![("paddingTop", number(l, theme))],
-        StyleProperty::PaddingBlockEnd(l) => vec![("paddingBottom", number(l, theme))],
+        StyleProperty::Width(_)
+        | StyleProperty::Height(_)
+        | StyleProperty::MinWidth(_)
+        | StyleProperty::MinHeight(_)
+        | StyleProperty::MaxWidth(_)
+        | StyleProperty::MaxHeight(_)
+        | StyleProperty::BlockSize(_)
+        | StyleProperty::InlineSize(_)
+        | StyleProperty::MinBlockSize(_)
+        | StyleProperty::MinInlineSize(_)
+        | StyleProperty::MaxBlockSize(_)
+        | StyleProperty::MaxInlineSize(_)
+        | StyleProperty::MarginTop(_)
+        | StyleProperty::MarginRight(_)
+        | StyleProperty::MarginBottom(_)
+        | StyleProperty::MarginLeft(_)
+        | StyleProperty::MarginInlineStart(_)
+        | StyleProperty::MarginInlineEnd(_)
+        | StyleProperty::MarginBlockStart(_)
+        | StyleProperty::MarginBlockEnd(_)
+        | StyleProperty::PaddingTop(_)
+        | StyleProperty::PaddingRight(_)
+        | StyleProperty::PaddingBottom(_)
+        | StyleProperty::PaddingLeft(_)
+        | StyleProperty::PaddingInlineStart(_)
+        | StyleProperty::PaddingInlineEnd(_)
+        | StyleProperty::PaddingBlockStart(_)
+        | StyleProperty::PaddingBlockEnd(_)
+        | StyleProperty::InsetTop(_)
+        | StyleProperty::InsetRight(_)
+        | StyleProperty::InsetBottom(_)
+        | StyleProperty::InsetLeft(_)
+        | StyleProperty::InsetInlineStart(_)
+        | StyleProperty::InsetInlineEnd(_)
+        | StyleProperty::InsetInline(_)
+        | StyleProperty::InsetBlock(_)
+        | StyleProperty::InsetBlockStart(_)
+        | StyleProperty::InsetBlockEnd(_) => window_layout_pairs(prop, theme),
         // Refused upstream by `unsupported_on_native`.
         StyleProperty::TranslateZ(_)
         | StyleProperty::TextIndent(_)
         | StyleProperty::BorderSpacingX(_)
         | StyleProperty::BorderSpacingY(_) => Vec::new(),
-        StyleProperty::MinHeight(d) => vec![("minHeight", dimension_value(d, theme))],
-        StyleProperty::MaxWidth(d) => vec![("maxWidth", dimension_value(d, theme))],
-        StyleProperty::MaxHeight(d) => vec![("maxHeight", dimension_value(d, theme))],
         // RN's zIndex is a number; `auto` is refused upstream.
         StyleProperty::ZIndex(z) => z.map_or_else(Vec::new, |z| vec![("zIndex", z.to_string())]),
         // RN's `cursor` takes `auto` and `pointer`; every other keyword is
@@ -328,23 +333,6 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
             }
             .to_string(),
         )],
-        StyleProperty::InsetTop(d) => vec![("top", dimension_value(d, theme))],
-        StyleProperty::InsetRight(d) => vec![("right", dimension_value(d, theme))],
-        StyleProperty::InsetBottom(d) => vec![("bottom", dimension_value(d, theme))],
-        StyleProperty::InsetLeft(d) => vec![("left", dimension_value(d, theme))],
-        StyleProperty::InsetInlineStart(d) => vec![("start", dimension_value(d, theme))],
-        StyleProperty::InsetInlineEnd(d) => vec![("end", dimension_value(d, theme))],
-        // No axis shorthand in React Native, so both edges are written.
-        StyleProperty::InsetInline(d) => {
-            vec![("start", dimension_value(d, theme)), ("end", dimension_value(d, theme))]
-        }
-        StyleProperty::InsetBlock(d) => {
-            vec![("top", dimension_value(d, theme)), ("bottom", dimension_value(d, theme))]
-        }
-        // The block axis is only distinct from top/bottom under a vertical
-        // `writing-mode`, which React Native has no concept of.
-        StyleProperty::InsetBlockStart(d) => vec![("top", dimension_value(d, theme))],
-        StyleProperty::InsetBlockEnd(d) => vec![("bottom", dimension_value(d, theme))],
         StyleProperty::BackgroundColor(c) => vec![("backgroundColor", resolve_color(c))],
         StyleProperty::Opacity(o) => vec![("opacity", format!("{o}"))],
         StyleProperty::BorderColor(c) => vec![("borderColor", resolve_color(c))],
@@ -624,6 +612,19 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         )],
         StyleProperty::TextColor(c) => vec![("color", resolve_color(c))],
     }
+}
+
+fn window_layout_pairs(prop: &StyleProperty, theme: &Theme) -> Vec<(&'static str, String)> {
+    let keys = super::layout::window_layout_keys(prop).expect("a known Native layout property");
+    let value = match prop.value() {
+        PropertyValue::Length(length) => number(length, theme),
+        PropertyValue::Dimension(dimension) => dimension_value(dimension, theme),
+        _ => unreachable!("window layout keys are only defined for lengths and dimensions"),
+    };
+    if let [key] = keys {
+        return vec![(*key, value)];
+    }
+    keys.iter().map(|&key| (key, value.clone())).collect()
 }
 
 #[cfg(test)]

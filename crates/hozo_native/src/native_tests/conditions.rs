@@ -1537,25 +1537,74 @@ fn spin_animation_uses_one_native_driver_hook() {
 
 #[test]
 fn a_partial_viewport_size_multiplies_the_window() {
-    // Tested at this level rather than through a utility because no
-    // utility reaches it yet: `*-screen` is the only viewport size
-    // Hozo parses, and it is always 100%. `Dimension` carries a
-    // percentage because `h-dvh`/`h-lvh` and arbitrary values will land
-    // here, so the branch is written and pinned rather than left to be
-    // discovered later.
     assert_eq!(
-        viewport_object(&[StyleProperty::Width(hozo_ir::Dimension::ViewportWidth(
-            50.0
-        ))]),
+        take_viewport_object(&mut vec![StyleProperty::Width(
+            hozo_ir::Dimension::ViewportWidth(50.0)
+        )]),
         Some("{ width: __hozoViewport.width * 0.5 }".to_string())
     );
     assert_eq!(
-        viewport_object(&[StyleProperty::MaxHeight(
+        take_viewport_object(&mut vec![StyleProperty::MaxHeight(
             hozo_ir::Dimension::ViewportHeight(100.0)
         )]),
         Some("{ maxHeight: __hozoViewport.height }".to_string())
     );
-    assert_eq!(viewport_object(&[StyleProperty::Opacity(0.5)]), None);
+    assert_eq!(
+        take_viewport_object(&mut vec![StyleProperty::Opacity(0.5)]),
+        None
+    );
+}
+
+#[test]
+fn a_later_native_key_wins_even_when_one_write_is_inline() {
+    use hozo_ir::{Dimension, Length};
+    use StyleProperty::*;
+
+    // inset-block expands to two keys. A later fixed top replaces only
+    // that half; putting both viewport keys after the sheet would undo it.
+    let mut props = vec![
+        InsetBlock(Dimension::ViewportHeight(10.0)),
+        InsetTop(Dimension::Length(Length::Px(16.0))),
+    ];
+    assert_eq!(
+        take_viewport_object(&mut props).as_deref(),
+        Some("{ bottom: __hozoViewport.height * 0.1 }")
+    );
+    assert_eq!(props, vec![InsetTop(Dimension::Length(Length::Px(16.0)))]);
+
+    let mut props = vec![
+        InlineSize(Dimension::Length(Length::Px(20.0))),
+        Width(Dimension::ViewportWidth(50.0)),
+    ];
+    assert_eq!(
+        take_viewport_object(&mut props).as_deref(),
+        Some("{ width: __hozoViewport.width * 0.5 }")
+    );
+    let mut props = vec![
+        Width(Dimension::ViewportWidth(50.0)),
+        InlineSize(Dimension::Length(Length::Px(20.0))),
+    ];
+    assert_eq!(take_viewport_object(&mut props), None);
+}
+
+#[test]
+fn viewport_arithmetic_needs_an_operator_and_a_known_basis_for_each_term() {
+    use crate::layout::viewport_calc;
+
+    assert_eq!(
+        viewport_calc("calc(5vh + 2rem)").as_deref(),
+        Some("__hozoViewport.height * 0.05 + 32")
+    );
+    for invalid in [
+        "calc(5vh +)",
+        "calc(5vh 2rem)",
+        "calc(5vh + - + 2rem)",
+        "calc(5vh + 50%)",
+        "calc(5vh - 2em)",
+        "calc(2px + 1rem)",
+    ] {
+        assert_eq!(viewport_calc(invalid), None, "{invalid}");
+    }
 }
 
 #[test]
