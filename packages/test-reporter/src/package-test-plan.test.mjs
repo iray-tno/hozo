@@ -61,6 +61,43 @@ test('an unexpected collector crash is itself wrapped as a failed report on main
   )
 })
 
+test('deploy-pages uploads in build, deploys in a separate job, and still gates JUnit failures', () => {
+  const workflow = readFileSync(
+    new URL('../../../.github/workflows/deploy-pages.yml', import.meta.url),
+    'utf8',
+  ).replaceAll('\r\n', '\n')
+  const buildIdx = workflow.indexOf('\n  build:\n')
+  const deployIdx = workflow.indexOf('\n  deploy:\n')
+  const assertIdx = workflow.indexOf('\n  assert-reports:\n')
+  assert.ok(buildIdx > 0 && deployIdx > buildIdx && assertIdx > deployIdx)
+
+  const buildJob = workflow.slice(buildIdx, deployIdx)
+  const deployJob = workflow.slice(deployIdx, assertIdx)
+  const assertJob = workflow.slice(assertIdx)
+
+  // Upload and deploy must live in separate jobs so artifact-listing lag does
+  // not fail immediately after upload and rerunning deploy cannot upload a
+  // duplicate `github-pages` artifact (actions/deploy-pages#451, #338).
+  assert.match(buildJob, /uses: actions\/upload-pages-artifact@v\d+/)
+  assert.doesNotMatch(buildJob, /uses: actions\/deploy-pages@v\d+/)
+  assert.match(
+    buildJob,
+    /continue-on-error: true\s+run: node packages\/test-reporter\/src\/assert-junit\.mjs/,
+  )
+  assert.match(buildJob, /reports_passed: \$\{\{ steps\.check-junit\.outcome == 'success' \}\}/)
+
+  assert.match(deployJob, /needs: build/)
+  assert.match(deployJob, /uses: actions\/deploy-pages@v\d+/)
+  assert.match(deployJob, /!steps\.deploy_1\.outputs\.page_url/)
+  assert.match(deployJob, /!steps\.deploy_2\.outputs\.page_url/)
+
+  assert.match(assertJob, /needs: build/)
+  assert.match(
+    assertJob,
+    /needs\.build\.result == 'success' && needs\.build\.outputs\.reports_passed != 'true'/,
+  )
+})
+
 test('quoted && stays one preparation command and Node argument values stay paired', () => {
   const stages = testStages(
     'node -e "console.log(1 && 2)" && node --test --test-concurrency=1 --test-name-pattern "a case" "space dir/*.test.mjs"',
