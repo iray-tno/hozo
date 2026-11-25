@@ -14,23 +14,18 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react'
 import {
   Animated,
-  Easing,
-  type GestureResponderEvent,
-  type MouseEvent,
-  type NativeSyntheticEvent,
   Pressable,
   type PressableProps,
   type PressableStateCallbackType,
   type StyleProp,
   StyleSheet,
-  type TargetedEvent,
   Text,
   type TextProps,
   type TextStyle,
@@ -39,7 +34,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { nativeDisabledProps } from './native-disabled.ts'
-import { useHozoTextColorTransition } from './text-color-transition.native.ts'
+import { easingFor, useHozoTextColorTransition } from './text-color-transition.native.ts'
 
 export interface HozoTransition {
   duration: number
@@ -141,17 +136,18 @@ const InteractionContext = HozoInteractionContext as Context<InteractionContextV
 type AnimationDriver = { current: ((state: HozoPressableState) => void) | null }
 const AnimationDriverContext = createContext<AnimationDriver | null>(null)
 
-function easingFor(name: HozoTransition['easing']) {
-  switch (name) {
-    case 'linear':
-      return Easing.linear
-    case 'ease-in':
-      return Easing.in(Easing.ease)
-    case 'ease-out':
-      return Easing.out(Easing.ease)
-    case 'ease-in-out':
-      return Easing.inOut(Easing.ease)
+function chain<E>(own: () => void, caller?: ((event: E) => void) | null) {
+  return (event: E) => {
+    own()
+    caller?.(event)
   }
+}
+
+const IDLE: HozoPressableState = {
+  pressed: false,
+  hovered: false,
+  focused: false,
+  focusVisible: false,
 }
 
 function transitionTiming(
@@ -196,8 +192,10 @@ function transformTargets(style: StyleProp<ViewStyle>): TransformTarget[] {
     // with a key of `'0'`.
     if (typeof transform === 'string') return
     for (const entry of transform || []) {
-      const [key, raw] = Object.entries(entry as Record<string, unknown>)[0] || []
-      if (!key) continue
+      const pair = Object.entries(entry as Record<string, unknown>)[0]
+      if (!pair) continue
+      const key = pair[0]
+      const raw = pair[1]
       if (key === 'scale' && typeof raw === 'number') {
         merged.set('scaleX', { key: 'scaleX', value: raw, degrees: false })
         merged.set('scaleY', { key: 'scaleY', value: raw, degrees: false })
@@ -220,6 +218,15 @@ function identityFor(target: TransformTarget) {
 const COLOR_KEYS = ['backgroundColor', 'color'] as const
 type ColorKey = (typeof COLOR_KEYS)[number]
 type ColorRange = { from: string; to: string }
+
+function transformMap(style: StyleProp<ViewStyle>) {
+  return new Map(transformTargets(style).map((t) => [t.key, t.value]))
+}
+
+function targetOpacityOf(style: StyleProp<ViewStyle>): number {
+  const value = StyleSheet.flatten(style)?.opacity
+  return typeof value === 'number' ? value : 1
+}
 
 function colorTargets(style: StyleProp<ViewStyle>) {
   const flattened = StyleSheet.flatten(style) as Record<string, unknown> | undefined
@@ -264,8 +271,7 @@ export function HozoPressable({
   // RN's pressed flag can disagree with the owner snapshot. Active wins,
   // as before; only that case needs a separate style evaluation.
   const restingLook = useMemo(
-    () =>
-      hozoTransition ? undefined : typeof style === 'function' ? style({ ...interaction }) : style,
+    () => (hozoTransition ? undefined : typeof style === 'function' ? style(interaction) : style),
     [hozoTransition, interaction, style],
   )
   // Assemble native props once, with no trailing conditional spread on the
@@ -273,7 +279,7 @@ export function HozoPressable({
   const Component: ElementType = hozoTransition ? TransitionPressable : Pressable
   // The label's styles for the state this element is in; children given
   // as a function of React Native's own press state get them too.
-  const label = hozoTextStyle?.({ ...interaction })
+  const label = hozoTextStyle?.(interaction)
   const labelled =
     hozoTextStyle === undefined
       ? children
@@ -286,46 +292,14 @@ export function HozoPressable({
       {...props}
       // biome-ignore lint/correctness/noChildrenProp: a function child is React Native's own form
       children={labelled}
-      onHoverIn={(event: MouseEvent) => {
-        handlers.hoverIn()
-        onHoverIn?.(event)
-      }}
-      onHoverOut={(event: MouseEvent) => {
-        handlers.hoverOut()
-        onHoverOut?.(event)
-      }}
-      onFocus={(event: NativeSyntheticEvent<TargetedEvent>) => {
-        handlers.focus()
-        onFocus?.(event)
-      }}
-      onBlur={(event: NativeSyntheticEvent<TargetedEvent>) => {
-        handlers.blur()
-        onBlur?.(event)
-      }}
-      onPointerDown={
-        hozoFocusVisible
-          ? (event: Parameters<NonNullable<PressableProps['onPointerDown']>>[0]) => {
-              handlers.pointerDown()
-              onPointerDown?.(event)
-            }
-          : onPointerDown
-      }
-      onKeyDown={
-        hozoFocusVisible
-          ? (event: Parameters<NonNullable<PressableProps['onKeyDown']>>[0]) => {
-              handlers.keyDown()
-              onKeyDown?.(event)
-            }
-          : onKeyDown
-      }
-      onPressIn={(event: GestureResponderEvent) => {
-        handlers.pressIn()
-        onPressIn?.(event)
-      }}
-      onPressOut={(event: GestureResponderEvent) => {
-        handlers.pressOut()
-        onPressOut?.(event)
-      }}
+      onHoverIn={chain(handlers.hoverIn, onHoverIn)}
+      onHoverOut={chain(handlers.hoverOut, onHoverOut)}
+      onFocus={chain(handlers.focus, onFocus)}
+      onBlur={chain(handlers.blur, onBlur)}
+      onPointerDown={hozoFocusVisible ? chain(handlers.pointerDown, onPointerDown) : onPointerDown}
+      onKeyDown={hozoFocusVisible ? chain(handlers.keyDown, onKeyDown) : onKeyDown}
+      onPressIn={chain(handlers.pressIn, onPressIn)}
+      onPressOut={chain(handlers.pressOut, onPressOut)}
       style={
         hozoTransition
           ? style
@@ -352,144 +326,166 @@ function TransitionPressable({
   ...props
 }: Omit<HozoPressableProps, 'hozoFocusVisible' | 'hozoTransition'>) {
   // This private owner is mounted only inside both providers, for motion.
-  const context = useContext(InteractionContext)!
-  const hozoTransition = context.transition!
+  const { pressed, hovered, focused, focusVisible, transition } = useContext(InteractionContext)!
+  const hozoTransition = transition!
   const interaction = useMemo(
-    () => ({
-      pressed: context.pressed,
-      hovered: context.hovered,
-      focused: context.focused,
-      focusVisible: context.focusVisible,
-    }),
-    [context.pressed, context.hovered, context.focused, context.focusVisible],
+    () => ({ pressed, hovered, focused, focusVisible }),
+    [pressed, hovered, focused, focusVisible],
   )
   const driver = useContext(AnimationDriverContext)!
-  const initialStyle = typeof style === 'function' ? style({ ...interaction }) : style
-  const initialOpacity = StyleSheet.flatten(initialStyle)?.opacity
-  const opacity = useRef(
-    new Animated.Value(typeof initialOpacity === 'number' ? initialOpacity : 1),
-  ).current
+  const resolvedStyle = useMemo(
+    () => (typeof style === 'function' ? style(interaction) : style),
+    [interaction, style],
+  )
   const colorSpecs = useMemo(() => {
-    if (!hozoTransition.colors || typeof style !== 'function') return [] as ColorKey[]
+    if (!hozoTransition.colors) return [] as ColorKey[]
+    if (typeof style !== 'function') return [...colorTargets(style).keys()]
     const found = new Set<ColorKey>()
     for (const state of interactionStates())
       for (const key of colorTargets(style(state)).keys()) found.add(key)
     return [...found]
   }, [hozoTransition.colors, style])
-  const initialColors = colorTargets(initialStyle)
-  const colorRanges = useRef(new Map<ColorKey, ColorRange>()).current
-  for (const key of colorSpecs) {
-    if (!colorRanges.has(key)) {
-      const initial = initialColors.get(key) ?? (key === 'backgroundColor' ? 'transparent' : '')
-      if (initial) colorRanges.set(key, { from: initial, to: initial })
-    }
-  }
-  const colorProgress = useRef(new Animated.Value(0)).current
-  const colorFraction = useRef(0)
-  const animation = useRef<Animated.CompositeAnimation | null>(null)
-  useEffect(() => {
-    const listener = colorProgress.addListener(({ value }) => {
-      colorFraction.current = value
-    })
-    return () => {
-      colorProgress.removeListener(listener)
-      animation.current?.stop()
-    }
-  }, [colorProgress])
-  const animatedColors = Object.fromEntries(
-    [...colorRanges].map(([key, range]) => [
-      key,
-      colorProgress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [range.from, range.to],
-      }),
-    ]),
-  )
   const transformSpecs = useMemo(() => {
-    if (!hozoTransition.transform || typeof style !== 'function') return []
+    if (!hozoTransition.transform) return [] as TransformTarget[]
+    if (typeof style !== 'function') return transformTargets(style)
     const merged = new Map<string, TransformTarget>()
-    for (const state of interactionStates()) {
+    for (const state of interactionStates())
       for (const target of transformTargets(style(state))) merged.set(target.key, target)
-    }
     return [...merged.values()].sort((a, b) => transformRank(a.key) - transformRank(b.key))
   }, [hozoTransition.transform, style])
-  const transformValues = useRef(new Map<string, Animated.Value>()).current
-  const initialTargets = new Map(
-    transformTargets(initialStyle).map((target) => [target.key, target]),
-  )
-  for (const spec of transformSpecs) {
-    if (!transformValues.has(spec.key)) {
-      transformValues.set(
-        spec.key,
-        new Animated.Value(initialTargets.get(spec.key)?.value ?? identityFor(spec)),
-      )
+  const motion = useState(() => {
+    const op = targetOpacityOf(resolvedStyle)
+    const initColors = colorTargets(resolvedStyle)
+    const ranges = new Map<ColorKey, ColorRange>()
+    for (const key of colorSpecs) {
+      const v = initColors.get(key) ?? (key === 'backgroundColor' ? 'transparent' : '')
+      if (v) ranges.set(key, { from: v, to: v })
     }
-  }
-  const animatedTransform = transformSpecs.map((spec) => ({
-    [spec.key]: spec.degrees
-      ? transformValues.get(spec.key)!.interpolate({
-          inputRange: [-360, 360],
-          outputRange: ['-360deg', '360deg'],
-        })
-      : transformValues.get(spec.key)!,
-  }))
-  const animateInteraction = useCallback(
-    (next: HozoPressableState) => {
-      if (typeof style !== 'function') return
-      const flattened = StyleSheet.flatten(style({ ...next }))
+    const transforms = new Map<string, { value: Animated.Value; last: number }>()
+    const initT = transformMap(resolvedStyle)
+    for (const spec of transformSpecs) {
+      const v = initT.get(spec.key) ?? identityFor(spec)
+      transforms.set(spec.key, { value: new Animated.Value(v), last: v })
+    }
+    return {
+      opacity: new Animated.Value(op),
+      lastOpacity: op,
+      colorProgress: new Animated.Value(0),
+      colorPos: 0,
+      colorStart: 0,
+      ranges,
+      transforms,
+      animation: null as Animated.CompositeAnimation | null,
+    }
+  })[0]
+  const setRevision = useState(0)[1]
+
+  useLayoutEffect(() => {
+    const listener = motion.colorProgress.addListener(({ value }) => {
+      motion.colorPos = value
+    })
+    return () => {
+      motion.colorProgress.removeListener(listener)
+      motion.animation?.stop()
+    }
+  }, [motion])
+
+  // Install only the committed driver and keep animated channels synced with
+  // prop/theme style changes (#2273) without mutating during speculative renders.
+  useLayoutEffect(() => {
+    const syncStyle = (targetStyle: StyleProp<ViewStyle>, syncRender: boolean) => {
       const animations: Animated.CompositeAnimation[] = []
+      let needsRender = false
       if (hozoTransition.opacity) {
-        const targetOpacity = typeof flattened?.opacity === 'number' ? flattened.opacity : 1
-        animations.push(transitionTiming(opacity, targetOpacity, hozoTransition, true))
+        const target = targetOpacityOf(targetStyle)
+        if (target !== motion.lastOpacity) {
+          motion.lastOpacity = target
+          animations.push(transitionTiming(motion.opacity, target, hozoTransition, true))
+        }
       }
       if (hozoTransition.transform) {
-        const targets = new Map(
-          transformTargets(style({ ...next })).map((target) => [target.key, target.value]),
-        )
+        const targets = transformMap(targetStyle)
         for (const spec of transformSpecs) {
-          animations.push(
-            transitionTiming(
-              transformValues.get(spec.key)!,
-              targets.get(spec.key) ?? identityFor(spec),
-              hozoTransition,
-              true,
-            ),
-          )
+          const id = identityFor(spec)
+          let entry = motion.transforms.get(spec.key)
+          if (!entry) {
+            entry = { value: new Animated.Value(id), last: id }
+            motion.transforms.set(spec.key, entry)
+            needsRender = true
+          }
+          const target = targets.get(spec.key) ?? id
+          if (target !== entry.last) {
+            entry.last = target
+            animations.push(transitionTiming(entry.value, target, hozoTransition, true))
+          }
         }
       }
       if (hozoTransition.colors) {
-        const targets = colorTargets(style({ ...next }))
-        for (const [key, range] of colorRanges) {
-          const current = blendColor(range.from, range.to, colorFraction.current)
-          const target = targets.get(key) ?? (key === 'backgroundColor' ? 'transparent' : current)
-          colorRanges.set(key, { from: current, to: target })
+        const targets = colorTargets(targetStyle)
+        const start = motion.colorPos
+        const f = Math.max(0, Math.min(1, start - motion.colorStart))
+        let changed = false
+        const nextRanges = new Map<ColorKey, ColorRange>()
+        for (const key of COLOR_KEYS) {
+          const prev = motion.ranges.get(key)
+          const raw = targets.get(key)
+          if (!prev && raw === undefined) continue
+          const fb = key === 'backgroundColor' ? 'transparent' : ''
+          const cur = prev
+            ? f <= 0
+              ? prev.from
+              : f >= 1
+                ? prev.to
+                : blendColor(prev.from, prev.to, f)
+            : fb || raw || ''
+          const prevTo = prev?.to ?? (fb || cur)
+          const to = raw ?? (fb || prevTo)
+          if (to !== prevTo) changed = true
+          if (cur || to) nextRanges.set(key, { from: cur || to, to: to || cur })
         }
-        colorProgress.setValue(0)
-        colorFraction.current = 0
-        animations.push(transitionTiming(colorProgress, 1, hozoTransition, false))
+        if (changed) {
+          motion.colorStart = start
+          motion.ranges = nextRanges
+          animations.push(transitionTiming(motion.colorProgress, start + 1, hozoTransition, false))
+          needsRender = true
+        }
       }
-      animation.current = Animated.parallel(animations)
-      animation.current.start()
-    },
-    [colorProgress, colorRanges, hozoTransition, opacity, style, transformSpecs, transformValues],
-  )
-  // Install only the committed driver. A speculative render must not replace
-  // the callback used synchronously by the parent's event machine.
-  useLayoutEffect(() => {
-    driver.current = animateInteraction
-    return () => {
-      if (driver.current === animateInteraction) driver.current = null
+      if (animations.length > 0) {
+        motion.animation?.stop()
+        motion.animation = Animated.parallel(animations)
+        motion.animation.start()
+      }
+      if (needsRender && syncRender) setRevision((n) => n + 1)
     }
-  }, [animateInteraction, driver])
-  const PressableComponent = pressableFor(hozoTransition)
+    const run = (next: HozoPressableState) => {
+      if (typeof style === 'function') syncStyle(style(next), false)
+    }
+    driver.current = run
+    syncStyle(resolvedStyle, true)
+    return () => {
+      if (driver.current === run) driver.current = null
+    }
+  }, [driver, hozoTransition, motion, resolvedStyle, style, transformSpecs])
 
-  // The style for the state this component is in, resolved here because
-  // the animated path cannot hand React Native a callback -- see the
-  // `style` prop below.
-  const resolvedStyle = useMemo(
-    () => (typeof style === 'function' ? style({ ...interaction }) : style),
-    [interaction, style],
-  )
+  const animatedColors: Record<string, unknown> = {}
+  motion.ranges.forEach((range, key) => {
+    animatedColors[key] = motion.colorProgress.interpolate({
+      inputRange: [motion.colorStart, motion.colorStart + 1],
+      outputRange: [range.from, range.to],
+    })
+  })
+  const animatedTransform: Record<string, unknown>[] = []
+  for (const spec of transformSpecs) {
+    const entry = motion.transforms.get(spec.key)
+    if (entry) {
+      animatedTransform.push({
+        [spec.key]: spec.degrees
+          ? entry.value.interpolate({ inputRange: [-360, 360], outputRange: ['-360deg', '360deg'] })
+          : entry.value,
+      })
+    }
+  }
+  const PressableComponent = pressableFor(hozoTransition)
 
   return (
     <PressableComponent
@@ -523,7 +519,7 @@ function TransitionPressable({
         [
           resolvedStyle,
           {
-            ...(hozoTransition.opacity ? { opacity } : null),
+            ...(hozoTransition.opacity ? { opacity: motion.opacity } : null),
             ...(hozoTransition.transform ? { transform: animatedTransform } : null),
             ...(hozoTransition.colors ? animatedColors : null),
           },
@@ -545,8 +541,7 @@ export function HozoText({ style, ...props }: HozoTextProps) {
   // dependency threw there. Keep the nullable gate here; the motion child
   // mounts only with a real owner and an enabled colour transition.
   const context = useContext(InteractionContext)
-  const state = context ?? { pressed: false, hovered: false, focused: false, focusVisible: false }
-  const resolved = typeof style === 'function' ? style(state) : style
+  const resolved = typeof style === 'function' ? style(context ?? IDLE) : style
   if (!context?.transition?.colors || typeof style !== 'function') {
     return <Text {...props} style={resolved} />
   }
@@ -567,8 +562,7 @@ export interface HozoInteractionViewProps extends Omit<ViewProps, 'style'> {
  */
 export function HozoInteractionView({ style, ...props }: HozoInteractionViewProps) {
   const context = useContext(InteractionContext)
-  const state = context ?? { pressed: false, hovered: false, focused: false, focusVisible: false }
-  return <View {...props} style={typeof style === 'function' ? style(state) : style} />
+  return <View {...props} style={typeof style === 'function' ? style(context ?? IDLE) : style} />
 }
 
 function TransitionText({
@@ -579,14 +573,11 @@ function TransitionText({
   context: InteractionContextValue
   resolved: StyleProp<TextStyle>
 }) {
-  const transition = context.transition!
-  const state = context
   const target = StyleSheet.flatten(resolved)?.color
-  const interaction = `${state.pressed}:${state.hovered}:${state.focused}:${state.focusVisible}`
   const animatedColor = useHozoTextColorTransition(
     typeof target === 'string' ? target : undefined,
-    interaction,
-    transition,
+    `${context.pressed}:${context.hovered}:${context.focused}:${context.focusVisible}`,
+    context.transition!,
   )
   return (
     <AnimatedText {...props} style={[resolved, animatedColor ? { color: animatedColor } : null]} />
