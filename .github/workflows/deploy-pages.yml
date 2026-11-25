@@ -27,19 +27,16 @@ permissions:
   # workflow run history for the Allure verification report.
   actions: read
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build:
     if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      reports_passed: ${{ steps.check-junit.outcome == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -170,12 +167,69 @@ jobs:
           include-hidden-files: true
           path: apps/landing/dist
 
+      # Record whether any reported suite failed without blocking `deploy`
+      # from publishing the diagnostic Allure report. Every producer above
+      # writes JUnit even when its command fails, and `assert-reports` turns
+      # a recorded failure into a failed workflow check in parallel.
+      - name: Check reported checks
+        id: check-junit
+        continue-on-error: true
+        run: node packages/test-reporter/src/assert-junit.mjs
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy_1.outputs.page_url || steps.deploy_2.outputs.page_url || steps.deploy_3.outputs.page_url }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      # Separate from `build` so runner startup gives GitHub's artifact
+      # index time to catch up after upload finalization and a transient
+      # deploy failure can be rerun without uploading a duplicate
+      # `github-pages` artifact (actions/deploy-pages#451, #338).
+      # Retry only when deploy-pages failed before creating a deployment
+      # (empty `page_url`), covering longer artifact-listing tails without
+      # risking duplicate Pages deployment requests.
       - name: Deploy to GitHub Pages
-        id: deployment
+        id: deploy_1
+        continue-on-error: true
         uses: actions/deploy-pages@v5
 
-      # Report first, then make regressions visible on main. Every producer
-      # above writes JUnit even when its command fails, so this step can fail
-      # the workflow without preventing the diagnostic page from deploying.
+      - name: Wait for Pages artifact visibility before retry 1
+        if: steps.deploy_1.outcome == 'failure' && !steps.deploy_1.outputs.page_url
+        run: sleep 15
+
+      - name: Deploy to GitHub Pages (retry 1)
+        id: deploy_2
+        if: steps.deploy_1.outcome == 'failure' && !steps.deploy_1.outputs.page_url
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+
+      - name: Wait for Pages artifact visibility before retry 2
+        if: steps.deploy_2.outcome == 'failure' && !steps.deploy_2.outputs.page_url
+        run: sleep 30
+
+      - name: Deploy to GitHub Pages (retry 2)
+        id: deploy_3
+        if: steps.deploy_2.outcome == 'failure' && !steps.deploy_2.outputs.page_url
+        uses: actions/deploy-pages@v5
+
+      - name: Fail if Pages deployment did not succeed
+        if: steps.deploy_1.outcome != 'success' && steps.deploy_2.outcome != 'success' && steps.deploy_3.outcome != 'success'
+        run: |
+          echo "GitHub Pages deployment did not succeed." >&2
+          exit 1
+
+  assert-reports:
+    needs: build
+    if: ${{ needs.build.result == 'success' && needs.build.outputs.reports_passed != 'true' }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
       - name: Assert reported checks passed
-        run: node packages/test-reporter/src/assert-junit.mjs
+        run: |
+          echo "Reported checks failed in the build job; see the 'Check reported checks' step and the deployed Allure report." >&2
+          exit 1
