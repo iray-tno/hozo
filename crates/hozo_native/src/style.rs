@@ -150,16 +150,11 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         StyleProperty::JustifyContent(Justify::Stretch | Justify::Baseline) => Vec::new(),
         StyleProperty::AlignContent(justify) => vec![("alignContent", justify_literal(justify))],
         StyleProperty::JustifyContent(justify) => vec![("justifyContent", justify_literal(justify))],
-        // Native arrays merge keys, not shorthands. Emit the same axis
-        // keys as gap-x/y so an ordered gap can replace an earlier axis.
-        StyleProperty::Gap(l) => {
-            let value = number(l, theme);
-            vec![("rowGap", value.clone()), ("columnGap", value)]
-        }
-        StyleProperty::RowGap(l) => vec![("rowGap", number(l, theme))],
-        StyleProperty::ColumnGap(l) => vec![("columnGap", number(l, theme))],
         StyleProperty::FlexBasis(d) => vec![("flexBasis", dimension_value(d, theme))],
-        StyleProperty::Width(_)
+        StyleProperty::Gap(_)
+        | StyleProperty::RowGap(_)
+        | StyleProperty::ColumnGap(_)
+        | StyleProperty::Width(_)
         | StyleProperty::Height(_)
         | StyleProperty::MinWidth(_)
         | StyleProperty::MinHeight(_)

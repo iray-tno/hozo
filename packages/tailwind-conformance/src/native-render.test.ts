@@ -280,6 +280,74 @@ test('HozoGrid measured rows settle after layout and respond to width changes', 
   )
 })
 
+test('viewport gaps update Flex and both Grid paths without losing axis overrides', () => {
+  type Window = { width: number; height: number }
+  const { Dimensions, StyleSheet } = require('react-native') as {
+    Dimensions: {
+      get: (name: string) => Window
+      __hozoSetWindow: (window: Window) => void
+    }
+    StyleSheet: { flatten: (style: unknown) => Record<string, unknown> }
+  }
+  const previous = Dimensions.get('window')
+  const react = require('react')
+  const renderer = require('react-test-renderer')
+  const gaps = 'gap-[5vh] gap-x-[2vw] md:gap-x-4'
+  const { Scene } = loadNativeModule(`
+    import { View } from '@hozo/core'
+    export function Scene() {
+      return <View>
+        <View className="flex flex-row ${gaps}"/>
+        <View className="grid grid-cols-2 ${gaps}"><View/><View/><View/></View>
+        <View className="grid grid-cols-[40px_40px] grid-rows-[20px_20px] ${gaps} gap-y-[calc(5vh_-_1rem)]">
+          <View/><View/><View/><View/>
+        </View>
+      </View>
+    }
+  `)
+  let root: { toJSON: () => Tree; unmount: () => void } | undefined
+  const check = (rowGap: number, columnGap: number, measuredRowGap: number) => {
+    const [flex, grid, measured] = children(root!.toJSON())
+    const style = (tree: Tree) => StyleSheet.flatten(tree?.props.style)
+    assert.deepEqual(style(flex), { display: 'flex', flexDirection: 'row', rowGap, columnGap })
+    // Row gap belongs to the outer View. Each fast Grid row owns the
+    // column gap that separates its cells.
+    assert.deepEqual(style(grid), { rowGap, columnGap })
+    const rows = children(grid)
+    assert.equal(rows.length, 2)
+    assert.ok(rows.every((row) => style(row).columnGap === columnGap))
+    assert.ok(rows.every((row) => row.props.onLayout === undefined))
+    // The measured path actually uses both values in its offsets. Seeing
+    // the right styles on the outer View alone wouldn't prove that.
+    const [layout] = children(measured)
+    assert.deepEqual(style(measured), { rowGap: measuredRowGap, columnGap })
+    assert.equal(style(layout).height, 40 + measuredRowGap)
+    assert.deepEqual(
+      children(layout).map((cell) => [style(cell).left, style(cell).top]),
+      [
+        [0, 0],
+        [40 + columnGap, 0],
+        [0, 20 + measuredRowGap],
+        [40 + columnGap, 20 + measuredRowGap],
+      ],
+    )
+  }
+  try {
+    renderer.act(() => {
+      Dimensions.__hozoSetWindow({ width: 400, height: 800 })
+      root = renderer.create(react.createElement(Scene))
+    })
+    check(40, 8, 24)
+    renderer.act(() => Dimensions.__hozoSetWindow({ width: 800, height: 240 }))
+    check(12, 16, 0)
+  } finally {
+    renderer.act(() => {
+      root?.unmount()
+      Dimensions.__hozoSetWindow(previous)
+    })
+  }
+})
+
 test('a text style set on a View reaches the Text underneath it', () => {
   // React Native inherits text styles only from a Text, so the compiler
   // carries them down. Checked here on the rendered tree rather than on the

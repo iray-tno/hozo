@@ -112,13 +112,18 @@ pub(super) fn window_layout_keys(prop: &StyleProperty) -> Option<&'static [&'sta
         InsetInlineEnd(_) => &["end"],
         InsetInline(_) => &["start", "end"],
         InsetBlock(_) => &["top", "bottom"],
+        // Native arrays merge keys, not shorthands. Use the same slots so
+        // an ordered gap can replace either earlier axis and vice versa.
+        Gap(_) => &["rowGap", "columnGap"],
+        RowGap(_) => &["rowGap"],
+        ColumnGap(_) => &["columnGap"],
         _ => return None,
     })
 }
 
 /// Only layout slots with an explicit Native projection use the window.
 /// The unit itself does not decide which style keys can accept it.
-fn viewport_value(prop: &StyleProperty) -> Option<String> {
+pub(super) fn viewport_value(prop: &StyleProperty) -> Option<String> {
     window_layout_keys(prop)?;
     let length = match prop.value() {
         PropertyValue::Length(length) | PropertyValue::Dimension(Dimension::Length(length)) => {
@@ -133,12 +138,25 @@ fn viewport_value(prop: &StyleProperty) -> Option<String> {
         PropertyValue::Dimension(Dimension::Css(text)) => return viewport_calc(text),
         _ => return None,
     };
+    let gap = matches!(
+        prop,
+        StyleProperty::Gap(_) | StyleProperty::RowGap(_) | StyleProperty::ColumnGap(_)
+    );
     match length {
+        // A negative literal isn't a valid CSS gap. A valid calculation
+        // that evaluates below zero is clamped at used-value time instead.
+        Length::Unit(pct, _) if gap && *pct < 0.0 => None,
         Length::Unit(pct, LengthUnit::Vw) if pct.is_finite() => Some(viewport_share("width", *pct)),
         Length::Unit(pct, LengthUnit::Vh) if pct.is_finite() => {
             Some(viewport_share("height", *pct))
         }
-        Length::Css(text) => viewport_calc(text),
+        Length::Css(text) => viewport_calc(text).map(|expr| {
+            if gap {
+                format!("Math.max(0, {expr})")
+            } else {
+                expr
+            }
+        }),
         _ => None,
     }
 }
