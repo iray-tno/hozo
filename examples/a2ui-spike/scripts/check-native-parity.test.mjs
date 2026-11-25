@@ -287,6 +287,13 @@ async function buildNativeCatalogHarness() {
           Text: NativeText,
           Pressable: NativePressable,
           Animated: nativeAnimated,
+          Easing: {
+            linear: (v) => v,
+            ease: (v) => v,
+            in: (fn) => fn,
+            out: (fn) => fn,
+            inOut: (fn) => fn,
+          },
           Platform: { OS: 'android' },
           AccessibilityInfo: { announceForAccessibility: (msg) => announcements.push(msg) },
           I18nManager: { isRTL: false },
@@ -507,29 +514,16 @@ test('Native compiled catalog renders A2UI v1.0 and v0.9.1 with real theme token
     assert.equal(locked.rollback.backgroundColor, nativeHarness.tokenHex('hozo-danger'))
     assert.equal(locked.rollback.color, nativeHarness.tokenHex('hozo-on-danger'))
 
-    // Live update unblocks Approve button: `disabled` flips to false and the
-    // label flips to `hozo-on-accent` (`#ffffff`). Note: `TransitionPressable`
-    // currently keeps the initial `colorRanges` backgroundColor across an
-    // in-place `disabled` toggle until #2273 is fixed; freshly mounting the
-    // unblocked surface below verifies the enabled `hozo-accent` background.
+    // Live in-place `updateDataModel` unblocks Approve button: `disabled` flips
+    // to false and both background (`hozo-accent`) and label (`hozo-on-accent`)
+    // update on the already-mounted Native tree (#2273 / #2284).
     await act(() => {
       assert.deepEqual(store.processMessages(deploymentUnblockUpdates), [])
     })
     const unlocked = extractNativeMeasurements(tree)
     assert.equal(unlocked.approve.disabled, false)
+    assert.equal(unlocked.approve.backgroundColor, nativeHarness.tokenHex('hozo-accent'))
     assert.equal(unlocked.approve.color, nativeHarness.tokenHex('hozo-on-accent'))
-
-    let freshUnlockedTree
-    await act(() => {
-      freshUnlockedTree = create(React.createElement(A2uiSurface, { store, surfaceId: SURFACE_ID }))
-    })
-    t.after(async () => {
-      await act(() => freshUnlockedTree.unmount())
-    })
-    const freshUnlocked = extractNativeMeasurements(freshUnlockedTree)
-    assert.equal(freshUnlocked.approve.disabled, false)
-    assert.equal(freshUnlocked.approve.backgroundColor, nativeHarness.tokenHex('hozo-accent'))
-    assert.equal(freshUnlocked.approve.color, nativeHarness.tokenHex('hozo-on-accent'))
 
     await act(() => {
       unlocked.approveNode.props.onPress()
@@ -545,7 +539,7 @@ test('Native compiled catalog renders A2UI v1.0 and v0.9.1 with real theme token
 test('Web Chromium and Native produce matching resolved styles and identical A2UI action payloads', {
   skip: !executablePath,
 }, async (t) => {
-  // 1. Native run (locked -> live unblock -> press both buttons, plus fresh unlocked mount)
+  // 1. Native run (locked -> live in-place unblock -> press both buttons)
   const nativeActions = []
   const store = createA2uiStore({
     catalogs: [nativeHarness.hozoUiCatalog],
@@ -569,15 +563,6 @@ test('Web Chromium and Native produce matching resolved styles and identical A2U
     nativeUnlocked.approveNode.props.onPress()
     nativeUnlocked.rollbackNode.props.onPress()
   })
-
-  let freshUnlockedTree
-  await act(() => {
-    freshUnlockedTree = create(React.createElement(A2uiSurface, { store, surfaceId: SURFACE_ID }))
-  })
-  t.after(async () => {
-    await act(() => freshUnlockedTree.unmount())
-  })
-  const nativeFreshUnlocked = extractNativeMeasurements(freshUnlockedTree)
 
   // 2. Web Chromium run on the exact same A2UI v1.0 messages
   const page = await browser.newPage()
@@ -768,13 +753,9 @@ test('Web Chromium and Native produce matching resolved styles and identical A2U
     const webUnlocked = normalizeWeb(await readWeb())
     assert.deepEqual(
       webUnlocked,
-      stripNativeOnly(nativeFreshUnlocked),
-      'unlocked state Web vs Native parity',
+      stripNativeOnly(nativeUnlocked),
+      'live in-place unlocked state Web vs Native parity',
     )
-    // Live in-place unblock parity on mounted Native surface (backgroundColor
-    // across an in-place `disabled` flip is tracked in #2273).
-    assert.equal(nativeUnlocked.approve.disabled, webUnlocked.approve.disabled)
-    assert.equal(nativeUnlocked.approve.color, webUnlocked.approve.color)
 
     await page.getByRole('button', { name: 'Approve release 0.5.2 for production' }).click()
     await page.getByRole('button', { name: 'Rollback' }).click()
