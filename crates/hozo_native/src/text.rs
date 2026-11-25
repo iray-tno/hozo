@@ -14,7 +14,7 @@ pub(crate) use field_colours::{
     caret_colour, caret_only_reason, caret_props, placeholder_colour, placeholder_only_reason,
     placeholder_props, placeholder_value, selection_colour, selection_props,
 };
-pub(crate) use font_relative::{fold_font_relative, font_relative_reason};
+pub(crate) use font_relative::{fold_font_relative, font_relative_reason, relative_metric};
 pub(crate) use line_breaks::{
     is_truncation_declaration, line_break_strategy_ios, line_breaking, text_break_strategy,
     truncation_only_reason, truncation_props,

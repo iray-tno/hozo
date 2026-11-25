@@ -52,6 +52,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoPressable: '@hozo/core/generated/pressable',
   HozoRefreshControl: '@hozo/core/generated/refresh-control',
   HozoRelativeText: '@hozo/core/generated/text-size',
+  hozoRelativeTextMetricStyles: '@hozo/core/generated/class-resolver',
   HozoRuby: '@hozo/core/generated/ruby',
   HozoRubyText: '@hozo/core/generated/ruby',
   hozoScrollable: '@hozo/core/generated/scrollable',

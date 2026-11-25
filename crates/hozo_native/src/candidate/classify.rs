@@ -16,6 +16,7 @@ pub(super) struct Classified<'n> {
     pub(super) transitions: Vec<(&'n String, Option<&'static str>, String)>,
     pub(super) font_defaults: Vec<&'n String>,
     pub(super) leading_registers: Vec<(&'n String, f64)>,
+    pub(super) relative_text_metrics: Vec<(&'n String, &'static str, f64)>,
     pub(super) explicit_leading: bool,
 }
 
@@ -36,6 +37,7 @@ pub(super) fn classify_candidates<'n>(
     let mut transitions: Vec<(&String, Option<&'static str>, String)> = Vec::new();
     let mut font_defaults = Vec::new();
     let mut leading_registers = Vec::new();
+    let mut relative_text_metrics = Vec::new();
     let mut explicit_leading = false;
     for name in class_names {
         let Some(mut utility) = hozo_parser::resolve_class_name(name) else {
@@ -107,8 +109,14 @@ pub(super) fn classify_candidates<'n>(
             .iter()
             .flat_map(|(_, properties)| properties.clone())
             .collect();
+        // This is a side-table write for a Text, not a bare RN style.
+        let relative_metric = match properties.as_slice() {
+            [property] => crate::text::relative_metric(property),
+            _ => None,
+        };
         if let Some(reason) = properties
             .iter()
+            .filter(|_| relative_metric.is_none())
             .find_map(|property| property.unsupported_on_native_with_theme(theme))
         {
             if let Some(plan) = plan.as_deref_mut() {
@@ -121,10 +129,14 @@ pub(super) fn classify_candidates<'n>(
         // iteration -- a style key can now borrow from the property it
         // came from (an arbitrary property's name is the author's text,
         // not a literal in this binary).
-        let pairs: Vec<(String, String)> = style_pairs(&properties, theme)
-            .into_iter()
-            .map(|(key, value)| (key.to_string(), value))
-            .collect();
+        let pairs: Vec<(String, String)> = if relative_metric.is_some() {
+            Vec::new()
+        } else {
+            style_pairs(&properties, theme)
+                .into_iter()
+                .map(|(key, value)| (key.to_string(), value))
+                .collect()
+        };
         if let Some(token) = unresolved_colour(&pairs) {
             if let Some(plan) = plan.as_deref_mut() {
                 plan.refused(name, "unresolved-theme-color");
@@ -134,18 +146,19 @@ pub(super) fn classify_candidates<'n>(
         }
         let gradient = crate::gradients::metadata(&properties, theme);
         let shadow = crate::shadows::metadata(&properties, theme);
-        if pairs.is_empty() && gradient.is_none() && shadow.is_none() {
+        if pairs.is_empty() && gradient.is_none() && shadow.is_none() && relative_metric.is_none() {
             if let Some(plan) = plan.as_deref_mut() {
                 plan.refused(name, "no-native-output");
             }
             continue;
         }
-        explicit_leading |= properties.iter().any(|property| {
-            matches!(
-                property,
-                StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_))
-            )
-        });
+        explicit_leading |= relative_metric.is_none()
+            && properties.iter().any(|property| {
+                matches!(
+                    property,
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_))
+                )
+            });
         if let Some(plan) = plan.as_deref_mut() {
             plan.style(
                 name,
@@ -153,7 +166,11 @@ pub(super) fn classify_candidates<'n>(
                 &pairs,
                 gradient.as_ref(),
                 shadow.as_ref(),
+                relative_metric.map(|(key, _)| key),
             );
+        }
+        if let Some((key, scale)) = relative_metric {
+            relative_text_metrics.push((name, key, scale));
         }
         if let Some(metadata) = crate::transforms::metadata(&properties, theme) {
             transforms.push((name, metadata));
@@ -188,6 +205,7 @@ pub(super) fn classify_candidates<'n>(
         transitions,
         font_defaults,
         leading_registers,
+        relative_text_metrics,
         explicit_leading,
     }
 }

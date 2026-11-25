@@ -160,6 +160,7 @@ pub(super) fn render_node(
     let style = lower_inline_flex(fold_font_relative(
         field_style.as_deref().unwrap_or(&node.style),
         inherited,
+        theme,
     ));
     let layout = crate::pattern_layout::adapt(node.primitive, "className", style);
     let style = layout.style;
@@ -473,6 +474,31 @@ pub(super) fn render_node(
     );
 
     style_array_parts = effects::compose_unmixed(style_array_parts, &effects, cx.runtime);
+    if component == "Text"
+        && !node.class_name_fallback.is_empty()
+        && !node
+            .props
+            .passthrough
+            .iter()
+            .any(|prop| prop.is_spread && !prop.spread_excludes.iter().any(|key| key == "style"))
+    {
+        let defaults = effects
+            .metric_defaults
+            .as_ref()
+            .filter(|(defaults, _)| !defaults.is_empty())
+            .map_or_else(
+                || "undefined".to_string(),
+                |(defaults, _)| format!("[{defaults}]"),
+            );
+        let styles = match style_array_parts.as_slice() {
+            [single] => single.clone(),
+            parts => format!("[{}]", parts.join(", ")),
+        };
+        cx.runtime.need_component("hozoRelativeTextMetricStyles");
+        style_array_parts = vec![format!(
+            "hozoRelativeTextMetricStyles({styles}, hozoClasses.relativeTextMetrics, {defaults}, hozoClasses.fontDefaults)",
+        )];
+    }
 
     style_attribute::write_style_attribute(
         style_attribute::StyleAttribute {

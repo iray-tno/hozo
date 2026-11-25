@@ -3,6 +3,40 @@
 
 use crate::*;
 
+/// The scalar used by the Native compiler and the generated candidate map.
+/// Leave the IR spelling alone: a CSS em length, unlike a line-height ratio,
+/// is inherited as its computed length on Web.
+pub(crate) fn relative_metric(property: &StyleProperty) -> Option<(&'static str, f64)> {
+    use hozo_ir::{LengthUnit::Em, LetterSpacing, LineHeight};
+    let (key, scale) = match property {
+        StyleProperty::LineHeight(LineHeight::Ratio(scale))
+        | StyleProperty::LineHeight(LineHeight::Length(Length::Unit(scale, Em))) => {
+            ("lineHeight", *scale)
+        }
+        StyleProperty::LineHeight(LineHeight::Length(Length::Css(css))) => {
+            let percent = css.strip_suffix('%')?.parse::<f64>().ok()?;
+            if !percent.is_finite() || percent < 0.0 {
+                return None;
+            }
+            ("lineHeight", percent / 100.0)
+        }
+        StyleProperty::LetterSpacing(LetterSpacing::Em(scale)) => ("letterSpacing", scale.0),
+        StyleProperty::LetterSpacing(LetterSpacing::Px(Length::Unit(scale, Em))) => {
+            ("letterSpacing", *scale)
+        }
+        _ => return None,
+    };
+    scale.is_finite().then_some((key, scale))
+}
+
+fn metric_in_px(key: &str, length: f64) -> StyleProperty {
+    if key == "lineHeight" {
+        StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(length)))
+    } else {
+        StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Px(Length::Px(length)))
+    }
+}
+
 /// Rewrites the font-relative text metrics into absolute ones, against a
 /// font size set on the same element.
 ///
@@ -21,20 +55,31 @@ use crate::*;
 pub(crate) fn fold_font_relative(
     declarations: &[StyleDeclaration],
     inherited: &[StyleDeclaration],
+    theme: &Theme,
 ) -> Vec<StyleDeclaration> {
+    let absolute_size = |length: &Length| {
+        if length.css_expression().is_some() || length.unresolved_unit().is_some() {
+            return None;
+        }
+        let size = length.px(theme);
+        size.is_finite().then_some(size)
+    };
     let font_size = |condition: &Condition| -> Option<f64> {
         let find = |list: &[StyleDeclaration], want: &Condition| {
-            list.iter()
-                .rev()
-                .find_map(|d| match (&d.property, &d.condition) {
-                    (StyleProperty::FontSize(Length::Px(px)), c) if c == want => Some(*px),
-                    _ => None,
-                })
+            list.iter().rev().find_map(|d| {
+                let StyleProperty::FontSize(length) = &d.property else {
+                    return None;
+                };
+                // A winning but not computable size is not the absence of
+                // a write. Do not fold against an earlier/ancestor size.
+                (&d.condition == want).then(|| absolute_size(length))
+            })
         };
         find(declarations, condition)
             .or_else(|| find(declarations, &Condition::Always))
             .or_else(|| find(inherited, condition))
             .or_else(|| find(inherited, &Condition::Always))
+            .flatten()
     };
 
     let explicit_leading = |condition: &Condition| {
@@ -56,71 +101,90 @@ pub(crate) fn fold_font_relative(
             ) || !explicit_leading(&d.condition)
         })
         .map(|declaration| {
+            let Some((key, scale)) = relative_metric(&declaration.property) else {
+                return declaration.clone();
+            };
             let Some(size) = font_size(&declaration.condition) else {
                 return declaration.clone();
             };
-            let property = match &declaration.property {
-                StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) => {
-                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(size * ratio)))
-                }
-                StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(em)) => {
-                    StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Px(Length::Px(
-                        size * em.0,
-                    )))
-                }
-                _ => return declaration.clone(),
-            };
             StyleDeclaration {
                 source: declaration.source,
-                property,
+                property: metric_in_px(key, size * scale),
                 condition: declaration.condition.clone(),
             }
         })
         .collect();
 
-    // A ratio must be recomputed when a font-size condition changes. CSS
-    // retains --tw-leading and multiplies at used-value time; RN needs the
-    // corresponding absolute number under the intersection of both guards.
-    // No runtime measurement or extra subscription: reuse existing guards.
-    for leading in declarations {
-        let StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) = &leading.property else {
+    // Relative values are multiplied at used-value time in CSS. RN needs
+    // an absolute number under the intersection of both existing guards.
+    // Tracking and leading use the same projection, but a competing write
+    // must belong to the same metric family to suppress it.
+    let mut tracking_projections = Vec::new();
+    for metric in declarations {
+        let Some((key, scale)) = relative_metric(&metric.property) else {
             continue;
         };
-        if font_size(&leading.condition).is_none() {
+        let leading = key == "lineHeight";
+        if !leading && metric.condition != Condition::Always {
+            continue;
+        }
+        if font_size(&metric.condition).is_none() {
             continue;
         }
         for font in declarations {
-            let StyleProperty::FontSize(Length::Px(size)) = &font.property else {
+            let StyleProperty::FontSize(length) = &font.property else {
                 continue;
             };
-            if font.condition == Condition::Always || leading.condition == font.condition {
+            let Some(size) = absolute_size(length) else {
+                continue;
+            };
+            if font.condition == Condition::Always || metric.condition == font.condition {
                 continue;
             }
-            if leading.condition == Condition::Always
+            if metric.condition == Condition::Always
                 && declarations.iter().any(|d| {
                     d.condition == font.condition
-                        && matches!(
-                            d.property,
-                            StyleProperty::LineHeight(
-                                hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)
+                        && if leading {
+                            matches!(
+                                d.property,
+                                StyleProperty::LineHeight(
+                                    hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)
+                                )
                             )
-                        )
+                        } else {
+                            matches!(d.property, StyleProperty::LetterSpacing(_))
+                        }
                 })
             {
                 continue;
             }
-            let condition = if leading.condition == Condition::Always {
+            let condition = if metric.condition == Condition::Always {
                 font.condition.clone()
             } else {
-                Condition::all(vec![leading.condition.clone(), font.condition.clone()])
+                Condition::all(vec![metric.condition.clone(), font.condition.clone()])
             };
-            folded.push(StyleDeclaration {
-                source: leading.source,
-                property: StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(
-                    size * ratio,
-                ))),
+            let projected = StyleDeclaration {
+                source: metric.source,
+                property: metric_in_px(key, size * scale),
                 condition,
-            });
+            };
+            if leading {
+                folded.push(projected);
+            } else {
+                tracking_projections.push(projected);
+            }
+        }
+    }
+    if !tracking_projections.is_empty() {
+        // These are recomputations of the *base* tracking, not new
+        // declarations at the font-size variant's cascade priority.
+        // Keep their font-size order, but let explicitly guarded tracking
+        // win even if its breakpoint is narrower than the font's.
+        if let Some(base) = folded.iter().rposition(|entry| {
+            entry.condition == Condition::Always
+                && matches!(entry.property, StyleProperty::LetterSpacing(_))
+        }) {
+            folded.splice(base + 1..base + 1, tracking_projections);
         }
     }
     folded

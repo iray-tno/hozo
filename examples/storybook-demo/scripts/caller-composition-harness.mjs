@@ -22,6 +22,7 @@ import {
 import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
 import {
   hozoMixedTextMetricStyles,
+  hozoRelativeTextMetricStyles,
   hozoTextMetricStyles,
 } from '../../../packages/engine/src/class-resolver.ts'
 import { hozoGapSpreadStyles } from '../../../packages/engine/src/gap-styles.ts'
@@ -100,6 +101,7 @@ export function evaluate(code, context) {
     hozoAuthoredStyle,
     hozoGapSpreadStyles,
     hozoMixedTextMetricStyles,
+    hozoRelativeTextMetricStyles,
     hozoShadowStyles,
     I18nManager: { isRTL: false, doLeftAndRightSwapInRTL: true },
     ...context,

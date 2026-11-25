@@ -28,9 +28,8 @@ pub(super) fn expand_outline(token: &str) -> Option<Vec<StyleProperty>> {
     // Before the style keywords, which would read `hidden` as
     // `BorderStyle::Hidden`. `outline-style: hidden` is not valid CSS --
     // an outline takes `auto | none | <border-style except hidden>` --
-    // and Tailwind writes `none` here. It also adds a forced-colors
-    // branch restoring a transparent outline, which Hozo doesn't emit:
-    // that is a real gap, but a smaller one than an invalid declaration.
+    // and Tailwind writes `none` here. The forced-colors fallback stays
+    // separate so the browser can restore a visible system outline.
     //
     // This arm existed before and sat *after* the keyword match, so it
     // never ran. Nothing caught it because the rule Tailwind writes for
@@ -38,7 +37,10 @@ pub(super) fn expand_outline(token: &str) -> Option<Vec<StyleProperty>> {
     // extractor used to drop any rule shaped like that -- the candidate
     // read as "Tailwind emits nothing for this" and left the denominator.
     if suffix == "hidden" {
-        return Some(vec![StyleProperty::OutlineStyle(BorderStyle::None)]);
+        return Some(vec![
+            StyleProperty::OutlineStyle(BorderStyle::None),
+            StyleProperty::OutlineHiddenForcedColors,
+        ]);
     }
     if let Some(style) = border_style_keyword(suffix) {
         return Some(vec![StyleProperty::OutlineStyle(style)]);

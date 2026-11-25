@@ -2,9 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   createCompiler,
+  openCandidateCache,
   prepareAuthoredTailwindContext,
   prepareFinalTailwindContext,
 } from '@hozo/compiler'
+import { compile } from 'tailwindcss'
 import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 // #1230, domain 3 of the inventory (docs/measurements/tailwind-order-inventory.md):
@@ -50,4 +52,36 @@ test('outline-none and outline-hidden settle in Tailwind order, whichever is wri
   // On Web a written `none` beats a width's implied style in either order.
   const web = compiler.prepareWebModule(source('outline-2 outline-none')).emit(final)[0]!.css
   assert.match(web, /\.hozo-0 \{[^}]*outline-style: none;/)
+})
+
+test('outline-hidden keeps Tailwind’s high contrast fallback for static and runtime Web CSS', async () => {
+  const names = ['outline-hidden', 'focus:outline-hidden', 'outline-none']
+  const upstream = (await compile('@tailwind utilities;')).build(names)
+  const fallback =
+    /@media \(forced-colors: active\)\s*\{\s*(?:[^{}]+\{\s*)?outline: 2px solid transparent;\s*outline-offset: 2px;/
+  assert.match(upstream, fallback)
+  const cache = openCandidateCache()
+  cache.scanFile('candidates.ts', JSON.stringify(names.join(' ')), 0)
+  const runtimeCss = cache.renderCss()
+  assert.match(runtimeCss, fallback)
+  assert.match(runtimeCss, /@media \(forced-colors: active\)\s*\{\s*\.outline-hidden\s*\{/)
+  assert.match(
+    runtimeCss,
+    /@media \(forced-colors: active\)\s*\{\s*\.focus\\:outline-hidden:focus\s*\{/,
+  )
+  const compiler = createCompiler()
+  const final = prepareFinalTailwindContext(
+    JSON.stringify((await prepareTailwindOrder(css, tailwindPackageDir(), names)).snapshot),
+  )
+  for (const name of names) {
+    const button = source(name).replace(
+      'accessibilityLabel=',
+      'accessibilityRole="button" accessibilityLabel=',
+    )
+    const web = compiler.prepareWebModule(button).emit(final)[0]!
+    const native = compiler.prepareNativeModule(button).emit(final).components[0]!
+    assert.deepEqual(native.diagnostics, [], name)
+    assert.equal(fallback.test(web.css), name !== 'outline-none', name)
+    if (name.startsWith('focus:')) assert.match(web.css, /:focus/)
+  }
 })

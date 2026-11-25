@@ -45,6 +45,61 @@ export function hozoTextMetricStyles(
 }
 
 type TextMetricStyle = StyleObject | readonly TextMetricStyle[] | false | null | undefined
+type RelativeTextMetric = readonly [key: 'lineHeight' | 'letterSpacing', scale: number]
+
+/**
+ * Project relative candidate writes after the final font size is known.
+ * The side table is keyed by selected candidate objects, not class spelling
+ * or fake RN style keys. Only a dynamically styled Text calls this, and a
+ * project without these candidates takes the same array straight through.
+ */
+export function hozoRelativeTextMetricStyles(
+  styles: TextMetricStyle,
+  ratios?: ReadonlyMap<StyleObject, RelativeTextMetric>,
+  ownDefaults?: readonly StyleObject[],
+  candidateDefaults?: ClassResolver['fontDefaults'],
+): TextMetricStyle {
+  if (!ratios) return styles
+  let size: number | undefined
+  let leading: number | undefined
+  let tracking: number | undefined
+  let opaque = false
+  function visit(value: TextMetricStyle): void {
+    if (!value) return
+    if (Array.isArray(value)) {
+      for (const part of value) visit(part)
+      return
+    }
+    // Older renderers can use opaque registered style IDs. They may
+    // change either the size or the metrics, so don't guess across them.
+    if (typeof value !== 'object') {
+      opaque = true
+      return
+    }
+    const style = value as StyleObject
+    if (Object.hasOwn(style, 'fontSize')) {
+      size = typeof style.fontSize === 'number' ? style.fontSize : undefined
+    }
+    if (
+      Object.hasOwn(style, 'lineHeight') &&
+      !ownDefaults?.includes(style) &&
+      !candidateDefaults?.has(style)
+    ) {
+      leading = undefined
+    }
+    if (Object.hasOwn(style, 'letterSpacing')) tracking = undefined
+    const ratio = ratios?.get(style)
+    if (ratio?.[0] === 'lineHeight') leading = ratio[1]
+    if (ratio?.[0] === 'letterSpacing') tracking = ratio[1]
+  }
+  visit(styles)
+  if (opaque || size === undefined || !Number.isFinite(size)) return styles
+  if (leading === undefined && tracking === undefined) return styles
+  const resolved: StyleObject = {}
+  if (leading !== undefined) resolved.lineHeight = size * leading
+  if (tracking !== undefined) resolved.letterSpacing = size * tracking
+  return [styles, resolved]
+}
 
 /**
  * A compiled text owner sees both its own entries and selected caller entries.
@@ -138,6 +193,8 @@ export type ClassResolver = ((
   fontDefaults?: ReadonlySet<StyleObject> | ReadonlyMap<StyleObject, StyleObject>
   /** @internal Captured register writes keyed by original generated style. */
   leadingRegisters?: ReadonlyMap<StyleObject, StyleObject>
+  /** @internal Text consumes these ratios, never an untyped native style key. */
+  relativeTextMetrics?: ReadonlyMap<StyleObject, RelativeTextMetric>
   /** @internal Bit mask of this namespace's installed deferrable composers. */
   effectMask?: number
   /**

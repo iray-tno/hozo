@@ -132,10 +132,10 @@ pub(crate) fn supports_refinement(siblings: &[OrderRuleShape], node: &OrderRuleS
 }
 
 /// `outline-hidden`'s `@media (forced-colors: active)` branch: a transparent
-/// outline for a mode where the system repaints outlines. Hozo emits no
-/// forced-colors fallback (a known gap), so the branch writes nothing Hozo
-/// owns and is not a second place in the order. Only beside declarations of
-/// the rule's own: alone, it is the `forced-colors:` variant.
+/// outline for a mode where the system repaints outlines. The branch refines
+/// the originating rule rather than owning a second position in the order.
+/// Only beside declarations of the rule's own: alone, it is the
+/// `forced-colors:` variant.
 pub(crate) fn forced_colors_fallback(siblings: &[OrderRuleShape], node: &OrderRuleShape) -> bool {
     if !siblings
         .iter()

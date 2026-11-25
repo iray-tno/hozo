@@ -284,7 +284,9 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // a later width can override where Tailwind's register would not (a
         // known gap, not an ordering one).
         OutlineWidth(length) if absolute(length) => "outline-width",
-        OutlineStyle(_) => "outline-style",
+        // The fallback is part of its originating outline-hidden rule,
+        // not an independent Tailwind position.
+        OutlineStyle(_) | OutlineHiddenForcedColors => "outline-style",
         OutlineColor(_) => "outline-color",
         OutlineOffset(length) if absolute(length) => "outline-offset",
         Position(

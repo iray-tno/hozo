@@ -142,7 +142,12 @@ impl<'a> CandidatePlanBuilder<'a> {
         pairs: &[(String, String)],
         gradient: Option<&crate::gradients::Metadata>,
         shadow: Option<&crate::shadows::Metadata>,
+        relative_metric: Option<&str>,
     ) {
+        let mut composition = composition_keys(gradient, shadow);
+        if let Some(key) = relative_metric {
+            composition.push(format!("relativeText:{key}"));
+        }
         self.entry(
             name,
             "style",
@@ -153,7 +158,7 @@ impl<'a> CandidatePlanBuilder<'a> {
                 &Condition::Always,
                 Vec::new(),
                 props,
-                (pairs, composition_keys(gradient, shadow)),
+                (pairs, composition),
             )],
         );
     }
@@ -306,12 +311,13 @@ fn ordering(entries: &[CandidatePriorityEntry]) -> Option<CandidateOrdering> {
                 .native_keys
                 .iter()
                 .map(|key| (false, key.as_str()))
-                .chain(
-                    group
-                        .composition_keys
-                        .iter()
-                        .map(|key| (true, key.as_str())),
-                )
+                .chain(group.composition_keys.iter().map(|key| {
+                    match key.strip_prefix("relativeText:") {
+                        // Relative and absolute writes share one RN key.
+                        Some(key) => (false, key),
+                        None => (true, key.as_str()),
+                    }
+                }))
         }) {
             if let Some(previous) = owners.insert(key, entry.candidate.as_str()) {
                 conflict |= previous != entry.candidate;

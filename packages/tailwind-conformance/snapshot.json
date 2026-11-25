@@ -101,7 +101,7 @@
     "skipped": 0
   },
   "candidateSheet": {
-    "rules": 45562,
+    "rules": 45564,
     "parses": true,
     "comparable": 22705,
     "inOrder": 22705
@@ -139,8 +139,8 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 542,
-    "refused": 2271,
+    "covered": 545,
+    "refused": 2268,
     "noOp": 32,
     "silent": 0
   },

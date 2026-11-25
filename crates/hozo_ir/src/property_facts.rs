@@ -376,6 +376,7 @@ impl StyleProperty {
             | StyleProperty::StrokeWidth(..)
             | StyleProperty::TextDecorationStyle(..)
             | StyleProperty::OutlineStyle(..)
+            | StyleProperty::OutlineHiddenForcedColors
             | StyleProperty::DivideStyle(..)
             | StyleProperty::SpaceReverse(..)
             | StyleProperty::DivideReverse(..)
