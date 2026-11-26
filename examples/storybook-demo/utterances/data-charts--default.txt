@@ -2,7 +2,7 @@ heading, Grouped bars, level 2
 paragraph
 February has no in-store figure: no bar, and the table says so.
 end of paragraph
-chart, Revenue by month, online and in store
+chart, Revenue by month, online and in store, 6 categories, Jan to Jun. Online: lowest $90 at Mar, highest $210 at May. In store: lowest $60 at Mar, highest $130 at Jun, 1 without a value.
 table, Revenue by month, online and in store
 rowgroup
 row, Month Online In store
@@ -45,7 +45,7 @@ end of row, Jun $180 $130
 end of rowgroup
 end of table, Revenue by month, online and in store
 heading, Stacked bars, level 2
-chart, Total revenue by month, stacked by channel
+chart, Total revenue by month, stacked by channel, 6 categories, Jan to Jun. Online: lowest $90 at Mar, highest $210 at May. In store: lowest $60 at Mar, highest $130 at Jun, 1 without a value.
 table, Total revenue by month, stacked by channel
 rowgroup
 row, Month Online In store
@@ -91,7 +91,7 @@ heading, Lines, level 2
 paragraph
 The in-store line breaks at February rather than drawing across it.
 end of paragraph
-chart, Revenue trend by month, online and in store
+chart, Revenue trend by month, online and in store, 6 categories, Jan to Jun. Online: lowest $90 at Mar, highest $210 at May. In store: lowest $60 at Mar, highest $130 at Jun, 1 without a value.
 table, Revenue trend by month, online and in store
 rowgroup
 row, Month Online In store

@@ -34,3 +34,4 @@ export {
   tickIncrement,
   ticks,
 } from './scale.ts'
+export { chartSummary, TABLE_ROW_LIMIT } from './summary.ts'

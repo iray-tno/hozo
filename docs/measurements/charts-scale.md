@@ -66,3 +66,19 @@ What grows with the data is the accessible table: every value is a cell in the t
 anyone reads it. A 20,000-row table is also not something a screen-reader user can use. So what
 large data needs first is a different accessible equivalent, such as a summary or a windowed or
 paged table. A second renderer is not the first fix.
+
+## Then: a summary in place of a table past 1,000 rows
+
+Above `TABLE_ROW_LIMIT` (1,000 categories) the chart leaves the table out unless `showTable`
+asks for it. Every chart is now described by a summary of its range and extremes, and Page Up and
+Page Down move a tenth of the data at a time.
+
+| kind | n | table cells | first draw before | first draw after |
+| --- | ---: | ---: | ---: | ---: |
+| bar | 5,000 | 0 | 176 ms | 69 ms |
+| bar | 20,000 | 0 | 457 ms | 170 ms |
+| line | 5,000 | 0 | 155 ms | 36 ms |
+| line | 20,000 | 0 | 485 ms | 53 ms |
+
+At 20,000 bars, what remains is the 20,000 `rect`s. Line is down to its two paths. Sizes at or
+below 1,000 are unchanged.

@@ -56,6 +56,10 @@ to declare it itself, because only a declared dependency is linked into the Andr
 - **The data as a table.** Every chart also renders a table of its rows, named with the chart's
   label. It is out of sight but still read, and `showTable` puts it on screen. The drawing is
   hidden from assistive technology, because its ticks and shapes say less than the table.
+- **A summary first.** The chart is described by one paragraph: how many categories, the
+  range they cover, and each series' lowest and highest value, with any gaps counted. Above
+  1,000 categories (`TABLE_ROW_LIMIT`) the table is left out unless `showTable` asks for it, and
+  the summary says so. Page Up and Page Down move a tenth of the data at a time.
 
 ## Props
 

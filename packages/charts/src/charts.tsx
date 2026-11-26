@@ -18,6 +18,7 @@ import {
   type ChartModel,
   lineChartModel,
 } from './model.ts'
+import { chartSummary, includesTable } from './summary.ts'
 
 type Common = Omit<ChartInput, 'width'> & {
   /**
@@ -57,7 +58,10 @@ export interface ChartBoxComponentProps {
   width?: number
   height: number
   children: (width: number) => ReactNode
+  /** The table of the data, or `null` when there are too many rows to list. */
   table: ReactNode
+  /** The chart in one paragraph: its range and each series' extremes. */
+  summary: string
   showTable?: boolean
   interaction: ChartInteraction
 }
@@ -118,23 +122,30 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
         return true
       },
     }
+    const withTable = includesTable(count, showTable ?? false)
+    const summary = useMemo(
+      () => chartSummary(data, series, y?.format, !withTable),
+      [data, series, y?.format, withTable],
+    )
     const table = useMemo(
-      () => (
-        <ChartTable
-          model={data}
-          series={series}
-          accessibilityLabel={accessibilityLabel}
-          categoryLabel={x.label}
-          format={y?.format}
-        />
-      ),
-      [data, series, accessibilityLabel, x.label, y?.format],
+      () =>
+        withTable ? (
+          <ChartTable
+            model={data}
+            series={series}
+            accessibilityLabel={accessibilityLabel}
+            categoryLabel={x.label}
+            format={y?.format}
+          />
+        ) : null,
+      [withTable, data, series, accessibilityLabel, x.label, y?.format],
     )
     return (
       <ChartBox
         width={width}
         height={height}
         table={table}
+        summary={summary}
         showTable={showTable}
         interaction={interaction}
       >

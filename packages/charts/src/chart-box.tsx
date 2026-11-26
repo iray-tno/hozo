@@ -12,6 +12,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -38,10 +39,12 @@ export function ChartBox({
   height,
   children,
   table,
+  summary,
   showTable = false,
   interaction,
 }: ChartBoxProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const summaryId = useId()
   const [measured, setMeasured] = useState<number | undefined>(undefined)
   useLayoutEffect(() => {
     if (width !== undefined) return
@@ -68,6 +71,7 @@ export function ChartBox({
         role="group"
         aria-roledescription="chart"
         aria-label={interaction.label}
+        aria-describedby={summaryId}
         // biome-ignore lint/a11y/noNoninteractiveTabindex: one tab stop that the arrow keys move within
         tabIndex={0}
         onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
@@ -86,7 +90,13 @@ export function ChartBox({
       <div aria-live="polite" aria-atomic="true" style={VISUALLY_HIDDEN}>
         {interaction.announcement ?? ''}
       </div>
-      <div style={showTable ? undefined : VISUALLY_HIDDEN}>{table}</div>
+      <div style={showTable ? undefined : VISUALLY_HIDDEN}>
+        {/* Read as the chart's description, so not a second time in the flow. */}
+        <p id={summaryId} aria-hidden="true" style={{ margin: 0 }}>
+          {summary}
+        </p>
+        {table}
+      </div>
     </div>
   )
 }

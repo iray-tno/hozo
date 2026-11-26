@@ -81,3 +81,28 @@ export const Default: StoryObj<typeof meta> = {}
 
 /** The same charts with their tables on screen, as `showTable` puts them. */
 export const WithTables: StoryObj<typeof meta> = { args: { showTable: true } }
+
+const daily = Array.from({ length: 5000 }, (_, day) => ({
+  day: `Day ${day + 1}`,
+  visits: Math.round(400 + 250 * Math.sin(day / 40) + 80 * Math.sin(day / 3)),
+}))
+
+/**
+ * Five thousand values: too many rows for a table, so the summary stands in
+ * for it and the keys (Page Up and Page Down a tenth at a time) step through.
+ */
+export const ManyValues: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="max-w-2xl gap-2 p-6 text-slate-700">
+      <Heading level={2}>Daily visits</Heading>
+      <LineChart
+        accessibilityLabel="Daily visits over 5,000 days"
+        data={daily}
+        x={{ key: 'day' }}
+        y={{ label: 'Visits' }}
+        series={[{ key: 'visits', label: 'Visits' }]}
+        height={240}
+      />
+    </View>
+  ),
+}

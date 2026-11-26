@@ -11,7 +11,7 @@
 // than zero opacity, which iOS treats as gone.
 
 import { useState } from 'react'
-import { View, type ViewStyle } from 'react-native'
+import { Text, View, type ViewStyle } from 'react-native'
 import type { ChartBoxComponentProps } from './charts.tsx'
 
 export type ChartBoxProps = ChartBoxComponentProps
@@ -28,6 +28,7 @@ export function ChartBox({
   height,
   children,
   table,
+  summary,
   showTable = false,
   interaction,
 }: ChartBoxProps) {
@@ -69,7 +70,10 @@ export function ChartBox({
       >
         {resolved !== undefined && resolved > 0 ? children(resolved) : null}
       </View>
-      <View style={showTable ? undefined : VISUALLY_HIDDEN}>{table}</View>
+      <View style={showTable ? undefined : VISUALLY_HIDDEN}>
+        <Text>{summary}</Text>
+        {table}
+      </View>
     </View>
   )
 }

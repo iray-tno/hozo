@@ -155,6 +155,12 @@ from bars and points is worse than one built from the series.
   `adjustable` element: swipe up and down move the active datum, and its
   `accessibilityValue` is the same sentence. The name is therefore heard on
   the tab stop and on the table; each is a different way in.
+- **A summary, and no table past 1,000 rows.** The tab stop is described
+  by a summary: the categories' range and each series' lowest and highest
+  value, gaps counted. Above 1,000 categories the table is left out unless
+  `showTable` asks for it, because it was most of the first draw and no one
+  reads that many rows ([measured](../measurements/charts-scale.md)); the
+  summary says so, and Page Up/Page Down move a tenth of the data.
 - **Pointer and touch.** Hover on Web and touch on Native set the same
   active datum, so the tooltip, the announcement and the keyboard share
   one state. The tooltip is drawn in the SVG, so both platforms share it:
