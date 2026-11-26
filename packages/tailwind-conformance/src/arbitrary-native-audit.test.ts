@@ -138,9 +138,9 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('fill-[#ff0000]'), 'contextCovered')
   assert.equal(byCandidate.get('stroke-[1.5]'), 'contextCovered')
 
-  assert.equal(byCandidate.get('rounded-[50%]'), 'implementable')
-  assert.equal(byCandidate.get('p-[50%]'), 'implementable')
-  assert.equal(byCandidate.get('gap-[50%]'), 'implementable')
+  assert.equal(byCandidate.get('rounded-[50%]'), 'validCovered')
+  assert.equal(byCandidate.get('p-[50%]'), 'validCovered')
+  assert.equal(byCandidate.get('gap-[50%]'), 'validCovered')
   assert.equal(byCandidate.get('scale-[1.5]'), 'implementable')
   assert.equal(byCandidate.get('translate-[10px]'), 'implementable')
   assert.equal(byCandidate.get('aspect-[1.5]'), 'implementable')

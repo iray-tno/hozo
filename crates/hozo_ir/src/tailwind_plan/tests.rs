@@ -17,7 +17,9 @@ fn fixture(
                 utility: units.intern(name),
             },
             condition: condition.clone(),
-            property: StyleProperty::PaddingTop(crate::Length::Px(index as f64)),
+            property: StyleProperty::PaddingTop(crate::Dimension::Length(crate::Length::Px(
+                index as f64,
+            ))),
         })
         .collect();
     (declarations, units.finish().unwrap())
@@ -42,7 +44,7 @@ fn scalar_plan_moves_actual_writes_stably_in_place_and_is_idempotent() {
     let values = after
         .iter()
         .map(|decl| match decl.property {
-            StyleProperty::PaddingTop(crate::Length::Px(value)) => value,
+            StyleProperty::PaddingTop(crate::Dimension::Length(crate::Length::Px(value))) => value,
             _ => panic!(),
         })
         .collect::<Vec<_>>();
@@ -168,7 +170,9 @@ fn unranked_ambient_writes_pin_both_resting_and_direction_groups() {
         ["p-2", "p-4", "rtl:p-2", "rtl:p-4"].map(|name| {
             (
                 name,
-                vec![StyleProperty::PaddingTop(crate::Length::Px(8.0))],
+                vec![StyleProperty::PaddingTop(crate::Dimension::Length(
+                    crate::Length::Px(8.0),
+                ))],
             )
         }),
     ))
@@ -199,7 +203,9 @@ fn partial_breakpoint_ranks_never_cross_opaque_writes_or_other_guards() {
         ["md:p-2", "md:p-4"].map(|name| {
             (
                 name,
-                vec![StyleProperty::PaddingTop(crate::Length::Px(8.0))],
+                vec![StyleProperty::PaddingTop(crate::Dimension::Length(
+                    crate::Length::Px(8.0),
+                ))],
             )
         }),
     ))

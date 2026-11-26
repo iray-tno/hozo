@@ -12,6 +12,7 @@ use super::families::{
 };
 use super::length::{
     is_length_percentage, is_line_width, is_percentage, parse_dimension, parse_length,
+    parse_non_negative_percent,
 };
 
 pub(super) fn from_prefix(
@@ -283,7 +284,10 @@ pub(super) fn from_prefix(
         "rounded" => Some(or_raw(
             "border-radius",
             value,
-            length().map(|l| StyleProperty::BorderRadius(Radius::Length(l))),
+            length()
+                .map(Radius::Length)
+                .or_else(|| parse_non_negative_percent(value).map(Radius::Percent))
+                .map(StyleProperty::BorderRadius),
         )),
 
         // Plain numbers, each with the same escape: Tailwind emits

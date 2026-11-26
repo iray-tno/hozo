@@ -652,7 +652,7 @@ mod tests {
         let state = prepared.state.as_mut().unwrap();
         let roots = state.parsed.roots.as_ptr();
         state.parsed.roots[0].node.style[0].property =
-            StyleProperty::PaddingTop(hozo_ir::Length::Px(123.0));
+            StyleProperty::PaddingTop(hozo_ir::Dimension::Length(hozo_ir::Length::Px(123.0)));
         let Either::B(mut retained) = finish_native_attempt(prepared, &context()).unwrap() else {
             panic!("missing Native candidates must retain the original parse");
         };
@@ -662,7 +662,7 @@ mod tests {
         );
         assert!(matches!(
             retained.state.as_ref().unwrap().parsed.roots[0].node.style[0].property,
-            StyleProperty::PaddingTop(hozo_ir::Length::Px(123.0))
+            StyleProperty::PaddingTop(hozo_ir::Dimension::Length(hozo_ir::Length::Px(123.0)))
         ));
         assert_eq!(retained.options.text_unified, Some(true));
         assert_eq!(retained.candidates().unwrap(), ["p-3"]);
@@ -677,7 +677,7 @@ mod tests {
         let state = prepared.state.as_mut().unwrap();
         let roots = state.parsed.roots.as_ptr();
         state.parsed.roots[0].node.style[0].property =
-            StyleProperty::PaddingTop(hozo_ir::Length::Px(123.0));
+            StyleProperty::PaddingTop(hozo_ir::Dimension::Length(hozo_ir::Length::Px(123.0)));
         let Either::B(mut retained) = finish_web_attempt(prepared, &context()).unwrap() else {
             panic!("a missing candidate must preserve the parse, not emit or reparse");
         };
@@ -687,7 +687,7 @@ mod tests {
         );
         assert!(matches!(
             retained.state.as_ref().unwrap().parsed.roots[0].node.style[0].property,
-            StyleProperty::PaddingTop(hozo_ir::Length::Px(123.0))
+            StyleProperty::PaddingTop(hozo_ir::Dimension::Length(hozo_ir::Length::Px(123.0)))
         ));
         assert_eq!(retained.candidates().unwrap(), ["p-3"]);
         retained.dispose();
@@ -701,7 +701,7 @@ mod tests {
         let state = prepared.state.as_mut().unwrap();
         assert!(Arc::ptr_eq(&compiler.theme, &state.theme));
         state.parsed.roots[0].node.style[0].property =
-            StyleProperty::PaddingTop(hozo_ir::Length::Px(123.0));
+            StyleProperty::PaddingTop(hozo_ir::Dimension::Length(hozo_ir::Length::Px(123.0)));
         drop(compiler);
         let output = prepared.emit(&context()).unwrap();
         assert!(output[0].css.contains("123px"));

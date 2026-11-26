@@ -150,12 +150,23 @@ impl StyleProperty {
                 .first()
                 .expect("firstThatWorks always has at least one candidate")
                 .value(),
-            StyleProperty::MarginTop(v)
+            StyleProperty::Gap(v)
+            | StyleProperty::RowGap(v)
+            | StyleProperty::ColumnGap(v)
+            | StyleProperty::MarginTop(v)
             | StyleProperty::MarginRight(v)
             | StyleProperty::MarginBottom(v)
             | StyleProperty::MarginLeft(v)
             | StyleProperty::MarginInlineStart(v)
             | StyleProperty::MarginInlineEnd(v)
+            | StyleProperty::PaddingTop(v)
+            | StyleProperty::PaddingRight(v)
+            | StyleProperty::PaddingBottom(v)
+            | StyleProperty::PaddingLeft(v)
+            | StyleProperty::PaddingInlineStart(v)
+            | StyleProperty::PaddingInlineEnd(v)
+            | StyleProperty::PaddingBlockStart(v)
+            | StyleProperty::PaddingBlockEnd(v)
             | StyleProperty::Width(v)
             | StyleProperty::Height(v)
             | StyleProperty::MinWidth(v)
@@ -195,16 +206,7 @@ impl StyleProperty {
             | StyleProperty::SpaceX(v)
             | StyleProperty::SpaceY(v) => PropertyValue::Dimension(v),
 
-            StyleProperty::Gap(v)
-            | StyleProperty::RowGap(v)
-            | StyleProperty::ColumnGap(v)
-            | StyleProperty::PaddingTop(v)
-            | StyleProperty::PaddingRight(v)
-            | StyleProperty::PaddingBottom(v)
-            | StyleProperty::PaddingLeft(v)
-            | StyleProperty::PaddingInlineStart(v)
-            | StyleProperty::PaddingInlineEnd(v)
-            | StyleProperty::BorderLogicalWidth(_, v)
+            StyleProperty::BorderLogicalWidth(_, v)
             | StyleProperty::BorderTopWidth(v)
             | StyleProperty::BorderRightWidth(v)
             | StyleProperty::BorderBottomWidth(v)
@@ -213,8 +215,6 @@ impl StyleProperty {
             | StyleProperty::InsetRingWidth(v)
             | StyleProperty::RingOffsetWidth(v)
             | StyleProperty::FontSize(v)
-            | StyleProperty::PaddingBlockStart(v)
-            | StyleProperty::PaddingBlockEnd(v)
             | StyleProperty::ScrollMargin(_, v)
             | StyleProperty::ScrollPadding(_, v)
             | StyleProperty::TextDecorationThickness(v)
@@ -638,6 +638,20 @@ impl StyleProperty {
                 "`max-w-[auto]`/`max-h-[auto]`: `auto` is not a valid CSS maximum size"
                     .to_string(),
             ),
+            StyleProperty::PaddingTop(Dimension::Auto)
+            | StyleProperty::PaddingRight(Dimension::Auto)
+            | StyleProperty::PaddingBottom(Dimension::Auto)
+            | StyleProperty::PaddingLeft(Dimension::Auto)
+            | StyleProperty::PaddingInlineStart(Dimension::Auto)
+            | StyleProperty::PaddingInlineEnd(Dimension::Auto)
+            | StyleProperty::PaddingBlockStart(Dimension::Auto)
+            | StyleProperty::PaddingBlockEnd(Dimension::Auto)
+            | StyleProperty::Gap(Dimension::Auto)
+            | StyleProperty::RowGap(Dimension::Auto)
+            | StyleProperty::ColumnGap(Dimension::Auto) => Some(
+                "`auto`: padding and gap take lengths or percentages, not `auto`"
+                    .to_string(),
+            ),
             StyleProperty::ZIndex(None) => Some(
                 "`z-auto`: React Native's zIndex is a number and has no auto".to_string(),
             ),
@@ -922,7 +936,7 @@ mod property_value_tests {
         // length. The last three are the ones a hand-written list kept
         // missing, and each miss was a zero emitted in silence.
         for property in [
-            StyleProperty::PaddingTop(em.clone()),
+            StyleProperty::PaddingTop(Dimension::Length(em.clone())),
             StyleProperty::Width(Dimension::Length(em.clone())),
             StyleProperty::BorderRadius(Radius::Length(em.clone())),
             StyleProperty::LineHeight(LineHeight::Length(em.clone())),

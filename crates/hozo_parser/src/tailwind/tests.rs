@@ -80,10 +80,10 @@ fn expands_login_example_utilities() {
         (
             Condition::Always,
             vec![
-                StyleProperty::PaddingTop(Length::Spacing(6.0)),
-                StyleProperty::PaddingRight(Length::Spacing(6.0)),
-                StyleProperty::PaddingBottom(Length::Spacing(6.0)),
-                StyleProperty::PaddingLeft(Length::Spacing(6.0)),
+                StyleProperty::PaddingTop(Dimension::Length(Length::Spacing(6.0))),
+                StyleProperty::PaddingRight(Dimension::Length(Length::Spacing(6.0))),
+                StyleProperty::PaddingBottom(Dimension::Length(Length::Spacing(6.0))),
+                StyleProperty::PaddingLeft(Dimension::Length(Length::Spacing(6.0))),
             ]
         )
     );
@@ -92,8 +92,8 @@ fn expands_login_example_utilities() {
         (
             Condition::Always,
             vec![
-                StyleProperty::PaddingInlineStart(Length::Spacing(4.0)),
-                StyleProperty::PaddingInlineEnd(Length::Spacing(4.0))
+                StyleProperty::PaddingInlineStart(Dimension::Length(Length::Spacing(4.0))),
+                StyleProperty::PaddingInlineEnd(Dimension::Length(Length::Spacing(4.0)))
             ]
         )
     );
@@ -904,7 +904,9 @@ fn direction_relative_utilities_stay_logical() {
         expand_utility("ps-4"),
         (
             Condition::Always,
-            vec![StyleProperty::PaddingInlineStart(Length::Spacing(4.0))]
+            vec![StyleProperty::PaddingInlineStart(Dimension::Length(
+                Length::Spacing(4.0)
+            ))]
         )
     );
     assert_eq!(
@@ -930,7 +932,9 @@ fn direction_relative_utilities_stay_logical() {
         expand_utility("pl-4"),
         (
             Condition::Always,
-            vec![StyleProperty::PaddingLeft(Length::Spacing(4.0))]
+            vec![StyleProperty::PaddingLeft(Dimension::Length(
+                Length::Spacing(4.0)
+            ))]
         )
     );
     assert_eq!(

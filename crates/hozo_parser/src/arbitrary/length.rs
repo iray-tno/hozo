@@ -62,6 +62,14 @@ pub(super) fn is_percentage(value: &str) -> bool {
         .is_some_and(|n| n.parse::<f64>().is_ok())
 }
 
+pub(super) fn parse_non_negative_percent(value: &str) -> Option<f64> {
+    value
+        .strip_suffix('%')?
+        .parse::<f64>()
+        .ok()
+        .filter(|n| n.is_finite() && *n >= 0.0)
+}
+
 /// Whether a value is CSS's `line-width`: what a border or outline width
 /// accepts.
 ///

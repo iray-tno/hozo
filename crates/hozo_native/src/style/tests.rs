@@ -49,7 +49,7 @@ fn a_logical_border_width_lowers_and_its_solid_style_asks_nothing() {
 fn numbers_have_no_unit_suffix() {
     assert_eq!(
         property_and_value(
-            &StyleProperty::PaddingTop(Length::Px(24.0)),
+            &StyleProperty::PaddingTop(Dimension::Length(Length::Px(24.0))),
             &Theme::default()
         ),
         vec![("paddingTop", "24".to_string())]
@@ -240,6 +240,48 @@ fn unresolvable_arbitrary_strings_are_refused_and_rem_lengths_fold_to_px() {
             out.styles.contains(expected),
             "{class_name}: {}",
             out.styles
+        );
+    }
+}
+
+#[test]
+fn percentage_radius_padding_and_gap_lower_on_native() {
+    for (class_name, expected) in [
+        ("rounded-[50%]", "borderRadius: '50%'"),
+        ("rounded-tl-[50%]", "borderTopLeftRadius: '50%'"),
+        ("rounded-s-[50%]", "borderStartStartRadius: '50%'"),
+        ("p-[50%]", "paddingTop: '50%'"),
+        ("px-[50%]", "paddingStart: '50%'"),
+        ("pbs-[50%]", "paddingTop: '50%'"),
+        ("gap-[50%]", "rowGap: '50%'"),
+        ("gap-x-[50%]", "columnGap: '50%'"),
+        ("gap-y-[50%]", "rowGap: '50%'"),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.styles.contains(expected),
+            "{class_name}: {}",
+            out.styles
+        );
+    }
+    for invalid in ["p-[auto]", "gap-[auto]", "rounded-[-50%]"] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{invalid}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            !out.diagnostics.is_empty(),
+            "{invalid} should be refused on Native"
         );
     }
 }

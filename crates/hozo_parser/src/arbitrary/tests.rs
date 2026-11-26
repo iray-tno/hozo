@@ -245,14 +245,13 @@ fn a_scroll_offset_types_a_length_and_carries_anything_else() {
 
 #[test]
 fn a_percentage_radius_is_still_a_radius() {
-    // `Radius` holds a `Length`, and a percentage isn't one -- so this
-    // used to compile to nothing at all rather than to the declaration
-    // Tailwind writes.
+    // Non-negative percentages now resolve into `Radius::Percent`, so both
+    // Web and React Native receive typed radius properties.
     assert_eq!(
         properties("rounded-b-[50%]"),
         Some(vec![
-            StyleProperty::Arbitrary("border-bottom-left-radius".to_string(), "50%".to_string()),
-            StyleProperty::Arbitrary("border-bottom-right-radius".to_string(), "50%".to_string()),
+            StyleProperty::BorderBottomLeftRadius(Radius::Percent(50.0)),
+            StyleProperty::BorderBottomRightRadius(Radius::Percent(50.0)),
         ])
     );
     // The logical corners follow writing direction; `rounded-s` is the

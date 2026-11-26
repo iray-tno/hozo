@@ -107,21 +107,21 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::JustifyContent(justify) => {
             ("justify-content", justify_keyword(justify).to_string())
         }
-        StyleProperty::Gap(l) => ("gap", length_px(l, theme)),
-        StyleProperty::RowGap(l) => ("row-gap", length_px(l, theme)),
-        StyleProperty::ColumnGap(l) => ("column-gap", length_px(l, theme)),
+        StyleProperty::Gap(d) => ("gap", dimension_value(d, theme)),
+        StyleProperty::RowGap(d) => ("row-gap", dimension_value(d, theme)),
+        StyleProperty::ColumnGap(d) => ("column-gap", dimension_value(d, theme)),
         StyleProperty::MarginTop(d) => ("margin-top", dimension_value(d, theme)),
         StyleProperty::MarginRight(d) => ("margin-right", dimension_value(d, theme)),
         StyleProperty::MarginBottom(d) => ("margin-bottom", dimension_value(d, theme)),
         StyleProperty::MarginLeft(d) => ("margin-left", dimension_value(d, theme)),
-        StyleProperty::PaddingTop(l) => ("padding-top", length_px(l, theme)),
-        StyleProperty::PaddingRight(l) => ("padding-right", length_px(l, theme)),
-        StyleProperty::PaddingBottom(l) => ("padding-bottom", length_px(l, theme)),
-        StyleProperty::PaddingLeft(l) => ("padding-left", length_px(l, theme)),
+        StyleProperty::PaddingTop(d) => ("padding-top", dimension_value(d, theme)),
+        StyleProperty::PaddingRight(d) => ("padding-right", dimension_value(d, theme)),
+        StyleProperty::PaddingBottom(d) => ("padding-bottom", dimension_value(d, theme)),
+        StyleProperty::PaddingLeft(d) => ("padding-left", dimension_value(d, theme)),
         StyleProperty::MarginInlineStart(d) => ("margin-inline-start", dimension_value(d, theme)),
         StyleProperty::MarginInlineEnd(d) => ("margin-inline-end", dimension_value(d, theme)),
-        StyleProperty::PaddingInlineStart(l) => ("padding-inline-start", length_px(l, theme)),
-        StyleProperty::PaddingInlineEnd(l) => ("padding-inline-end", length_px(l, theme)),
+        StyleProperty::PaddingInlineStart(d) => ("padding-inline-start", dimension_value(d, theme)),
+        StyleProperty::PaddingInlineEnd(d) => ("padding-inline-end", dimension_value(d, theme)),
         StyleProperty::Width(d) => ("width", dimension_value(d, theme)),
         StyleProperty::Height(d) => ("height", dimension_value(d, theme)),
         StyleProperty::MinWidth(d) => ("min-width", dimension_value(d, theme)),
@@ -421,8 +421,8 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::TextIndent(d) => ("text-indent", dimension_value(d, theme)),
         StyleProperty::MarginBlockStart(d) => ("margin-block-start", dimension_value(d, theme)),
         StyleProperty::MarginBlockEnd(d) => ("margin-block-end", dimension_value(d, theme)),
-        StyleProperty::PaddingBlockStart(l) => ("padding-block-start", length_px(l, theme)),
-        StyleProperty::PaddingBlockEnd(l) => ("padding-block-end", length_px(l, theme)),
+        StyleProperty::PaddingBlockStart(d) => ("padding-block-start", dimension_value(d, theme)),
+        StyleProperty::PaddingBlockEnd(d) => ("padding-block-end", dimension_value(d, theme)),
         // `border-spacing` takes both axes at once, so these compose.
         StyleProperty::BorderSpacingX(_) | StyleProperty::BorderSpacingY(_) => {
             ("border-spacing", String::new())

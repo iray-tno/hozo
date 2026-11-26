@@ -139,17 +139,17 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 370,
-    "refused": 2453,
+    "covered": 399,
+    "refused": 2424,
     "noOp": 22,
     "silent": 0
   },
   "arbitraryNativeAudit": {
     "candidates": 2845,
-    "validCovered": 370,
+    "validCovered": 399,
     "unresolvableCovered": 0,
     "contextCovered": 7,
-    "implementable": 56,
+    "implementable": 27,
     "layoutMeasurable": 68,
     "dynamicCss": 273,
     "webOnly": 1241,

@@ -6,6 +6,7 @@ use super::*;
 pub(super) fn radius_number(radius: &Radius, theme: &Theme) -> Option<String> {
     Some(match radius {
         Radius::Length(l) => number(l, theme),
+        Radius::Percent(pct) => format!("'{pct}%'"),
         Radius::Scale { name, fallback_px } => {
             number(&Length::Px(theme.radius_or(name, *fallback_px)), theme)
         }

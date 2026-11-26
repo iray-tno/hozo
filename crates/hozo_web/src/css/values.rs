@@ -155,6 +155,7 @@ pub(super) fn border_style_keyword(style: &BorderStyle) -> &'static str {
 pub(super) fn radius_value(radius: &Radius, theme: &Theme) -> Option<String> {
     match radius {
         Radius::Length(l) => Some(length_px(l, theme)),
+        Radius::Percent(pct) => Some(format!("{pct}%")),
         Radius::Scale { name, fallback_px } => Some(length_px(
             &Length::Px(theme.radius_or(name, *fallback_px)),
             theme,
