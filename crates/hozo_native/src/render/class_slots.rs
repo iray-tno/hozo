@@ -15,6 +15,7 @@ use super::*;
 pub(super) fn class_slot_props<'n>(
     node: &'n Node,
     position: SiblingPosition,
+    group_ancestor: Option<GroupAncestor<'_>>,
     held: &mut crate::spread_style::HeldStyles<'n>,
     props_text: &mut String,
     cx: &mut NativeRenderContext<'_>,
@@ -125,6 +126,7 @@ pub(super) fn class_slot_props<'n>(
                 node,
                 position,
                 interaction_context: false,
+                group_ancestor,
                 pattern_slot: Some(slot.class_prop),
                 composition: Default::default(),
             };

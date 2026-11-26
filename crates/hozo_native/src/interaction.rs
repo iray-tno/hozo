@@ -16,7 +16,7 @@ pub(super) fn owns_events(node: &Node) -> bool {
 pub(super) fn uses_focus_visible(condition: &Condition) -> bool {
     condition_contains(condition, |condition| {
         focus_state(condition) == Some("focusVisible")
-            || matches!(condition, Condition::Group(inner) if group_state(inner, true) == Some("focusVisible"))
+            || group_interaction_state(condition) == Some("focusVisible")
     })
 }
 
@@ -25,7 +25,7 @@ pub(super) fn uses_interaction(condition: &Condition) -> bool {
         uses_pressed(condition)
             || uses_hover(condition)
             || focus_state(condition).is_some()
-            || matches!(condition, Condition::Group(inner) if group_state(inner, true).is_some())
+            || group_interaction_state(condition).is_some()
     })
 }
 
@@ -33,10 +33,9 @@ pub(super) fn uses_interaction(condition: &Condition) -> bool {
 /// a Text, read that context. A plain `hover:` on a View child asks about
 /// the child, so it alone does not.
 pub(super) fn uses_group_state(condition: &Condition) -> bool {
-    condition_contains(
-        condition,
-        |condition| matches!(condition, Condition::Group(inner) if group_state(inner, true).is_some()),
-    )
+    condition_contains(condition, |condition| {
+        group_interaction_state(condition).is_some()
+    })
 }
 
 /// Scan only when choosing an interaction owner. Nested owners stop the

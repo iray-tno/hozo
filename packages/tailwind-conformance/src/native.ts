@@ -215,14 +215,16 @@ const PROBE_CONTEXTS = [
   },
   {
     // `group-*:` styles an element by the state of a `group` ancestor, so
-    // it needs one. A View child reads the same state, but probing one too
-    // covered no case this Text did not.
+    // it needs one. Wrapped in a View so the group itself has a known sibling
+    // position for `group-first:` (matching the `first child` probe below). A
+    // View child reads the same state, so probing one too covered no case
+    // this Text did not.
     name: 'Text in a group Pressable',
     render: (candidate: string) =>
-      `import { Pressable, Text } from '@hozo/core'\n` +
+      `import { View, Pressable, Text } from '@hozo/core'\n` +
       `export function C({ on }) {\n` +
-      `  return (\n    <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
-      `      <Text className="${candidate}">x</Text>\n    </Pressable>\n  )\n}\n`,
+      `  return (\n    <View>\n      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Text className="${candidate}">x</Text>\n      </Pressable>\n    </View>\n  )\n}\n`,
   },
   {
     // `even:`, `nth-2:` and `not-first:` resolve from the element's

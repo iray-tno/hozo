@@ -1,10 +1,11 @@
 //! What rendering one element can see: the names allocated so far, the
 //! runtime it needs, and what its ancestors pass down.
 
-use hozo_ir::{Diagnostic, StyleDeclaration, Theme};
+use hozo_ir::{Diagnostic, Node, StyleDeclaration, Theme};
 
 use super::conditions::RuntimeHook;
 use super::owner_style::{OwnerStyle, OwnerStyleInputs};
+use super::structural::SiblingPosition;
 use super::{OwnerCallback, StyleEntry};
 
 /// What the generated module will need from `@hozo/engine`, accumulated
@@ -101,6 +102,17 @@ pub(crate) struct NativeRenderContext<'a> {
     pub runtime_states: &'a mut Vec<OwnerCallback>,
 }
 
+/// Nearest enclosing same-component `.group` ancestor, carried down so
+/// `group-aria-*`, `group-disabled`, `group-enabled`, `group-rtl`/`group-ltr`,
+/// `group-first`/`last`/`odd`/`even`/`only`/`nth-*`, and `group-read-only` /
+/// `group-placeholder-shown` can resolve from the ancestor's own props and
+/// compile-time sibling position without adding a runtime wrapper.
+#[derive(Clone, Copy)]
+pub(crate) struct GroupAncestor<'a> {
+    pub node: &'a Node,
+    pub position: SiblingPosition,
+}
+
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
 #[derive(Clone, Copy)]
 pub(crate) struct AncestorContext<'a> {
@@ -114,6 +126,7 @@ pub(crate) struct AncestorContext<'a> {
     /// True when the direct parent element in the same component measures its
     /// layout box via `HozoMeasuredParent` and provides `HozoParentSizeContext`.
     pub parent_measured: bool,
+    pub group_ancestor: Option<GroupAncestor<'a>>,
 }
 
 /// Declarations an ancestor handed down through `*:` or `**:`.

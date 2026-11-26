@@ -154,6 +154,7 @@ pub(super) fn label_style(
     base_name: &str,
     node: &Node,
     position: SiblingPosition,
+    group_ancestor: Option<GroupAncestor<'_>>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Option<Vec<String>> {
     if forwards_label {
@@ -165,6 +166,7 @@ pub(super) fn label_style(
             node,
             position,
             interaction_context: true,
+            group_ancestor,
             pattern_slot: None,
             composition: Default::default(),
         };

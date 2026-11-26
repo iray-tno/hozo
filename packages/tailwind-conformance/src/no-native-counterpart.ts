@@ -21,7 +21,8 @@
 //   - `placeholder-shown:`: whether a TextInput is empty is in its value.
 //   - `backdrop:`: a Modal has a scrim to style.
 //   - `max-[40rem]`: `rem` could be given a fixed size.
-//   - `group-*` the context does not carry: not built yet.
+//   - unwired `group-*` states (such as `group-open`, `group-data-*`) not
+//     carried by the ancestor's interaction context or modeled props.
 //   - `*-of-type`: refused by decision 003, since React Native has no tags.
 //     That is Hozo's choice about a Web lowering, not the platform lacking
 //     sibling order, so it is not listed here either.

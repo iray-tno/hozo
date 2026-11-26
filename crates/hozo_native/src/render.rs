@@ -118,6 +118,7 @@ pub(super) fn render_node(
         grid_columns,
         grid_rows,
         parent_measured,
+        group_ancestor,
     } = ancestor;
     let source = cx.source;
     let theme = cx.theme;
@@ -298,6 +299,7 @@ pub(super) fn render_node(
                         .iter()
                         .any(|declaration| interaction::uses_group_state(&declaration.condition))))
             && pattern_style_prop.is_none(),
+        group_ancestor,
         pattern_slot: Some("className"),
         composition: hozo_ir::OwnerSlotComposition {
             filters: mixing.project_filter_slots,
@@ -361,6 +363,7 @@ pub(super) fn render_node(
         &base_name,
         node,
         position,
+        group_ancestor,
         cx,
     );
     let (effects, deferred_effects) = effects::plan(
@@ -655,12 +658,29 @@ pub(super) fn render_node(
         &mut props_text,
         cx,
     );
-    project_spread_gap |=
-        class_slots::class_slot_props(node, position, &mut held, &mut props_text, cx);
+    let child_group_ancestor = if node.carried_classes.iter().any(|class| class == "group") {
+        Some(GroupAncestor { node, position })
+    } else {
+        group_ancestor
+    };
+    project_spread_gap |= class_slots::class_slot_props(
+        node,
+        position,
+        group_ancestor,
+        &mut held,
+        &mut props_text,
+        cx,
+    );
     // Everything Hozo doesn't model, re-emitted verbatim and last so JSX's
     // last-wins duplicate resolution keeps matching the source's own
     // ordering semantics.
-    let rendered = passthrough::render_passthrough(node, &descend, child_interaction_context, cx);
+    let rendered = passthrough::render_passthrough(
+        node,
+        &descend,
+        child_interaction_context,
+        child_group_ancestor,
+        cx,
+    );
     let prop_copies = spreads::append_passthrough(
         node,
         rendered,
@@ -690,6 +710,7 @@ pub(super) fn render_node(
         grid_columns: grid.as_ref().and_then(|grid| grid.track_count),
         grid_rows: grid.as_ref().and_then(|grid| grid.row_track_count),
         parent_measured: measures_parent,
+        group_ancestor: child_group_ancestor,
     };
     let inner = child_list::render_child_list(
         node,
@@ -698,6 +719,7 @@ pub(super) fn render_node(
         child_interaction_context,
         &base_name,
         position,
+        group_ancestor,
         cx,
     );
 
@@ -713,6 +735,7 @@ pub(super) fn render_node(
         node,
         position,
         measures_parent,
+        group_ancestor,
         cx,
     );
 
@@ -723,6 +746,7 @@ pub(super) fn render_node(
         node,
         position,
         interaction_context,
+        group_ancestor,
         cx,
     );
 

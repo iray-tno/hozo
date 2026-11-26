@@ -5,6 +5,7 @@ use crate::*;
 
 /// Builds the inserted `<Text>` that carries a non-Text node's string
 /// content, with the text-styling declarations moved onto it.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn wrap_in_text(
     content: &str,
     text_declarations: &[StyleDeclaration],
@@ -16,6 +17,7 @@ pub(crate) fn wrap_in_text(
     // which is not the question.)
     position: SiblingPosition,
     interaction_context: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
     cx: &mut crate::NativeRenderContext<'_>,
 ) -> String {
     // A `Text` that no `Primitive::Text` asked for: the author wrote a bare
@@ -37,6 +39,7 @@ pub(crate) fn wrap_in_text(
         node,
         position,
         interaction_context,
+        group_ancestor,
         pattern_slot: None,
         composition: Default::default(),
     };

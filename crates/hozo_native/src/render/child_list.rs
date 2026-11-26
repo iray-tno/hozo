@@ -6,6 +6,7 @@ use super::*;
 /// Every child, in source order. A `Verbatim` is re-emitted from source
 /// rather than dropped; a bare string on a non-Text element gets the
 /// wrapper described above.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_child_list(
     node: &Node,
     component: &str,
@@ -13,6 +14,7 @@ pub(super) fn render_child_list(
     child_interaction_context: bool,
     base_name: &str,
     position: SiblingPosition,
+    parent_group_ancestor: Option<GroupAncestor<'_>>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     let mut inner = Rendered::new(cx.source_evidence);
@@ -74,6 +76,7 @@ pub(super) fn render_child_list(
                         node,
                         position,
                         child_interaction_context,
+                        parent_group_ancestor,
                         cx,
                     )
                 } else {
@@ -89,6 +92,7 @@ pub(super) fn render_child_list(
                     nested,
                     for_children.inherited,
                     child_interaction_context,
+                    for_children.group_ancestor,
                     cx,
                 ));
             }

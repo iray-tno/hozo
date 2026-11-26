@@ -20,7 +20,6 @@ pub(super) fn stacked_guard(
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<Stacked> {
     let node = target.node;
-    let interaction_context = target.interaction_context;
     let mut atoms = Vec::new();
     let mut pending: Vec<_> = conditions.iter().rev().collect();
     while let Some(atom) = pending.pop() {
@@ -93,6 +92,7 @@ pub(super) fn stacked_guard(
             | Condition::LastChild
             | Condition::Structural(_)
             | Condition::Not(_)
+            | Condition::Group(_)
             | Condition::Pressed
             | Condition::Hover
             | Condition::Focus
@@ -130,20 +130,6 @@ pub(super) fn stacked_guard(
                 }
             }
             Condition::Always => {}
-            Condition::Group(inner) => match group_state(inner, interaction_context) {
-                Some(state) => {
-                    guards.push(state.to_string());
-                    uses_interactive_state = true;
-                }
-                None => {
-                    diagnostics.push(unwired_variant(
-                        node,
-                        &group_unwired_message(inner, interaction_context),
-                        Severity::Error,
-                    ));
-                    applies = false;
-                }
-            },
             Condition::Expr(expr) => {
                 guards.push(format!("({})", render_condition_expr(source, expr)));
             }

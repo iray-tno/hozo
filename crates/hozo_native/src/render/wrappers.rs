@@ -15,6 +15,7 @@ pub(super) fn place_children(
     node: &Node,
     position: SiblingPosition,
     parent_measured: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if let Some(grid) = grid {
@@ -59,12 +60,14 @@ pub(super) fn place_children(
             node,
             position,
             parent_measured,
+            group_ancestor,
             cx,
         )
     }
 }
 
 /// The children inside a `HozoInheritedScope` carrying a Decision 013 scope.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn inherited_scope(
     inner: Rendered,
     unified_scope: &[StyleDeclaration],
@@ -72,6 +75,7 @@ pub(super) fn inherited_scope(
     node: &Node,
     position: SiblingPosition,
     interaction_context: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if unified_scope.is_empty() {
@@ -85,6 +89,7 @@ pub(super) fn inherited_scope(
             node,
             position,
             interaction_context,
+            group_ancestor,
             pattern_slot: None,
             composition: Default::default(),
         };
