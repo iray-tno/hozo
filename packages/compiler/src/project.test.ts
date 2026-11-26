@@ -234,6 +234,31 @@ test('a package inherits the ignores declared at the repository root', () => {
   }
 })
 
+test('a package inherits each ignore on its way down, and none from a sibling', () => {
+  // The inherited chain is the `.gitignore` in every directory from the
+  // repository root down to the package. One in a sibling package names
+  // only paths under that sibling, so it is not read at all -- reading the
+  // whole repository for them cost a monorepo's Vite build ~350 ms twice.
+  const repo = project()
+  try {
+    mkdirSync(path.join(repo, '.git'), { recursive: true })
+    writeFileSync(path.join(repo, '.gitignore'), 'out/\n')
+    mkdirSync(path.join(repo, 'packages'), { recursive: true })
+    writeFileSync(path.join(repo, 'packages', '.gitignore'), 'tmp/\n')
+    const pkg = path.join(repo, 'packages', 'demo')
+    const kept = source(pkg, 'src/App.tsx')
+    source(pkg, 'out/built.tsx')
+    source(pkg, 'tmp/scratch.tsx')
+    const sibling = path.join(repo, 'packages', 'other')
+    mkdirSync(sibling, { recursive: true })
+    writeFileSync(path.join(sibling, '.gitignore'), 'src/\n')
+
+    assert.deepEqual(discoverSources(pkg), [kept])
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
 test('an include the project supplied wins over gitignore', () => {
   // Not every file worth scanning is a file worth committing. A
   // design-token pipeline writes real class names into a directory the

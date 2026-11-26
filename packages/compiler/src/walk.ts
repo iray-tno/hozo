@@ -12,7 +12,7 @@
 // `flow-typed`, `coverage` or `.git`), each pattern joined to the directory
 // its file is in, and the lot handed to `ignore` at once.
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import ignore from 'ignore'
 import { globSync } from 'tinyglobby'
@@ -46,12 +46,46 @@ export function gitIgnoredSync(
   cwd: string,
   exclude: readonly string[] = [],
 ): (file: string) => boolean {
-  const files = globSync('**/.gitignore', {
+  return ignoredBy(cwd, ignoreFilesBelow(cwd, exclude))
+}
+
+/**
+ * The same test for the files at or below `root`, when the repository's
+ * `.gitignore` chain starts higher, at `gitRoot`.
+ *
+ * Only the `.gitignore` in `gitRoot` and in each directory down to `root`,
+ * and those at or below `root`, can match a path under `root`: every
+ * pattern is joined to its own directory, so one in a sibling directory
+ * names only paths under that sibling. Reading those alone gives the same
+ * answer as `gitIgnoredSync(gitRoot)` for every file under `root`, without
+ * walking the whole repository for `.gitignore` files -- in a monorepo
+ * that walk crossed every other package and build directory (Rust's
+ * `target/`, say), twice per Vite build.
+ */
+export function inheritedGitIgnoredSync(gitRoot: string, root: string): (file: string) => boolean {
+  const top = path.resolve(gitRoot)
+  const ancestors: string[] = []
+  for (let dir = path.dirname(path.resolve(root)); ; dir = path.dirname(dir)) {
+    ancestors.unshift(path.join(dir, '.gitignore'))
+    if (dir === top || dir === path.dirname(dir)) break
+  }
+  return ignoredBy(gitRoot, [
+    ...ancestors.filter((file) => existsSync(file)),
+    ...ignoreFilesBelow(root, []),
+  ])
+}
+
+function ignoreFilesBelow(cwd: string, exclude: readonly string[]): string[] {
+  return globSync('**/.gitignore', {
     cwd,
     absolute: true,
     dot: true,
     ignore: [...exclude, ...IGNORE_FILE_EXCLUDES],
   })
+}
+
+/** Every pattern in `files`, each joined to its file's directory under `cwd`. */
+function ignoredBy(cwd: string, files: readonly string[]): (file: string) => boolean {
   const patterns = files.flatMap((file) => {
     const base = toPosix(path.relative(cwd, path.dirname(file)))
     return readFileSync(file, 'utf8')
