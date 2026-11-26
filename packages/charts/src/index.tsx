@@ -2,6 +2,7 @@ import { ChartBox } from './chart-box.tsx'
 import { createCharts } from './charts.tsx'
 
 export const { BarChart, LineChart } = createCharts(ChartBox)
+export { NO_VALUE } from './chart-table.tsx'
 export type { BarChartProps, LineChartProps } from './charts.tsx'
 export {
   type BarChartInput,

@@ -1,6 +1,8 @@
 // The SVG renderer: a chart model drawn with @hozo/svg, which is browser
 // SVG on Web and react-native-svg on Native (RFC 015 §6). It only draws
-// what the model already decided; nothing here computes a position.
+// what the model already decided; nothing here computes a position. It
+// carries no name: the box hides it from a screen reader, which reads the
+// table of the data instead.
 
 import { Circle, G, Line, Path, Rect, Svg, SvgText } from '@hozo/svg'
 import type { ChartModel, ChartSeries } from './model.ts'
@@ -9,7 +11,6 @@ import { seriesColor } from './palette.ts'
 export interface ChartSvgProps {
   model: ChartModel
   series: readonly ChartSeries[]
-  accessibilityLabel: string
   /** Whether a Line chart draws a dot at each value. */
   points?: boolean
   fontSize?: number
@@ -20,7 +21,6 @@ export interface ChartSvgProps {
 export function ChartSvg({
   model,
   series,
-  accessibilityLabel,
   points = false,
   fontSize = 12,
   textColor,
@@ -33,7 +33,6 @@ export function ChartSvg({
       width={model.width}
       height={model.height}
       viewBox={`0 0 ${model.width} ${model.height}`}
-      accessibilityLabel={accessibilityLabel}
       {...(textColor ? { color: textColor } : {})}
     >
       <G>

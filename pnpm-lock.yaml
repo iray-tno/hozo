@@ -903,6 +903,9 @@ importers:
 
   packages/charts:
     dependencies:
+      '@hozo/semantics':
+        specifier: workspace:^
+        version: link:../semantics
       '@hozo/svg':
         specifier: workspace:^
         version: link:../svg

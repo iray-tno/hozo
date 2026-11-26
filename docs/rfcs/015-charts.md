@@ -135,12 +135,16 @@ A line is an SVG path string because both renderers already take one:
 The equivalent comes from the data, never from the marks: a table built
 from bars and points is worse than one built from the series.
 
-- **Name.** The chart root is a named group carrying `accessibilityLabel`,
-  as a `Svg` with readable content already is.
-- **Table.** Every chart renders a table of its data: the x value per row
-  and one column per series, through `@hozo/semantics` `Table`, so Native
-  gets the table semantics that component already has. It is visually
-  hidden by default; `showTable` shows it.
+- **Name and table.** Every chart renders a table of its data, named with
+  `accessibilityLabel`: the x value per row (a row header) and one column
+  per series, through `@hozo/semantics`' table, so Native gets the table
+  semantics that component already has. A gap reads "No value", never 0.
+  It is visually hidden by default; `showTable` shows it. The drawing
+  itself is hidden from screen readers (`aria-hidden`, and
+  `importantForAccessibility`/`accessibilityElementsHidden` on Native):
+  its tick labels and shapes would only repeat the table less well. The
+  table carries the name rather than a wrapping group, so the name is read
+  once.
 - **One value at a time.** The chart is one tab stop. On Web the arrow keys
   move the active datum (Left/Right along x, Up/Down between series),
   Home/End go to the ends, and the active value is announced through
