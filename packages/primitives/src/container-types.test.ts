@@ -6,6 +6,10 @@ import type { View } from 'react-native'
 import type { HozoLink } from './link.native.tsx'
 import type { HozoPressable } from './pressable.native.tsx'
 import type { HozoContainerProps } from './runtime-container.native.tsx'
+import type {
+  HozoMeasuredParentProps,
+  HozoSelfMeasuredProps,
+} from './runtime-measured-box.native.tsx'
 
 // These are compiler-only hosts, but their props still land in typed JSX.
 // Import only types: running the real RN package under Node is not the
@@ -20,6 +24,32 @@ test('container props preserve the selected host callback and navigation types',
   const ref: HozoContainerProps['ref'] = createRef<ComponentRef<typeof View>>()
   assert.equal(typeof style, 'function')
   assert.equal(typeof children, 'function')
+  assert.equal(href, '/docs')
+  assert.equal(ref.current, null)
+})
+
+test('self-measured props preserve the selected host callback and navigation types', () => {
+  const style: HozoSelfMeasuredProps<typeof HozoPressable>['style'] = ({ hovered }) => ({
+    opacity: hovered ? 1 : 0.5,
+  })
+  const selfStyle: HozoSelfMeasuredProps['hozoSelfStyle'] = ({ width, height }) => ({
+    borderRadius: Math.min(width, height) * 0.5,
+  })
+  const href: HozoSelfMeasuredProps<typeof HozoLink>['href'] = '/docs'
+  const ref: HozoSelfMeasuredProps['ref'] = createRef<ComponentRef<typeof View>>()
+  assert.equal(typeof style, 'function')
+  assert.equal(typeof selfStyle, 'function')
+  assert.equal(href, '/docs')
+  assert.equal(ref.current, null)
+})
+
+test('measured-parent props preserve the selected host callback and navigation types', () => {
+  const style: HozoMeasuredParentProps<typeof HozoPressable>['style'] = ({ hovered }) => ({
+    opacity: hovered ? 1 : 0.5,
+  })
+  const href: HozoMeasuredParentProps<typeof HozoLink>['href'] = '/docs'
+  const ref: HozoMeasuredParentProps['ref'] = createRef<ComponentRef<typeof View>>()
+  assert.equal(typeof style, 'function')
   assert.equal(href, '/docs')
   assert.equal(ref.current, null)
 })

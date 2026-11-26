@@ -17,6 +17,7 @@ mod unwired;
 
 use dark::with_dark_copies;
 pub(super) use hooks::RuntimeHook;
+pub(crate) use inline_parts::MeasuredOptions;
 pub(super) use presence::{presence_closed, AnimatedFrames};
 use presence::{EXIT_WITHOUT_TRANSITION, STARTING_WITHOUT_TRANSITION};
 
@@ -54,6 +55,31 @@ pub(super) fn build_style_entries(
     target: &StyleTarget<'_>,
     style_array_parts: &mut Vec<String>,
     pressed_parts: &mut Vec<String>,
+    frames: Option<&mut AnimatedFrames>,
+    cx: &mut crate::NativeRenderContext<'_>,
+) -> usize {
+    build_style_entries_with_measured(
+        declarations,
+        base_name,
+        target,
+        style_array_parts,
+        pressed_parts,
+        None,
+        inline_parts::MeasuredOptions::default(),
+        frames,
+        cx,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn build_style_entries_with_measured(
+    declarations: &[StyleDeclaration],
+    base_name: &str,
+    target: &StyleTarget<'_>,
+    style_array_parts: &mut Vec<String>,
+    pressed_parts: &mut Vec<String>,
+    mut self_style_parts: Option<&mut Vec<String>>,
+    measured: inline_parts::MeasuredOptions,
     mut frames: Option<&mut AnimatedFrames>,
     cx: &mut crate::NativeRenderContext<'_>,
 ) -> usize {
@@ -136,6 +162,9 @@ pub(super) fn build_style_entries(
             props,
             inline_parts::InlineParts {
                 viewport,
+                container,
+                parent_measured,
+                self_measured,
                 safe_area,
                 animation,
                 keyframes,
@@ -146,11 +175,19 @@ pub(super) fn build_style_entries(
             declarations,
             node,
             theme,
+            inline_parts::MeasuredOptions {
+                allow_self_measured: self_style_parts.is_some() && measured.allow_self_measured,
+                allow_parent_measured: measured.allow_parent_measured,
+                parent_inset_absolute: measured.parent_inset_absolute,
+            },
             runtime,
             diagnostics,
         );
         if props.is_empty()
             && viewport.is_none()
+            && container.is_none()
+            && parent_measured.is_none()
+            && self_measured.is_none()
             && safe_area.is_none()
             && animation.is_none()
             && keyframes.is_none()
@@ -181,6 +218,8 @@ pub(super) fn build_style_entries(
             .unwrap_or_else(|| vec![format!("{STYLE_OBJECT}.{name}")])
             .into_iter()
             .chain(viewport.clone())
+            .chain(container.clone())
+            .chain(parent_measured.clone())
             .chain(safe_area.clone())
             .chain(animation.clone())
             .chain(keyframes.clone())
@@ -287,17 +326,54 @@ pub(super) fn build_style_entries(
             other => Err(unwired::unwired_diagnostic(other, node)),
         };
         match lands {
-            Ok(lands::Lands::Base(prefix)) => base_parts.extend(guarded(&prefix)),
-            Ok(lands::Lands::Conditional(prefix)) => conditional.extend(guarded(&prefix)),
-            Ok(lands::Lands::Pressed(prefix)) => pressed_parts.extend(guarded(&prefix)),
+            Ok(lands::Lands::Base(prefix)) => {
+                base_parts.extend(guarded(&prefix));
+                if let (Some(expr), Some(self_parts)) =
+                    (self_measured.as_ref(), self_style_parts.as_deref_mut())
+                {
+                    self_parts.push(format!("{prefix}{expr}"));
+                }
+            }
+            Ok(lands::Lands::Conditional(prefix)) => {
+                conditional.extend(guarded(&prefix));
+                if let (Some(expr), Some(self_parts)) =
+                    (self_measured.as_ref(), self_style_parts.as_deref_mut())
+                {
+                    self_parts.push(format!("{prefix}{expr}"));
+                }
+            }
+            Ok(lands::Lands::Pressed(prefix)) => {
+                pressed_parts.extend(guarded(&prefix));
+                if self_measured.is_some() {
+                    diagnostics.push(unwired_variant(
+                        node,
+                        "self-measured `%`-mixed `calc()` cannot yet run inside an interactive press/hover style callback on Native",
+                        Severity::Error,
+                    ));
+                }
+            }
             Ok(lands::Lands::Exit(prefix)) => {
                 if let Some(frames) = frames.as_deref_mut() {
                     frames.exit.extend(guarded(&prefix));
+                }
+                if self_measured.is_some() {
+                    diagnostics.push(unwired_variant(
+                        node,
+                        "self-measured `%`-mixed `calc()` cannot yet run inside an exit transition frame on Native",
+                        Severity::Error,
+                    ));
                 }
             }
             Ok(lands::Lands::Starting(prefix)) => {
                 if let Some(frames) = frames.as_deref_mut() {
                     frames.starting.extend(guarded(&prefix));
+                }
+                if self_measured.is_some() {
+                    diagnostics.push(unwired_variant(
+                        node,
+                        "self-measured `%`-mixed `calc()` cannot yet run inside a starting transition frame on Native",
+                        Severity::Error,
+                    ));
                 }
             }
             Ok(lands::Lands::Nowhere) => {}

@@ -118,6 +118,14 @@ pub enum LengthUnit {
     Lh,
     Rlh,
     /// The viewport units that track browser chrome as it scrolls away.
+    /// Container query length units (`@container`). Web emits them verbatim;
+    /// Native resolves them through `HozoContainerSizeQuery`.
+    Cqw,
+    Cqh,
+    Cqi,
+    Cqb,
+    Cqmin,
+    Cqmax,
     /// There is no such chrome on a device, and no static value that would
     /// be right, so these are Web-only.
     Dvh,
@@ -150,6 +158,12 @@ impl LengthUnit {
             LengthUnit::Ic => "ic",
             LengthUnit::Lh => "lh",
             LengthUnit::Rlh => "rlh",
+            LengthUnit::Cqw => "cqw",
+            LengthUnit::Cqh => "cqh",
+            LengthUnit::Cqi => "cqi",
+            LengthUnit::Cqb => "cqb",
+            LengthUnit::Cqmin => "cqmin",
+            LengthUnit::Cqmax => "cqmax",
             LengthUnit::Dvh => "dvh",
             LengthUnit::Dvw => "dvw",
             LengthUnit::Lvh => "lvh",
@@ -180,6 +194,12 @@ impl LengthUnit {
             "ic" => LengthUnit::Ic,
             "lh" => LengthUnit::Lh,
             "rlh" => LengthUnit::Rlh,
+            "cqw" => LengthUnit::Cqw,
+            "cqh" => LengthUnit::Cqh,
+            "cqi" => LengthUnit::Cqi,
+            "cqb" => LengthUnit::Cqb,
+            "cqmin" => LengthUnit::Cqmin,
+            "cqmax" => LengthUnit::Cqmax,
             "dvh" => LengthUnit::Dvh,
             "dvw" => LengthUnit::Dvw,
             "lvh" => LengthUnit::Lvh,

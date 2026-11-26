@@ -77,6 +77,7 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     // Context covered (works inside HozoGrid / <Svg>)
     'grid-cols-[10px]',
     'grid-cols-[2rem]',
+    'grid-cols-[calc(100%-2rem)]',
     'fill-[#ff0000]',
     'stroke-[1.5]',
     'stroke-[2rem]',
@@ -95,9 +96,16 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'backdrop-blur-[2rem]',
     'ring-offset-[10px]',
     '[color:red]',
-    // Layout measurable (%-mixed calc() on RN-backed length/dimension props)
+    // Self-sized %-mixed calc() (Phase 3 Slice 3.1: HozoSelfMeasured)
+    'translate-x-[calc(100%-2rem)]',
+    'rounded-[calc(100%-2rem)]',
+    'gap-[calc(100%-2rem)]',
+    // Same-component parent-relative %-mixed calc() (Phase 3 Slice 3.2: HozoMeasuredParent)
     'w-[calc(100%-2rem)]',
     'p-[calc(100%-2rem)]',
+    'space-x-[calc(100%-2rem)]',
+    // Remaining layout-measurable refusal (auto-height HozoGrid row tracks)
+    'grid-rows-[calc(100%-2rem)]',
     // Dynamic CSS (out-of-scope runtime state)
     'w-[var(--x)]',
     'w-[1.5em]',
@@ -142,6 +150,7 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
 
   assert.equal(byCandidate.get('grid-cols-[10px]'), 'contextCovered')
   assert.equal(byCandidate.get('grid-cols-[2rem]'), 'contextCovered')
+  assert.equal(byCandidate.get('grid-cols-[calc(100%-2rem)]'), 'contextCovered')
   assert.equal(byCandidate.get('fill-[#ff0000]'), 'contextCovered')
   assert.equal(byCandidate.get('stroke-[1.5]'), 'contextCovered')
   assert.equal(byCandidate.get('stroke-[2rem]'), 'contextCovered')
@@ -160,10 +169,15 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('backdrop-blur-[2rem]'), 'validCovered')
   assert.equal(byCandidate.get('ring-offset-[10px]'), 'validCovered')
   assert.equal(byCandidate.get('[color:red]'), 'validCovered')
+  assert.equal(byCandidate.get('translate-x-[calc(100%-2rem)]'), 'validCovered')
+  assert.equal(byCandidate.get('rounded-[calc(100%-2rem)]'), 'validCovered')
+  assert.equal(byCandidate.get('gap-[calc(100%-2rem)]'), 'validCovered')
+  assert.equal(byCandidate.get('w-[calc(100%-2rem)]'), 'validCovered')
+  assert.equal(byCandidate.get('p-[calc(100%-2rem)]'), 'validCovered')
+  assert.equal(byCandidate.get('space-x-[calc(100%-2rem)]'), 'validCovered')
   assert.equal(summary.implementable, 0)
 
-  assert.equal(byCandidate.get('w-[calc(100%-2rem)]'), 'layoutMeasurable')
-  assert.equal(byCandidate.get('p-[calc(100%-2rem)]'), 'layoutMeasurable')
+  assert.equal(byCandidate.get('grid-rows-[calc(100%-2rem)]'), 'layoutMeasurable')
 
   assert.equal(byCandidate.get('w-[var(--x)]'), 'dynamicCss')
   assert.equal(byCandidate.get('w-[1.5em]'), 'dynamicCss')

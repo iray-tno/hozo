@@ -203,3 +203,148 @@ test('and follows a width that really moved', () => {
   box.layout(812)
   assert.ok(box.renders() > settled, 'the container ignored a real width change')
 })
+
+// --- opt-in self-measured box (`translate*`, `rounded*`, `gap*` calc) -------
+
+const measuredBox = require('@hozo/primitives/generated/measured-box') as {
+  HozoSelfMeasured: unknown
+  HozoMeasuredParent: unknown
+  HozoParentSizeQuery: unknown
+}
+
+test('HozoSelfMeasured settles on sub-pixel wobble, forwards onLayout, and composes style', () => {
+  const seenSizes: Array<{ width: number; height: number }> = []
+  let forwarded = 0
+  const box = mountMeasured('self-measured', () =>
+    react.createElement(
+      measuredBox.HozoSelfMeasured,
+      {
+        hozoSelfStyle: (size: { width: number; height: number }) => {
+          seenSizes.push(size)
+          return { borderRadius: Math.max(0, Math.min(size.width, size.height) * 0.5 - 4) }
+        },
+        style: [{ opacity: 0.9 }],
+        onLayout: () => {
+          forwarded += 1
+        },
+      },
+      'content',
+    ),
+  )
+  assert.ok(box.layout(200) >= 1, 'HozoSelfMeasured reports no layout')
+  assert.ok(Number.isFinite(box.settle(200)), 'HozoSelfMeasured never settled')
+  const settled = box.renders()
+  for (const width of [199.99998, 200.00002, 199.99999]) box.layout(width)
+  assert.equal(
+    box.renders(),
+    settled,
+    `HozoSelfMeasured re-rendered ${box.renders() - settled} times for sub-pixel wobble`,
+  )
+  assert.ok(forwarded >= 4, 'user onLayout was not forwarded')
+  assert.deepEqual(seenSizes.at(-1), { width: 200, height: 40 })
+
+  box.layout(320)
+  assert.ok(box.renders() > settled, 'HozoSelfMeasured ignored a real width change')
+  assert.deepEqual(seenSizes.at(-1), { width: 320, height: 40 })
+})
+
+test('HozoContainerSizeQuery exposes both width and height from HozoContainer', () => {
+  const containerFull = require('@hozo/primitives/generated/container') as {
+    HozoContainer: unknown
+    HozoContainerSizeQuery: unknown
+  }
+  let observed: { width: number | undefined; height: number | undefined } | undefined
+  const box = mountMeasured('container-size', () =>
+    react.createElement(
+      containerFull.HozoContainer,
+      null,
+      react.createElement(
+        containerFull.HozoContainerSizeQuery,
+        null,
+        (sizes: Record<string, { width: number | undefined; height: number | undefined }>) => {
+          observed = sizes['']
+          return null
+        },
+      ),
+    ),
+  )
+  box.settle(373)
+  assert.deepEqual(observed, { width: 373, height: 40 })
+})
+
+test('HozoMeasuredParent subtracts border and padding, resolves mainAxisSize, and settles on wobble', () => {
+  type ParentSize = {
+    width: number
+    height: number
+    paddingBoxWidth: number
+    paddingBoxHeight: number
+    mainAxisSize: number
+  }
+  let observed: ParentSize | undefined
+  let forwarded = 0
+  const box = mountMeasured('measured-parent', () =>
+    react.createElement(
+      measuredBox.HozoMeasuredParent,
+      {
+        style: [
+          {
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: 12,
+            borderWidth: 2,
+            flexDirection: 'row',
+          },
+        ],
+        onLayout: () => {
+          forwarded += 1
+        },
+      },
+      react.createElement(measuredBox.HozoParentSizeQuery, null, (size: ParentSize | undefined) => {
+        observed = size
+        return null
+      }),
+    ),
+  )
+  // Before first onLayout, parent size is undefined (never guessed).
+  assert.equal(observed, undefined)
+  assert.ok(Number.isFinite(box.settle(300)), 'HozoMeasuredParent never settled')
+  // Border box is 300x40 -> border 2 on each side -> padding box 296x36
+  // Padding 16+16 horizontal, 8+12 vertical -> content box 264x16
+  // flexDirection: 'row' -> mainAxisSize === content width (264)
+  assert.deepEqual(observed, {
+    width: 264,
+    height: 16,
+    paddingBoxWidth: 296,
+    paddingBoxHeight: 36,
+    mainAxisSize: 264,
+  })
+  const settled = box.renders()
+  for (const width of [299.99998, 300.00002, 299.99999]) box.layout(width)
+  assert.equal(
+    box.renders(),
+    settled,
+    `HozoMeasuredParent re-rendered ${box.renders() - settled} times for sub-pixel wobble`,
+  )
+  assert.ok(forwarded >= 4, 'parent onLayout was not forwarded')
+
+  // Default column main axis uses content height for mainAxisSize.
+  let columnObserved: ParentSize | undefined
+  const col = mountMeasured('measured-parent-column', () =>
+    react.createElement(
+      measuredBox.HozoMeasuredParent,
+      { style: { padding: 4 } },
+      react.createElement(measuredBox.HozoParentSizeQuery, null, (size: ParentSize | undefined) => {
+        columnObserved = size
+        return null
+      }),
+    ),
+  )
+  col.settle(200)
+  assert.deepEqual(columnObserved, {
+    width: 192,
+    height: 32,
+    paddingBoxWidth: 200,
+    paddingBoxHeight: 40,
+    mainAxisSize: 32,
+  })
+})

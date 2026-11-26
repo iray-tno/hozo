@@ -4,7 +4,7 @@
 use hozo_ir::{Condition, Diagnostic, ExprRef, Node, Severity, StyleDeclaration};
 
 use super::conditions;
-use super::conditions::{build_style_entries, unwired_variant};
+use super::conditions::unwired_variant;
 use super::context::{AncestorContext, FromAncestor, NativeRenderContext};
 use super::lower::{forwarded_text, forwards_interaction};
 use super::render::render_node;
@@ -71,12 +71,14 @@ pub(super) fn subtree_for_children(
 ///
 /// `HozoSpaced` returns its children rather than an element, so no host
 /// view is added and Yoga sees the tree it would have seen anyway.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn spaced_children(
     inner: Rendered,
     child_declarations: &[StyleDeclaration],
     base_name: &str,
     node: &Node,
     position: SiblingPosition,
+    parent_measured: bool,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if child_declarations.is_empty() {
@@ -97,12 +99,26 @@ pub(super) fn spaced_children(
         pattern_slot: None,
         composition: Default::default(),
     };
-    build_style_entries(
+    let uses_parent_space = parent_measured
+        && child_declarations
+            .iter()
+            .any(|d| crate::measured::is_parent_measured_space(&d.property));
+    let uses_container_size = uses_parent_space
+        && child_declarations
+            .iter()
+            .any(|d| crate::measured::uses_container_size(&d.property));
+    conditions::build_style_entries_with_measured(
         child_declarations,
         &format!("{base_name}Children"),
         &target,
         &mut parts,
         &mut pressed_parts,
+        None,
+        conditions::MeasuredOptions {
+            allow_self_measured: false,
+            allow_parent_measured: uses_parent_space,
+            parent_inset_absolute: false,
+        },
         None,
         cx,
     );
@@ -125,7 +141,26 @@ pub(super) fn spaced_children(
         format!("[{}]", parts.join(", "))
     };
     let text = format!("<HozoSpaced style={{{style}}}>{}</HozoSpaced>", inner.text);
-    inner.wrap(text, "</HozoSpaced>".len())
+    let mut rendered = inner.wrap(text, "</HozoSpaced>".len());
+    if uses_parent_space {
+        cx.runtime.need_component("HozoParentSizeQuery");
+        let wrapped = format!(
+            "<HozoParentSizeQuery>{{(__hozoParent) => ({})}}</HozoParentSizeQuery>",
+            rendered.text
+        );
+        rendered = rendered.wrap(wrapped, ")}</HozoParentSizeQuery>".len());
+        rendered.forget_scope();
+    }
+    if uses_container_size {
+        cx.runtime.need_component("HozoContainerSizeQuery");
+        let wrapped = format!(
+            "<HozoContainerSizeQuery>{{(__hozoCqs) => ({})}}</HozoContainerSizeQuery>",
+            rendered.text
+        );
+        rendered = rendered.wrap(wrapped, ")}</HozoContainerSizeQuery>".len());
+        rendered.forget_scope();
+    }
+    rendered
 }
 
 /// Re-emits a carried expression from source, with each Hozo primitive
@@ -201,6 +236,7 @@ pub(super) fn render_nested(
         from_ancestor: FromAncestor::default(),
         grid_columns: None,
         grid_rows: None,
+        parent_measured: false,
     };
     render_node(
         &entry.node,

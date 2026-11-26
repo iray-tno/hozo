@@ -7,19 +7,32 @@ use super::*;
 /// The inline parts of one condition group, beside its StyleSheet entry.
 pub(super) struct InlineParts {
     pub(super) viewport: Option<String>,
+    pub(super) container: Option<String>,
+    pub(super) parent_measured: Option<String>,
+    pub(super) self_measured: Option<String>,
     pub(super) safe_area: Option<String>,
     pub(super) animation: Option<String>,
     pub(super) keyframes: Option<String>,
 }
 
+/// Which opt-in layout measurements are available for this style target.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct MeasuredOptions {
+    pub allow_self_measured: bool,
+    pub allow_parent_measured: bool,
+    pub parent_inset_absolute: bool,
+}
+
 /// Takes the group's inline values out of `props`, registering the hooks
 /// they read, and returns what is left for the StyleSheet beside them.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn inline_parts(
     mut props: Vec<StyleProperty>,
     condition: &Condition,
     declarations: &[StyleDeclaration],
     node: &Node,
     theme: &Theme,
+    measured: MeasuredOptions,
     runtime: &mut RuntimeNeeds,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> (Vec<StyleProperty>, InlineParts) {
@@ -32,6 +45,22 @@ pub(super) fn inline_parts(
     if viewport.is_some() {
         runtime.hooks.push(RuntimeHook::Viewport);
     }
+    let container = crate::measured::take_container_object(&mut props, runtime);
+    let parent_measured = if measured.allow_parent_measured {
+        crate::measured::take_parent_measured_object(
+            &mut props,
+            declarations,
+            measured.parent_inset_absolute,
+            runtime,
+        )
+    } else {
+        None
+    };
+    let self_measured = if measured.allow_self_measured {
+        crate::measured::take_self_measured_object(&mut props, theme, runtime)
+    } else {
+        None
+    };
     // A safe-area inset is the same kind of value: the device knows it
     // and the build does not, and it moves when the device rotates.
     let (safe_area_props, props): (Vec<_>, Vec<_>) =
@@ -128,6 +157,9 @@ pub(super) fn inline_parts(
         props,
         InlineParts {
             viewport,
+            container,
+            parent_measured,
+            self_measured,
             safe_area,
             animation,
             keyframes,

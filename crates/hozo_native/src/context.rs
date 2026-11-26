@@ -111,6 +111,9 @@ pub(crate) struct AncestorContext<'a> {
     pub from_ancestor: FromAncestor<'a>,
     pub grid_columns: Option<usize>,
     pub grid_rows: Option<usize>,
+    /// True when the direct parent element in the same component measures its
+    /// layout box via `HozoMeasuredParent` and provides `HozoParentSizeContext`.
+    pub parent_measured: bool,
 }
 
 /// Declarations an ancestor handed down through `*:` or `**:`.

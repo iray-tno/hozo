@@ -16,6 +16,9 @@ pub(super) struct Lowered {
     pub(super) ios_line_break: bool,
     pub(super) keyframes: bool,
     pub(super) caret: bool,
+    pub(super) self_measured: bool,
+    pub(super) parent_measured: bool,
+    pub(super) parent_measured_space: bool,
 }
 
 pub(super) fn native_backdrop_filter(
@@ -48,8 +51,36 @@ pub(super) fn report_refused(
     let mut backdrop_filter = None;
 
     for declaration in style {
-        if is_viewport_sized(&declaration.property) {
+        if is_viewport_sized(&declaration.property)
+            || crate::measured::is_container_sized(&declaration.property)
+            || (elsewhere.self_measured && crate::measured::is_self_measured(&declaration.property))
+            || (elsewhere.parent_measured
+                && crate::measured::is_parent_measured(&declaration.property))
+            || (elsewhere.parent_measured_space
+                && crate::measured::is_parent_measured_space(&declaration.property))
+        {
             continue;
+        }
+        // Parent-relative `%`-mixed `calc()` without a measurable same-component
+        // parent (component root, custom component boundary, ScrollView/FlatList,
+        // HozoGrid cell, or `display: contents`). See Decision 015.
+        if !elsewhere.parent_measured {
+            if let Some(css) = crate::measured::parent_measured_css_text(&declaration.property) {
+                diagnostics.push(Diagnostic {
+                    code: DiagnosticCode::WebOnlyPropertyOnNative,
+                    severity: Severity::Error,
+                    message: format!(
+                        "`{css}` resolves `%` against a parent box Hozo cannot measure from this \
+                         component (component root, custom component boundary, `ScrollView`/`FlatList`, \
+                         `HozoGrid` cell, or `display: contents`). Put `@container` on the ancestor \
+                         and use `cqw`/`cqh` (e.g. `calc(100cqw - 2rem)`), keep the parent `<View>` \
+                         in the same component, or use flex/viewport sizing -- see \
+                         docs/decisions/015-parent-calc-stays-within-the-component.md."
+                    ),
+                    span: node.span,
+                });
+                continue;
+            }
         }
         // Lowered as a prop just above, so it must not also be reported as
         // a style this platform cannot hold.

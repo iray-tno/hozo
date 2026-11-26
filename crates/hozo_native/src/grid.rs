@@ -68,7 +68,7 @@ pub(super) fn native_grid(
     let (tracks_js, track_count) = responsive_grid_value(
         declarations,
         |property| match property {
-            StyleProperty::GridTemplateColumns(tracks) => Some(parse_grid_tracks(tracks)),
+            StyleProperty::GridTemplateColumns(tracks) => Some(parse_grid_tracks(tracks, true)),
             _ => None,
         },
         Some(vec![NativeTrack::Fr(1.0)]),
@@ -81,7 +81,7 @@ pub(super) fn native_grid(
         let (value, count) = responsive_grid_value(
             declarations,
             |property| match property {
-                StyleProperty::GridTemplateRows(tracks) => Some(parse_grid_tracks(tracks)),
+                StyleProperty::GridTemplateRows(tracks) => Some(parse_grid_tracks(tracks, false)),
                 _ => None,
             },
             Some(Vec::new()),
@@ -108,16 +108,16 @@ enum NativeTrack {
     Fr(f64),
     Points(f64),
     Minmax { min: f64, fr: f64 },
+    Calc(String),
 }
 
 type NativeTracks = Vec<NativeTrack>;
 
-fn parse_grid_tracks(tracks: &GridTracks) -> Option<NativeTracks> {
+fn parse_grid_tracks(tracks: &GridTracks, allow_percent_calc: bool) -> Option<NativeTracks> {
     match tracks {
         GridTracks::Count(count) if *count > 0 => Some(vec![NativeTrack::Fr(1.0); *count as usize]),
-        GridTracks::Css(css) => {
-            parse_equal_grid_repeat(css).or_else(|| parse_native_grid_tracks(css))
-        }
+        GridTracks::Css(css) => parse_equal_grid_repeat(css)
+            .or_else(|| parse_native_grid_tracks(css, allow_percent_calc)),
         GridTracks::None | GridTracks::Subgrid | GridTracks::Count(_) => None,
     }
 }
@@ -145,6 +145,9 @@ fn tracks_js(tracks: &NativeTracks) -> String {
                 NativeTrack::Points(value) => format!("{{ kind: 'points', value: {value} }}"),
                 NativeTrack::Minmax { min, fr } => {
                     format!("{{ kind: 'minmax', min: {min}, value: {fr} }}")
+                }
+                NativeTrack::Calc(expr) => {
+                    format!("{{ kind: 'calc', evaluate: (__hozoGridW) => Math.max(0, {expr}) }}")
                 }
             })
             .collect::<Vec<_>>()
@@ -415,9 +418,9 @@ fn resolve_grid_line(line: GridLine, columns: usize) -> Option<usize> {
     }
 }
 
-fn parse_native_grid_tracks(css: &str) -> Option<NativeTracks> {
-    let tracks: Option<Vec<_>> = css
-        .split_whitespace()
+fn parse_native_grid_tracks(css: &str, allow_percent_calc: bool) -> Option<NativeTracks> {
+    let tracks: Option<Vec<_>> = hozo_ir::split_top_level_tracks(css)
+        .into_iter()
         .map(|token| {
             if let Some(inner) = token
                 .strip_prefix("minmax(")
@@ -434,6 +437,19 @@ fn parse_native_grid_tracks(css: &str) -> Option<NativeTracks> {
             }
             if let Some(value) = hozo_ir::resolve_native_length_px(token) {
                 return (value >= 0.0).then_some(NativeTrack::Points(value));
+            }
+            if allow_percent_calc {
+                if let Some(expr) = hozo_ir::parse_calc_length(token) {
+                    let needs = expr.needs();
+                    if needs.percent && !needs.viewport && !needs.needs_container() {
+                        if let Some(js) = expr.to_js(&hozo_ir::CalcBindings {
+                            percent: Some("__hozoGridW"),
+                            ..Default::default()
+                        }) {
+                            return Some(NativeTrack::Calc(js));
+                        }
+                    }
+                }
             }
             None
         })

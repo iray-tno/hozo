@@ -80,6 +80,10 @@
       "types": "./dist/generated/link.d.ts",
       "default": "./dist/generated/link.js"
     },
+    "./generated/measured-box": {
+      "types": "./dist/generated/measured-box.d.ts",
+      "default": "./dist/generated/measured-box.js"
+    },
     "./generated/native-disabled": {
       "types": "./dist/generated/native-disabled.d.ts",
       "default": "./dist/generated/native-disabled.js"

@@ -51,6 +51,7 @@ pub use tailwind_builtin::{
 
 // The IR itself, one concern per module, re-exported whole: the crate's
 // public names are the ones it had when this was one file.
+mod calc;
 mod condition;
 mod diagnostics;
 mod grouping;
@@ -64,6 +65,7 @@ mod props;
 mod structural;
 mod values;
 mod variants;
+pub use calc::*;
 pub use condition::*;
 pub use diagnostics::*;
 pub use grouping::*;

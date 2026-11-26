@@ -150,6 +150,12 @@ pub(super) fn viewport_value(prop: &StyleProperty) -> Option<String> {
         Length::Unit(pct, LengthUnit::Vh) if pct.is_finite() => {
             Some(viewport_share("height", *pct))
         }
+        Length::Unit(pct, LengthUnit::Vmin) if pct.is_finite() => {
+            Some(viewport_extremum("min", *pct))
+        }
+        Length::Unit(pct, LengthUnit::Vmax) if pct.is_finite() => {
+            Some(viewport_extremum("max", *pct))
+        }
         Length::Css(text) => viewport_calc(text).map(|expr| {
             if gap {
                 format!("Math.max(0, {expr})")
@@ -158,6 +164,16 @@ pub(super) fn viewport_value(prop: &StyleProperty) -> Option<String> {
             }
         }),
         _ => None,
+    }
+}
+
+fn viewport_extremum(op: &str, pct: f64) -> String {
+    let binding = RuntimeHook::Viewport.binding();
+    let base = format!("Math.{op}({binding}.width, {binding}.height)");
+    if (pct - 100.0).abs() < f64::EPSILON {
+        base
+    } else {
+        format!("{base} * {}", pct / 100.0)
     }
 }
 
@@ -173,57 +189,24 @@ pub(super) fn viewport_share(axis: &str, pct: f64) -> String {
     }
 }
 
-/// A `calc()` of viewport lengths and fixed lengths, as the runtime
-/// expression: `calc(100vw - 2rem)` is `__hozoViewport.width - 32` (#1312).
+/// A CSS math expression (`calc()`, `min()`, `max()`, `clamp()`) of viewport
+/// lengths and fixed lengths, as the runtime expression:
+/// `calc(100vw - 2rem)` -> `__hozoViewport.width - 32` (#1312).
 ///
-/// The same values `w-[50vw]` already reads at runtime, with addition and
-/// subtraction between them, so nothing has to be measured. Anything else in
-/// a `calc()` -- a percentage, which needs the parent's size, a font-relative
-/// unit, multiplication, a nested function -- is `None`, and the class keeps
-/// its refusal. So does a `calc()` with no viewport term, which this is not
-/// for.
+/// Expressions with percentages or container units are left to the layout-
+/// measured paths (`measured.rs`); expressions with no viewport terms return
+/// `None` so this path does not inject `useHozoViewport` unnecessarily.
 pub(super) fn viewport_calc(text: &str) -> Option<String> {
-    let inner = text.trim().strip_prefix("calc(")?.strip_suffix(')')?;
-    if inner.contains(['(', ')', '*', '/', ',']) {
+    let expr = hozo_ir::parse_calc_length(text)?;
+    let needs = expr.needs();
+    if !needs.viewport || needs.percent || needs.needs_container() {
         return None;
     }
-    let mut parts: Vec<String> = Vec::new();
-    let mut viewport = false;
-    let mut tokens = inner.split_whitespace();
-    let mut operator = None;
-    loop {
-        let token = tokens.next()?;
-        let split = token.find(|c: char| c.is_ascii_alphabetic())?;
-        let (number, unit) = token.split_at(split);
-        let number: f64 = number.parse().ok()?;
-        if !number.is_finite() {
-            return None;
-        }
-        let term = match unit {
-            "vw" => {
-                viewport = true;
-                viewport_share("width", number)
-            }
-            "vh" => {
-                viewport = true;
-                viewport_share("height", number)
-            }
-            "px" => format!("{number}"),
-            // The 16px root `LengthUnit::Rem` already assumes on Native.
-            "rem" => format!("{}", number * 16.0),
-            _ => return None,
-        };
-        parts.push(match operator {
-            Some(op) => format!("{op} {term}"),
-            None => term,
-        });
-        operator = match tokens.next() {
-            None => break,
-            Some(op @ ("+" | "-")) => Some(op),
-            Some(_) => return None,
-        };
-    }
-    viewport.then(|| parts.join(" "))
+    let binding = RuntimeHook::Viewport.binding();
+    expr.to_js(&hozo_ir::CalcBindings {
+        viewport: Some(&binding),
+        ..Default::default()
+    })
 }
 
 /// Move a group's viewport-relative styles out of its StyleSheet entry.
