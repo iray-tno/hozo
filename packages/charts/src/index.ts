@@ -11,8 +11,8 @@ export {
   linePath,
   type Margin,
   type Mark,
+  rowValue,
   type Tick,
-  valueOf,
 } from './model.ts'
 export {
   type BandOptions,

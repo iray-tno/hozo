@@ -2,7 +2,14 @@
 // out (RFC 015 §4). Pure: no React, no platform, so the SVG renderer, a
 // later Canvas renderer and the accessible table all read one answer.
 
-import { type BandScale, bandScale, type LinearScale, linearScale, niceDomain, pointScale } from './scale.ts'
+import {
+  type BandScale,
+  bandScale,
+  type LinearScale,
+  linearScale,
+  niceDomain,
+  pointScale,
+} from './scale.ts'
 
 export interface ChartSeries {
   /** The field of each row that holds this series' value. */
@@ -87,7 +94,7 @@ export interface ChartModel {
 }
 
 /** A row's value: finite, or a gap. A string or null is a gap, not zero. */
-export function valueOf(row: Record<string, unknown>, key: string): number | undefined {
+export function rowValue(row: Record<string, unknown>, key: string): number | undefined {
   const value = row[key]
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
@@ -136,7 +143,8 @@ function frame(input: ChartInput, domain: [number, number]): Frame {
   const tickValues = y.ticks(count)
   const labels = tickValues.map(format)
   const widest = Math.max(0, ...labels.map((label) => estimateTextWidth(label, fontSize)))
-  const left = input.margin?.left ?? Math.ceil(widest + gap * 2 + (input.y?.label ? fontSize + gap : 0))
+  const left =
+    input.margin?.left ?? Math.ceil(widest + gap * 2 + (input.y?.label ? fontSize + gap : 0))
   const right = input.margin?.right ?? gap * 2
   const margin = { top, right, bottom, left }
   return {
@@ -186,7 +194,7 @@ function extent(values: (number | undefined)[][], includeZero: boolean): [number
 
 export function barChartModel(input: BarChartInput): ChartModel {
   const categories = categoriesOf(input)
-  const values = input.series.map((series) => input.data.map((row) => valueOf(row, series.key)))
+  const values = input.series.map((series) => input.data.map((row) => rowValue(row, series.key)))
   const fontSize = input.fontSize ?? 12
 
   // Stacked bars stack positives up and negatives down from zero, so the
@@ -285,7 +293,7 @@ const round = (value: number) => Math.round(value * 100) / 100
 
 export function lineChartModel(input: ChartInput): ChartModel {
   const categories = categoriesOf(input)
-  const values = input.series.map((series) => input.data.map((row) => valueOf(row, series.key)))
+  const values = input.series.map((series) => input.data.map((row) => rowValue(row, series.key)))
   const fontSize = input.fontSize ?? 12
   const { plot, y, yTicks } = frame(input, extent(values, false))
   const x: BandScale<number> = pointScale(
