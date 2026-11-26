@@ -80,9 +80,19 @@ test('the counts that have to stay at zero are the ones named as regressions', (
     'skipped',
     'suspect',
     'rejected',
+    'unresolvableCovered',
+    'implementable',
   ]) {
     assert.match(verdict({ path: `section.${name}`, before: 0, after: 1 }), /REGRESSION/, name)
   }
+  assert.match(
+    verdict({ path: 'arbitraryNativeAudit.validCovered', before: 370, after: 360 }),
+    /REGRESSION/,
+  )
+  assert.equal(
+    verdict({ path: 'arbitraryNativeAudit.validCovered', before: 370, after: 380 }),
+    'improvement',
+  )
 })
 
 // The two paths that end in `process.exit`, which a test cannot call in

@@ -15,6 +15,7 @@ import {
   primitivesUnderContract,
 } from './a11y-contextual.ts'
 import { buildArbitraryCatalog } from './arbitrary-catalog.ts'
+import { auditArbitraryNative } from './arbitrary-native-audit.ts'
 import { ariaRoleCases, compareAriaRole } from './aria-roles.ts'
 import { auditRefusal, type RefusalAudit, type RefusalVerdict } from './audit.ts'
 import { compareCandidateSheet } from './candidate-sheet.ts'
@@ -951,6 +952,27 @@ for (const result of arbitraryNative) {
   if (result.verdict !== 'SILENT') continue
   console.log(`  SILENT  ${result.candidate}`)
 }
+
+const arbitraryNativeAudit = auditArbitraryNative(
+  arbitraryNative,
+  arbitrary.oracle.rules,
+  new Map([...loadThemeVars(), ...arbitrary.oracle.registerDefaults]),
+)
+const { summary: arbAudit } = arbitraryNativeAudit
+console.log(
+  `\n== Arbitrary Native audit (${arbAudit.candidates}) ==\n` +
+    `Valid covered:        ${arbAudit.validCovered}\n` +
+    `Unresolvable covered: ${arbAudit.unresolvableCovered}   (emits var()/calc()/invalid RN literal)\n` +
+    `Context covered:      ${arbAudit.contextCovered}   (works inside HozoGrid / <Svg>)\n` +
+    `Implementable:        ${arbAudit.implementable}   (zero-cost RN 0.87.1 gaps)\n` +
+    `Layout measurable:    ${arbAudit.layoutMeasurable}   (%-mixed calc() needing onLayout / Fabric)\n` +
+    `Dynamic CSS:          ${arbAudit.dynamicCss}   (var(), non-text em, non-layout vh)\n` +
+    `Web-only:             ${arbAudit.webOnly}\n` +
+    `Invalid CSS:          ${arbAudit.invalidCss}\n` +
+    `No-op:                ${arbAudit.noOp}\n` +
+    `Silent:               ${arbAudit.silent}`,
+)
+record('arbitraryNativeAudit', { ...arbAudit })
 
 // == Canvas paint =========================================================
 //
