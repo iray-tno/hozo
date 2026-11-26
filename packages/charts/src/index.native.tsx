@@ -2,7 +2,7 @@ import { ChartBox } from './chart-box.native.tsx'
 import { createCharts } from './charts.tsx'
 
 export const { BarChart, LineChart } = createCharts(ChartBox)
-export { NO_VALUE } from './chart-table.tsx'
+export { datumSentence, nextDatum } from './active.ts'
 export type { BarChartProps, LineChartProps } from './charts.tsx'
 export {
   type BarChartInput,
@@ -20,6 +20,7 @@ export {
   rowValue,
   type Tick,
 } from './model.ts'
+export { NO_VALUE } from './no-value.ts'
 export { DEFAULT_PALETTE, seriesColor } from './palette.ts'
 export {
   type BandOptions,

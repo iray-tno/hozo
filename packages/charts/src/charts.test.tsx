@@ -109,8 +109,33 @@ test('a reader gets the named table of the data, and the drawing is hidden from 
       showTable
     />,
   )
-  assert.doesNotMatch(shown, /position:absolute;width:1px/, 'showTable puts it on screen')
+  // The live region is hidden either way; the table only by default.
+  const hidden = (markup: string) => markup.split('position:absolute;width:1px').length - 1
+  assert.equal(hidden(html), 2)
+  assert.equal(hidden(shown), 1, 'showTable puts the table on screen')
   assert.match(shown, /<th scope="col">Category<\/th>/, 'a default header when x has no label')
+})
+
+test('the drawing is one named tab stop, with a polite live region beside it', () => {
+  const html = renderToStaticMarkup(
+    <LineChart
+      accessibilityLabel="Trend"
+      data={data}
+      x={{ key: 'month' }}
+      series={series}
+      width={320}
+      height={200}
+    />,
+  )
+  assert.match(
+    html,
+    /<div role="group" aria-roledescription="chart" aria-label="Trend" tabindex="0"/,
+  )
+  assert.match(html, /aria-live="polite" aria-atomic="true"/)
+  assert.ok(
+    html.indexOf('tabindex') < html.indexOf('aria-hidden="true"'),
+    'the hidden drawing is inside the tab stop',
+  )
 })
 
 test('the default palette keeps 3:1 against white and near-black', () => {

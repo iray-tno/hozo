@@ -1,21 +1,20 @@
 // The Native half of the chart's box: `onLayout` reports the width the
 // parent gives, as ResizeObserver does on Web.
 //
-// As on Web, the drawing is hidden from a screen reader (both platforms'
-// props, since each reads only its own) and the table of the data is kept
-// readable but out of sight unless `showTable` asks for it. Out of sight is
-// a 1-point clipped box rather than zero opacity, which iOS treats as gone.
+// The drawing is one `adjustable` element named with the chart's label: a
+// screen reader's swipe up and down move the active datum, and its value
+// is the active datum's sentence, which the reader speaks as it changes.
+// Being one element hides its children, the drawing's text included. A
+// finger on the chart moves the same datum and shows its tooltip. The
+// table of the data stays readable beside it, out of sight unless
+// `showTable` asks for it; out of sight is a 1-point clipped box rather
+// than zero opacity, which iOS treats as gone.
 
-import { type ReactNode, useState } from 'react'
+import { useState } from 'react'
 import { View, type ViewStyle } from 'react-native'
+import type { ChartBoxComponentProps } from './charts.tsx'
 
-export interface ChartBoxProps {
-  width?: number
-  height: number
-  children: (width: number) => ReactNode
-  table: ReactNode
-  showTable?: boolean
-}
+export type ChartBoxProps = ChartBoxComponentProps
 
 const VISUALLY_HIDDEN: ViewStyle = {
   position: 'absolute',
@@ -24,14 +23,40 @@ const VISUALLY_HIDDEN: ViewStyle = {
   overflow: 'hidden',
 }
 
-export function ChartBox({ width, height, children, table, showTable = false }: ChartBoxProps) {
+export function ChartBox({
+  width,
+  height,
+  children,
+  table,
+  showTable = false,
+  interaction,
+}: ChartBoxProps) {
   const [measured, setMeasured] = useState<number | undefined>(undefined)
   const resolved = width ?? measured
   return (
     <View style={{ width: width ?? '100%' }}>
       <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
+        accessible
+        accessibilityRole="adjustable"
+        accessibilityLabel={interaction.label}
+        accessibilityValue={
+          interaction.announcement ? { text: interaction.announcement } : undefined
+        }
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={(event) => {
+          interaction.onKey(
+            event.nativeEvent.actionName === 'increment' ? 'ArrowRight' : 'ArrowLeft',
+          )
+        }}
+        onStartShouldSetResponder={() => true}
+        onResponderGrant={(event) => {
+          if (resolved !== undefined) interaction.onPointer(event.nativeEvent.locationX, resolved)
+        }}
+        onResponderMove={(event) => {
+          if (resolved !== undefined) interaction.onPointer(event.nativeEvent.locationX, resolved)
+        }}
+        onResponderRelease={() => interaction.onLeave()}
+        onResponderTerminate={() => interaction.onLeave()}
         style={{ width: '100%', height }}
         onLayout={
           width === undefined

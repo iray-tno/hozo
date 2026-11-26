@@ -7,6 +7,7 @@
 
 import { HozoTable, HozoTableCell, HozoTableRow, HozoTableSection } from '@hozo/semantics'
 import type { ChartModel, ChartSeries } from './model.ts'
+import { NO_VALUE } from './no-value.ts'
 
 export interface ChartTableProps {
   model: ChartModel
@@ -16,9 +17,6 @@ export interface ChartTableProps {
   categoryLabel?: string
   format?: (value: number) => string
 }
-
-/** What a gap reads as: never "0", which would be a value nobody gave. */
-export const NO_VALUE = 'No value'
 
 export function ChartTable({
   model,
