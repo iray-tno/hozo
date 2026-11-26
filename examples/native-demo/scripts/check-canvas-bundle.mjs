@@ -52,6 +52,19 @@ expect(/MakeFromSVGString/.test(bundle), 'the Native path parser reached the bun
 expect(/matchFont/.test(bundle), 'the Native font lookup reached the bundle')
 expect(/measureText/.test(bundle), 'the Native text alignment measurement reached the bundle')
 
+// RFC 015: the charts take their Native entry. The chart names are the
+// fixture; the Native box (`onLayout`) and react-native-svg are the Native
+// halves, and the Web box must not come along. Matched by module path, since
+// the word ResizeObserver also appears in engine and in comments.
+expect(/Native chart: revenue by month/.test(bundle), 'the charts fixture is bundled')
+expect(/barChartModel/.test(bundle), 'the shared chart model reached the Native bundle')
+expect(/react-native-svg/.test(bundle), 'react-native-svg is resolved for the charts')
+expect(/charts[\\/]dist[\\/]chart-box\.native\.js/.test(bundle), 'the Native chart box is bundled')
+expect(
+  !/charts[\\/]dist[\\/]chart-box\.js/.test(bundle),
+  'the Web chart box stayed out of the Native bundle',
+)
+
 if (failures.length > 0) {
   console.error('Canvas bundle check failed:')
   for (const failure of failures) console.error(`  - ${failure}`)

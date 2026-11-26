@@ -342,6 +342,9 @@ importers:
       '@hozo/canvas':
         specifier: workspace:*
         version: link:../../packages/canvas
+      '@hozo/charts':
+        specifier: workspace:*
+        version: link:../../packages/charts
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core

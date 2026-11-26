@@ -12,6 +12,7 @@ import { AppRegistry } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { CanvasBench } from './CanvasBench.tsx'
+import { ChartsBench } from './ChartsBench.tsx'
 import { ThreeCorpusBench } from './ThreeCorpusBench.tsx'
 
 function Root() {
@@ -38,6 +39,8 @@ function Root() {
             Show Three corpus
           </Button>
           <CanvasBench />
+          {/* After the Canvas fixture, so nothing the harness taps moves. */}
+          <ChartsBench />
         </View>
       ) : (
         <ThreeCorpusBench

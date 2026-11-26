@@ -15,6 +15,7 @@
     "@babel/runtime": "^8.0.0",
     "@hozo/behaviors": "workspace:*",
     "@hozo/canvas": "workspace:*",
+    "@hozo/charts": "workspace:*",
     "@hozo/core": "workspace:*",
     "@hozo/form": "workspace:*",
     "@hozo/native": "workspace:*",
