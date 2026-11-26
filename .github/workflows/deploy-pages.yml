@@ -42,6 +42,11 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: main
+          # The sitemap dates each page by its source's last commit, which
+          # needs the history; a shallow clone leaves every <lastmod> out.
+          # Commits and trees only: no old file contents are downloaded.
+          fetch-depth: 0
+          filter: blob:none
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
