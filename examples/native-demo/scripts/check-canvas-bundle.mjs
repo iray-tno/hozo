@@ -73,6 +73,22 @@ expect(
   manifest.dependencies?.['react-native-svg'] !== undefined,
   "react-native-svg is this app's own dependency, so its native views are linked",
 )
+// One React. Metro resolves `react` from each file's own location, so a
+// workspace package whose devDependency resolved another version brings a
+// second copy, and its hooks run against a React that is not rendering:
+// "Cannot read property 'useState' of null" on launch (#2302, @hozo/charts
+// on 19.3.0 beside the app's 19.2.8). Counted by each copy's entry module.
+const reactCopies = new Set(
+  [
+    ...bundle.matchAll(
+      /node_modules[\\/]\.pnpm[\\/]react@([^\\/]+)[\\/]node_modules[\\/]react[\\/]index\.js/g,
+    ),
+  ].map((match) => match[1]),
+)
+expect(
+  reactCopies.size === 1,
+  `one React in the bundle (found ${[...reactCopies].join(', ') || 'none'})`,
+)
 expect(/charts[\\/]dist[\\/]chart-box\.native\.js/.test(bundle), 'the Native chart box is bundled')
 expect(
   !/charts[\\/]dist[\\/]chart-box\.js/.test(bundle),
