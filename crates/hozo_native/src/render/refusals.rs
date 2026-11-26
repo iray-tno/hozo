@@ -61,6 +61,27 @@ pub(super) fn report_refused(
         {
             continue;
         }
+        // Parent-relative `%`-mixed `calc()` without a measurable same-component
+        // parent (component root, custom component boundary, ScrollView/FlatList,
+        // HozoGrid cell, or `display: contents`). See Decision 015.
+        if !elsewhere.parent_measured {
+            if let Some(css) = crate::measured::parent_measured_css_text(&declaration.property) {
+                diagnostics.push(Diagnostic {
+                    code: DiagnosticCode::WebOnlyPropertyOnNative,
+                    severity: Severity::Error,
+                    message: format!(
+                        "`{css}` resolves `%` against a parent box Hozo cannot measure from this \
+                         component (component root, custom component boundary, `ScrollView`/`FlatList`, \
+                         `HozoGrid` cell, or `display: contents`). Put `@container` on the ancestor \
+                         and use `cqw`/`cqh` (e.g. `calc(100cqw - 2rem)`), keep the parent `<View>` \
+                         in the same component, or use flex/viewport sizing -- see \
+                         docs/decisions/015-parent-calc-stays-within-the-component.md."
+                    ),
+                    span: node.span,
+                });
+                continue;
+            }
+        }
         // Lowered as a prop just above, so it must not also be reported as
         // a style this platform cannot hold.
         if elsewhere.svg_paint

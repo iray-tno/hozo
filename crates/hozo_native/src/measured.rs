@@ -142,7 +142,25 @@ fn parent_calc_expr(prop: &StyleProperty) -> Option<CalcExpr> {
 /// Whether `prop` is a parent-relative `%`-mixed CSS math expression on a
 /// child element (`w`, `h`, `size`, `min/max-*`, `basis`, `m*`, `p*`, `inset*`).
 pub(super) fn is_parent_measured(prop: &StyleProperty) -> bool {
-    parent_layout_entries(prop).is_some() && parent_calc_expr(prop).is_some()
+    parent_measured_css_text(prop).is_some()
+}
+
+/// The raw CSS math expression string for a parent-relative `%`-calc property,
+/// used to produce actionable cross-component diagnostics when no measurable
+/// same-component parent is available.
+pub(super) fn parent_measured_css_text(prop: &StyleProperty) -> Option<&str> {
+    parent_layout_entries(prop)?;
+    let css = match prop {
+        StyleProperty::Arbitrary(_, value) => value.as_str(),
+        _ => match prop.value() {
+            PropertyValue::Length(Length::Css(text))
+            | PropertyValue::Dimension(Dimension::Length(Length::Css(text)))
+            | PropertyValue::Dimension(Dimension::Css(text)) => text.as_str(),
+            _ => return None,
+        },
+    };
+    let expr = parse_calc_length(css)?;
+    expr.needs().percent.then_some(css)
 }
 
 /// Whether `prop` is a child-spacing `%`-mixed CSS math expression (`space-x`,

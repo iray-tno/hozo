@@ -577,19 +577,42 @@ fn same_component_parent_calc_lowers_with_css_percentage_axes() {
         assert!(out.jsx.contains(expected), "{class_name}: {}", out.jsx);
     }
 
-    // ScrollView parent (contentContainerStyle split) and grid parent (cell box)
-    // stay honestly refused rather than publishing the wrong containing block.
+    // ScrollView parent (contentContainerStyle split), grid parent (cell box),
+    // `display: contents` parent, custom-component boundary, and component root
+    // stay honestly refused with actionable guidance (Decision 015).
     for source in [
+        "import { View } from '@hozo/core'\nfunction C() { return <View className=\"w-[calc(100%-2rem)]\" /> }\n",
+        "import { View } from '@hozo/core'\nfunction C() { return <View><Card><View className=\"w-[calc(100%-2rem)]\" /></Card></View> }\n",
         "import { ScrollView, View } from '@hozo/core'\nfunction C() { return <ScrollView><View className=\"w-[calc(100%-2rem)]\" /></ScrollView> }\n",
         "import { View } from '@hozo/core'\nfunction C() { return <View className=\"grid grid-cols-2\"><View className=\"w-[calc(100%-2rem)]\" /></View> }\n",
+        "import { View } from '@hozo/core'\nfunction C() { return <View className=\"contents\"><View className=\"w-[calc(100%-2rem)]\" /></View> }\n",
     ] {
         let parsed = hozo_parser::parse_tsx(source);
         let out = crate::lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(
-            !out.diagnostics.is_empty(),
-            "expected refusal for {source}, got jsx: {}",
-            out.jsx
+            out.diagnostics.iter().any(|d| {
+                d.code == hozo_ir::DiagnosticCode::WebOnlyPropertyOnNative
+                    && d.message.contains("@container")
+                    && d.message.contains("015-parent-calc-stays-within-the-component")
+            }),
+            "expected Decision 015 guidance for {source}, got: {:?}",
+            out.diagnostics
         );
         assert!(!out.jsx.contains("HozoMeasuredParent"), "{}", out.jsx);
+    }
+
+    // Real-repository arbitrary patterns cited in #2294 all lower cleanly.
+    for source in [
+        "import { Pressable } from '@hozo/core'\nfunction C() { return <Pressable accessibilityRole=\"button\" className=\"hover:scale-[1.02] active:scale-[0.98]\" /> }\n",
+        "import { Svg } from '@hozo/svg'\nfunction C() { return <Svg><Svg.Path className=\"stroke-[1.5]\" /></Svg> }\n",
+        "import { View } from '@hozo/core'\nfunction C() { return <View className=\"w-[calc(100vw-2rem)]\" /> }\n",
+    ] {
+        let parsed = hozo_parser::parse_tsx(source);
+        let out = crate::lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "unexpected diagnostic for {source}: {:?}",
+            out.diagnostics
+        );
     }
 }
