@@ -43,6 +43,12 @@ pub enum FlexShorthand {
     /// percentage: Tailwind emits `calc(1/2 * 100%)` and the division is
     /// what keeps thirds exact rather than 33.33333333333333%.
     Fraction(u32, u32),
+    /// Single-value `<length-percentage>` `flex` shorthand (`flex-[10px]`,
+    /// `flex-[2rem]`, `flex-[50%]`), which CSS Flexbox expands to
+    /// `flex-grow: 1; flex-shrink: 1; flex-basis: <value>`.
+    BasisPx(f64),
+    BasisUnit(f64, LengthUnit),
+    BasisPercent(f64),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

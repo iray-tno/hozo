@@ -65,6 +65,9 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
             match shorthand {
                 FlexShorthand::Grow(n) => format!("{n} 1 0%"),
                 FlexShorthand::Fraction(n, d) => format!("calc({n}/{d} * 100%)"),
+                FlexShorthand::BasisPx(px) => format!("{px}px"),
+                FlexShorthand::BasisUnit(v, unit) => format!("{v}{}", unit.css()),
+                FlexShorthand::BasisPercent(pct) => format!("{pct}%"),
                 FlexShorthand::Auto => "1 1 auto".to_string(),
                 FlexShorthand::Initial => "0 1 auto".to_string(),
                 FlexShorthand::None => "none".to_string(),

@@ -93,6 +93,9 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'aspect-[1.5]',
     'flex-[1.5]',
     'flex-[auto]',
+    'flex-[10px]',
+    'flex-[2rem]',
+    'flex-[50%]',
     'opacity-[50%]',
     'align-[auto]',
     'cursor-[auto]',
@@ -167,6 +170,9 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('aspect-[1.5]'), 'validCovered')
   assert.equal(byCandidate.get('flex-[1.5]'), 'validCovered')
   assert.equal(byCandidate.get('flex-[auto]'), 'validCovered')
+  assert.equal(byCandidate.get('flex-[10px]'), 'validCovered')
+  assert.equal(byCandidate.get('flex-[2rem]'), 'validCovered')
+  assert.equal(byCandidate.get('flex-[50%]'), 'validCovered')
   assert.equal(byCandidate.get('opacity-[50%]'), 'validCovered')
   assert.equal(byCandidate.get('align-[auto]'), 'validCovered')
   assert.equal(byCandidate.get('cursor-[auto]'), 'validCovered')

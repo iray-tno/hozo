@@ -337,12 +337,23 @@ pub(super) fn from_prefix(
             "auto" => one(StyleProperty::Flex(FlexShorthand::Auto)),
             "initial" => one(StyleProperty::Flex(FlexShorthand::Initial)),
             "none" => one(StyleProperty::Flex(FlexShorthand::None)),
-            _ => match number().filter(|n| n.is_finite() && *n >= 0.0) {
-                Some(grow) => one(StyleProperty::Flex(FlexShorthand::Grow(grow))),
-                None => one(StyleProperty::Arbitrary(
+            _ => if let Some(grow) = number().filter(|n| n.is_finite() && *n >= 0.0) {
+                one(StyleProperty::Flex(FlexShorthand::Grow(grow)))
+            } else if let Some(pct) = parse_non_negative_percent(value) {
+                one(StyleProperty::Flex(FlexShorthand::BasisPercent(pct)))
+            } else if let Some(hozo_ir::Length::Px(px)) =
+                length().filter(|l| matches!(l, hozo_ir::Length::Px(px) if *px >= 0.0))
+            {
+                one(StyleProperty::Flex(FlexShorthand::BasisPx(px)))
+            } else if let Some(hozo_ir::Length::Unit(v, unit)) = length().filter(
+                |l| matches!(l, hozo_ir::Length::Unit(v, unit) if *v >= 0.0 && unit.px().is_some()),
+            ) {
+                one(StyleProperty::Flex(FlexShorthand::BasisUnit(v, unit)))
+            } else {
+                one(StyleProperty::Arbitrary(
                     "flex".to_string(),
                     value.to_string(),
-                )),
+                ))
             },
         },
         "align" => match value {

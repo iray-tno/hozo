@@ -107,15 +107,15 @@
     "inOrder": 22705
   },
   "refusalAudit": {
-    "refusals": 10363,
-    "checkable": 10029,
+    "refusals": 10337,
+    "checkable": 10003,
     "confirmed": 10000,
-    "partial": 28,
+    "partial": 2,
     "suspect": 1,
     "uncheckable": 334
   },
   "nativeTypes": {
-    "entries": 21226,
+    "entries": 21278,
     "rejected": 0
   },
   "render": {
@@ -139,21 +139,21 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 490,
-    "refused": 2331,
+    "covered": 493,
+    "refused": 2328,
     "noOp": 24,
     "silent": 0
   },
   "arbitraryNativeAudit": {
     "candidates": 2845,
-    "validCovered": 490,
+    "validCovered": 493,
     "unresolvableCovered": 0,
     "contextCovered": 15,
     "implementable": 0,
     "layoutMeasurable": 0,
     "dynamicCss": 270,
     "webOnly": 1247,
-    "invalidCss": 799,
+    "invalidCss": 796,
     "noOp": 24,
     "silent": 0
   },
