@@ -1,0 +1,83 @@
+// Charts (RFC 015): Bar and Line from @hozo/charts. Each is one tab stop;
+// the arrow keys, Home and End move along the data and a live region reads
+// every series there, the pointer does the same with a tooltip, and a
+// screen reader also has the table of the data, out of sight unless shown.
+
+import { BarChart, LineChart } from '@hozo/charts'
+import { View } from '@hozo/primitives'
+import { Section } from '@hozo/semantics'
+import { Heading, Paragraph } from '@hozo/typography'
+import type { Meta, StoryObj } from '@storybook/react-vite'
+
+const revenue = [
+  { month: 'Jan', online: 120, store: 80 },
+  { month: 'Feb', online: 200, store: null },
+  { month: 'Mar', online: 90, store: 60 },
+  { month: 'Apr', online: 160, store: 110 },
+  { month: 'May', online: 210, store: 95 },
+  { month: 'Jun', online: 180, store: 130 },
+]
+const series = [
+  { key: 'online', label: 'Online' },
+  { key: 'store', label: 'In store' },
+]
+const dollars = { label: 'Revenue', format: (value: number) => `$${value}` }
+
+function Gallery({ showTable = false }: { showTable?: boolean }) {
+  return (
+    <View className="max-w-2xl gap-8 p-6 text-slate-700">
+      <Section className="gap-2">
+        <Heading level={2}>Grouped bars</Heading>
+        <Paragraph>February has no in-store figure: no bar, and the table says so.</Paragraph>
+        <BarChart
+          accessibilityLabel="Revenue by month, online and in store"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={series}
+          height={240}
+          showTable={showTable}
+        />
+      </Section>
+      <Section className="gap-2">
+        <Heading level={2}>Stacked bars</Heading>
+        <BarChart
+          accessibilityLabel="Total revenue by month, stacked by channel"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={series}
+          height={240}
+          stacked
+          showTable={showTable}
+        />
+      </Section>
+      <Section className="gap-2">
+        <Heading level={2}>Lines</Heading>
+        <Paragraph>The in-store line breaks at February rather than drawing across it.</Paragraph>
+        <LineChart
+          accessibilityLabel="Revenue trend by month, online and in store"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={series}
+          height={240}
+          points
+          showTable={showTable}
+        />
+      </Section>
+    </View>
+  )
+}
+
+const meta = {
+  title: 'Data/Charts',
+  component: Gallery,
+} satisfies Meta<typeof Gallery>
+
+export default meta
+
+export const Default: StoryObj<typeof meta> = {}
+
+/** The same charts with their tables on screen, as `showTable` puts them. */
+export const WithTables: StoryObj<typeof meta> = { args: { showTable: true } }

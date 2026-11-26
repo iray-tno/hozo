@@ -1,0 +1,144 @@
+// The public charts (RFC 015 §3): a model from the data, laid out at the
+// box's width, drawn by the SVG renderer, with the table of the same data
+// for a screen reader.
+//
+// The box is the one platform-specific piece (a measured `<div>` on Web, a
+// `View` with `onLayout` on Native), so each entry point passes its own in
+// rather than this module importing one: an explicit `.tsx` import would
+// pick the Web half on Native too.
+
+import { type ComponentType, type ReactNode, useState } from 'react'
+import { datumSentence, nextDatum } from './active.ts'
+import { ChartSvg } from './chart-svg.tsx'
+import { ChartTable } from './chart-table.tsx'
+import {
+  type BarChartInput,
+  barChartModel,
+  type ChartInput,
+  type ChartModel,
+  lineChartModel,
+} from './model.ts'
+
+type Common = Omit<ChartInput, 'width'> & {
+  /**
+   * Names the chart for a screen reader, which reads it as the name of the
+   * table of its data. Required: an unnamed chart is a picture of nothing.
+   */
+  accessibilityLabel: string
+  /** A fixed width; otherwise the chart fills its container. */
+  width?: number
+  /** Axis text and lines; inherits the surrounding text colour on Web when absent. */
+  textColor?: string
+  /** Show the table of the data under the chart, not only to a screen reader. */
+  showTable?: boolean
+}
+
+export type BarChartProps = Common & Pick<BarChartInput, 'stacked'>
+
+export type LineChartProps = Common & {
+  /** Draw a dot at each value. */
+  points?: boolean
+}
+
+/** What the box wires to the platform's focus, keys, pointer and touch. */
+export interface ChartInteraction {
+  /** The chart's name, on its one focusable element. */
+  label: string
+  /** The active datum's sentence, or undefined with none active. */
+  announcement?: string
+  /** A pointer or finger at `x` in a drawing `width` wide. */
+  onPointer(x: number, width: number): void
+  onLeave(): void
+  /** A key (or a Native adjust action as one); true when it was used. */
+  onKey(key: string): boolean
+}
+
+export interface ChartBoxComponentProps {
+  width?: number
+  height: number
+  children: (width: number) => ReactNode
+  table: ReactNode
+  showTable?: boolean
+  interaction: ChartInteraction
+}
+
+export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
+  function Chart({
+    props,
+    model,
+    points,
+  }: {
+    props: Common
+    model: (width: number) => ChartModel
+    points?: boolean
+  }) {
+    const { accessibilityLabel, width, textColor, showTable, height, series, fontSize, x, y } =
+      props
+    // The table does not depend on the width, so it is built once from a
+    // model at any width rather than waiting for the box to be measured: a
+    // screen reader and server rendering both get it on the first pass.
+    const [active, setActive] = useState<number | undefined>(undefined)
+    const data = model(width ?? 1)
+    const count = data.categories.length
+    const interaction = {
+      label: accessibilityLabel,
+      announcement:
+        active === undefined ? undefined : datumSentence(data, series, active, y?.format),
+      // A position is answered by the model at the drawn width; everything
+      // else by the width-independent one the table uses.
+      onPointer: (at: number, drawnWidth: number) => {
+        const datum = model(drawnWidth).datumAt(at)
+        if (datum >= 0) setActive(datum)
+      },
+      onLeave: () => setActive(undefined),
+      onKey: (key: string) => {
+        const next = nextDatum(key, active, count)
+        if (next === undefined) return false
+        setActive(next)
+        return true
+      },
+    }
+    const table = (
+      <ChartTable
+        model={data}
+        series={series}
+        accessibilityLabel={accessibilityLabel}
+        categoryLabel={x.label}
+        format={y?.format}
+      />
+    )
+    return (
+      <ChartBox
+        width={width}
+        height={height}
+        table={table}
+        showTable={showTable}
+        interaction={interaction}
+      >
+        {(at) => (
+          <ChartSvg
+            model={model(at)}
+            active={active}
+            format={y?.format}
+            series={series}
+            points={points}
+            fontSize={fontSize}
+            textColor={textColor}
+          />
+        )}
+      </ChartBox>
+    )
+  }
+
+  function BarChart({ stacked, ...props }: BarChartProps) {
+    return <Chart props={props} model={(width) => barChartModel({ ...props, stacked, width })} />
+  }
+
+  function LineChart({ points, ...props }: LineChartProps) {
+    return (
+      <Chart props={props} points={points} model={(width) => lineChartModel({ ...props, width })} />
+    )
+  }
+
+  return { BarChart, LineChart }
+}

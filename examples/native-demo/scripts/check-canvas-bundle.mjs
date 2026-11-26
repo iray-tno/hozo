@@ -52,6 +52,49 @@ expect(/MakeFromSVGString/.test(bundle), 'the Native path parser reached the bun
 expect(/matchFont/.test(bundle), 'the Native font lookup reached the bundle')
 expect(/measureText/.test(bundle), 'the Native text alignment measurement reached the bundle')
 
+// RFC 015: the charts take their Native entry. The chart names are the
+// fixture; the Native box (`onLayout`) and react-native-svg are the Native
+// halves, and the Web box must not come along. Matched by module path, since
+// the word ResizeObserver also appears in engine and in comments.
+expect(/Native chart: revenue by month/.test(bundle), 'the charts fixture is bundled')
+expect(/barChartModel/.test(bundle), 'the shared chart model reached the Native bundle')
+expect(/react-native-svg/.test(bundle), 'react-native-svg is resolved for the charts')
+// Metro resolves react-native-svg's JavaScript from the workspace whether or
+// not this app declares it, but only a declared dependency is autolinked
+// into the Android and iOS builds; without it the app dies on launch with
+// RNSVG's views unregistered, which is how #2302's first run failed.
+const manifest = JSON.parse(
+  readFileSync(
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'),
+    'utf8',
+  ),
+)
+expect(
+  manifest.dependencies?.['react-native-svg'] !== undefined,
+  "react-native-svg is this app's own dependency, so its native views are linked",
+)
+// One React. Metro resolves `react` from each file's own location, so a
+// workspace package whose devDependency resolved another version brings a
+// second copy, and its hooks run against a React that is not rendering:
+// "Cannot read property 'useState' of null" on launch (#2302, @hozo/charts
+// on 19.3.0 beside the app's 19.2.8). Counted by each copy's entry module.
+const reactCopies = new Set(
+  [
+    ...bundle.matchAll(
+      /node_modules[\\/]\.pnpm[\\/]react@([^\\/]+)[\\/]node_modules[\\/]react[\\/]index\.js/g,
+    ),
+  ].map((match) => match[1]),
+)
+expect(
+  reactCopies.size === 1,
+  `one React in the bundle (found ${[...reactCopies].join(', ') || 'none'})`,
+)
+expect(/charts[\\/]dist[\\/]chart-box\.native\.js/.test(bundle), 'the Native chart box is bundled')
+expect(
+  !/charts[\\/]dist[\\/]chart-box\.js/.test(bundle),
+  'the Web chart box stayed out of the Native bundle',
+)
+
 if (failures.length > 0) {
   console.error('Canvas bundle check failed:')
   for (const failure of failures) console.error(`  - ${failure}`)

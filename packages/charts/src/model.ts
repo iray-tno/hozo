@@ -16,8 +16,12 @@ export interface ChartSeries {
   key: string
   /** What a reader hears and the legend shows. */
   label: string
-  /** Classes for this series' marks, e.g. `fill-primary`; the renderer applies them. */
-  className?: string
+  /**
+   * This series' colour, any value the platform's SVG accepts. A runtime
+   * string cannot be a class list on Native, where `className` is
+   * compile-time input; the default palette applies when absent.
+   */
+  color?: string
 }
 
 export interface ChartXAxis {

@@ -1,0 +1,240 @@
+// The SVG renderer: a chart model drawn with @hozo/svg, which is browser
+// SVG on Web and react-native-svg on Native (RFC 015 §6). It only draws
+// what the model already decided; nothing here computes a position. It
+// carries no name: the box hides it from a screen reader, which reads the
+// table of the data instead.
+
+import { Circle, G, Line, Path, Rect, Svg, SvgText } from '@hozo/svg'
+import { datumRows, tooltipBox } from './active.ts'
+import type { ChartModel, ChartSeries } from './model.ts'
+import { seriesColor } from './palette.ts'
+
+export interface ChartSvgProps {
+  model: ChartModel
+  series: readonly ChartSeries[]
+  /** Whether a Line chart draws a dot at each value. */
+  points?: boolean
+  fontSize?: number
+  /** Axis text and lines; inherits the surrounding text colour when absent. */
+  textColor?: string
+  /** The datum the keyboard, pointer or touch is on; its tooltip is drawn. */
+  active?: number
+  format?: (value: number) => string
+}
+
+export function ChartSvg({
+  model,
+  series,
+  points = false,
+  fontSize = 12,
+  textColor,
+  active,
+  format,
+}: ChartSvgProps) {
+  const { plot } = model
+  const ink = textColor ?? 'currentColor'
+  const bottom = plot.y + plot.height
+  return (
+    <Svg
+      width={model.width}
+      height={model.height}
+      viewBox={`0 0 ${model.width} ${model.height}`}
+      {...(textColor ? { color: textColor } : {})}
+    >
+      <G>
+        {model.yTicks.map((tick) => (
+          <G key={`y${tick.label}`}>
+            <Line
+              x1={plot.x}
+              x2={plot.x + plot.width}
+              y1={tick.position}
+              y2={tick.position}
+              stroke={ink}
+              strokeOpacity={0.15}
+            />
+            <SvgText
+              x={plot.x - fontSize / 2}
+              y={tick.position}
+              dy={fontSize * 0.35}
+              fill={ink}
+              fontSize={fontSize}
+              textAnchor="end"
+            >
+              {tick.label}
+            </SvgText>
+          </G>
+        ))}
+        {model.xTicks.map((tick) => (
+          <SvgText
+            key={`x${tick.position}`}
+            x={tick.position}
+            y={bottom + fontSize * 1.25}
+            fill={ink}
+            fontSize={fontSize}
+            textAnchor="middle"
+          >
+            {tick.label}
+          </SvgText>
+        ))}
+        <Line
+          x1={plot.x}
+          x2={plot.x + plot.width}
+          y1={bottom}
+          y2={bottom}
+          stroke={ink}
+          strokeOpacity={0.4}
+        />
+      </G>
+      <G>
+        {model.marks.map((mark) => {
+          const color = seriesColor(mark.series, series[mark.series]?.color)
+          switch (mark.kind) {
+            case 'bar':
+              return (
+                <Rect
+                  key={`b${mark.series}-${mark.datum}`}
+                  x={mark.x}
+                  y={mark.y}
+                  width={mark.width}
+                  height={mark.height}
+                  fill={color}
+                />
+              )
+            case 'line':
+              return (
+                <Path
+                  key={`l${mark.series}`}
+                  d={mark.path}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={2}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              )
+            case 'point':
+              return points ? (
+                <Circle
+                  key={`p${mark.series}-${mark.datum}`}
+                  cx={mark.cx}
+                  cy={mark.cy}
+                  r={3}
+                  fill={color}
+                />
+              ) : null
+          }
+          return null
+        })}
+      </G>
+      {active !== undefined && active >= 0 && active < model.categories.length ? (
+        <Tooltip
+          model={model}
+          series={series}
+          datum={active}
+          fontSize={fontSize}
+          ink={ink}
+          format={format}
+          points={points}
+        />
+      ) : null}
+    </Svg>
+  )
+}
+
+/**
+ * The active datum: a band behind it, a ring on each line's value, and a
+ * box listing every series there. Dark with light text so it reads on a
+ * light or a dark page alike; the swatch is not the only cue, as each row
+ * names its series.
+ */
+function Tooltip({
+  model,
+  series,
+  datum,
+  fontSize,
+  ink,
+  format,
+  points,
+}: {
+  model: ChartModel
+  series: readonly ChartSeries[]
+  datum: number
+  fontSize: number
+  ink: string
+  format?: (value: number) => string
+  points: boolean
+}) {
+  const title = model.categories[datum] ?? ''
+  const rows = datumRows(model, series, datum, format)
+  const box = tooltipBox(model, title, rows, fontSize, datum)
+  const center = model.centers[datum] as number
+  const band =
+    model.centers.length > 1
+      ? Math.abs((model.centers[1] as number) - (model.centers[0] as number))
+      : model.plot.width
+  return (
+    <G>
+      <Rect
+        x={center - band / 2}
+        y={model.plot.y}
+        width={band}
+        height={model.plot.height}
+        fill={ink}
+        fillOpacity={0.08}
+      />
+      {model.marks.map((mark) =>
+        mark.kind === 'point' && mark.datum === datum ? (
+          <Circle
+            key={`a${mark.series}`}
+            cx={mark.cx}
+            cy={mark.cy}
+            r={points ? 5 : 4}
+            fill="#ffffff"
+            stroke={rows[mark.series]?.color}
+            strokeWidth={2}
+          />
+        ) : null,
+      )}
+      <Rect
+        x={box.x}
+        y={box.y}
+        width={box.width}
+        height={box.height}
+        rx={4}
+        fill="#111827"
+        fillOpacity={0.92}
+      />
+      <SvgText
+        x={box.x + box.padding}
+        y={box.y + box.padding + box.lineHeight * 0.75}
+        fill="#ffffff"
+        fontSize={fontSize}
+        fontWeight="bold"
+      >
+        {title}
+      </SvgText>
+      {rows.map((row, i) => {
+        const baseline = box.y + box.padding + box.lineHeight * (i + 1.75)
+        return (
+          <G key={row.label}>
+            <Rect
+              x={box.x + box.padding}
+              y={baseline - fontSize * 0.75}
+              width={fontSize * 0.7}
+              height={fontSize * 0.7}
+              fill={row.color}
+            />
+            <SvgText
+              x={box.x + box.padding + fontSize}
+              y={baseline}
+              fill="#ffffff"
+              fontSize={fontSize}
+            >
+              {`${row.label}: ${row.value}`}
+            </SvgText>
+          </G>
+        )
+      })}
+    </G>
+  )
+}

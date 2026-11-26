@@ -1,6 +1,6 @@
 # RFC 015: Charts
 
-- **Status**: Draft
+- **Status**: Phase 1 implemented; `@hozo/charts` stays private until it is made public (metadata, README, bootstrap publish)
 - **Authors**: claude-1
 - **Tracking issue**: [#154](https://github.com/iray-tno/hozo/issues/154)
 - **Target packages**: new `@hozo/charts`; existing `@hozo/svg`, `@hozo/canvas`, `@hozo/semantics`, `@hozo/behaviors`
@@ -68,8 +68,8 @@ import { BarChart, LineChart } from '@hozo/charts'
   x={{ key: 'month', label: 'Month' }}
   y={{ label: 'Revenue', format: (v) => `$${v.toLocaleString()}` }}
   series={[
-    { key: 'online', label: 'Online', className: 'fill-primary' },
-    { key: 'store', label: 'In store', className: 'fill-secondary' },
+    { key: 'online', label: 'Online' },
+    { key: 'store', label: 'In store', color: '#0891b2' },
   ]}
   height={240}
 />
@@ -84,11 +84,14 @@ import { BarChart, LineChart } from '@hozo/charts'
 - `height` is required; width fills the container and is measured
   (ResizeObserver on Web, `onLayout` on Native). `width` may be given to
   skip the measurement, and server rendering uses it when present.
-- `className` on a series reaches the mark elements, so `fill-*` and
-  `stroke-*` follow the theme through the compiler as on any SVG shape.
-  A default palette from theme tokens applies when it is absent.
+- `color` on a series is a colour value, not a class list. Series
+  arrive as data at run time, and on Native `className` is compile-time
+  input that a runtime string never reaches, so a class would work on Web
+  only. A default palette of six hues applies when it is absent, each
+  keeping 3:1 against white and near-black. Theme-token colours are a
+  later step, once a runtime token read exists on both platforms.
 - Bar has `grouped` (default) and `stacked`. Line has `points` (whether
-  each datum gets a dot) and `curve: 'linear' | 'monotone'`.
+  each datum gets a dot); `curve: 'monotone'` is deferred to after phase 1.
 
 ## 4. The shared layer
 
@@ -132,21 +135,31 @@ A line is an SVG path string because both renderers already take one:
 The equivalent comes from the data, never from the marks: a table built
 from bars and points is worse than one built from the series.
 
-- **Name.** The chart root is a named group carrying `accessibilityLabel`,
-  as a `Svg` with readable content already is.
-- **Table.** Every chart renders a table of its data: the x value per row
-  and one column per series, through `@hozo/semantics` `Table`, so Native
-  gets the table semantics that component already has. It is visually
-  hidden by default; `showTable` shows it.
-- **One value at a time.** The chart is one tab stop. On Web the arrow keys
-  move the active datum (Left/Right along x, Up/Down between series),
-  Home/End go to the ends, and the active value is announced through
-  `@hozo/behaviors`' live region as "March, Online: $1,200". On Native the
-  chart is `adjustable`: swipe up and down move the active datum, and its
-  `accessibilityValue` is the same sentence.
+- **Name and table.** Every chart renders a table of its data, named with
+  `accessibilityLabel`: the x value per row (a row header) and one column
+  per series, through `@hozo/semantics`' table, so Native gets the table
+  semantics that component already has. A gap reads "No value", never 0.
+  It is visually hidden by default; `showTable` shows it. The drawing
+  itself is hidden from screen readers (`aria-hidden`, and
+  `importantForAccessibility`/`accessibilityElementsHidden` on Native):
+  its tick labels and shapes would only repeat the table less well. The
+  table carries the name rather than a wrapping group, so the name is read
+  once.
+- **One value at a time.** The drawing is one tab stop, a group named
+  with `accessibilityLabel` and described as a "chart". Left/Right move the
+  active datum along x and Home/End go to the ends; the active datum is
+  announced through a polite live region as one sentence with every series,
+  "Mar. Online: $90. In store: $60.", so moving along x is the only
+  navigation needed (an earlier draft had Up/Down between series; reading
+  them all at once made it redundant). On Native the drawing is one
+  `adjustable` element: swipe up and down move the active datum, and its
+  `accessibilityValue` is the same sentence. The name is therefore heard on
+  the tab stop and on the table; each is a different way in.
 - **Pointer and touch.** Hover on Web and touch on Native set the same
   active datum, so the tooltip, the announcement and the keyboard share
-  one state.
+  one state. The tooltip is drawn in the SVG, so both platforms share it:
+  a band behind the datum, a ring on each line's value, and a dark box
+  listing every series there.
 - **Colour.** Series are never told apart by colour alone in the tooltip
   and the table; both carry the series label.
 

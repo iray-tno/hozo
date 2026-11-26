@@ -9,6 +9,10 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "react-native": {
+        "types": "./dist/index.native.d.ts",
+        "default": "./dist/index.native.js"
+      },
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -16,6 +20,31 @@
   "scripts": {
     "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
     "typecheck": "tsc -p . --noEmit",
-    "test": "node --test src/*.test.ts"
+    "test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .test-build/*.test.js"
+  },
+  "dependencies": {
+    "@hozo/svg": "workspace:^",
+    "@hozo/semantics": "workspace:^"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-native": ">=0.87",
+    "react-native-svg": ">=15.9.0"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    },
+    "react-native-svg": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-native": "^0.87.1",
+    "react-native-svg": "^15.15.5"
   }
 }
