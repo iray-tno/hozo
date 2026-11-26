@@ -298,7 +298,7 @@ fn format_px_token(token: &str, px: f64) -> String {
     format!("{px}px")
 }
 
-fn split_top_level<'a>(text: &'a str, sep: char) -> Vec<&'a str> {
+fn split_top_level(text: &str, sep: char) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut depth = 0usize;
     let mut start = 0usize;
@@ -350,7 +350,11 @@ fn split_top_level_whitespace(text: &str) -> Vec<&str> {
     parts
 }
 
-fn resolve_shadow_layer(layer: &str, allow_inset: bool, max_lengths: usize) -> Option<String> {
+fn resolve_shadow_layer(
+    layer: &str,
+    allow_inset: bool,
+    max_lengths: usize,
+) -> Option<(String, bool)> {
     let tokens = split_top_level_whitespace(layer.trim());
     if tokens.len() < 2 {
         return None;
@@ -359,6 +363,7 @@ fn resolve_shadow_layer(layer: &str, allow_inset: bool, max_lengths: usize) -> O
     let mut has_color = false;
     let mut lengths = 0usize;
     let mut finished_lengths = false;
+    let mut changed = false;
     let mut out = Vec::with_capacity(tokens.len());
 
     for token in tokens {
@@ -380,7 +385,11 @@ fn resolve_shadow_layer(layer: &str, allow_inset: bool, max_lengths: usize) -> O
                 return None;
             }
             lengths += 1;
-            out.push(format_px_token(token, px));
+            let formatted = format_px_token(token, px);
+            if formatted != token {
+                changed = true;
+            }
+            out.push(formatted);
         } else if native_color_literal_valid(token) {
             if has_color {
                 return None;
@@ -395,7 +404,7 @@ fn resolve_shadow_layer(layer: &str, allow_inset: bool, max_lengths: usize) -> O
         }
     }
 
-    (lengths >= 2).then(|| out.join(" "))
+    (lengths >= 2).then(|| (out.join(" "), changed))
 }
 
 /// Validates a `box-shadow` value for React Native and folds any statically
@@ -410,10 +419,22 @@ pub fn resolve_native_box_shadow(value: &str) -> Option<String> {
     }
     let layers = split_top_level(trimmed, ',');
     let mut resolved = Vec::with_capacity(layers.len());
+    let mut any_changed = false;
     for layer in layers {
-        resolved.push(resolve_shadow_layer(layer, true, 4)?);
+        let (text, changed) = resolve_shadow_layer(layer, true, 4)?;
+        any_changed |= changed;
+        resolved.push(text);
     }
-    (!resolved.is_empty()).then(|| resolved.join(", "))
+    if resolved.is_empty() {
+        return None;
+    }
+    // Keep authored spacing (e.g. StyleX's normalized `a,b` layer lists)
+    // unchanged when no unit needed folding.
+    Some(if any_changed {
+        resolved.join(", ")
+    } else {
+        trimmed.to_string()
+    })
 }
 
 /// Validates one filter function string for React Native and folds statically
@@ -477,7 +498,7 @@ pub fn resolve_native_filter(function: FilterFunction, css: &str) -> Option<Stri
             if lower_name != "drop-shadow" {
                 return None;
             }
-            let inner = resolve_shadow_layer(arg, false, 3)?;
+            let (inner, _) = resolve_shadow_layer(arg, false, 3)?;
             Some(format!("drop-shadow({inner})"))
         }
     }
@@ -595,10 +616,9 @@ pub fn resolve_native_transform_origin(value: &str) -> Option<String> {
             out.push(lower);
         } else if index < 2 && is_percentage_token(token) {
             out.push((*token).to_string());
-        } else if let Some(px) = resolve_native_length_px(token) {
-            out.push(format_px_token(token, px));
         } else {
-            return None;
+            let px = resolve_native_length_px(token)?;
+            out.push(format_px_token(token, px));
         }
     }
     Some(out.join(" "))
@@ -714,6 +734,10 @@ mod tests {
         assert_eq!(
             resolve_native_box_shadow("inset 0 2px 4px 0 rgb(0 0 0 / 0.05)"),
             Some("inset 0 2px 4px 0 rgb(0 0 0 / 0.05)".to_string())
+        );
+        assert_eq!(
+            resolve_native_box_shadow("inset 0 1px 2px #123456,0 2px 4px #00000080"),
+            Some("inset 0 1px 2px #123456,0 2px 4px #00000080".to_string())
         );
         assert_eq!(resolve_native_box_shadow("none"), Some("none".to_string()));
         assert_eq!(resolve_native_box_shadow("10px"), None);
