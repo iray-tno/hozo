@@ -185,7 +185,10 @@ pub(super) fn render_node(
     let layout = crate::pattern_layout::adapt(node.primitive, "className", style);
     let style = layout.style;
     let style = prepare::motion_safe_skeleton(style, node, from_ancestor.in_skeleton);
-    let grid = native_grid(&style, theme, cx.runtime);
+    let can_measure_grid_height = !has_display_contents(&style)
+        && host::primitive_can_measure_parent(node.primitive)
+        && crate::grid::has_definite_grid_height(&style, parent_measured);
+    let grid = native_grid(&style, theme, can_measure_grid_height, cx.runtime);
     let grid_item = native_grid_item(&style, grid_columns, grid_rows);
     // The fast Native transition path is deliberately narrow: opacity on
     // Pressable interaction state can stay entirely on the native driver.
@@ -473,6 +476,9 @@ pub(super) fn render_node(
     }
     let measures_parent =
         can_measure_parent && (has_parent_measured_child || has_parent_measured_space);
+    let measures_grid_height = grid.as_ref().is_some_and(|grid| grid.uses_measured_height)
+        && !has_display_contents(&own_declarations)
+        && host::supports_parent_measurement_host(rendered_component);
     // An intervening control owns its own interaction. Neither an enhanced
     // nor a plain link may borrow an outer button's hover/focus context.
     let owns_pressable_interaction = rendered_component == "HozoPressable";
@@ -723,7 +729,7 @@ pub(super) fn render_node(
     let tag = wrappers::host_tag(
         rendered_component,
         measures_host,
-        measures_parent,
+        measures_parent || measures_grid_height,
         &self_style_parts,
         outermost_text,
         inherited,

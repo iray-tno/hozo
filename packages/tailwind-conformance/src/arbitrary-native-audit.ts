@@ -303,11 +303,16 @@ function parseCandidate(candidate: string): {
 function probeSpecializedContext(candidate: string, prefix: string): string | undefined {
   let source: string | undefined
   let label: string | undefined
-  if (prefix === 'grid-cols' || prefix === 'grid-rows') {
+  if (prefix === 'grid-cols') {
     label = 'HozoGrid container'
     source =
       `import { View } from '@hozo/core'\n` +
       `export function C() { return <View className="grid ${candidate}"><View /></View> }\n`
+  } else if (prefix === 'grid-rows') {
+    label = 'HozoGrid container'
+    source =
+      `import { View } from '@hozo/core'\n` +
+      `export function C() { return <View className="grid h-64 ${candidate}"><View /></View> }\n`
   } else if (prefix === 'fill' || prefix === 'stroke') {
     label = '<Svg> shape'
     source =

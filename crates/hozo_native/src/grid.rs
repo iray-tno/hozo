@@ -15,6 +15,74 @@ pub(super) struct NativeGrid {
     pub(super) track_count: Option<usize>,
     pub(super) row_tracks_js: Option<String>,
     pub(super) row_track_count: Option<usize>,
+    /// True when explicit row tracks resolve `%` / `%`-mixed `calc()` against
+    /// the grid container's definite content-box height via `HozoMeasuredParent`.
+    pub(super) uses_measured_height: bool,
+}
+
+/// Whether `declarations` give the grid container an unconditional definite
+/// height that lowers on Native (`h-64`, `h-screen`, `h-full`, `h-[400px]`,
+/// `size-*`, `block-*`, etc.), allowing `%` / `%`-`calc()` row tracks without
+/// creating a self-referential auto-height layout loop.
+pub(super) fn has_definite_grid_height(
+    declarations: &[StyleDeclaration],
+    parent_measured: bool,
+) -> bool {
+    let last_height = declarations.iter().rev().find(|declaration| {
+        declaration.condition == Condition::Always
+            && matches!(
+                declaration.property,
+                StyleProperty::Height(_) | StyleProperty::BlockSize(_)
+            )
+    });
+    let Some(declaration) = last_height else {
+        return false;
+    };
+    let (StyleProperty::Height(dim) | StyleProperty::BlockSize(dim)) = &declaration.property else {
+        return false;
+    };
+    match dim {
+        Dimension::Auto => false,
+        Dimension::Percent(pct)
+        | Dimension::ViewportWidth(pct)
+        | Dimension::ViewportHeight(pct) => pct.is_finite(),
+        Dimension::Length(length) => {
+            (length.unresolved_unit().is_none() && length.css_expression().is_none())
+                || crate::layout::is_viewport_sized(&declaration.property)
+                || crate::measured::is_container_sized(&declaration.property)
+                || (parent_measured && crate::measured::is_parent_measured(&declaration.property))
+        }
+        Dimension::Css(_) => {
+            crate::layout::is_viewport_sized(&declaration.property)
+                || crate::measured::is_container_sized(&declaration.property)
+                || (parent_measured && crate::measured::is_parent_measured(&declaration.property))
+        }
+    }
+}
+
+/// Whether `declarations` declare `display: grid` with `%` / `%`-`calc()` row
+/// tracks that could lower if the grid container had a definite height.
+pub(super) fn grid_rows_needs_definite_height(declarations: &[StyleDeclaration]) -> bool {
+    let is_grid = declarations.iter().rev().find_map(|declaration| {
+        matches!(declaration.condition, Condition::Always)
+            .then_some(&declaration.property)
+            .and_then(|property| match property {
+                StyleProperty::Display(display) => Some(*display),
+                _ => None,
+            })
+    }) == Some(Display::Grid);
+    if !is_grid {
+        return false;
+    }
+    declarations.iter().any(|declaration| {
+        if let StyleProperty::GridTemplateRows(tracks) = &declaration.property {
+            parse_grid_tracks(tracks, None).is_none()
+                && parse_grid_tracks(tracks, Some("__hozoGridH"))
+                    .is_some_and(|parsed| parsed.iter().any(|t| matches!(t, NativeTrack::Calc(_))))
+        } else {
+            false
+        }
+    })
 }
 
 pub(super) fn grid_absorbs(property: &StyleProperty) -> bool {
@@ -34,6 +102,7 @@ pub(super) fn grid_absorbs(property: &StyleProperty) -> bool {
 pub(super) fn native_grid(
     declarations: &[StyleDeclaration],
     theme: &Theme,
+    definite_height: bool,
     runtime: &mut RuntimeNeeds,
 ) -> Option<NativeGrid> {
     if declarations.iter().any(|declaration| {
@@ -65,31 +134,38 @@ pub(super) fn native_grid(
         return None;
     }
 
-    let (tracks_js, track_count) = responsive_grid_value(
+    let (tracks_js, track_count, _) = responsive_grid_value(
         declarations,
         |property| match property {
-            StyleProperty::GridTemplateColumns(tracks) => Some(parse_grid_tracks(tracks, true)),
+            StyleProperty::GridTemplateColumns(tracks) => {
+                Some(parse_grid_tracks(tracks, Some("__hozoGridW")))
+            }
             _ => None,
         },
         Some(vec![NativeTrack::Fr(1.0)]),
+        "__hozoGridW",
         runtime,
     )?;
     let has_rows = declarations
         .iter()
         .any(|declaration| matches!(declaration.property, StyleProperty::GridTemplateRows(_)));
-    let (row_tracks_js, row_track_count) = if has_rows {
-        let (value, count) = responsive_grid_value(
+    let (row_tracks_js, row_track_count, uses_measured_height) = if has_rows {
+        let row_binding = definite_height.then_some("__hozoGridH");
+        let (value, count, has_calc) = responsive_grid_value(
             declarations,
             |property| match property {
-                StyleProperty::GridTemplateRows(tracks) => Some(parse_grid_tracks(tracks, false)),
+                StyleProperty::GridTemplateRows(tracks) => {
+                    Some(parse_grid_tracks(tracks, row_binding))
+                }
                 _ => None,
             },
             Some(Vec::new()),
+            "__hozoGridH",
             runtime,
         )?;
-        (Some(value), count)
+        (Some(value), count, has_calc)
     } else {
-        (None, None)
+        (None, None, false)
     };
     let column_gap = responsive_gap(declarations, theme, true, runtime)?;
     let row_gap = responsive_gap(declarations, theme, false, runtime)?;
@@ -100,6 +176,7 @@ pub(super) fn native_grid(
         track_count,
         row_tracks_js,
         row_track_count,
+        uses_measured_height,
     })
 }
 
@@ -113,11 +190,12 @@ enum NativeTrack {
 
 type NativeTracks = Vec<NativeTrack>;
 
-fn parse_grid_tracks(tracks: &GridTracks, allow_percent_calc: bool) -> Option<NativeTracks> {
+fn parse_grid_tracks(tracks: &GridTracks, percent_binding: Option<&str>) -> Option<NativeTracks> {
     match tracks {
         GridTracks::Count(count) if *count > 0 => Some(vec![NativeTrack::Fr(1.0); *count as usize]),
-        GridTracks::Css(css) => parse_equal_grid_repeat(css)
-            .or_else(|| parse_native_grid_tracks(css, allow_percent_calc)),
+        GridTracks::Css(css) => {
+            parse_equal_grid_repeat(css).or_else(|| parse_native_grid_tracks(css, percent_binding))
+        }
         GridTracks::None | GridTracks::Subgrid | GridTracks::Count(_) => None,
     }
 }
@@ -135,7 +213,7 @@ fn parse_equal_grid_repeat(css: &str) -> Option<NativeTracks> {
     (count > 0).then(|| vec![NativeTrack::Fr(1.0); count])
 }
 
-fn tracks_js(tracks: &NativeTracks) -> String {
+fn tracks_js(tracks: &NativeTracks, param_name: &str) -> String {
     format!(
         "[{}]",
         tracks
@@ -147,7 +225,7 @@ fn tracks_js(tracks: &NativeTracks) -> String {
                     format!("{{ kind: 'minmax', min: {min}, value: {fr} }}")
                 }
                 NativeTrack::Calc(expr) => {
-                    format!("{{ kind: 'calc', evaluate: (__hozoGridW) => Math.max(0, {expr}) }}")
+                    format!("{{ kind: 'calc', evaluate: ({param_name}) => Math.max(0, {expr}) }}")
                 }
             })
             .collect::<Vec<_>>()
@@ -169,8 +247,9 @@ fn responsive_grid_value<F>(
     declarations: &[StyleDeclaration],
     pick: F,
     default: Option<NativeTracks>,
+    param_name: &str,
     runtime: &mut RuntimeNeeds,
-) -> Option<(String, Option<usize>)>
+) -> Option<(String, Option<usize>, bool)>
 where
     F: Fn(&StyleProperty) -> Option<Option<NativeTracks>>,
 {
@@ -195,25 +274,27 @@ where
     }
     let base = base?;
     let mut counts = vec![base.len()];
+    let mut has_calc = base.iter().any(|t| matches!(t, NativeTrack::Calc(_)));
     // Hooks are min-width predicates and therefore overlap. Wrap from the
     // smallest to the largest so the largest active breakpoint is outermost
     // and wins, matching Tailwind's media-query ordering.
     responsive.sort_by_key(|(bp, _)| breakpoint_rank(bp));
-    let mut value = tracks_js(&base);
+    let mut value = tracks_js(&base, param_name);
     for (bp, tracks) in &responsive {
         runtime.hooks.push(RuntimeHook::Breakpoint(*bp));
         counts.push(tracks.len());
+        has_calc |= tracks.iter().any(|t| matches!(t, NativeTrack::Calc(_)));
         value = format!(
             "{} ? {} : ({value})",
             RuntimeHook::Breakpoint(*bp).binding(),
-            tracks_js(tracks)
+            tracks_js(tracks, param_name)
         );
     }
     let count = counts
         .iter()
         .all(|count| *count == counts[0])
         .then_some(counts[0]);
-    Some((value, count))
+    Some((value, count, has_calc))
 }
 
 fn responsive_gap(
@@ -418,7 +499,7 @@ fn resolve_grid_line(line: GridLine, columns: usize) -> Option<usize> {
     }
 }
 
-fn parse_native_grid_tracks(css: &str, allow_percent_calc: bool) -> Option<NativeTracks> {
+fn parse_native_grid_tracks(css: &str, percent_binding: Option<&str>) -> Option<NativeTracks> {
     let tracks: Option<Vec<_>> = hozo_ir::split_top_level_tracks(css)
         .into_iter()
         .map(|token| {
@@ -438,12 +519,24 @@ fn parse_native_grid_tracks(css: &str, allow_percent_calc: bool) -> Option<Nativ
             if let Some(value) = hozo_ir::resolve_native_length_px(token) {
                 return (value >= 0.0).then_some(NativeTrack::Points(value));
             }
-            if allow_percent_calc {
+            if let Some(binding) = percent_binding {
+                if let Some(pct) = token
+                    .strip_suffix('%')
+                    .and_then(|value| value.parse::<f64>().ok())
+                    .filter(|pct| pct.is_finite() && *pct >= 0.0)
+                {
+                    let js = if (pct - 100.0).abs() < f64::EPSILON {
+                        binding.to_string()
+                    } else {
+                        format!("{binding} * {}", pct / 100.0)
+                    };
+                    return Some(NativeTrack::Calc(js));
+                }
                 if let Some(expr) = hozo_ir::parse_calc_length(token) {
                     let needs = expr.needs();
                     if needs.percent && !needs.viewport && !needs.needs_container() {
                         if let Some(js) = expr.to_js(&hozo_ir::CalcBindings {
-                            percent: Some("__hozoGridW"),
+                            percent: Some(binding),
                             ..Default::default()
                         }) {
                             return Some(NativeTrack::Calc(js));
@@ -653,5 +746,80 @@ mod tests {
         assert!(output
             .prelude
             .contains(&"const __hozoBp_lg = useHozoBreakpoint('lg')".to_string()));
+    }
+
+    #[test]
+    fn definite_height_grid_lowers_percent_and_calc_row_tracks_while_auto_height_refuses() {
+        let source = r#"
+            import { View } from '@hozo/core'
+            function Screen() {
+              return <View className="grid h-64 p-4 grid-rows-[calc(100%-2rem)_2rem]"><View /><View /></View>
+            }
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(output.runtime_imports.contains(&"HozoMeasuredParent"));
+        assert!(output.runtime_imports.contains(&"HozoParentSizeQuery"));
+        assert!(output.runtime_imports.contains(&"HozoGrid"));
+        assert!(output.jsx.contains("<HozoMeasuredParent"), "{}", output.jsx);
+        assert!(
+            output
+                .jsx
+                .contains("containerHeight={__hozoParent?.height}"),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            output.jsx.contains(
+                "{ kind: 'calc', evaluate: (__hozoGridH) => Math.max(0, __hozoGridH - 32) }"
+            ),
+            "{}",
+            output.jsx
+        );
+
+        // Plain percentage columns and definite-height percentage rows also lower.
+        let pct_source = r#"
+            import { View } from '@hozo/core'
+            function Split() {
+              return <View className="grid h-screen grid-cols-[30%_70%] grid-rows-[50%_50%]"><View /><View /></View>
+            }
+            "#;
+        let parsed = hozo_parser::parse_tsx(pct_source);
+        let output = lower(&parsed.roots[0].node, pct_source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert!(
+            output.jsx.contains(
+                "{ kind: 'calc', evaluate: (__hozoGridW) => Math.max(0, __hozoGridW * 0.3) }"
+            ),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            output.jsx.contains(
+                "{ kind: 'calc', evaluate: (__hozoGridH) => Math.max(0, __hozoGridH * 0.5) }"
+            ),
+            "{}",
+            output.jsx
+        );
+
+        // Auto-height grid with `%`-calc row track stays honestly refused with guidance.
+        let auto_source = r#"
+            import { View } from '@hozo/core'
+            function AutoGrid() {
+              return <View className="grid grid-rows-[calc(100%-2rem)]"><View /></View>
+            }
+            "#;
+        let parsed = hozo_parser::parse_tsx(auto_source);
+        let output = lower(&parsed.roots[0].node, auto_source, &Theme::default());
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|d| d.message.contains("definite height")),
+            "{:?}",
+            output.diagnostics
+        );
+        assert!(!output.jsx.contains("HozoGrid"), "{}", output.jsx);
     }
 }

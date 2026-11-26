@@ -13,6 +13,8 @@ import { keepIfSettled } from './runtime-measured.ts'
 interface Props {
   tracks: readonly GridTrack[]
   rowTracks?: readonly GridTrack[]
+  /** Definite content-box height from an enclosing `HozoMeasuredParent`, for `%`/`calc()` row tracks. */
+  containerHeight?: number
   columnGap?: number
   rowGap?: number
   children?: ReactNode
@@ -26,6 +28,7 @@ interface Props {
 export function HozoGrid({
   tracks,
   rowTracks = [],
+  containerHeight,
   columnGap = 0,
   rowGap = 0,
   children,
@@ -50,7 +53,7 @@ export function HozoGrid({
     placements.some((item) => (item.rowSpan ?? 1) > 1 || item.rowStart !== undefined)
   if (measured) {
     const columns = gridTrackSizes(tracks, width, columnGap)
-    const rows = gridRowSizes(layout, heights, rowGap, rowTracks)
+    const rows = gridRowSizes(layout, heights, rowGap, rowTracks, containerHeight)
     const offsets = (sizes: readonly number[], gap: number) =>
       sizes.map((_, index) => sizes.slice(0, index).reduce((a, b) => a + b, 0) + index * gap)
     const left = offsets(columns, columnGap)
@@ -63,9 +66,17 @@ export function HozoGrid({
         return kept === current[child] ? current : Object.assign([...current], { [child]: kept })
       })
     }
+    const isFixedRow = (row: number) => {
+      const track = rowTracks[row]
+      return track?.kind === 'points' || (track?.kind === 'calc' && containerHeight !== undefined)
+    }
     return (
       <View
-        style={{ position: 'relative', alignSelf: 'stretch', height: totalHeight }}
+        style={{
+          position: 'relative',
+          alignSelf: 'stretch',
+          height: containerHeight ?? totalHeight,
+        }}
         // Guarded, and its sibling above always was. This one was not,
         // and that asymmetry is the whole bug: the container height is
         // derived from the measured heights, so every height change
@@ -84,10 +95,14 @@ export function HozoGrid({
           const cellHeight =
             rows.slice(item.row, item.row + item.rowSpan).reduce((a, b) => a + b, 0) +
             (item.rowSpan - 1) * rowGap
+          const fixedRows = Array.from(
+            { length: item.rowSpan },
+            (_, offset) => item.row + offset,
+          ).every(isFixedRow)
           return (
             <View
               key={item.child}
-              onLayout={rememberHeight(item.child)}
+              onLayout={fixedRows ? undefined : rememberHeight(item.child)}
               style={{
                 position: 'absolute',
                 left: left[item.column],

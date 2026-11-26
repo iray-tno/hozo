@@ -31,11 +31,26 @@ pub(super) fn place_children(
             .as_ref()
             .map(|tracks| format!(" rowTracks={{{tracks}}}"))
             .unwrap_or_default();
+        let container_height = if grid.uses_measured_height {
+            " containerHeight={__hozoParent?.height}"
+        } else {
+            ""
+        };
         let text = format!(
-            "<HozoGrid tracks={{{}}}{row_tracks} columnGap={{{}}} rowGap={{{}}}>{}</HozoGrid>",
+            "<HozoGrid tracks={{{}}}{row_tracks}{container_height} columnGap={{{}}} rowGap={{{}}}>{}</HozoGrid>",
             grid.tracks_js, grid.column_gap, grid.row_gap, inner.text
         );
-        inner.wrap(text, "</HozoGrid>".len())
+        let mut rendered = inner.wrap(text, "</HozoGrid>".len());
+        if grid.uses_measured_height {
+            cx.runtime.need_component("HozoParentSizeQuery");
+            let wrapped = format!(
+                "<HozoParentSizeQuery>{{(__hozoParent) => ({})}}</HozoParentSizeQuery>",
+                rendered.text
+            );
+            rendered = rendered.wrap(wrapped, ")}</HozoParentSizeQuery>".len());
+            rendered.forget_scope();
+        }
+        rendered
     } else {
         spaced_children(
             inner,

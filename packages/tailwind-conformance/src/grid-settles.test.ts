@@ -348,3 +348,85 @@ test('HozoMeasuredParent subtracts border and padding, resolves mainAxisSize, an
     mainAxisSize: 32,
   })
 })
+
+test('definite-height HozoGrid evaluates calc() row tracks against content-box height and settles', () => {
+  const seenHeights: number[] = []
+  let renders = 0
+  let root: Root | undefined
+  const Scene = () =>
+    react.createElement(
+      react.Profiler,
+      {
+        id: 'definite-height-grid',
+        onRender: () => {
+          renders += 1
+        },
+      },
+      react.createElement(
+        measuredBox.HozoMeasuredParent,
+        { style: { height: 256, paddingVertical: 16 } },
+        react.createElement(
+          measuredBox.HozoParentSizeQuery,
+          null,
+          (parent: { height: number } | undefined) =>
+            react.createElement(
+              runtime.HozoGrid,
+              {
+                tracks: [{ kind: 'fr', value: 1 }],
+                rowTracks: [
+                  {
+                    kind: 'calc',
+                    evaluate: (h: number) => {
+                      seenHeights.push(h)
+                      return Math.max(0, h - 32)
+                    },
+                  },
+                ],
+                containerHeight: parent?.height,
+                columnGap: 0,
+                rowGap: 0,
+              },
+              react.createElement('View', null, 'Cell'),
+            ),
+        ),
+      ),
+    )
+
+  renderer.act(() => {
+    root = renderer.create(react.createElement(Scene))
+  })
+  const fireLayout = (width: number, height: number) => {
+    const targets = root!.root.findAll((node) => typeof node.props.onLayout === 'function')
+    renderer.act(() => {
+      for (const target of targets) {
+        ;(target.props.onLayout as (event: unknown) => void)({
+          nativeEvent: { layout: { width, height } },
+        })
+      }
+    })
+  }
+  // Outer border-box is 300x256 with paddingVertical: 16 -> content-box height = 224.
+  fireLayout(300, 256)
+  fireLayout(300, 256)
+  const settled = renders
+  for (const [w, h] of [
+    [299.99998, 256.00002],
+    [300.00002, 255.99998],
+  ]) {
+    fireLayout(w, h)
+  }
+  assert.equal(
+    renders,
+    settled,
+    `definite-height HozoGrid re-rendered ${renders - settled} times on float wobble`,
+  )
+  assert.equal(seenHeights.at(-1), 224)
+  // Cell gets evaluated row height 224 - 32 = 192 inside the 224px grid container.
+  const cell = root!.root.findAll(
+    (node) =>
+      typeof node.props.style === 'object' &&
+      node.props.style !== null &&
+      (node.props.style as Record<string, unknown>).position === 'absolute',
+  )[0]
+  assert.equal((cell?.props.style as Record<string, unknown> | undefined)?.height, 192)
+})

@@ -90,7 +90,10 @@ boundaries.**
 3. **Auto-height `grid-rows-[calc(...)]` stays refused** because `HozoGrid`
    derives its total height from its row tracks; evaluating `%` row tracks
    against an indefinite auto height would be self-referential (indefinite in
-   CSS Grid as well).
+   CSS Grid as well). When the grid container has a definite height (`h-64`,
+   `h-screen`, `h-full`, `size-*`, etc.), Hozo measures its content-box height
+   via `HozoMeasuredParent` and passes `containerHeight` into `HozoGrid` so
+   `%` / `%`-`calc()` row tracks evaluate cleanly with zero loop.
 4. **Keep the revisit trigger in tests.**
    `packages/tailwind-conformance/src/fabric-parent-calc.test.ts` checks
    `react-native/types` on every run so a React Native upgrade that adds
