@@ -486,6 +486,17 @@ impl StyleProperty {
                  browser chrome -- there is nothing to resolve it against"
             ));
         }
+        // Arbitrary CSS colour text that React Native's colour parser cannot
+        // read (`var(--x)`, `calc(...)`, `nonsense`, or non-colour values that
+        // fell into Tailwind's colour fallback like `border-[50%]` or `caret-[10px]`).
+        if let PropertyValue::Color(Color::Css(value)) = self.value() {
+            if !native_color_literal_valid(value) {
+                return Some(format!(
+                    "`{value}`: React Native requires a resolved colour literal (hex, named colour, \
+                     or rgb/hsl function), so this CSS value cannot be lowered"
+                ));
+            }
+        }
         // Viewport-relative sizes were refused here until 2026-08-15. They
         // are not impossible on React Native, only impossible *statically*:
         // the value changes when the device rotates, so it can't live in a
@@ -575,6 +586,56 @@ impl StyleProperty {
             StyleProperty::Gradient(GradientKind::Conic, _) => Some(
                 "`bg-conic-*`: React Native's backgroundImage has linear and radial gradients \
                  and no conic one"
+                    .to_string(),
+            ),
+            StyleProperty::Gradient(kind, prelude)
+                if !native_gradient_prelude_valid(*kind, prelude) =>
+            {
+                Some(format!(
+                    "`{prelude}`: React Native's {} requires a valid direction, angle, or radial \
+                     shape/position prelude",
+                    kind.css()
+                ))
+            }
+            StyleProperty::BoxShadow(value) | StyleProperty::InsetShadow(value)
+                if resolve_native_box_shadow(value).is_none() =>
+            {
+                Some(format!(
+                    "`{value}`: React Native's boxShadow requires concrete offset lengths (in px \
+                     or foldable units) and valid colours"
+                ))
+            }
+            StyleProperty::Filter(function, value)
+                if resolve_native_filter(*function, value).is_none() =>
+            {
+                Some(format!(
+                    "`{value}`: React Native's filter requires concrete function arguments (px \
+                     lengths, angles, or numeric/percentage factors)"
+                ))
+            }
+            StyleProperty::TransformOrigin(value)
+                if resolve_native_transform_origin(value).is_none() =>
+            {
+                Some(format!(
+                    "`{value}`: React Native's transformOrigin accepts edge keywords, percentages, \
+                     or statically resolvable lengths"
+                ))
+            }
+            StyleProperty::DivideX(Dimension::Percent(_) | Dimension::Auto)
+            | StyleProperty::DivideY(Dimension::Percent(_) | Dimension::Auto) => Some(
+                "`divide-x`/`divide-y`: React Native's border widths take a numeric pixel value, \
+                 not a percentage or `auto`"
+                    .to_string(),
+            ),
+            StyleProperty::TranslateX(Dimension::Auto)
+            | StyleProperty::TranslateY(Dimension::Auto) => Some(
+                "`translate-x-[auto]`/`translate-y-[auto]`: React Native's translate transforms \
+                 accept lengths or percentages, not `auto`"
+                    .to_string(),
+            ),
+            StyleProperty::MaxWidth(Dimension::Auto)
+            | StyleProperty::MaxHeight(Dimension::Auto) => Some(
+                "`max-w-[auto]`/`max-h-[auto]`: `auto` is not a valid CSS maximum size"
                     .to_string(),
             ),
             StyleProperty::ZIndex(None) => Some(

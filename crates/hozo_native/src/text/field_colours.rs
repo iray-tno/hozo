@@ -9,12 +9,23 @@ use crate::*;
 /// Lives here rather than in `unsupported_on_native` because the answer
 /// depends on the node -- on a `TextInput` it lowers, anywhere else there
 /// is no placeholder for it to colour.
+fn is_valid_field_colour(colour: &hozo_ir::Color) -> bool {
+    !matches!(
+        colour,
+        hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
+    )
+}
+
 pub(crate) fn placeholder_colour(
     declaration: &StyleDeclaration,
 ) -> Option<(&hozo_ir::Color, bool)> {
     match (&declaration.property, &declaration.condition) {
-        (StyleProperty::PlaceholderColor(c), Condition::Always) => Some((c, false)),
-        (StyleProperty::PlaceholderColor(c), Condition::Dark) => Some((c, true)),
+        (StyleProperty::PlaceholderColor(c), Condition::Always) if is_valid_field_colour(c) => {
+            Some((c, false))
+        }
+        (StyleProperty::PlaceholderColor(c), Condition::Dark) if is_valid_field_colour(c) => {
+            Some((c, true))
+        }
         (
             StyleProperty::TextColor(c),
             Condition::PseudoElement(hozo_ir::PseudoElement::Placeholder),
@@ -175,8 +186,12 @@ pub(crate) fn placeholder_only_reason(property: &StyleProperty) -> Option<String
 /// condition is not wired and is diagnosed, never applied unconditionally.
 pub(crate) fn caret_colour(declaration: &StyleDeclaration) -> Option<(&hozo_ir::Color, bool)> {
     match (&declaration.property, &declaration.condition) {
-        (StyleProperty::CaretColor(c), Condition::Always) => Some((c, false)),
-        (StyleProperty::CaretColor(c), Condition::Dark) => Some((c, true)),
+        (StyleProperty::CaretColor(c), Condition::Always) if is_valid_field_colour(c) => {
+            Some((c, false))
+        }
+        (StyleProperty::CaretColor(c), Condition::Dark) if is_valid_field_colour(c) => {
+            Some((c, true))
+        }
         _ => None,
     }
 }

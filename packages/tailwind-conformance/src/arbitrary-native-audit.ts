@@ -463,6 +463,8 @@ const STANDALONE_TRANSFORM_OR_SPECIAL = new Set([
   'grid-rows',
   'fill',
   'stroke',
+  'caret',
+  'placeholder',
 ])
 
 function isValidLengthToken(value: string): boolean {

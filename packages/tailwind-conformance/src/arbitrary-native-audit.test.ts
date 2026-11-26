@@ -62,16 +62,16 @@ test('findUnresolvableInNativeOutput flags unresolvable strings while admitting 
 
 test('auditArbitraryNative partitions representative arbitrary candidates honestly across buckets', async () => {
   const sample = [
-    // Valid covered (including folded `leading-[1.5em]` against `text-lg` and `w-[100vh]`)
+    // Valid covered (including folded `leading-[1.5em]` against `text-lg`, `w-[100vh]`, and `blur-[2rem]` -> `blur(32px)`)
     'w-[10px]',
     'bg-[#ff0000]',
     'leading-[1.5em]',
     'w-[100vh]',
-    // Unresolvable covered (false positives currently passing as COVERED)
+    'blur-[2rem]',
+    // Formerly false-positive COVERED entries, now refused at compile time
     'bg-[var(--x)]',
     'border-[50%]',
     'blur-[#ff0000]',
-    'blur-[2rem]',
     'caret-[10px]',
     'translate-x-[auto]',
     // Context covered (works inside HozoGrid / <Svg>)
@@ -125,13 +125,14 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('bg-[#ff0000]'), 'validCovered')
   assert.equal(byCandidate.get('leading-[1.5em]'), 'validCovered')
   assert.equal(byCandidate.get('w-[100vh]'), 'validCovered')
+  assert.equal(byCandidate.get('blur-[2rem]'), 'validCovered')
 
-  assert.equal(byCandidate.get('bg-[var(--x)]'), 'unresolvableCovered')
-  assert.equal(byCandidate.get('border-[50%]'), 'unresolvableCovered')
-  assert.equal(byCandidate.get('blur-[#ff0000]'), 'unresolvableCovered')
-  assert.equal(byCandidate.get('blur-[2rem]'), 'unresolvableCovered')
-  assert.equal(byCandidate.get('caret-[10px]'), 'unresolvableCovered')
-  assert.equal(byCandidate.get('translate-x-[auto]'), 'unresolvableCovered')
+  assert.equal(byCandidate.get('bg-[var(--x)]'), 'dynamicCss')
+  assert.equal(byCandidate.get('border-[50%]'), 'invalidCss')
+  assert.equal(byCandidate.get('blur-[#ff0000]'), 'invalidCss')
+  assert.equal(byCandidate.get('caret-[10px]'), 'invalidCss')
+  assert.equal(byCandidate.get('translate-x-[auto]'), 'invalidCss')
+  assert.equal(summary.unresolvableCovered, 0)
 
   assert.equal(byCandidate.get('grid-cols-[10px]'), 'contextCovered')
   assert.equal(byCandidate.get('fill-[#ff0000]'), 'contextCovered')

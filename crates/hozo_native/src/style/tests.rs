@@ -179,3 +179,67 @@ fn portable_text_shadow_expands_to_native_text_fields() {
     );
     assert!(property.unsupported_on_native().is_none());
 }
+
+#[test]
+fn unresolvable_arbitrary_strings_are_refused_and_rem_lengths_fold_to_px() {
+    for class_name in [
+        "bg-[var(--x)]",
+        "border-[50%]",
+        "blur-[#ff0000]",
+        "shadow-[10px]",
+        "bg-linear-[10px]",
+        "divide-x-[50%]",
+        "translate-x-[auto]",
+        "max-w-[auto]",
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::WebOnlyPropertyOnNative),
+            "{class_name} should raise WebOnlyPropertyOnNative, got {:?}",
+            out.diagnostics
+        );
+    }
+
+    for class_name in ["caret-[10px]", "placeholder-[10px]"] {
+        let source = format!(
+            "import {{ TextInput }} from '@hozo/core'\nconst el = <TextInput className=\"{class_name}\" accessibilityLabel=\"Field\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::WebOnlyPropertyOnNative),
+            "{class_name} should raise WebOnlyPropertyOnNative, got {:?}",
+            out.diagnostics
+        );
+        assert!(!out.jsx.contains("10px"), "{class_name}: {}", out.jsx);
+    }
+
+    for (class_name, expected) in [
+        ("blur-[2rem]", "filter: 'blur(32px)'"),
+        ("origin-[2rem]", "transformOrigin: '32px'"),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.styles.contains(expected),
+            "{class_name}: {}",
+            out.styles
+        );
+    }
+}

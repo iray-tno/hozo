@@ -133,7 +133,7 @@ pub(super) fn metadata(props: &[StyleProperty], theme: &Theme) -> Option<Metadat
             seen |= bit;
             let value = match property {
                 StyleProperty::BoxShadow(value) | StyleProperty::InsetShadow(value) => {
-                    shadow(value)
+                    shadow(&hozo_ir::resolve_native_box_shadow(value)?)
                 }
                 StyleProperty::RingWidth(value)
                 | StyleProperty::InsetRingWidth(value)

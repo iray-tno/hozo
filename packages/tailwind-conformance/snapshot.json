@@ -139,22 +139,22 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 621,
-    "refused": 2192,
-    "noOp": 32,
+    "covered": 370,
+    "refused": 2453,
+    "noOp": 22,
     "silent": 0
   },
   "arbitraryNativeAudit": {
     "candidates": 2845,
-    "validCovered": 368,
-    "unresolvableCovered": 253,
+    "validCovered": 370,
+    "unresolvableCovered": 0,
     "contextCovered": 7,
     "implementable": 56,
     "layoutMeasurable": 68,
-    "dynamicCss": 239,
-    "webOnly": 1223,
-    "invalidCss": 599,
-    "noOp": 32,
+    "dynamicCss": 273,
+    "webOnly": 1241,
+    "invalidCss": 808,
+    "noOp": 22,
     "silent": 0
   },
   "canvas": {

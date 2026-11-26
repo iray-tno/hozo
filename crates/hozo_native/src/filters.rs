@@ -56,11 +56,12 @@ pub(super) fn metadata(props: &[StyleProperty]) -> Option<Metadata> {
         match property {
             StyleProperty::Filter(FilterFunction::None, _) => mode = Some("none"),
             StyleProperty::Filter(function, value) => {
+                let resolved = hozo_ir::resolve_native_filter(*function, value)?;
                 functions |= 1 << (*function as u32);
                 slots.push(format!(
                     "[{}, {}]",
                     *function as u32,
-                    style::js_string(value)
+                    style::js_string(&resolved)
                 ));
                 mode = Some("slots");
             }
