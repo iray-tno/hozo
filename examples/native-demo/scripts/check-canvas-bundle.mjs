@@ -58,6 +58,8 @@ expect(/measureText/.test(bundle), 'the Native text alignment measurement reache
 // the word ResizeObserver also appears in engine and in comments.
 expect(/Native chart: revenue by month/.test(bundle), 'the charts fixture is bundled')
 expect(/barChartModel/.test(bundle), 'the shared chart model reached the Native bundle')
+expect(/Native chart: revenue by channel/.test(bundle), 'the donut fixture is bundled')
+expect(/pieChartModel/.test(bundle), 'the pie layout reached the Native bundle')
 expect(/react-native-svg/.test(bundle), 'react-native-svg is resolved for the charts')
 // Metro resolves react-native-svg's JavaScript from the workspace whether or
 // not this app declares it, but only a declared dependency is autolinked

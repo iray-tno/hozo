@@ -1,6 +1,6 @@
 # @hozo/charts
 
-Bar and Line charts that a screen reader, a keyboard and a finger can all use, drawn with
+Bar, Line, Pie and Donut charts that a screen reader, a keyboard and a finger can all use, drawn with
 [`@hozo/svg`](https://www.npmjs.com/package/@hozo/svg) on the Web and React Native.
 
 ```tsx
@@ -60,6 +60,25 @@ to declare it itself, because only a declared dependency is linked into the Andr
   range they cover, and each series' lowest and highest value, with any gaps counted. Above
   1,000 categories (`TABLE_ROW_LIMIT`) the table is left out unless `showTable` asks for it, and
   the summary says so. Page Up and Page Down move a tenth of the data at a time.
+
+## Pie and donut
+
+```tsx
+<PieChart
+  accessibilityLabel="Revenue by channel"
+  data={channels}
+  x={{ key: 'channel' }}
+  value={{ key: 'revenue', label: 'Revenue', format: (value) => `$${value}` }}
+  height={220}
+/>
+```
+
+`DonutChart` is the same with `innerRadius` 0.6. A value is read with its share of the positive
+total, for example "Online. Revenue: $960 (46.8%)." A zero, negative or missing value has no
+slice and no legend row, and the table still lists it. Slices take the palette in order, and a
+last slice that would repeat the first colour beside it takes the next colour instead. `colors`
+sets them by row. The legend sits beside the circle when there is room and under it otherwise. The
+pointer finds a slice by its angle, or a legend row by its line.
 
 ## Props
 

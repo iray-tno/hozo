@@ -18,6 +18,7 @@ import {
   type ChartModel,
   lineChartModel,
 } from './model.ts'
+import { type PieValue, pieChartModel, shareFormat } from './pie.ts'
 import { chartSummary, includesTable } from './summary.ts'
 
 type Common = Omit<ChartInput, 'width'> & {
@@ -41,14 +42,23 @@ export type LineChartProps = Common & {
   points?: boolean
 }
 
+export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin'> & {
+  /** The field each slice's size comes from, and what to call it when read. */
+  value: PieValue
+  /** Slice colours by row; the default palette fills the rest. */
+  colors?: readonly string[]
+  /** The hole as a fraction of the radius; 0 by default, `DonutChart` 0.6. */
+  innerRadius?: number
+}
+
 /** What the box wires to the platform's focus, keys, pointer and touch. */
 export interface ChartInteraction {
   /** The chart's name, on its one focusable element. */
   label: string
   /** The active datum's sentence, or undefined with none active. */
   announcement?: string
-  /** A pointer or finger at `x` in a drawing `width` wide. */
-  onPointer(x: number, width: number): void
+  /** A pointer or finger at (`x`, `y`) in a drawing `width` wide. */
+  onPointer(x: number, y: number, width: number): void
   onLeave(): void
   /** A key (or a Native adjust action as one); true when it was used. */
   onKey(key: string): boolean
@@ -84,10 +94,12 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     props,
     model,
     points,
+    colors,
   }: {
     props: Common
     model: (width: number) => ChartModel
     points?: boolean
+    colors?: readonly string[]
   }) {
     const { accessibilityLabel, width, textColor, showTable, height, series, fontSize, x, y } =
       props
@@ -110,8 +122,8 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
         active === undefined ? undefined : datumSentence(data, series, active, y?.format),
       // A position is answered by the model at the drawn width; everything
       // else by the width-independent one the table uses.
-      onPointer: (position: number, drawnWidth: number) => {
-        const datum = drawn(drawnWidth).datumAt(position)
+      onPointer: (px: number, py: number, drawnWidth: number) => {
+        const datum = drawn(drawnWidth).datumAt(px, py)
         if (datum >= 0) setActive(datum)
       },
       onLeave: () => setActive(undefined),
@@ -158,6 +170,7 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
             points={points}
             fontSize={fontSize}
             textColor={textColor}
+            colors={colors}
           />
         )}
       </ChartBox>
@@ -174,5 +187,22 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     )
   }
 
-  return { BarChart, LineChart }
+  // A pie is one series whose values are also read as shares of the
+  // whole, so the table, the summary and the sentence say "$120 (40%)".
+  function PieChart({ value, colors, innerRadius, ...props }: PieChartProps) {
+    const format = shareFormat(props.data, value.key, value.format)
+    return (
+      <Chart
+        props={{ ...props, series: [{ key: value.key, label: value.label }], y: { format } }}
+        colors={colors}
+        model={(width) => pieChartModel({ ...props, value, innerRadius, width })}
+      />
+    )
+  }
+
+  function DonutChart({ innerRadius = 0.6, ...props }: PieChartProps) {
+    return <PieChart {...props} innerRadius={innerRadius} />
+  }
+
+  return { BarChart, LineChart, PieChart, DonutChart }
 }

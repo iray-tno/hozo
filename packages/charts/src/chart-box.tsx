@@ -60,10 +60,8 @@ export function ChartBox({
   const resolved = width ?? measured
   const pointer = (event: PointerEvent<HTMLDivElement>) => {
     if (resolved === undefined) return
-    interaction.onPointer(
-      event.clientX - event.currentTarget.getBoundingClientRect().left,
-      resolved,
-    )
+    const box = event.currentTarget.getBoundingClientRect()
+    interaction.onPointer(event.clientX - box.left, event.clientY - box.top, resolved)
   }
   return (
     <div style={{ position: 'relative', width: width ?? '100%' }}>

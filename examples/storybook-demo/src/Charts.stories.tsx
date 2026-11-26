@@ -1,9 +1,9 @@
-// Charts (RFC 015): Bar and Line from @hozo/charts. Each is one tab stop;
+// Charts (RFC 015): Bar, Line, Pie and Donut from @hozo/charts. Each is one tab stop;
 // the arrow keys, Home and End move along the data and a live region reads
 // every series there, the pointer does the same with a tooltip, and a
 // screen reader also has the table of the data, out of sight unless shown.
 
-import { BarChart, LineChart } from '@hozo/charts'
+import { BarChart, DonutChart, LineChart, PieChart } from '@hozo/charts'
 import { View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
@@ -81,6 +81,48 @@ export const Default: StoryObj<typeof meta> = {}
 
 /** The same charts with their tables on screen, as `showTable` puts them. */
 export const WithTables: StoryObj<typeof meta> = { args: { showTable: true } }
+
+const channels = [
+  { channel: 'Online', revenue: 960 },
+  { channel: 'In store', revenue: 475 },
+  { channel: 'Partners', revenue: 310 },
+  { channel: 'Phone', revenue: null },
+  { channel: 'Wholesale', revenue: 220 },
+  { channel: 'Events', revenue: 85 },
+]
+const share = { key: 'revenue', label: 'Revenue', format: (value: number) => `$${value}` }
+
+/**
+ * A pie and a donut of the same revenue: the active slice is outlined and
+ * read with its share, and Phone, which has no figure, has no slice and no
+ * legend row but is still in the table.
+ */
+export const PieAndDonut: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="max-w-2xl gap-8 p-6 text-slate-700">
+      <Section className="gap-2">
+        <Heading level={2}>Pie</Heading>
+        <PieChart
+          accessibilityLabel="Revenue by channel"
+          data={channels}
+          x={{ key: 'channel', label: 'Channel' }}
+          value={share}
+          height={220}
+        />
+      </Section>
+      <Section className="gap-2">
+        <Heading level={2}>Donut</Heading>
+        <DonutChart
+          accessibilityLabel="Revenue by channel, as a donut"
+          data={channels}
+          x={{ key: 'channel', label: 'Channel' }}
+          value={share}
+          height={220}
+        />
+      </Section>
+    </View>
+  ),
+}
 
 const daily = Array.from({ length: 5000 }, (_, day) => ({
   day: `Day ${day + 1}`,

@@ -1,6 +1,6 @@
 # RFC 015: Charts
 
-- **Status**: Phase 1 implemented and `@hozo/charts` published with the next release; Canvas rendering, pie and donut, and sparklines in progress
+- **Status**: Phase 1 implemented and `@hozo/charts` published with the next release; pie and donut added; sparklines in progress; a Canvas renderer set aside after [measurement](../measurements/charts-scale.md)
 - **Authors**: claude-1
 - **Tracking issue**: [#154](https://github.com/iray-tno/hozo/issues/154)
 - **Target packages**: new `@hozo/charts`; existing `@hozo/svg`, `@hozo/canvas`, `@hozo/semantics`, `@hozo/behaviors`

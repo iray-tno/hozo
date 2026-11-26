@@ -51,10 +51,20 @@ export function ChartBox({
         }}
         onStartShouldSetResponder={() => true}
         onResponderGrant={(event) => {
-          if (resolved !== undefined) interaction.onPointer(event.nativeEvent.locationX, resolved)
+          if (resolved !== undefined)
+            interaction.onPointer(
+              event.nativeEvent.locationX,
+              event.nativeEvent.locationY,
+              resolved,
+            )
         }}
         onResponderMove={(event) => {
-          if (resolved !== undefined) interaction.onPointer(event.nativeEvent.locationX, resolved)
+          if (resolved !== undefined)
+            interaction.onPointer(
+              event.nativeEvent.locationX,
+              event.nativeEvent.locationY,
+              resolved,
+            )
         }}
         onResponderRelease={() => interaction.onLeave()}
         onResponderTerminate={() => interaction.onLeave()}

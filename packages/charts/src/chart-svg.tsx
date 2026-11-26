@@ -21,6 +21,8 @@ export interface ChartSvgProps {
   /** The datum the keyboard, pointer or touch is on; its tooltip is drawn. */
   active?: number
   format?: (value: number) => string
+  /** A pie's slice colours, by datum; the default palette fills the rest. */
+  colors?: readonly string[]
 }
 
 export function ChartSvg({
@@ -31,6 +33,7 @@ export function ChartSvg({
   textColor,
   active,
   format,
+  colors,
 }: ChartSvgProps) {
   const ink = textColor ?? 'currentColor'
   return (
@@ -40,7 +43,14 @@ export function ChartSvg({
       viewBox={`0 0 ${model.width} ${model.height}`}
       {...(textColor ? { color: textColor } : {})}
     >
-      <Drawing model={model} series={series} points={points} fontSize={fontSize} ink={ink} />
+      <Drawing
+        model={model}
+        series={series}
+        points={points}
+        fontSize={fontSize}
+        ink={ink}
+        colors={colors}
+      />
       {active !== undefined && active >= 0 && active < model.categories.length ? (
         <Tooltip
           model={model}
@@ -50,6 +60,7 @@ export function ChartSvg({
           ink={ink}
           format={format}
           points={points}
+          colors={colors}
         />
       ) : null}
     </Svg>
@@ -68,14 +79,16 @@ const Drawing = memo(function Drawing({
   points,
   fontSize,
   ink,
+  colors,
 }: {
   model: ChartModel
   series: readonly ChartSeries[]
   points: boolean
   fontSize: number
   ink: string
+  colors?: readonly string[]
 }) {
-  const { plot } = model
+  const { plot, radial } = model
   const bottom = plot.y + plot.height
   return (
     <>
@@ -114,19 +127,23 @@ const Drawing = memo(function Drawing({
             {tick.label}
           </SvgText>
         ))}
-        <Line
-          x1={plot.x}
-          x2={plot.x + plot.width}
-          y1={bottom}
-          y2={bottom}
-          stroke={ink}
-          strokeOpacity={0.4}
-        />
+        {radial ? null : (
+          <Line
+            x1={plot.x}
+            x2={plot.x + plot.width}
+            y1={bottom}
+            y2={bottom}
+            stroke={ink}
+            strokeOpacity={0.4}
+          />
+        )}
       </G>
       <G>
         {model.marks.map((mark) => {
-          const color = seriesColor(mark.series, series[mark.series]?.color)
+          const color = markColor(mark, series, colors)
           switch (mark.kind) {
+            case 'arc':
+              return <Path key={`s${mark.datum}`} d={mark.path} fill={color} />
             case 'bar':
               return (
                 <Rect
@@ -164,9 +181,52 @@ const Drawing = memo(function Drawing({
           return null
         })}
       </G>
+      {radial ? (
+        <G>
+          {radial.legend.map((entry) => (
+            <G key={`k${entry.datum}`}>
+              <Rect
+                x={entry.x}
+                y={entry.y + (fontSize * 1.6 - radial.swatch) / 2}
+                width={radial.swatch}
+                height={radial.swatch}
+                fill={seriesColor(entry.tone, colors?.[entry.datum])}
+              />
+              <SvgText
+                x={entry.x + radial.swatch + fontSize / 2}
+                y={entry.y + fontSize * 1.15}
+                fill={ink}
+                fontSize={fontSize}
+              >
+                {entry.label}
+              </SvgText>
+            </G>
+          ))}
+        </G>
+      ) : null}
     </>
   )
 })
+
+function sliceColor(
+  model: ChartModel,
+  datum: number,
+  colors?: readonly string[],
+): string | undefined {
+  const mark = model.marks.find((entry) => entry.kind === 'arc' && entry.datum === datum)
+  return mark?.kind === 'arc' ? seriesColor(mark.tone, colors?.[datum]) : undefined
+}
+
+/** A slice takes its datum's colour; a bar, line or dot its series'. */
+function markColor(
+  mark: ChartModel['marks'][number],
+  series: readonly ChartSeries[],
+  colors?: readonly string[],
+): string {
+  return mark.kind === 'arc'
+    ? seriesColor(mark.tone, colors?.[mark.datum])
+    : seriesColor(mark.series, series[mark.series]?.color)
+}
 
 /**
  * The active datum: a band behind it, a ring on each line's value, and a
@@ -182,6 +242,7 @@ function Tooltip({
   ink,
   format,
   points,
+  colors,
 }: {
   model: ChartModel
   series: readonly ChartSeries[]
@@ -190,9 +251,12 @@ function Tooltip({
   ink: string
   format?: (value: number) => string
   points: boolean
+  colors?: readonly string[]
 }) {
   const title = model.categories[datum] ?? ''
-  const rows = datumRows(model, series, datum, format)
+  const rows = datumRows(model, series, datum, format).map((row) =>
+    model.radial ? { ...row, color: sliceColor(model, datum, colors) ?? row.color } : row,
+  )
   const box = tooltipBox(model, title, rows, fontSize, datum)
   const center = model.centers[datum] as number
   const band =
@@ -201,14 +265,22 @@ function Tooltip({
       : model.plot.width
   return (
     <G>
-      <Rect
-        x={center - band / 2}
-        y={model.plot.y}
-        width={band}
-        height={model.plot.height}
-        fill={ink}
-        fillOpacity={0.08}
-      />
+      {model.radial ? (
+        model.marks.map((mark) =>
+          mark.kind === 'arc' && mark.datum === datum ? (
+            <Path key="active" d={mark.path} fill="none" stroke={ink} strokeWidth={2} />
+          ) : null,
+        )
+      ) : (
+        <Rect
+          x={center - band / 2}
+          y={model.plot.y}
+          width={band}
+          height={model.plot.height}
+          fill={ink}
+          fillOpacity={0.08}
+        />
+      )}
       {model.marks.map((mark) =>
         mark.kind === 'point' && mark.datum === datum ? (
           <Circle

@@ -1,9 +1,9 @@
 import { ChartBox } from './chart-box.native.tsx'
 import { createCharts } from './charts.tsx'
 
-export const { BarChart, LineChart } = createCharts(ChartBox)
+export const { BarChart, LineChart, PieChart, DonutChart } = createCharts(ChartBox)
 export { datumSentence, nextDatum } from './active.ts'
-export type { BarChartProps, LineChartProps } from './charts.tsx'
+export type { BarChartProps, LineChartProps, PieChartProps } from './charts.tsx'
 export {
   type BarChartInput,
   barChartModel,
@@ -22,6 +22,14 @@ export {
 } from './model.ts'
 export { NO_VALUE } from './no-value.ts'
 export { DEFAULT_PALETTE, seriesColor } from './palette.ts'
+export {
+  arcPath,
+  type PieChartInput,
+  type PieModel,
+  type PieValue,
+  pieChartModel,
+  shareFormat,
+} from './pie.ts'
 export {
   type BandOptions,
   type BandScale,
