@@ -95,19 +95,35 @@ pub(super) fn svg_paint(
                 // Trimmed: the style resolver returns a JavaScript string
                 // literal, quotes included, because that is what a
                 // StyleSheet entry needs. A JSX attribute brings its own.
-                StyleProperty::Fill(color) => Some((
-                    "fill",
-                    crate::style::resolve_theme_color(color, theme)
-                        .trim_matches('\'')
-                        .to_string(),
-                )),
-                StyleProperty::Stroke(color) => Some((
-                    "stroke",
-                    crate::style::resolve_theme_color(color, theme)
-                        .trim_matches('\'')
-                        .to_string(),
-                )),
-                StyleProperty::StrokeWidth(width) => Some(("strokeWidth", format!("{{{width}}}"))),
+                StyleProperty::Fill(color)
+                    if !matches!(
+                        color,
+                        hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
+                    ) =>
+                {
+                    Some((
+                        "fill",
+                        crate::style::resolve_theme_color(color, theme)
+                            .trim_matches('\'')
+                            .to_string(),
+                    ))
+                }
+                StyleProperty::Stroke(color)
+                    if !matches!(
+                        color,
+                        hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
+                    ) =>
+                {
+                    Some((
+                        "stroke",
+                        crate::style::resolve_theme_color(color, theme)
+                            .trim_matches('\'')
+                            .to_string(),
+                    ))
+                }
+                StyleProperty::StrokeWidth(width) => width
+                    .px(theme)
+                    .map(|px| ("strokeWidth", format!("{{{px}}}"))),
                 _ => None,
             })
             .collect()

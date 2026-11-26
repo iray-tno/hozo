@@ -28,7 +28,9 @@ pub(super) fn native_backdrop_filter(
         StyleProperty::BackdropFilter(FilterFunction::None, _) => Some(NativeBackdropFilter::None),
         StyleProperty::BackdropFilter(FilterFunction::Blur, value) => value
             .strip_prefix("blur(")?
-            .strip_suffix("px)")
+            .strip_suffix(')')
+            .and_then(hozo_ir::resolve_native_length_px)
+            .filter(|px| *px >= 0.0)
             .map(|radius| NativeBackdropFilter::Blur(radius.to_string())),
         _ => None,
     }
@@ -52,10 +54,14 @@ pub(super) fn report_refused(
         // Lowered as a prop just above, so it must not also be reported as
         // a style this platform cannot hold.
         if elsewhere.svg_paint
-            && matches!(
-                declaration.property,
-                StyleProperty::Fill(_) | StyleProperty::Stroke(_) | StyleProperty::StrokeWidth(_)
-            )
+            && match &declaration.property {
+                StyleProperty::Fill(c) | StyleProperty::Stroke(c) => !matches!(
+                    c,
+                    hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
+                ),
+                StyleProperty::StrokeWidth(width) => width.px(theme).is_some(),
+                _ => false,
+            }
         {
             continue;
         }
@@ -169,28 +175,38 @@ pub(super) fn report_refused(
         if elsewhere.keyframes && crate::keyframes::is_timing(&declaration.property) {
             continue;
         }
-        if matches!(declaration.property, StyleProperty::PlaceholderColor(_)) {
-            if let Some(reason) = placeholder_only_reason(&declaration.property) {
+        if let StyleProperty::PlaceholderColor(color) = &declaration.property {
+            if !matches!(
+                color,
+                hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
+            ) {
+                if let Some(reason) = placeholder_only_reason(&declaration.property) {
+                    let reason = if node.primitive == Primitive::TextInput {
+                        "conditional placeholder colours beyond dark mode are not wired to TextInput's placeholderTextColor prop".to_string()
+                    } else {
+                        reason
+                    };
+                    diagnostics.push(unwired_variant(node, &reason, Severity::Error));
+                    continue;
+                }
+            }
+        }
+        if let StyleProperty::CaretColor(color) = &declaration.property {
+            if !matches!(
+                color,
+                hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
+            ) {
+                if elsewhere.caret && caret_colour(declaration).is_some() {
+                    continue;
+                }
                 let reason = if node.primitive == Primitive::TextInput {
-                    "conditional placeholder colours beyond dark mode are not wired to TextInput's placeholderTextColor prop".to_string()
+                    "conditional caret colours beyond dark mode are not wired to TextInput's cursorColor prop".to_string()
                 } else {
-                    reason
+                    caret_only_reason()
                 };
                 diagnostics.push(unwired_variant(node, &reason, Severity::Error));
                 continue;
             }
-        }
-        if matches!(declaration.property, StyleProperty::CaretColor(_)) {
-            if elsewhere.caret && caret_colour(declaration).is_some() {
-                continue;
-            }
-            let reason = if node.primitive == Primitive::TextInput {
-                "conditional caret colours beyond dark mode are not wired to TextInput's cursorColor prop".to_string()
-            } else {
-                caret_only_reason()
-            };
-            diagnostics.push(unwired_variant(node, &reason, Severity::Error));
-            continue;
         }
         if let Some(reason) = truncation_only_reason(&declaration.property) {
             diagnostics.push(Diagnostic {

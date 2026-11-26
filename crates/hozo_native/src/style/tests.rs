@@ -49,7 +49,7 @@ fn a_logical_border_width_lowers_and_its_solid_style_asks_nothing() {
 fn numbers_have_no_unit_suffix() {
     assert_eq!(
         property_and_value(
-            &StyleProperty::PaddingTop(Length::Px(24.0)),
+            &StyleProperty::PaddingTop(Dimension::Length(Length::Px(24.0))),
             &Theme::default()
         ),
         vec![("paddingTop", "24".to_string())]
@@ -178,4 +178,252 @@ fn portable_text_shadow_expands_to_native_text_fields() {
         ]
     );
     assert!(property.unsupported_on_native().is_none());
+}
+
+#[test]
+fn unresolvable_arbitrary_strings_are_refused_and_rem_lengths_fold_to_px() {
+    for class_name in [
+        "bg-[var(--x)]",
+        "border-[50%]",
+        "blur-[#ff0000]",
+        "shadow-[10px]",
+        "bg-linear-[10px]",
+        "divide-x-[50%]",
+        "translate-x-[auto]",
+        "max-w-[auto]",
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::WebOnlyPropertyOnNative),
+            "{class_name} should raise WebOnlyPropertyOnNative, got {:?}",
+            out.diagnostics
+        );
+    }
+
+    for class_name in ["caret-[10px]", "placeholder-[10px]"] {
+        let source = format!(
+            "import {{ TextInput }} from '@hozo/core'\nconst el = <TextInput className=\"{class_name}\" accessibilityLabel=\"Field\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::WebOnlyPropertyOnNative),
+            "{class_name} should raise WebOnlyPropertyOnNative, got {:?}",
+            out.diagnostics
+        );
+        assert!(!out.jsx.contains("10px"), "{class_name}: {}", out.jsx);
+    }
+
+    for (class_name, expected) in [
+        ("blur-[2rem]", "filter: 'blur(32px)'"),
+        ("origin-[2rem]", "transformOrigin: '32px'"),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.styles.contains(expected),
+            "{class_name}: {}",
+            out.styles
+        );
+    }
+}
+
+#[test]
+fn percentage_radius_padding_and_gap_lower_on_native() {
+    for (class_name, expected) in [
+        ("rounded-[50%]", "borderRadius: '50%'"),
+        ("rounded-tl-[50%]", "borderTopLeftRadius: '50%'"),
+        ("rounded-s-[50%]", "borderStartStartRadius: '50%'"),
+        ("p-[50%]", "paddingTop: '50%'"),
+        ("px-[50%]", "paddingStart: '50%'"),
+        ("pbs-[50%]", "paddingTop: '50%'"),
+        ("gap-[50%]", "rowGap: '50%'"),
+        ("gap-x-[50%]", "columnGap: '50%'"),
+        ("gap-y-[50%]", "rowGap: '50%'"),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.styles.contains(expected),
+            "{class_name}: {}",
+            out.styles
+        );
+    }
+    for invalid in ["p-[auto]", "gap-[auto]", "rounded-[-50%]"] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{invalid}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            !out.diagnostics.is_empty(),
+            "{invalid} should be refused on Native"
+        );
+    }
+}
+
+#[test]
+fn arbitrary_scale_and_translate_lower_on_native() {
+    for (class_name, expected) in [
+        ("scale-[1.5]", "transform: [{ scale: 1.5 }]"),
+        ("scale-[50%]", "transform: [{ scale: 0.5 }]"),
+        ("scale-x-[1.5]", "transform: [{ scaleX: 1.5 }]"),
+        ("scale-x-[50%]", "transform: [{ scaleX: 0.5 }]"),
+        ("scale-y-[1.5]", "transform: [{ scaleY: 1.5 }]"),
+        ("scale-y-[50%]", "transform: [{ scaleY: 0.5 }]"),
+        (
+            "translate-[10px]",
+            "transform: [{ translateX: 10 }, { translateY: 10 }]",
+        ),
+        (
+            "translate-[2rem]",
+            "transform: [{ translateX: 32 }, { translateY: 32 }]",
+        ),
+        (
+            "translate-[50%]",
+            "transform: [{ translateX: '50%' }, { translateY: '50%' }]",
+        ),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.styles.contains(expected),
+            "{class_name}: {}",
+            out.styles
+        );
+    }
+    for invalid in [
+        "scale-[nonsense]",
+        "scale-x-[10px]",
+        "translate-[auto]",
+        "translate-[1.5em]",
+        "perspective-[10px]",
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{invalid}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            !out.diagnostics.is_empty(),
+            "{invalid} should be refused on Native"
+        );
+    }
+}
+
+#[test]
+fn remaining_zero_cost_arbitrary_values_lower_on_native() {
+    for (class_name, expected) in [
+        ("aspect-[1.5]", "aspectRatio: 1.5"),
+        ("flex-[1.5]", "flex: 1.5"),
+        ("flex-[auto]", "flexGrow: 1"),
+        ("opacity-[50%]", "opacity: 0.5"),
+        ("align-[auto]", "verticalAlign: 'auto'"),
+        ("cursor-[auto]", "cursor: 'auto'"),
+        ("ring-offset-[10px]", "boxShadow: '0 0 0 10px #fff'"),
+        ("ring-offset-[2rem]", "boxShadow: '0 0 0 32px #fff'"),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.styles.contains(expected),
+            "{class_name}: {}",
+            out.styles
+        );
+    }
+
+    // `[color:red]` lowers cleanly on Text.
+    let color_source =
+        "import { Text } from '@hozo/core'\nconst el = <Text className=\"[color:red]\">hi</Text>\n";
+    let parsed = hozo_parser::parse_tsx(color_source);
+    let out = crate::lower(&parsed.roots[0].node, color_source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.styles.contains("color: 'red'"), "{}", out.styles);
+
+    // `backdrop-blur-[2rem]` folds rem to 32px in the backdrop adapter.
+    let blur_source = "import { View } from '@hozo/core'\nconst el = <View className=\"backdrop-blur-[2rem]\" />\n";
+    let parsed = hozo_parser::parse_tsx(blur_source);
+    let out = crate::lower(&parsed.roots[0].node, blur_source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("hozoBlurRadius={32}"), "{}", out.jsx);
+
+    // `grid-cols-[2rem]` and `grid-rows-[2rem]` fold rem to points inside HozoGrid.
+    let grid_source = "import { View } from '@hozo/core'\nconst el = <View className=\"grid grid-cols-[2rem] grid-rows-[2rem]\"><View /></View>\n";
+    let parsed = hozo_parser::parse_tsx(grid_source);
+    let out = crate::lower(&parsed.roots[0].node, grid_source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(
+        out.jsx.contains("{ kind: 'points', value: 32 }"),
+        "{}",
+        out.jsx
+    );
+
+    // `stroke-[10px]` and `stroke-[2rem]` fold to numeric strokeWidth props inside <Svg>.
+    let svg_source = "import { Svg } from '@hozo/svg'\nconst el = <Svg><Svg.Rect className=\"stroke-[2rem]\" /></Svg>\n";
+    let parsed = hozo_parser::parse_tsx(svg_source);
+    let out = crate::lower(&parsed.roots[0].node, svg_source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("strokeWidth={32}"), "{}", out.jsx);
+
+    // Invalid arbitrary values remain refused.
+    for invalid in [
+        "aspect-[auto]",
+        "aspect-[nonsense]",
+        "flex-[nonsense]",
+        "opacity-[nonsense]",
+        "align-[baseline]",
+        "cursor-[grab]",
+        "ring-offset-[nonsense]",
+        "[color:var(--x)]",
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{invalid}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            !out.diagnostics.is_empty(),
+            "{invalid} should be refused on Native"
+        );
+    }
 }

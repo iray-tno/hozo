@@ -1,5 +1,5 @@
 use hozo_ir::{
-    Breakpoint, Condition, Display, GridLine, GridSpan, GridTracks, Length, StyleDeclaration,
+    Breakpoint, Condition, Dimension, Display, GridLine, GridSpan, GridTracks, StyleDeclaration,
     StyleProperty, Theme,
 };
 
@@ -91,8 +91,8 @@ pub(super) fn native_grid(
     } else {
         (None, None)
     };
-    let column_gap = responsive_gap(declarations, theme, true, runtime);
-    let row_gap = responsive_gap(declarations, theme, false, runtime);
+    let column_gap = responsive_gap(declarations, theme, true, runtime)?;
+    let row_gap = responsive_gap(declarations, theme, false, runtime)?;
     Some(NativeGrid {
         tracks_js,
         column_gap,
@@ -218,17 +218,17 @@ fn responsive_gap(
     theme: &Theme,
     column: bool,
     runtime: &mut RuntimeNeeds,
-) -> String {
+) -> Option<String> {
     let mut base = None;
     let mut responsive = Vec::new();
     for declaration in declarations {
-        let length = match &declaration.property {
-            StyleProperty::Gap(length) => length,
-            StyleProperty::ColumnGap(length) if column => length,
-            StyleProperty::RowGap(length) if !column => length,
+        let dimension = match &declaration.property {
+            StyleProperty::Gap(dimension) => dimension,
+            StyleProperty::ColumnGap(dimension) if column => dimension,
+            StyleProperty::RowGap(dimension) if !column => dimension,
             _ => continue,
         };
-        let value = (&declaration.property, length);
+        let value = (&declaration.property, dimension);
         match declaration.condition {
             Condition::Always => base = Some(value),
             Condition::Responsive(bp) => {
@@ -245,25 +245,32 @@ fn responsive_gap(
     }
     // Resolve only the winners, with the same expression used by the
     // outer View's row/column gap. A shadowed viewport value needs no hook.
-    let resolve = |(property, length): (&StyleProperty, &Length), runtime: &mut RuntimeNeeds| {
+    let resolve = |(property, dimension): (&StyleProperty, &Dimension),
+                   runtime: &mut RuntimeNeeds|
+     -> Option<String> {
         if let Some(value) = crate::layout::viewport_value(property) {
             runtime.hooks.push(RuntimeHook::Viewport);
-            value
+            Some(value)
+        } else if let Dimension::Length(length) = dimension {
+            Some(length.px(theme).to_string())
         } else {
-            length.px(theme).to_string()
+            None
         }
     };
     responsive.sort_by_key(|(bp, _)| breakpoint_rank(bp));
-    let mut value = base.map_or_else(|| "0".to_string(), |base| resolve(base, runtime));
+    let mut value = match base {
+        Some(base) => resolve(base, runtime)?,
+        None => "0".to_string(),
+    };
     for (bp, gap) in responsive {
-        let gap = resolve(gap, runtime);
+        let gap = resolve(gap, runtime)?;
         runtime.hooks.push(RuntimeHook::Breakpoint(bp));
         value = format!(
             "{} ? {gap} : ({value})",
             RuntimeHook::Breakpoint(bp).binding()
         );
     }
-    value
+    Some(value)
 }
 
 pub(super) struct NativeGridItem {
@@ -417,16 +424,15 @@ fn parse_native_grid_tracks(css: &str) -> Option<NativeTracks> {
                 .and_then(|value| value.strip_suffix(')'))
             {
                 let (min, max) = inner.split_once(',')?;
-                let min = min.strip_suffix("px")?.parse::<f64>().ok()?;
-                let fr = max.strip_suffix("fr")?.parse::<f64>().ok()?;
+                let min = hozo_ir::resolve_native_length_px(min.trim())?;
+                let fr = max.trim().strip_suffix("fr")?.parse::<f64>().ok()?;
                 return (min >= 0.0 && fr > 0.0).then_some(NativeTrack::Minmax { min, fr });
             }
             if let Some(value) = token.strip_suffix("fr") {
                 let value = value.parse::<f64>().ok()?;
                 return (value > 0.0).then_some(NativeTrack::Fr(value));
             }
-            if let Some(value) = token.strip_suffix("px") {
-                let value = value.parse::<f64>().ok()?;
+            if let Some(value) = hozo_ir::resolve_native_length_px(token) {
                 return (value >= 0.0).then_some(NativeTrack::Points(value));
             }
             None

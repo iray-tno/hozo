@@ -232,7 +232,8 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
             vec![("transformOrigin", js_string(value))]
         }
         StyleProperty::TransformOrigin(value) => {
-            vec![("transformOrigin", js_string(value))]
+            hozo_ir::resolve_native_transform_origin(value)
+                .map_or_else(Vec::new, |resolved| vec![("transformOrigin", js_string(&resolved))])
         }
         // The camelCase of the CSS name, which is how RN spells each of
         // these. `font-family` keeps the whole stack: RN takes one family
@@ -610,6 +611,12 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
 }
 
 fn window_layout_pairs(prop: &StyleProperty, theme: &Theme) -> Vec<(&'static str, String)> {
+    if matches!(
+        prop,
+        StyleProperty::MaxWidth(Dimension::Auto) | StyleProperty::MaxHeight(Dimension::Auto)
+    ) {
+        return Vec::new();
+    }
     let keys = super::layout::window_layout_keys(prop).expect("a known Native layout property");
     let value = match prop.value() {
         PropertyValue::Length(length) => number(length, theme),

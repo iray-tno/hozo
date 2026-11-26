@@ -484,14 +484,14 @@ pub(super) fn direct_properties(property: &str, value: &StaticValue) -> Option<V
             if matches!(&value, Length::Px(number) if *number < 0.0) {
                 return None;
             }
-            vec![StyleProperty::RowGap(value)]
+            vec![StyleProperty::RowGap(Dimension::Length(value))]
         }
         "gridColumnGap" => {
             let value = width()?;
             if matches!(&value, Length::Px(number) if *number < 0.0) {
                 return None;
             }
-            vec![StyleProperty::ColumnGap(value)]
+            vec![StyleProperty::ColumnGap(Dimension::Length(value))]
         }
         "borderBlockWidth" => {
             let value = stylex_border_width(value)?;
@@ -799,16 +799,16 @@ pub(super) fn direct_properties(property: &str, value: &StaticValue) -> Option<V
             ]
         }
         "paddingInline" => {
-            let value = width()?;
+            let value = Dimension::Length(width()?);
             vec![
                 StyleProperty::PaddingInlineStart(value.clone()),
                 StyleProperty::PaddingInlineEnd(value),
             ]
         }
-        "paddingBlockStart" => vec![StyleProperty::PaddingTop(width()?)],
-        "paddingBlockEnd" => vec![StyleProperty::PaddingBottom(width()?)],
+        "paddingBlockStart" => vec![StyleProperty::PaddingTop(Dimension::Length(width()?))],
+        "paddingBlockEnd" => vec![StyleProperty::PaddingBottom(Dimension::Length(width()?))],
         "paddingBlock" => {
-            let value = width()?;
+            let value = Dimension::Length(width()?);
             vec![
                 StyleProperty::PaddingTop(value.clone()),
                 StyleProperty::PaddingBottom(value),

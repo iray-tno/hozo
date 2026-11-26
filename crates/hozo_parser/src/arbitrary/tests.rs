@@ -245,14 +245,13 @@ fn a_scroll_offset_types_a_length_and_carries_anything_else() {
 
 #[test]
 fn a_percentage_radius_is_still_a_radius() {
-    // `Radius` holds a `Length`, and a percentage isn't one -- so this
-    // used to compile to nothing at all rather than to the declaration
-    // Tailwind writes.
+    // Non-negative percentages now resolve into `Radius::Percent`, so both
+    // Web and React Native receive typed radius properties.
     assert_eq!(
         properties("rounded-b-[50%]"),
         Some(vec![
-            StyleProperty::Arbitrary("border-bottom-left-radius".to_string(), "50%".to_string()),
-            StyleProperty::Arbitrary("border-bottom-right-radius".to_string(), "50%".to_string()),
+            StyleProperty::BorderBottomLeftRadius(Radius::Percent(50.0)),
+            StyleProperty::BorderBottomRightRadius(Radius::Percent(50.0)),
         ])
     );
     // The logical corners follow writing direction; `rounded-s` is the
@@ -273,7 +272,22 @@ fn an_arbitrary_scale_is_a_ratio_and_a_named_one_is_a_percentage() {
     // sixty-sixth that renders as nothing.
     assert_eq!(
         properties("scale-x-[1.5]"),
-        Some(vec![StyleProperty::ScaleX(Scale::Css("1.5".to_string()))])
+        Some(vec![StyleProperty::ScaleX(Scale::Ratio(1.5))])
+    );
+    assert_eq!(
+        properties("scale-x-[50%]"),
+        Some(vec![StyleProperty::ScaleX(Scale::Percent(50.0))])
+    );
+    assert_eq!(
+        properties("scale-[1.5]"),
+        Some(vec![StyleProperty::Scale(vec![Scale::Ratio(1.5)])])
+    );
+    assert_eq!(
+        properties("translate-[10px]"),
+        Some(vec![StyleProperty::Translate(vec![
+            Dimension::Length(Length::Px(10.0)),
+            Dimension::Length(Length::Px(10.0)),
+        ])])
     );
 }
 

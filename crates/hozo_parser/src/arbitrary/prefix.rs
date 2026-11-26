@@ -1,8 +1,9 @@
 //! Each utility prefix's reading of a bracketed value.
 
 use hozo_ir::{
-    Angle, BorderStyle, Clamp, Color, ColumnCount, Dimension, Edge, GradientKind, GradientStop,
-    GridSpan, GridTracks, LetterSpacing, LineHeight, MaskSlot, Radius, Scale, StyleProperty,
+    Angle, BorderStyle, Clamp, Color, ColumnCount, Dimension, Edge, FlexShorthand, GradientKind,
+    GradientStop, GridSpan, GridTracks, LetterSpacing, LineHeight, MaskSlot, Radius, Scale,
+    StrokeWidth, StyleProperty,
 };
 
 use super::color::{is_color, looks_like_color};
@@ -12,6 +13,7 @@ use super::families::{
 };
 use super::length::{
     is_length_percentage, is_line_width, is_percentage, parse_dimension, parse_length,
+    parse_non_negative_percent,
 };
 
 pub(super) fn from_prefix(
@@ -231,6 +233,8 @@ pub(super) fn from_prefix(
         ]),
         "ring" if is_color(value, hint) => one(StyleProperty::RingColor(color())),
         "ring" => one(StyleProperty::RingWidth(length()?)),
+        "ring-offset" if is_color(value, hint) => one(StyleProperty::RingOffsetColor(color())),
+        "ring-offset" => one(StyleProperty::RingOffsetWidth(length()?)),
         "placeholder" => one(StyleProperty::PlaceholderColor(color())),
         "accent" => one(StyleProperty::AccentColor(color())),
         "caret" => one(StyleProperty::CaretColor(color())),
@@ -241,7 +245,17 @@ pub(super) fn from_prefix(
             Some(or_raw(
                 "stroke-width",
                 value,
-                number().map(StyleProperty::StrokeWidth),
+                number()
+                    .filter(|n| n.is_finite() && *n >= 0.0)
+                    .map(StrokeWidth::Number)
+                    .or_else(|| {
+                        length()
+                            .filter(|l| {
+                                l.unresolved_unit().is_none() && l.css_expression().is_none()
+                            })
+                            .map(StrokeWidth::Length)
+                    })
+                    .map(StyleProperty::StrokeWidth),
             ))
         }
         "stroke" => one(StyleProperty::Stroke(color())),
@@ -283,7 +297,10 @@ pub(super) fn from_prefix(
         "rounded" => Some(or_raw(
             "border-radius",
             value,
-            length().map(|l| StyleProperty::BorderRadius(Radius::Length(l))),
+            length()
+                .map(Radius::Length)
+                .or_else(|| parse_non_negative_percent(value).map(Radius::Percent))
+                .map(StyleProperty::BorderRadius),
         )),
 
         // Plain numbers, each with the same escape: Tailwind emits
@@ -292,7 +309,10 @@ pub(super) fn from_prefix(
         "opacity" => Some(or_raw(
             "opacity",
             value,
-            number().map(StyleProperty::Opacity),
+            number()
+                .filter(|n| n.is_finite())
+                .or_else(|| parse_non_negative_percent(value).map(|pct| pct / 100.0))
+                .map(StyleProperty::Opacity),
         )),
         // Integers only. `ZIndex` and `Order` hold an `i32`, so `z-[1.5]`
         // went in as `1` -- a plausible number that isn't the one written,
@@ -313,6 +333,38 @@ pub(super) fn from_prefix(
             value,
             number().map(StyleProperty::FlexShrink),
         )),
+        "flex" => match value {
+            "auto" => one(StyleProperty::Flex(FlexShorthand::Auto)),
+            "initial" => one(StyleProperty::Flex(FlexShorthand::Initial)),
+            "none" => one(StyleProperty::Flex(FlexShorthand::None)),
+            _ => match number().filter(|n| n.is_finite() && *n >= 0.0) {
+                Some(grow) => one(StyleProperty::Flex(FlexShorthand::Grow(grow))),
+                None => one(StyleProperty::Arbitrary(
+                    "flex".to_string(),
+                    value.to_string(),
+                )),
+            },
+        },
+        "align" => match value {
+            "auto" => one(StyleProperty::Keyword("vertical-align", "auto")),
+            "top" => one(StyleProperty::Keyword("vertical-align", "top")),
+            "bottom" => one(StyleProperty::Keyword("vertical-align", "bottom")),
+            "middle" => one(StyleProperty::Keyword("vertical-align", "middle")),
+            _ => one(StyleProperty::Arbitrary(
+                "vertical-align".to_string(),
+                value.to_string(),
+            )),
+        },
+        "cursor" => match value {
+            "auto" | "pointer" => one(StyleProperty::Cursor(value.to_string())),
+            _ => one(StyleProperty::Arbitrary(
+                "cursor".to_string(),
+                value.to_string(),
+            )),
+        },
+        "aspect" if hozo_ir::parse_native_aspect_ratio(value).is_some() => {
+            one(StyleProperty::AspectRatio(value.to_string()))
+        }
         "aspect" => one(StyleProperty::Arbitrary(
             "aspect-ratio".to_string(),
             value.to_string(),
@@ -336,10 +388,24 @@ pub(super) fn from_prefix(
         // defaults the second axis to the first for `translate` but *not*
         // for `border-spacing`, and Tailwind writes both in every case, so
         // matching means writing both here too.
-        "translate" => one(StyleProperty::Arbitrary(
-            "translate".to_string(),
-            format!("{value} {value}"),
-        )),
+        "translate" => {
+            let parsed = dimension();
+            let resolvable = match &parsed {
+                Dimension::Percent(pct) => pct.is_finite(),
+                Dimension::Length(length) => {
+                    length.unresolved_unit().is_none() && length.css_expression().is_none()
+                }
+                _ => false,
+            };
+            if resolvable {
+                one(StyleProperty::Translate(vec![parsed.clone(), parsed]))
+            } else {
+                one(StyleProperty::Arbitrary(
+                    "translate".to_string(),
+                    format!("{value} {value}"),
+                ))
+            }
+        }
         "border-spacing" => one(StyleProperty::Arbitrary(
             "border-spacing".to_string(),
             format!("{value} {value}"),
@@ -394,11 +460,20 @@ pub(super) fn from_prefix(
         "rotate-z" => one(StyleProperty::RotateZ(angle())),
         "skew-x" => one(StyleProperty::SkewX(angle())),
         "skew-y" => one(StyleProperty::SkewY(angle())),
-        // An arbitrary scale is a ratio, not the percentage the named
-        // scale is: `scale-x-[1.5]` is `scale: 1.5`, where `scale-x-150`
-        // is `scale: 150%`.
-        "scale-x" => one(StyleProperty::ScaleX(Scale::Css(value.to_string()))),
-        "scale-y" => one(StyleProperty::ScaleY(Scale::Css(value.to_string()))),
+        // An arbitrary scale is a ratio or percentage (`scale-x-[1.5]` is
+        // `scale: 1.5`, `scale-x-[50%]` is `scale: 50%`), unlike the named
+        // scale which always means a percentage. Parsing finite ratios and
+        // percentages into `Scale::Ratio`/`Scale::Percent` preserves the
+        // exact CSS spelling on Web and lets Native emit numeric ratios.
+        "scale" => match parse_scale(value) {
+            Scale::Css(_) => one(StyleProperty::Arbitrary(
+                "scale".to_string(),
+                value.to_string(),
+            )),
+            scale => one(StyleProperty::Scale(vec![scale])),
+        },
+        "scale-x" => one(StyleProperty::ScaleX(parse_scale(value))),
+        "scale-y" => one(StyleProperty::ScaleY(parse_scale(value))),
         // Writing the z axis also switches the declaration to its
         // three-value form -- see `StyleProperty::Scale3d`.
         "scale-z" => Some(vec![
@@ -578,6 +653,22 @@ pub(super) fn from_prefix(
                 )]
             }),
     }
+}
+
+fn parse_scale(value: &str) -> Scale {
+    if let Some(percent) = value.strip_suffix('%') {
+        if let Ok(number) = percent.parse::<f64>() {
+            if number.is_finite() {
+                return Scale::Percent(number);
+            }
+        }
+    }
+    if let Ok(number) = value.parse::<f64>() {
+        if number.is_finite() {
+            return Scale::Ratio(number);
+        }
+    }
+    Scale::Css(value.to_string())
 }
 
 /// Prefixes that name one CSS property and pass their value straight

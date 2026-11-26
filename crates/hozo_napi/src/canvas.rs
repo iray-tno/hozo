@@ -108,7 +108,9 @@ pub(super) fn lower_canvas_paints(
                                     js_string(&canvas_color(&color, theme, native))
                                 )),
                                 StyleProperty::StrokeWidth(width) => {
-                                    attributes.push(format!("strokeWidth={{{width}}}"))
+                                    if let Some(px) = width.px(theme) {
+                                        attributes.push(format!("strokeWidth={{{px}}}"))
+                                    }
                                 }
                                 StyleProperty::Opacity(opacity) => {
                                     attributes.push(format!("opacity={{{opacity}}}"))

@@ -4,7 +4,7 @@
 use hozo_ir::{Color, Dimension, Edge, FilterFunction, MaskStop, Radius, StyleProperty};
 
 use super::color::looks_like_color;
-use super::length::{parse_dimension, parse_length};
+use super::length::{parse_dimension, parse_length, parse_non_negative_percent};
 
 /// A typed property where the value fits one, and the raw declaration
 /// where it doesn't.
@@ -162,12 +162,14 @@ pub(super) fn corner_radius(prefix: &str, value: &str) -> Option<Vec<StyleProper
         "rounded-ee" => &[EE],
         _ => return None,
     };
-    let length = parse_length(value);
+    let radius = parse_length(value)
+        .map(Radius::Length)
+        .or_else(|| parse_non_negative_percent(value).map(Radius::Percent));
     Some(
         corners
             .iter()
-            .map(|(variant, property)| match &length {
-                Some(l) => variant(Radius::Length(l.clone())),
+            .map(|(variant, property)| match &radius {
+                Some(r) => variant(r.clone()),
                 None => StyleProperty::Arbitrary(property.to_string(), value.to_string()),
             })
             .collect(),
@@ -388,7 +390,10 @@ pub(super) fn spacing(prefix: &str, value: &str) -> Option<Vec<StyleProperty>> {
         _ => return None,
     };
 
-    let Some(l) = parse_length(value) else {
+    let Some(d) = parse_length(value)
+        .map(Dimension::Length)
+        .or_else(|| parse_non_negative_percent(value).map(Dimension::Percent))
+    else {
         return Some(vec![StyleProperty::Arbitrary(
             css_property.to_string(),
             value.to_string(),
@@ -397,36 +402,36 @@ pub(super) fn spacing(prefix: &str, value: &str) -> Option<Vec<StyleProperty>> {
 
     Some(match prefix {
         "p" => vec![
-            StyleProperty::PaddingTop(l.clone()),
-            StyleProperty::PaddingRight(l.clone()),
-            StyleProperty::PaddingBottom(l.clone()),
-            StyleProperty::PaddingLeft(l),
+            StyleProperty::PaddingTop(d.clone()),
+            StyleProperty::PaddingRight(d.clone()),
+            StyleProperty::PaddingBottom(d.clone()),
+            StyleProperty::PaddingLeft(d),
         ],
         "px" => {
             vec![
-                StyleProperty::PaddingInlineStart(l.clone()),
-                StyleProperty::PaddingInlineEnd(l),
+                StyleProperty::PaddingInlineStart(d.clone()),
+                StyleProperty::PaddingInlineEnd(d),
             ]
         }
         "py" => vec![
-            StyleProperty::PaddingTop(l.clone()),
-            StyleProperty::PaddingBottom(l),
+            StyleProperty::PaddingTop(d.clone()),
+            StyleProperty::PaddingBottom(d),
         ],
-        "pt" => vec![StyleProperty::PaddingTop(l)],
-        "pr" => vec![StyleProperty::PaddingRight(l)],
-        "pb" => vec![StyleProperty::PaddingBottom(l)],
-        "pl" => vec![StyleProperty::PaddingLeft(l)],
-        "ps" => vec![StyleProperty::PaddingInlineStart(l)],
-        "pe" => vec![StyleProperty::PaddingInlineEnd(l)],
-        "pbs" => vec![StyleProperty::PaddingBlockStart(l)],
-        "pbe" => vec![StyleProperty::PaddingBlockEnd(l)],
-        "gap" => vec![StyleProperty::Gap(l)],
-        "gap-x" => vec![StyleProperty::ColumnGap(l)],
-        "gap-y" => vec![StyleProperty::RowGap(l)],
-        "space-x" => vec![StyleProperty::SpaceX(Dimension::Length(l))],
-        "space-y" => vec![StyleProperty::SpaceY(Dimension::Length(l))],
-        "divide-x" => vec![StyleProperty::DivideX(Dimension::Length(l))],
-        "divide-y" => vec![StyleProperty::DivideY(Dimension::Length(l))],
+        "pt" => vec![StyleProperty::PaddingTop(d)],
+        "pr" => vec![StyleProperty::PaddingRight(d)],
+        "pb" => vec![StyleProperty::PaddingBottom(d)],
+        "pl" => vec![StyleProperty::PaddingLeft(d)],
+        "ps" => vec![StyleProperty::PaddingInlineStart(d)],
+        "pe" => vec![StyleProperty::PaddingInlineEnd(d)],
+        "pbs" => vec![StyleProperty::PaddingBlockStart(d)],
+        "pbe" => vec![StyleProperty::PaddingBlockEnd(d)],
+        "gap" => vec![StyleProperty::Gap(d)],
+        "gap-x" => vec![StyleProperty::ColumnGap(d)],
+        "gap-y" => vec![StyleProperty::RowGap(d)],
+        "space-x" => vec![StyleProperty::SpaceX(d)],
+        "space-y" => vec![StyleProperty::SpaceY(d)],
+        "divide-x" => vec![StyleProperty::DivideX(d)],
+        "divide-y" => vec![StyleProperty::DivideY(d)],
         _ => return None,
     })
 }

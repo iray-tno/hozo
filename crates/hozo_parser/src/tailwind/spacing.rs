@@ -56,21 +56,22 @@ pub(super) fn parse_single_margin(token: &str) -> Option<StyleProperty> {
 pub(super) fn parse_spacing_utility(token: &str) -> Option<StyleProperty> {
     let (prefix, rest) = token.split_once('-')?;
     let value = parse_spacing_suffix(rest)?;
+    let dim = Dimension::Length(value);
     match prefix {
-        "gap" => Some(StyleProperty::Gap(value)),
-        "pt" => Some(StyleProperty::PaddingTop(value)),
-        "pr" => Some(StyleProperty::PaddingRight(value)),
-        "pb" => Some(StyleProperty::PaddingBottom(value)),
-        "pl" => Some(StyleProperty::PaddingLeft(value)),
+        "gap" => Some(StyleProperty::Gap(dim)),
+        "pt" => Some(StyleProperty::PaddingTop(dim)),
+        "pr" => Some(StyleProperty::PaddingRight(dim)),
+        "pb" => Some(StyleProperty::PaddingBottom(dim)),
+        "pl" => Some(StyleProperty::PaddingLeft(dim)),
         // Direction-relative: `ps`/`pe` and `ms`/`me` are Tailwind's
         // logical counterparts to `pl`/`pr` and `ml`/`mr`.
-        "ps" => Some(StyleProperty::PaddingInlineStart(value)),
-        "pe" => Some(StyleProperty::PaddingInlineEnd(value)),
+        "ps" => Some(StyleProperty::PaddingInlineStart(dim)),
+        "pe" => Some(StyleProperty::PaddingInlineEnd(dim)),
         // Margins accept `auto` where padding doesn't, so they take the
         // wider `Dimension` and are parsed separately below.
         "mt" | "mr" | "mb" | "ml" | "ms" | "me" => None,
-        "start" => Some(StyleProperty::InsetInlineStart(Dimension::Length(value))),
-        "end" => Some(StyleProperty::InsetInlineEnd(Dimension::Length(value))),
+        "start" => Some(StyleProperty::InsetInlineStart(dim)),
+        "end" => Some(StyleProperty::InsetInlineEnd(dim)),
         _ => None,
     }
 }

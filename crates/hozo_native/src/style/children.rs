@@ -57,6 +57,9 @@ pub fn child_property_and_value(
         // A divider width's implied `solid` is React Native's default, and
         // writing it would override a written divider style.
         StyleProperty::DivideX(l) => {
+            if matches!(l, Dimension::Percent(_) | Dimension::Auto) {
+                return Vec::new();
+            }
             let (start, end) = split(Axis::X, l);
             vec![
                 // RN spells the logical border widths `borderStartWidth`/
@@ -68,6 +71,9 @@ pub fn child_property_and_value(
             ]
         }
         StyleProperty::DivideY(l) => {
+            if matches!(l, Dimension::Percent(_) | Dimension::Auto) {
+                return Vec::new();
+            }
             let (start, end) = split(Axis::Y, l);
             vec![("borderTopWidth", start), ("borderBottomWidth", end)]
         }

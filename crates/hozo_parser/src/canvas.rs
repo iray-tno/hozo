@@ -97,14 +97,14 @@ impl<'a> Visit<'a> for CanvasCollector {
                 let (condition, properties) = tailwind::expand_utility(token);
                 let is_paint = condition == Condition::Always
                     && !properties.is_empty()
-                    && properties.iter().all(|property| {
-                        matches!(
-                            property,
-                            StyleProperty::Fill(_)
-                                | StyleProperty::Stroke(_)
-                                | StyleProperty::StrokeWidth(_)
-                                | StyleProperty::Opacity(_)
-                        )
+                    && properties.iter().all(|property| match property {
+                        StyleProperty::Fill(_)
+                        | StyleProperty::Stroke(_)
+                        | StyleProperty::Opacity(_) => true,
+                        StyleProperty::StrokeWidth(width) => {
+                            width.px(&hozo_ir::Theme::default()).is_some()
+                        }
+                        _ => false,
                     });
                 if is_paint {
                     paint.extend(properties);
@@ -174,7 +174,7 @@ mod tests {
             vec![
                 StyleProperty::Fill(Color::Token("blue-500".to_string())),
                 StyleProperty::Stroke(Color::Token("red-500".to_string())),
-                StyleProperty::StrokeWidth(2.0),
+                StyleProperty::StrokeWidth(hozo_ir::StrokeWidth::Number(2.0)),
                 StyleProperty::Opacity(0.5),
             ]
         );

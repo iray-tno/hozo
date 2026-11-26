@@ -85,9 +85,9 @@ pub enum StyleProperty {
     /// as `justify-content`, and both platforms accept them there.
     AlignContent(Justify),
     JustifyContent(Justify),
-    Gap(Length),
-    RowGap(Length),
-    ColumnGap(Length),
+    Gap(Dimension),
+    RowGap(Dimension),
+    ColumnGap(Dimension),
     // Margin/padding/inset are per-side longhand properties, not a single
     // EdgeInsets-bundling property: Tailwind utilities like `px-4`/`py-2`
     // set disjoint sides independently, and only per-side variants let
@@ -97,10 +97,10 @@ pub enum StyleProperty {
     MarginRight(Dimension),
     MarginBottom(Dimension),
     MarginLeft(Dimension),
-    PaddingTop(Length),
-    PaddingRight(Length),
-    PaddingBottom(Length),
-    PaddingLeft(Length),
+    PaddingTop(Dimension),
+    PaddingRight(Dimension),
+    PaddingBottom(Dimension),
+    PaddingLeft(Dimension),
     // Writing-direction-relative counterparts, kept as their own variants
     // rather than resolved to a physical side: which side "start" means
     // isn't known until runtime (the document's direction on Web,
@@ -110,8 +110,8 @@ pub enum StyleProperty {
     // `paddingStart`/`marginEnd`/etc.
     MarginInlineStart(Dimension),
     MarginInlineEnd(Dimension),
-    PaddingInlineStart(Length),
-    PaddingInlineEnd(Length),
+    PaddingInlineStart(Dimension),
+    PaddingInlineEnd(Dimension),
     Width(Dimension),
     Height(Dimension),
     MinWidth(Dimension),
@@ -171,7 +171,7 @@ pub enum StyleProperty {
     /// part of the keyword tail.
     FlexGrow(f64),
     FlexShrink(f64),
-    AspectRatio(&'static str),
+    AspectRatio(String),
     /// `border-s/e/x/y/bs/be-*`: a border width and its style on a
     /// *logical* edge.
     ///
@@ -718,8 +718,8 @@ pub enum StyleProperty {
     /// it already makes for `py-*`.
     MarginBlockStart(Dimension),
     MarginBlockEnd(Dimension),
-    PaddingBlockStart(Length),
-    PaddingBlockEnd(Length),
+    PaddingBlockStart(Dimension),
+    PaddingBlockEnd(Dimension),
     /// `scroll-m-*` / `scroll-p-*`.
     ///
     /// These carry their edge rather than getting a variant each, unlike
@@ -739,7 +739,7 @@ pub enum StyleProperty {
     /// recognising the utilities, not lowering them.
     Fill(Color),
     Stroke(Color),
-    StrokeWidth(f64),
+    StrokeWidth(StrokeWidth),
     AccentColor(Color),
     CaretColor(Color),
     TextDecorationColor(Color),

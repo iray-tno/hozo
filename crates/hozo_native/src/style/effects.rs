@@ -141,12 +141,16 @@ pub(crate) fn transform_entry(
     } else {
         for prop in props {
             if let StyleProperty::TranslateX(d) = prop {
-                parts.push(format!("{{ translateX: {} }}", dimension_value(d, theme)));
+                if *d != Dimension::Auto {
+                    parts.push(format!("{{ translateX: {} }}", dimension_value(d, theme)));
+                }
             }
         }
         for prop in props {
             if let StyleProperty::TranslateY(d) = prop {
-                parts.push(format!("{{ translateY: {} }}", dimension_value(d, theme)));
+                if *d != Dimension::Auto {
+                    parts.push(format!("{{ translateY: {} }}", dimension_value(d, theme)));
+                }
             }
         }
     }
@@ -383,7 +387,7 @@ pub(crate) fn background_image_entry(
         Image::Raw(value) => return Some((BACKGROUND_IMAGE, js_string(value))),
         Image::Gradient(kind, prelude) => (kind, prelude),
     };
-    if kind == GradientKind::Conic {
+    if kind == GradientKind::Conic || !hozo_ir::native_gradient_prelude_valid(kind, prelude) {
         return None;
     }
     // Everything up to the interpolation clause: `to right in oklab` is a
@@ -471,18 +475,21 @@ pub(crate) fn filter_entry(
         if *function == FilterFunction::None {
             return Some(("filter", "'none'".to_string()));
         }
+        let Some(resolved) = hozo_ir::resolve_native_filter(*function, value) else {
+            continue;
+        };
         // Tailwind's fixed order is size, then `drop-shadow-none`, then
         // colour, and a colour rule rebuilds the shadow from the size
         // register. So a colour keeps the size's shadow, `none` without one
         // turns it off, and `none` itself draws nothing.
         let value = if *function == FilterFunction::DropShadow {
-            if value.is_empty() || (drop_none && drop_shadow_color.is_none()) {
+            if resolved.is_empty() || (drop_none && drop_shadow_color.is_none()) {
                 String::new()
             } else {
-                repaint_shadow(value, drop_shadow_color.as_deref())
+                repaint_shadow(&resolved, drop_shadow_color.as_deref())
             }
         } else {
-            value.clone()
+            resolved
         };
         functions.push((*function, value));
     }
@@ -571,7 +578,7 @@ pub(crate) fn box_shadow_entry(
 
     let mut layers: Vec<String> = Vec::new();
     if let Some(shadow) = props.iter().find_map(|p| match p {
-        StyleProperty::InsetShadow(s) => Some(s.clone()),
+        StyleProperty::InsetShadow(s) => hozo_ir::resolve_native_box_shadow(s),
         _ => None,
     }) {
         layers.push(repaint_shadow(&shadow, inset_shadow_color.as_deref()));
@@ -606,7 +613,7 @@ pub(crate) fn box_shadow_entry(
             paint(ring_color)
         ));
     }
-    if let Some(shadow) = shadow {
+    if let Some(shadow) = shadow.and_then(|s| hozo_ir::resolve_native_box_shadow(&s)) {
         // See the Web backend: `shadow-none` clears the shadow layer, not
         // the ring beside it.
         if shadow != "none" {

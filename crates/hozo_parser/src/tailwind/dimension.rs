@@ -64,10 +64,12 @@ pub(super) fn expand_dimension_family(token: &str) -> Option<Vec<StyleProperty>>
         }
     }
     if let Some(rest) = token.strip_prefix("pbs-") {
-        return parse_spacing_suffix(rest).map(|l| vec![StyleProperty::PaddingBlockStart(l)]);
+        return parse_spacing_suffix(rest)
+            .map(|l| vec![StyleProperty::PaddingBlockStart(Dimension::Length(l))]);
     }
     if let Some(rest) = token.strip_prefix("pbe-") {
-        return parse_spacing_suffix(rest).map(|l| vec![StyleProperty::PaddingBlockEnd(l)]);
+        return parse_spacing_suffix(rest)
+            .map(|l| vec![StyleProperty::PaddingBlockEnd(Dimension::Length(l))]);
     }
     if let Some(rest) = token.strip_prefix("border-spacing-x-") {
         return parse_spacing_suffix(rest)

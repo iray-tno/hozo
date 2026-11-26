@@ -128,7 +128,10 @@ fn simple_projections_share_exact_css_ownership_with_scalar_eligibility() {
         (StyleProperty::InsetRight(crate::Dimension::Auto), "right"),
         (StyleProperty::InsetBottom(crate::Dimension::Auto), "bottom"),
         (StyleProperty::InsetLeft(crate::Dimension::Auto), "left"),
-        (StyleProperty::AspectRatio("16 / 9"), "aspect-ratio"),
+        (
+            StyleProperty::AspectRatio("16 / 9".to_string()),
+            "aspect-ratio",
+        ),
         (StyleProperty::Order(1), "order"),
         (
             StyleProperty::BorderRadius(crate::Radius::Full),
@@ -182,16 +185,19 @@ fn axis_and_logical_writes_own_their_shorthands_and_nothing_else() {
     let edge = crate::Dimension::Length(px.clone());
     for (write, owners) in [
         (
-            StyleProperty::PaddingInlineStart(px.clone()),
+            StyleProperty::PaddingInlineStart(edge.clone()),
             &["padding", "padding-inline", "padding-inline-start"][..],
         ),
         (
             StyleProperty::MarginInlineEnd(edge.clone()),
             &["margin", "margin-inline", "margin-inline-end"],
         ),
-        (StyleProperty::Gap(px.clone()), &["gap"]),
-        (StyleProperty::RowGap(px.clone()), &["gap", "row-gap"]),
-        (StyleProperty::ColumnGap(px.clone()), &["gap", "column-gap"]),
+        (StyleProperty::Gap(edge.clone()), &["gap"]),
+        (StyleProperty::RowGap(edge.clone()), &["gap", "row-gap"]),
+        (
+            StyleProperty::ColumnGap(edge.clone()),
+            &["gap", "column-gap"],
+        ),
         (StyleProperty::InsetTop(edge.clone()), &["inset", "top"]),
         (StyleProperty::InsetLeft(edge.clone()), &["inset", "left"]),
         (StyleProperty::InsetInline(edge.clone()), &["inset-inline"]),
@@ -538,7 +544,7 @@ fn boolean_aria_assessment_matches_actual_independent_owner_facts_not_class_name
         assert_eq!(assessment.owner[aria_owner_index(state).unwrap()], 1);
         assert_eq!(assessment.owner[4], 0, "aria-disabled is not :disabled");
         let context = TailwindOrderContext::new(snapshot).unwrap();
-        let write = StyleProperty::PaddingTop(Length::Px(8.0));
+        let write = StyleProperty::PaddingTop(crate::Dimension::Length(Length::Px(8.0)));
         assert!(context
             .scalar_write_priority("p-2", &crate::Condition::Aria(state.into()), &write)
             .is_some());
@@ -582,7 +588,7 @@ fn negated_aria_requires_exact_original_polarity_and_multiplicity() {
         assert_eq!(assessed.owner[negated_aria_owner_index(state).unwrap()], 1);
         assert_eq!(assessed.owner[aria_owner_index(state).unwrap()], 0);
         let context = TailwindOrderContext::new(snapshot).unwrap();
-        let write = StyleProperty::PaddingTop(Length::Px(8.0));
+        let write = StyleProperty::PaddingTop(crate::Dimension::Length(Length::Px(8.0)));
         let negative = crate::Condition::Not(Box::new(crate::Condition::Aria(state.into())));
         assert!(context
             .scalar_write_priority("p-2", &negative, &write)
@@ -779,17 +785,17 @@ fn ownership_survives_longhand_expansion_and_names_absolute_text_writes() {
     for (name, write, expected) in [
         (
             "p-2",
-            StyleProperty::PaddingLeft(Length::Px(8.0)),
+            StyleProperty::PaddingLeft(crate::Dimension::Length(Length::Px(8.0))),
             "padding",
         ),
         (
             "px-2",
-            StyleProperty::PaddingRight(Length::Px(8.0)),
+            StyleProperty::PaddingRight(crate::Dimension::Length(Length::Px(8.0))),
             "padding-inline",
         ),
         (
             "py-2",
-            StyleProperty::PaddingBottom(Length::Px(8.0)),
+            StyleProperty::PaddingBottom(crate::Dimension::Length(Length::Px(8.0))),
             "padding-block",
         ),
     ] {
@@ -838,7 +844,10 @@ fn multiple_rules_require_unique_property_ownership_not_an_assumed_first_rule() 
     repeated.id = 1000;
     candidate.rules.push(repeated);
     assert!(matches!(
-        assess_tailwind_write(&candidate, &StyleProperty::PaddingLeft(Length::Px(8.0))),
+        assess_tailwind_write(
+            &candidate,
+            &StyleProperty::PaddingLeft(crate::Dimension::Length(Length::Px(8.0)))
+        ),
         TailwindWriteOwnership::Unknown("ambiguous-property-owner")
     ));
     // Unknown siblings might overlap; do not discard one then declare

@@ -11,6 +11,7 @@ use super::*;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Radius {
     Length(Length),
+    Percent(f64),
     Full,
     /// A built-in Tailwind scale name, not an authored numeric length.
     /// Keep its identity until the theme is available: `--radius-lg` can

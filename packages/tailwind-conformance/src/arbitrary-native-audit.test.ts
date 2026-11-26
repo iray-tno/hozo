@@ -62,23 +62,25 @@ test('findUnresolvableInNativeOutput flags unresolvable strings while admitting 
 
 test('auditArbitraryNative partitions representative arbitrary candidates honestly across buckets', async () => {
   const sample = [
-    // Valid covered (including folded `leading-[1.5em]` against `text-lg` and `w-[100vh]`)
+    // Valid covered (including folded `leading-[1.5em]` against `text-lg`, `w-[100vh]`, and `blur-[2rem]` -> `blur(32px)`)
     'w-[10px]',
     'bg-[#ff0000]',
     'leading-[1.5em]',
     'w-[100vh]',
-    // Unresolvable covered (false positives currently passing as COVERED)
+    'blur-[2rem]',
+    // Formerly false-positive COVERED entries, now refused at compile time
     'bg-[var(--x)]',
     'border-[50%]',
     'blur-[#ff0000]',
-    'blur-[2rem]',
     'caret-[10px]',
     'translate-x-[auto]',
     // Context covered (works inside HozoGrid / <Svg>)
     'grid-cols-[10px]',
+    'grid-cols-[2rem]',
     'fill-[#ff0000]',
     'stroke-[1.5]',
-    // Implementable (zero-cost RN 0.87.1 gaps)
+    'stroke-[2rem]',
+    // Zero-cost RN 0.87.1 arbitrary values (Phase 2 completed)
     'rounded-[50%]',
     'p-[50%]',
     'gap-[50%]',
@@ -86,7 +88,10 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'translate-[10px]',
     'aspect-[1.5]',
     'flex-[1.5]',
+    'flex-[auto]',
     'opacity-[50%]',
+    'align-[auto]',
+    'cursor-[auto]',
     'backdrop-blur-[2rem]',
     'ring-offset-[10px]',
     '[color:red]',
@@ -104,6 +109,7 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'animate-[10px]',
     'bg-conic-[10px]',
     'scale-z-[1.5]',
+    'perspective-[10px]',
     '[&>*]:p-4',
     '[--my-var:4px]',
     // Invalid CSS from synthetic cross-product
@@ -125,29 +131,36 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('bg-[#ff0000]'), 'validCovered')
   assert.equal(byCandidate.get('leading-[1.5em]'), 'validCovered')
   assert.equal(byCandidate.get('w-[100vh]'), 'validCovered')
+  assert.equal(byCandidate.get('blur-[2rem]'), 'validCovered')
 
-  assert.equal(byCandidate.get('bg-[var(--x)]'), 'unresolvableCovered')
-  assert.equal(byCandidate.get('border-[50%]'), 'unresolvableCovered')
-  assert.equal(byCandidate.get('blur-[#ff0000]'), 'unresolvableCovered')
-  assert.equal(byCandidate.get('blur-[2rem]'), 'unresolvableCovered')
-  assert.equal(byCandidate.get('caret-[10px]'), 'unresolvableCovered')
-  assert.equal(byCandidate.get('translate-x-[auto]'), 'unresolvableCovered')
+  assert.equal(byCandidate.get('bg-[var(--x)]'), 'dynamicCss')
+  assert.equal(byCandidate.get('border-[50%]'), 'invalidCss')
+  assert.equal(byCandidate.get('blur-[#ff0000]'), 'invalidCss')
+  assert.equal(byCandidate.get('caret-[10px]'), 'invalidCss')
+  assert.equal(byCandidate.get('translate-x-[auto]'), 'invalidCss')
+  assert.equal(summary.unresolvableCovered, 0)
 
   assert.equal(byCandidate.get('grid-cols-[10px]'), 'contextCovered')
+  assert.equal(byCandidate.get('grid-cols-[2rem]'), 'contextCovered')
   assert.equal(byCandidate.get('fill-[#ff0000]'), 'contextCovered')
   assert.equal(byCandidate.get('stroke-[1.5]'), 'contextCovered')
+  assert.equal(byCandidate.get('stroke-[2rem]'), 'contextCovered')
 
-  assert.equal(byCandidate.get('rounded-[50%]'), 'implementable')
-  assert.equal(byCandidate.get('p-[50%]'), 'implementable')
-  assert.equal(byCandidate.get('gap-[50%]'), 'implementable')
-  assert.equal(byCandidate.get('scale-[1.5]'), 'implementable')
-  assert.equal(byCandidate.get('translate-[10px]'), 'implementable')
-  assert.equal(byCandidate.get('aspect-[1.5]'), 'implementable')
-  assert.equal(byCandidate.get('flex-[1.5]'), 'implementable')
-  assert.equal(byCandidate.get('opacity-[50%]'), 'implementable')
-  assert.equal(byCandidate.get('backdrop-blur-[2rem]'), 'implementable')
-  assert.equal(byCandidate.get('ring-offset-[10px]'), 'implementable')
-  assert.equal(byCandidate.get('[color:red]'), 'implementable')
+  assert.equal(byCandidate.get('rounded-[50%]'), 'validCovered')
+  assert.equal(byCandidate.get('p-[50%]'), 'validCovered')
+  assert.equal(byCandidate.get('gap-[50%]'), 'validCovered')
+  assert.equal(byCandidate.get('scale-[1.5]'), 'validCovered')
+  assert.equal(byCandidate.get('translate-[10px]'), 'validCovered')
+  assert.equal(byCandidate.get('aspect-[1.5]'), 'validCovered')
+  assert.equal(byCandidate.get('flex-[1.5]'), 'validCovered')
+  assert.equal(byCandidate.get('flex-[auto]'), 'validCovered')
+  assert.equal(byCandidate.get('opacity-[50%]'), 'validCovered')
+  assert.equal(byCandidate.get('align-[auto]'), 'validCovered')
+  assert.equal(byCandidate.get('cursor-[auto]'), 'validCovered')
+  assert.equal(byCandidate.get('backdrop-blur-[2rem]'), 'validCovered')
+  assert.equal(byCandidate.get('ring-offset-[10px]'), 'validCovered')
+  assert.equal(byCandidate.get('[color:red]'), 'validCovered')
+  assert.equal(summary.implementable, 0)
 
   assert.equal(byCandidate.get('w-[calc(100%-2rem)]'), 'layoutMeasurable')
   assert.equal(byCandidate.get('p-[calc(100%-2rem)]'), 'layoutMeasurable')
@@ -162,6 +175,7 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('animate-[10px]'), 'webOnly')
   assert.equal(byCandidate.get('bg-conic-[10px]'), 'webOnly')
   assert.equal(byCandidate.get('scale-z-[1.5]'), 'webOnly')
+  assert.equal(byCandidate.get('perspective-[10px]'), 'webOnly')
   assert.equal(byCandidate.get('[&>*]:p-4'), 'webOnly')
   assert.equal(byCandidate.get('[--my-var:4px]'), 'webOnly')
 

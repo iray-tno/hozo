@@ -6,6 +6,7 @@ use super::*;
 pub(super) fn radius_number(radius: &Radius, theme: &Theme) -> Option<String> {
     Some(match radius {
         Radius::Length(l) => number(l, theme),
+        Radius::Percent(pct) => format!("'{pct}%'"),
         Radius::Scale { name, fallback_px } => {
             number(&Length::Px(theme.radius_or(name, *fallback_px)), theme)
         }
@@ -30,11 +31,10 @@ pub(super) fn radius_pair(
         .unwrap_or_default()
 }
 
-/// React Native's `aspectRatio` is a number, where CSS writes a ratio.
+/// React Native's `aspectRatio` is a positive number, where CSS accepts either
+/// a ratio (`16 / 9`) or a bare number (`1.5`).
 pub(super) fn aspect_number(value: &str) -> Option<String> {
-    let (w, h) = value.split_once(" / ")?;
-    let (w, h) = (w.parse::<f64>().ok()?, h.parse::<f64>().ok()?);
-    Some(format!("{}", w / h))
+    hozo_ir::parse_native_aspect_ratio(value).map(|ratio| format!("{ratio}"))
 }
 
 /// A length as a React Native style number, against the project's spacing

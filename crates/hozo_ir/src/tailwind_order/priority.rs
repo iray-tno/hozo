@@ -579,7 +579,7 @@ mod tests {
     #[test]
     fn scalar_priority_requires_exact_owner_guard_multiplicity_and_nonimportant_scalar_writes() {
         let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
-        let write = StyleProperty::PaddingTop(crate::Length::Px(8.0));
+        let write = StyleProperty::PaddingTop(crate::Dimension::Length(crate::Length::Px(8.0)));
         let both = Condition::All(vec![Condition::Focus, Condition::Hover]);
         assert!(context
             .scalar_write_priority("hover:focus:p-4", &both, &write)
@@ -605,9 +605,9 @@ mod tests {
         }
         // `gap-2` owns `gap` and both of its axes, and nothing else.
         for write in [
-            StyleProperty::Gap(crate::Length::Px(8.0)),
-            StyleProperty::RowGap(crate::Length::Px(8.0)),
-            StyleProperty::ColumnGap(crate::Length::Px(8.0)),
+            StyleProperty::Gap(crate::Dimension::Length(crate::Length::Px(8.0))),
+            StyleProperty::RowGap(crate::Dimension::Length(crate::Length::Px(8.0))),
+            StyleProperty::ColumnGap(crate::Dimension::Length(crate::Length::Px(8.0))),
         ] {
             assert!(context
                 .scalar_write_priority("gap-2", &Condition::Always, &write)
@@ -617,7 +617,9 @@ mod tests {
             .scalar_write_priority(
                 "gap-2",
                 &Condition::Always,
-                &StyleProperty::PaddingInlineStart(crate::Length::Px(8.0))
+                &StyleProperty::PaddingInlineStart(crate::Dimension::Length(crate::Length::Px(
+                    8.0
+                )))
             )
             .is_none());
     }
@@ -708,7 +710,7 @@ mod tests {
         // #1230. `sm:p-2` used to be unassessed, so any input containing
         // it kept its authored order and `sm:p-2 p-4` let the base win.
         let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
-        let write = StyleProperty::PaddingTop(crate::Length::Px(8.0));
+        let write = StyleProperty::PaddingTop(crate::Dimension::Length(crate::Length::Px(8.0)));
         let sm = Condition::Responsive(crate::Breakpoint::Sm);
         let ranked = context
             .scalar_write_priority("sm:p-2", &sm, &write)

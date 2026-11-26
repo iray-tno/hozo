@@ -610,16 +610,16 @@ mod grouping_tests {
     #[test]
     fn dedupe_keeps_last_value_per_property_kind() {
         let props = vec![
-            StyleProperty::PaddingLeft(Length::Px(4.0)),
-            StyleProperty::PaddingTop(Length::Px(4.0)),
-            StyleProperty::PaddingLeft(Length::Px(16.0)),
+            StyleProperty::PaddingLeft(Dimension::Length(Length::Px(4.0))),
+            StyleProperty::PaddingTop(Dimension::Length(Length::Px(4.0))),
+            StyleProperty::PaddingLeft(Dimension::Length(Length::Px(16.0))),
         ];
         let deduped = dedupe_last_wins(props);
         assert_eq!(
             deduped,
             vec![
-                StyleProperty::PaddingTop(Length::Px(4.0)),
-                StyleProperty::PaddingLeft(Length::Px(16.0))
+                StyleProperty::PaddingTop(Dimension::Length(Length::Px(4.0))),
+                StyleProperty::PaddingLeft(Dimension::Length(Length::Px(16.0)))
             ]
         );
     }

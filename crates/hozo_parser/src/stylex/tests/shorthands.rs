@@ -424,7 +424,9 @@ fn layout_shorthands_expand_into_existing_typed_slots() {
     assert!(entries
         .iter()
         .flat_map(|entry| &entry.properties)
-        .any(|property| { *property == StyleProperty::ColumnGap(Length::Px(12.0)) }));
+        .any(|property| {
+            *property == StyleProperty::ColumnGap(hozo_ir::Dimension::Length(Length::Px(12.0)))
+        }));
     assert!(residual.is_empty());
     assert!(gaps.is_empty());
 
@@ -590,7 +592,7 @@ fn layout_longhands_suppress_only_their_conditional_shorthand_slots() {
     }));
     assert!(style.iter().any(|declaration| {
         matches!(declaration.condition, Condition::Expr(_))
-            && declaration.property == StyleProperty::ColumnGap(Length::Px(12.0))
+            && declaration.property == StyleProperty::ColumnGap(Dimension::Length(Length::Px(12.0)))
     }));
 }
 
@@ -611,7 +613,9 @@ fn physical_longhand_beats_a_later_shorthand_by_stylex_priority() {
     let style = &parsed.roots[0].node.style;
     assert!(matches!(
         style.last().map(|declaration| &declaration.property),
-        Some(StyleProperty::PaddingTop(Length::Px(8.0)))
+        Some(StyleProperty::PaddingTop(Dimension::Length(Length::Px(
+            8.0
+        ))))
     ));
     let flattened = hozo_ir::dedupe_last_wins(
         style
@@ -620,7 +624,11 @@ fn physical_longhand_beats_a_later_shorthand_by_stylex_priority() {
             .collect(),
     );
     assert_eq!(flattened.len(), 4);
-    assert!(flattened.contains(&StyleProperty::PaddingTop(Length::Px(8.0))));
+    assert!(
+        flattened.contains(&StyleProperty::PaddingTop(Dimension::Length(Length::Px(
+            8.0
+        ))))
+    );
 }
 
 #[test]

@@ -175,8 +175,8 @@ pub(super) fn stylex_gap(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     {
         return None;
     }
-    let row = values[0].clone();
-    let column = values.get(1).unwrap_or(&row).clone();
+    let row = Dimension::Length(values[0].clone());
+    let column = Dimension::Length(values.get(1).unwrap_or(&values[0]).clone());
     Some(vec![
         StyleProperty::RowGap(row),
         StyleProperty::ColumnGap(column),

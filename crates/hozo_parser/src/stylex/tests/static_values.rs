@@ -52,7 +52,12 @@ fn local_unthemeable_define_vars_defaults_become_static_values() {
         entries
             .iter()
             .flat_map(|entry| &entry.properties)
-            .filter(|property| matches!(property, StyleProperty::PaddingTop(Length::Px(12.0))))
+            .filter(|property| {
+                matches!(
+                    property,
+                    StyleProperty::PaddingTop(hozo_ir::Dimension::Length(Length::Px(12.0)))
+                )
+            })
             .count(),
         1
     );

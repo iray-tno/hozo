@@ -3,6 +3,28 @@
 
 use super::*;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum StrokeWidth {
+    Number(f64),
+    Length(Length),
+}
+
+impl StrokeWidth {
+    /// Numeric width in density-independent pixels for React Native `<Svg>`
+    /// and Canvas, or `None` when the length depends on runtime layout/font state.
+    pub fn px(&self, theme: &Theme) -> Option<f64> {
+        match self {
+            StrokeWidth::Number(n) => Some(*n),
+            StrokeWidth::Length(length)
+                if length.unresolved_unit().is_none() && length.css_expression().is_none() =>
+            {
+                Some(length.px(theme))
+            }
+            StrokeWidth::Length(_) => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FlexDirection {
     Row,

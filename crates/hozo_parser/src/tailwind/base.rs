@@ -1,8 +1,8 @@
 //! Expanding one variant-free utility into every property it writes.
 
 use hozo_ir::{
-    BorderStyle, Clamp, Length, LineHeight, Origin, Overflow, StyleProperty, TextOverflow,
-    TextShadowValue, WhiteSpace,
+    BorderStyle, Clamp, Dimension, Length, LineHeight, Origin, Overflow, StyleProperty,
+    TextOverflow, TextShadowValue, WhiteSpace,
 };
 
 use super::border::{
@@ -46,7 +46,7 @@ pub(super) fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
     // rendering is identical either way, but keeping them logical matches
     // Tailwind's own output and composes correctly with `ps-*`/`pe-*`.
     if let Some(rest) = token.strip_prefix("px-") {
-        if let Some(v) = parse_spacing_suffix(rest) {
+        if let Some(v) = parse_spacing_suffix(rest).map(Dimension::Length) {
             return vec![
                 StyleProperty::PaddingInlineStart(v.clone()),
                 StyleProperty::PaddingInlineEnd(v),
@@ -54,7 +54,7 @@ pub(super) fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
         }
     }
     if let Some(rest) = token.strip_prefix("py-") {
-        if let Some(v) = parse_spacing_suffix(rest) {
+        if let Some(v) = parse_spacing_suffix(rest).map(Dimension::Length) {
             return vec![
                 StyleProperty::PaddingTop(v.clone()),
                 StyleProperty::PaddingBottom(v),
@@ -62,7 +62,7 @@ pub(super) fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
         }
     }
     if let Some(rest) = token.strip_prefix("p-") {
-        if let Some(v) = parse_spacing_suffix(rest) {
+        if let Some(v) = parse_spacing_suffix(rest).map(Dimension::Length) {
             return vec![
                 StyleProperty::PaddingTop(v.clone()),
                 StyleProperty::PaddingRight(v.clone()),
@@ -98,12 +98,12 @@ pub(super) fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
         }
     }
     if let Some(rest) = token.strip_prefix("gap-x-") {
-        if let Some(v) = parse_spacing_suffix(rest) {
+        if let Some(v) = parse_spacing_suffix(rest).map(Dimension::Length) {
             return vec![StyleProperty::ColumnGap(v)];
         }
     }
     if let Some(rest) = token.strip_prefix("gap-y-") {
-        if let Some(v) = parse_spacing_suffix(rest) {
+        if let Some(v) = parse_spacing_suffix(rest).map(Dimension::Length) {
             return vec![StyleProperty::RowGap(v)];
         }
     }

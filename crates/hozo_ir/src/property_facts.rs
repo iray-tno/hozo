@@ -150,12 +150,23 @@ impl StyleProperty {
                 .first()
                 .expect("firstThatWorks always has at least one candidate")
                 .value(),
-            StyleProperty::MarginTop(v)
+            StyleProperty::Gap(v)
+            | StyleProperty::RowGap(v)
+            | StyleProperty::ColumnGap(v)
+            | StyleProperty::MarginTop(v)
             | StyleProperty::MarginRight(v)
             | StyleProperty::MarginBottom(v)
             | StyleProperty::MarginLeft(v)
             | StyleProperty::MarginInlineStart(v)
             | StyleProperty::MarginInlineEnd(v)
+            | StyleProperty::PaddingTop(v)
+            | StyleProperty::PaddingRight(v)
+            | StyleProperty::PaddingBottom(v)
+            | StyleProperty::PaddingLeft(v)
+            | StyleProperty::PaddingInlineStart(v)
+            | StyleProperty::PaddingInlineEnd(v)
+            | StyleProperty::PaddingBlockStart(v)
+            | StyleProperty::PaddingBlockEnd(v)
             | StyleProperty::Width(v)
             | StyleProperty::Height(v)
             | StyleProperty::MinWidth(v)
@@ -195,16 +206,7 @@ impl StyleProperty {
             | StyleProperty::SpaceX(v)
             | StyleProperty::SpaceY(v) => PropertyValue::Dimension(v),
 
-            StyleProperty::Gap(v)
-            | StyleProperty::RowGap(v)
-            | StyleProperty::ColumnGap(v)
-            | StyleProperty::PaddingTop(v)
-            | StyleProperty::PaddingRight(v)
-            | StyleProperty::PaddingBottom(v)
-            | StyleProperty::PaddingLeft(v)
-            | StyleProperty::PaddingInlineStart(v)
-            | StyleProperty::PaddingInlineEnd(v)
-            | StyleProperty::BorderLogicalWidth(_, v)
+            StyleProperty::BorderLogicalWidth(_, v)
             | StyleProperty::BorderTopWidth(v)
             | StyleProperty::BorderRightWidth(v)
             | StyleProperty::BorderBottomWidth(v)
@@ -213,8 +215,6 @@ impl StyleProperty {
             | StyleProperty::InsetRingWidth(v)
             | StyleProperty::RingOffsetWidth(v)
             | StyleProperty::FontSize(v)
-            | StyleProperty::PaddingBlockStart(v)
-            | StyleProperty::PaddingBlockEnd(v)
             | StyleProperty::ScrollMargin(_, v)
             | StyleProperty::ScrollPadding(_, v)
             | StyleProperty::TextDecorationThickness(v)
@@ -486,6 +486,17 @@ impl StyleProperty {
                  browser chrome -- there is nothing to resolve it against"
             ));
         }
+        // Arbitrary CSS colour text that React Native's colour parser cannot
+        // read (`var(--x)`, `calc(...)`, `nonsense`, or non-colour values that
+        // fell into Tailwind's colour fallback like `border-[50%]` or `caret-[10px]`).
+        if let PropertyValue::Color(Color::Css(value)) = self.value() {
+            if !native_color_literal_valid(value) {
+                return Some(format!(
+                    "`{value}`: React Native requires a resolved colour literal (hex, named colour, \
+                     or rgb/hsl function), so this CSS value cannot be lowered"
+                ));
+            }
+        }
         // Viewport-relative sizes were refused here until 2026-08-15. They
         // are not impossible on React Native, only impossible *statically*:
         // the value changes when the device rotates, so it can't live in a
@@ -556,6 +567,16 @@ impl StyleProperty {
                 "`[{value}]`: React Native's transform takes a number of degrees, and this is CSS \
                  text that only a browser can resolve to one"
             )),
+            StyleProperty::Scale(values)
+                if values.is_empty()
+                    || values.iter().any(|value| matches!(value, Scale::Css(_))) =>
+            {
+                Some(
+                    "`scale`: React Native's scale takes numeric ratios or percentages, not raw \
+                     CSS text"
+                        .to_string(),
+                )
+            }
             StyleProperty::ScaleX(Scale::Css(value))
             | StyleProperty::ScaleY(Scale::Css(value))
             | StyleProperty::ScaleZ(Scale::Css(value)) => {
@@ -563,6 +584,26 @@ impl StyleProperty {
                     "`[{value}]`: React Native's scale is a ratio, and this is CSS text that only \
                      a browser can resolve to one"
                 ))
+            }
+            StyleProperty::Translate(values)
+                if values.is_empty()
+                    || values.iter().any(|value| match value {
+                        Dimension::Length(length) => {
+                            length.css_expression().is_some()
+                                || length.unresolved_unit().is_some()
+                        }
+                        Dimension::Percent(_) => false,
+                        Dimension::Auto
+                        | Dimension::ViewportWidth(_)
+                        | Dimension::ViewportHeight(_)
+                        | Dimension::Css(_) => true,
+                    }) =>
+            {
+                Some(
+                    "`translate`: React Native's translate transforms accept statically \
+                     resolvable lengths or percentages"
+                        .to_string(),
+                )
             }
             StyleProperty::LineClamp(Some(Clamp::Css(value))) => Some(format!(
                 "`line-clamp-[{value}]`: React Native's numberOfLines is a line count, and this \
@@ -577,12 +618,84 @@ impl StyleProperty {
                  and no conic one"
                     .to_string(),
             ),
+            StyleProperty::Gradient(kind, prelude)
+                if !native_gradient_prelude_valid(*kind, prelude) =>
+            {
+                Some(format!(
+                    "`{prelude}`: React Native's {} requires a valid direction, angle, or radial \
+                     shape/position prelude",
+                    kind.css()
+                ))
+            }
+            StyleProperty::BoxShadow(value) | StyleProperty::InsetShadow(value)
+                if resolve_native_box_shadow(value).is_none() =>
+            {
+                Some(format!(
+                    "`{value}`: React Native's boxShadow requires concrete offset lengths (in px \
+                     or foldable units) and valid colours"
+                ))
+            }
+            StyleProperty::Filter(function, value)
+                if resolve_native_filter(*function, value).is_none() =>
+            {
+                Some(format!(
+                    "`{value}`: React Native's filter requires concrete function arguments (px \
+                     lengths, angles, or numeric/percentage factors)"
+                ))
+            }
+            StyleProperty::TransformOrigin(value)
+                if resolve_native_transform_origin(value).is_none() =>
+            {
+                Some(format!(
+                    "`{value}`: React Native's transformOrigin accepts edge keywords, percentages, \
+                     or statically resolvable lengths"
+                ))
+            }
+            StyleProperty::DivideX(Dimension::Percent(_) | Dimension::Auto)
+            | StyleProperty::DivideY(Dimension::Percent(_) | Dimension::Auto) => Some(
+                "`divide-x`/`divide-y`: React Native's border widths take a numeric pixel value, \
+                 not a percentage or `auto`"
+                    .to_string(),
+            ),
+            StyleProperty::TranslateX(Dimension::Auto)
+            | StyleProperty::TranslateY(Dimension::Auto) => Some(
+                "`translate-x-[auto]`/`translate-y-[auto]`: React Native's translate transforms \
+                 accept lengths or percentages, not `auto`"
+                    .to_string(),
+            ),
+            StyleProperty::MaxWidth(Dimension::Auto)
+            | StyleProperty::MaxHeight(Dimension::Auto) => Some(
+                "`max-w-[auto]`/`max-h-[auto]`: `auto` is not a valid CSS maximum size"
+                    .to_string(),
+            ),
+            StyleProperty::PaddingTop(Dimension::Auto)
+            | StyleProperty::PaddingRight(Dimension::Auto)
+            | StyleProperty::PaddingBottom(Dimension::Auto)
+            | StyleProperty::PaddingLeft(Dimension::Auto)
+            | StyleProperty::PaddingInlineStart(Dimension::Auto)
+            | StyleProperty::PaddingInlineEnd(Dimension::Auto)
+            | StyleProperty::PaddingBlockStart(Dimension::Auto)
+            | StyleProperty::PaddingBlockEnd(Dimension::Auto)
+            | StyleProperty::Gap(Dimension::Auto)
+            | StyleProperty::RowGap(Dimension::Auto)
+            | StyleProperty::ColumnGap(Dimension::Auto) => Some(
+                "`auto`: padding and gap take lengths or percentages, not `auto`"
+                    .to_string(),
+            ),
             StyleProperty::ZIndex(None) => Some(
                 "`z-auto`: React Native's zIndex is a number and has no auto".to_string(),
             ),
-            StyleProperty::AspectRatio("auto") => Some(
-                "`aspect-auto`: React Native's aspectRatio is a number and has no auto".to_string(),
-            ),
+            StyleProperty::AspectRatio(value) if parse_native_aspect_ratio(value).is_none() => {
+                Some(if value == "auto" {
+                    "`aspect-auto`: React Native's aspectRatio is a number and has no auto"
+                        .to_string()
+                } else {
+                    format!(
+                        "`aspect-[{value}]`: React Native's aspectRatio requires a positive number \
+                         or `w / h` ratio"
+                    )
+                })
+            }
             StyleProperty::Columns(_) => {
                 Some("`columns-*`: React Native has no multi-column layout".to_string())
             }
@@ -861,7 +974,7 @@ mod property_value_tests {
         // length. The last three are the ones a hand-written list kept
         // missing, and each miss was a zero emitted in silence.
         for property in [
-            StyleProperty::PaddingTop(em.clone()),
+            StyleProperty::PaddingTop(Dimension::Length(em.clone())),
             StyleProperty::Width(Dimension::Length(em.clone())),
             StyleProperty::BorderRadius(Radius::Length(em.clone())),
             StyleProperty::LineHeight(LineHeight::Length(em.clone())),
