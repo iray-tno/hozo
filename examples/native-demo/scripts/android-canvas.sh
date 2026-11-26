@@ -30,6 +30,13 @@ fail() {
   # tail above. See `canvas.js` for what each one means.
   echo '--- screen markers ---'
   app_log | grep -F '[hozo-canvas-screen]' | sed 's/^/  /' || true
+  # A crash on launch leaves no process id for `app_log`, and the tail below
+  # is the emulator's chatter by then. Android keeps crashes in their own
+  # buffer, Java exceptions and native aborts alike, and React Native logs a
+  # fatal JavaScript error under its own tag; both say why it died.
+  echo '--- crashes ---'
+  adb logcat -d -v brief -b crash | tail -80 | sed 's/^/  /' || true
+  adb logcat -d -v brief 'ReactNativeJS:E' 'AndroidRuntime:E' '*:S' | tail -40 | sed 's/^/  /' || true
   echo '--- logcat ---'
   adb logcat -d -v brief | tail -80 || true
   exit 1
