@@ -243,6 +243,8 @@ const COVERED_PROBES = [
   (c: string) =>
     `import { View } from '@hozo/core'\nexport function C() { return <View className="${c}">x</View> }\n`,
   (c: string) =>
+    `import { View } from '@hozo/core'\nexport function C() { return <View><View className="${c}">x</View></View> }\n`,
+  (c: string) =>
     `import { Text } from '@hozo/core'\nexport function C() { return <Text className="${c}">x</Text> }\n`,
   (c: string) =>
     `import { View, Text } from '@hozo/core'\nexport function C() { return <View className="text-lg"><Text className="${c}">x</Text></View> }\n`,

@@ -6,6 +6,7 @@ use super::*;
 use crate::grid::{NativeGrid, NativeGridItem};
 
 /// The children placed by `HozoGrid`, or spaced by `space-*`/`divide-*`.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn place_children(
     inner: Rendered,
     grid: Option<NativeGrid>,
@@ -13,6 +14,7 @@ pub(super) fn place_children(
     base_name: &str,
     node: &Node,
     position: SiblingPosition,
+    parent_measured: bool,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if let Some(grid) = grid {
@@ -35,7 +37,15 @@ pub(super) fn place_children(
         );
         inner.wrap(text, "</HozoGrid>".len())
     } else {
-        spaced_children(inner, child_declarations, base_name, node, position, cx)
+        spaced_children(
+            inner,
+            child_declarations,
+            base_name,
+            node,
+            position,
+            parent_measured,
+            cx,
+        )
     }
 }
 
@@ -96,6 +106,7 @@ pub(super) fn inherited_scope(
 pub(super) fn host_tag(
     rendered_component: &'static str,
     measures_host: bool,
+    measures_parent: bool,
     self_style_parts: &[String],
     outermost_text: bool,
     inherited: &[StyleDeclaration],
@@ -104,7 +115,7 @@ pub(super) fn host_tag(
     cx: &mut NativeRenderContext<'_>,
 ) -> &'static str {
     let theme = cx.theme;
-    let base_tag = if measures_host {
+    let mut tag = if measures_host {
         "HozoContainer"
     } else if cx.text_unified && rendered_component == "Text" && outermost_text {
         // Decision 013. Everything that reaches this Text from the file is
@@ -127,8 +138,8 @@ pub(super) fn host_tag(
     };
     if !self_style_parts.is_empty() {
         cx.runtime.need_component("HozoSelfMeasured");
-        if base_tag != "View" {
-            props_text.push_str(&format!(" hozoMeasuredComponent={{{base_tag}}}"));
+        if tag != "View" {
+            props_text.push_str(&format!(" hozoMeasuredComponent={{{tag}}}"));
         }
         let body = if self_style_parts.len() == 1 && !self_style_parts[0].contains("&&") {
             format!("({})", self_style_parts[0])
@@ -136,9 +147,36 @@ pub(super) fn host_tag(
             format!("[{}]", self_style_parts.join(", "))
         };
         props_text.push_str(&format!(" hozoSelfStyle={{(__hozoSelf) => {body}}}"));
-        "HozoSelfMeasured"
+        tag = "HozoSelfMeasured";
+    }
+    if measures_parent {
+        cx.runtime.need_component("HozoMeasuredParent");
+        if tag != "View" {
+            props_text.push_str(&format!(" hozoParentComponent={{{tag}}}"));
+        }
+        tag = "HozoMeasuredParent";
+    }
+    tag
+}
+
+/// Supplies derived containing-block sizes from the enclosing same-component
+/// `HozoMeasuredParent` to children using parent-relative `%`-mixed `calc()`.
+pub(super) fn parent_size_query(
+    rendered: Rendered,
+    uses_parent_size_query: bool,
+    cx: &mut NativeRenderContext<'_>,
+) -> Rendered {
+    if uses_parent_size_query {
+        cx.runtime.need_component("HozoParentSizeQuery");
+        let text = format!(
+            "<HozoParentSizeQuery>{{(__hozoParent) => ({})}}</HozoParentSizeQuery>",
+            rendered.text
+        );
+        let mut rendered = rendered.wrap(text, ")}</HozoParentSizeQuery>".len());
+        rendered.forget_scope();
+        rendered
     } else {
-        base_tag
+        rendered
     }
 }
 

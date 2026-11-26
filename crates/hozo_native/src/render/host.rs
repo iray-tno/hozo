@@ -105,6 +105,44 @@ pub(super) fn supports_layout_measurement_host(rendered_component: &str) -> bool
     )
 }
 
+/// Hosts whose `onLayout` border-box minus flattened border/padding accurately
+/// describes the containing block of their direct children. Excludes hosts that
+/// discard children (`TextInput`, `Image`), split `contentContainerStyle` or
+/// cell boxes (`ScrollView`, `HozoFlatList`), or render non-box SVG trees.
+pub(super) fn supports_parent_measurement_host(rendered_component: &str) -> bool {
+    matches!(
+        rendered_component,
+        "View"
+            | "Animated.View"
+            | "Text"
+            | "Animated.Text"
+            | "Pressable"
+            | "HozoPressable"
+            | "HozoLink"
+            | "HozoText"
+            | "HozoInteractionView"
+            | "HozoTextSize"
+            | "HozoRelativeText"
+            | "HozoAnimated"
+            | "HozoRuby"
+            | "HozoDetails"
+            | "HozoBadge"
+    )
+}
+
+pub(super) fn primitive_can_measure_parent(primitive: Primitive) -> bool {
+    !matches!(
+        primitive,
+        Primitive::Modal
+            | Primitive::Dialog
+            | Primitive::TextInput
+            | Primitive::Image
+            | Primitive::ScrollView
+            | Primitive::FlatList
+            | Primitive::Svg(_)
+    )
+}
+
 /// Only a host with one forwarded layout event can publish its width.
 /// Portals, non-layout SVG nodes, and identity-sensitive compound parts
 /// need their own adapter; a provider must not invent a measurable box

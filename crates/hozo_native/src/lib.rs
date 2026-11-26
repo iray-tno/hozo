@@ -110,7 +110,8 @@ use structural::{structural_holds, SiblingPosition};
 use variants::{condition_suffix, variant_spelling};
 
 use conditions::{
-    build_style_entries, build_style_entries_with_self_measured, unwired_variant, RuntimeHook,
+    build_style_entries, build_style_entries_with_measured, unwired_variant, MeasuredOptions,
+    RuntimeHook,
 };
 
 /// One entry in the generated `StyleSheet`, and which palette to render it

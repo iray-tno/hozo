@@ -41,6 +41,25 @@ fn has_gap(style: &[StyleDeclaration]) -> bool {
     })
 }
 
+fn has_display_contents(style: &[StyleDeclaration]) -> bool {
+    style
+        .iter()
+        .any(|d| matches!(d.property, StyleProperty::Display(Display::Contents)))
+}
+
+fn child_uses_parent_measured(
+    child: &Node,
+    to_children: &[StyleDeclaration],
+    descendants: &[StyleDeclaration],
+) -> bool {
+    child
+        .style
+        .iter()
+        .chain(to_children.iter())
+        .chain(descendants.iter())
+        .any(|d| crate::measured::is_parent_measured(&d.property))
+}
+
 /// Resolve StyleX's browser feature fallback before any contextual Native
 /// lowering looks at the node. Keeping the wrapper until the backend is
 /// important for Web's duplicate declarations, but TextInput props, text
@@ -98,6 +117,7 @@ pub(super) fn render_node(
         from_ancestor,
         grid_columns,
         grid_rows,
+        parent_measured,
     } = ancestor;
     let source = cx.source;
     let theme = cx.theme;
@@ -180,6 +200,9 @@ pub(super) fn render_node(
     let svg_paint = prepare::svg_paint(node, &style, theme);
     let can_self_measure = !matches!(node.primitive, Primitive::Modal | Primitive::Dialog)
         && !matches!(node.primitive, Primitive::Svg(svg) if svg != hozo_ir::SvgElement::Root);
+    let can_measure_space = grid.is_none()
+        && !has_display_contents(&style)
+        && host::primitive_can_measure_parent(node.primitive);
     let backdrop_filter = refusals::report_refused(
         &style,
         refusals::Lowered {
@@ -193,6 +216,8 @@ pub(super) fn render_node(
             keyframes: has_keyframes,
             caret: caret.is_some(),
             self_measured: can_self_measure,
+            parent_measured,
+            parent_measured_space: can_measure_space,
         },
         node,
         theme,
@@ -277,8 +302,16 @@ pub(super) fn render_node(
             gradients: mixing.compose_gradients,
         },
     };
+    let is_absolute = own_declarations
+        .iter()
+        .rev()
+        .find_map(|d| match d.property {
+            StyleProperty::Position(pos) if d.condition == Condition::Always => Some(pos),
+            _ => None,
+        })
+        == Some(hozo_ir::Position::Absolute);
     let mut self_style_parts: Vec<String> = Vec::new();
-    let state_start = build_style_entries_with_self_measured(
+    let state_start = build_style_entries_with_measured(
         // RN View cannot inherit these fields. Experimental ReferenceView
         // consumes them before rendering its host, including opaque labels.
         // Do not change normal output until RFC 006's rollout gates pass.
@@ -292,9 +325,19 @@ pub(super) fn render_node(
         &mut style_array_parts,
         &mut pressed_parts,
         can_self_measure.then_some(&mut self_style_parts),
+        MeasuredOptions {
+            allow_self_measured: can_self_measure,
+            allow_parent_measured: parent_measured,
+            parent_inset_absolute: is_absolute,
+        },
         animates.then_some(&mut frames),
         cx,
     );
+    let uses_parent_size_query = parent_measured
+        && style_array_parts
+            .iter()
+            .chain(pressed_parts.iter())
+            .any(|part| part.contains("__hozoParent"));
     // Backdrop and label entries below have their own style arrays.
     let own_entry_end = cx.style_entries.len();
     let mut backdrop_parts = Vec::new();
@@ -404,6 +447,32 @@ pub(super) fn render_node(
     }
     let measures_host =
         host::measures_host(declares_container, rendered_component, node, cx.diagnostics);
+    let has_parent_measured_child = node.children.iter().any(|child| {
+        matches!(
+            child,
+            hozo_ir::Child::Node(child_node)
+                if child_uses_parent_measured(child_node, &to_children, &descendants)
+        )
+    });
+    let has_parent_measured_space = grid.is_none()
+        && child_declarations
+            .iter()
+            .any(|d| crate::measured::is_parent_measured_space(&d.property));
+    let can_measure_parent = grid.is_none()
+        && !has_display_contents(&own_declarations)
+        && host::supports_parent_measurement_host(rendered_component);
+    if has_parent_measured_space && !can_measure_parent {
+        cx.diagnostics.push(unwired_variant(
+            node,
+            &format!(
+                "`space-*` with `%`-mixed `calc()` needs a single layout-reporting host on Native; \
+                 `{rendered_component}` cannot supply `onLayout` through this adapter."
+            ),
+            Severity::Error,
+        ));
+    }
+    let measures_parent =
+        can_measure_parent && (has_parent_measured_child || has_parent_measured_space);
     // An intervening control owns its own interaction. Neither an enhanced
     // nor a plain link may borrow an outer button's hover/focus context.
     let owns_pressable_interaction = rendered_component == "HozoPressable";
@@ -614,6 +683,7 @@ pub(super) fn render_node(
         },
         grid_columns: grid.as_ref().and_then(|grid| grid.track_count),
         grid_rows: grid.as_ref().and_then(|grid| grid.row_track_count),
+        parent_measured: measures_parent,
     };
     let inner = child_list::render_child_list(
         node,
@@ -636,6 +706,7 @@ pub(super) fn render_node(
         &base_name,
         node,
         position,
+        measures_parent,
         cx,
     );
 
@@ -652,6 +723,7 @@ pub(super) fn render_node(
     let tag = wrappers::host_tag(
         rendered_component,
         measures_host,
+        measures_parent,
         &self_style_parts,
         outermost_text,
         inherited,
@@ -682,6 +754,7 @@ pub(super) fn render_node(
         }
         rendered.copies = Some(copies);
     }
+    let rendered = wrappers::parent_size_query(rendered, uses_parent_size_query, cx);
     let rendered = wrappers::container_query(rendered, uses_container_query, cx);
     let rendered = wrappers::container_size_query(rendered, uses_container_size_query, cx);
     let rendered = wrappers::grid_item(rendered, grid_item, cx);

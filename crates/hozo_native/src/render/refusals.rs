@@ -17,6 +17,8 @@ pub(super) struct Lowered {
     pub(super) keyframes: bool,
     pub(super) caret: bool,
     pub(super) self_measured: bool,
+    pub(super) parent_measured: bool,
+    pub(super) parent_measured_space: bool,
 }
 
 pub(super) fn native_backdrop_filter(
@@ -52,6 +54,10 @@ pub(super) fn report_refused(
         if is_viewport_sized(&declaration.property)
             || crate::measured::is_container_sized(&declaration.property)
             || (elsewhere.self_measured && crate::measured::is_self_measured(&declaration.property))
+            || (elsewhere.parent_measured
+                && crate::measured::is_parent_measured(&declaration.property))
+            || (elsewhere.parent_measured_space
+                && crate::measured::is_parent_measured_space(&declaration.property))
         {
             continue;
         }

@@ -8,10 +8,19 @@ use super::*;
 pub(super) struct InlineParts {
     pub(super) viewport: Option<String>,
     pub(super) container: Option<String>,
+    pub(super) parent_measured: Option<String>,
     pub(super) self_measured: Option<String>,
     pub(super) safe_area: Option<String>,
     pub(super) animation: Option<String>,
     pub(super) keyframes: Option<String>,
+}
+
+/// Which opt-in layout measurements are available for this style target.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct MeasuredOptions {
+    pub allow_self_measured: bool,
+    pub allow_parent_measured: bool,
+    pub parent_inset_absolute: bool,
 }
 
 /// Takes the group's inline values out of `props`, registering the hooks
@@ -23,7 +32,7 @@ pub(super) fn inline_parts(
     declarations: &[StyleDeclaration],
     node: &Node,
     theme: &Theme,
-    allow_self_measured: bool,
+    measured: MeasuredOptions,
     runtime: &mut RuntimeNeeds,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> (Vec<StyleProperty>, InlineParts) {
@@ -37,7 +46,17 @@ pub(super) fn inline_parts(
         runtime.hooks.push(RuntimeHook::Viewport);
     }
     let container = crate::measured::take_container_object(&mut props, runtime);
-    let self_measured = if allow_self_measured {
+    let parent_measured = if measured.allow_parent_measured {
+        crate::measured::take_parent_measured_object(
+            &mut props,
+            declarations,
+            measured.parent_inset_absolute,
+            runtime,
+        )
+    } else {
+        None
+    };
+    let self_measured = if measured.allow_self_measured {
         crate::measured::take_self_measured_object(&mut props, theme, runtime)
     } else {
         None
@@ -139,6 +158,7 @@ pub(super) fn inline_parts(
         InlineParts {
             viewport,
             container,
+            parent_measured,
             self_measured,
             safe_area,
             animation,

@@ -21,6 +21,269 @@ const CONTAINER_BINDING: &str = "__hozoCqs[\"\"]";
 const SELF_WIDTH: &str = "__hozoSelf.width";
 const SELF_HEIGHT: &str = "__hozoSelf.height";
 const SELF_MIN: &str = "Math.min(__hozoSelf.width, __hozoSelf.height)";
+const PARENT_BINDING: &str = "__hozoParent";
+const PARENT_WIDTH: &str = "__hozoParent.width";
+const PARENT_HEIGHT: &str = "__hozoParent.height";
+const PARENT_PAD_WIDTH: &str = "__hozoParent.paddingBoxWidth";
+const PARENT_PAD_HEIGHT: &str = "__hozoParent.paddingBoxHeight";
+const PARENT_MAIN: &str = "__hozoParent.mainAxisSize";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ParentPercentAxis {
+    ContentWidth,
+    ContentHeight,
+    InsetHorizontal,
+    InsetVertical,
+    MainAxis,
+}
+
+impl ParentPercentAxis {
+    fn js(self, is_absolute: bool) -> &'static str {
+        match self {
+            Self::ContentWidth => PARENT_WIDTH,
+            Self::ContentHeight => PARENT_HEIGHT,
+            Self::InsetHorizontal if is_absolute => PARENT_PAD_WIDTH,
+            Self::InsetHorizontal => PARENT_WIDTH,
+            Self::InsetVertical if is_absolute => PARENT_PAD_HEIGHT,
+            Self::InsetVertical => PARENT_HEIGHT,
+            Self::MainAxis => PARENT_MAIN,
+        }
+    }
+}
+
+fn parent_layout_entries(
+    prop: &StyleProperty,
+) -> Option<&'static [(&'static str, ParentPercentAxis)]> {
+    use ParentPercentAxis::*;
+    use StyleProperty::*;
+    Some(match prop {
+        Width(_) | InlineSize(_) => &[("width", ContentWidth)],
+        MinWidth(_) | MinInlineSize(_) => &[("minWidth", ContentWidth)],
+        MaxWidth(_) | MaxInlineSize(_) => &[("maxWidth", ContentWidth)],
+        Height(_) | BlockSize(_) => &[("height", ContentHeight)],
+        MinHeight(_) | MinBlockSize(_) => &[("minHeight", ContentHeight)],
+        MaxHeight(_) | MaxBlockSize(_) => &[("maxHeight", ContentHeight)],
+        FlexBasis(_) => &[("flexBasis", MainAxis)],
+        // CSS Box Model: all margin and padding percentages (including top/bottom)
+        // resolve against the containing block's inline size (width).
+        MarginTop(_) | MarginBlockStart(_) => &[("marginTop", ContentWidth)],
+        MarginBottom(_) | MarginBlockEnd(_) => &[("marginBottom", ContentWidth)],
+        MarginLeft(_) => &[("marginLeft", ContentWidth)],
+        MarginRight(_) => &[("marginRight", ContentWidth)],
+        MarginInlineStart(_) => &[("marginStart", ContentWidth)],
+        MarginInlineEnd(_) => &[("marginEnd", ContentWidth)],
+        PaddingTop(_) | PaddingBlockStart(_) => &[("paddingTop", ContentWidth)],
+        PaddingBottom(_) | PaddingBlockEnd(_) => &[("paddingBottom", ContentWidth)],
+        PaddingLeft(_) => &[("paddingLeft", ContentWidth)],
+        PaddingRight(_) => &[("paddingRight", ContentWidth)],
+        PaddingInlineStart(_) => &[("paddingStart", ContentWidth)],
+        PaddingInlineEnd(_) => &[("paddingEnd", ContentWidth)],
+        InsetTop(_) | InsetBlockStart(_) => &[("top", InsetVertical)],
+        InsetBottom(_) | InsetBlockEnd(_) => &[("bottom", InsetVertical)],
+        InsetLeft(_) => &[("left", InsetHorizontal)],
+        InsetRight(_) => &[("right", InsetHorizontal)],
+        InsetInlineStart(_) => &[("start", InsetHorizontal)],
+        InsetInlineEnd(_) => &[("end", InsetHorizontal)],
+        InsetInline(_) => &[("start", InsetHorizontal), ("end", InsetHorizontal)],
+        InsetBlock(_) => &[("top", InsetVertical), ("bottom", InsetVertical)],
+        Arbitrary(name, _) => match name.as_str() {
+            "margin" => &[
+                ("marginTop", ContentWidth),
+                ("marginEnd", ContentWidth),
+                ("marginBottom", ContentWidth),
+                ("marginStart", ContentWidth),
+            ],
+            "margin-inline" => &[("marginStart", ContentWidth), ("marginEnd", ContentWidth)],
+            "margin-block" => &[("marginTop", ContentWidth), ("marginBottom", ContentWidth)],
+            "padding" => &[
+                ("paddingTop", ContentWidth),
+                ("paddingEnd", ContentWidth),
+                ("paddingBottom", ContentWidth),
+                ("paddingStart", ContentWidth),
+            ],
+            "padding-inline" => &[("paddingStart", ContentWidth), ("paddingEnd", ContentWidth)],
+            "padding-block" => &[
+                ("paddingTop", ContentWidth),
+                ("paddingBottom", ContentWidth),
+            ],
+            "inset" => &[
+                ("top", InsetVertical),
+                ("end", InsetHorizontal),
+                ("bottom", InsetVertical),
+                ("start", InsetHorizontal),
+            ],
+            _ => return None,
+        },
+        _ => return None,
+    })
+}
+
+fn parent_calc_expr(prop: &StyleProperty) -> Option<CalcExpr> {
+    let css = match prop {
+        StyleProperty::SpaceX(dim) | StyleProperty::SpaceY(dim) => dimension_css(dim)?,
+        StyleProperty::Arbitrary(_, value) => {
+            parent_layout_entries(prop)?;
+            value.as_str()
+        }
+        _ => {
+            parent_layout_entries(prop)?;
+            match prop.value() {
+                PropertyValue::Length(Length::Css(text))
+                | PropertyValue::Dimension(Dimension::Length(Length::Css(text)))
+                | PropertyValue::Dimension(Dimension::Css(text)) => text.as_str(),
+                _ => return None,
+            }
+        }
+    };
+    let expr = parse_calc_length(css)?;
+    expr.needs().percent.then_some(expr)
+}
+
+/// Whether `prop` is a parent-relative `%`-mixed CSS math expression on a
+/// child element (`w`, `h`, `size`, `min/max-*`, `basis`, `m*`, `p*`, `inset*`).
+pub(super) fn is_parent_measured(prop: &StyleProperty) -> bool {
+    parent_layout_entries(prop).is_some() && parent_calc_expr(prop).is_some()
+}
+
+/// Whether `prop` is a child-spacing `%`-mixed CSS math expression (`space-x`,
+/// `space-y`) whose percentage resolves against the spacing container's own
+/// content-box width.
+pub(super) fn is_parent_measured_space(prop: &StyleProperty) -> bool {
+    matches!(prop, StyleProperty::SpaceX(_) | StyleProperty::SpaceY(_))
+        && parent_calc_expr(prop).is_some()
+}
+
+/// Extracts parent-relative `%`-calc styles (or container-measured `space-*`
+/// child styles) from a condition group into a guarded inline style object
+/// reading `__hozoParent`.
+pub(super) fn take_parent_measured_object(
+    props: &mut Vec<StyleProperty>,
+    all_declarations: &[hozo_ir::StyleDeclaration],
+    is_absolute: bool,
+    runtime: &mut RuntimeNeeds,
+) -> Option<String> {
+    if !props
+        .iter()
+        .any(|p| is_parent_measured(p) || is_parent_measured_space(p))
+    {
+        return None;
+    }
+    let vp_binding = RuntimeHook::Viewport.binding();
+    let space_x_reversed = all_declarations
+        .iter()
+        .any(|d| matches!(d.property, StyleProperty::SpaceReverse(hozo_ir::Axis::X)));
+    let space_y_reversed = all_declarations
+        .iter()
+        .any(|d| matches!(d.property, StyleProperty::SpaceReverse(hozo_ir::Axis::Y)));
+
+    let mut seen = std::collections::HashSet::new();
+    let mut remaining = Vec::new();
+    let mut pairs = Vec::new();
+    let mut needs = CalcNeeds::default();
+
+    for prop in props.drain(..).rev() {
+        if matches!(prop, StyleProperty::SpaceX(_) | StyleProperty::SpaceY(_)) {
+            if let Some(expr) = parent_calc_expr(&prop) {
+                let expr_needs = expr.needs();
+                if let Some(js) = expr.to_js(&CalcBindings {
+                    viewport: Some(&vp_binding),
+                    container: Some(CONTAINER_BINDING),
+                    percent: Some(PARENT_WIDTH),
+                }) {
+                    let (start_key, end_key, reversed) = match prop {
+                        StyleProperty::SpaceX(_) => {
+                            ("marginInlineStart", "marginInlineEnd", space_x_reversed)
+                        }
+                        StyleProperty::SpaceY(_) => ("marginTop", "marginBottom", space_y_reversed),
+                        _ => unreachable!(),
+                    };
+                    let (start_val, end_val) = if reversed {
+                        (js.as_str(), "0")
+                    } else {
+                        ("0", js.as_str())
+                    };
+                    let mut wrote = false;
+                    if seen.insert(end_key) {
+                        pairs.push(format!("{end_key}: {end_val}"));
+                        wrote = true;
+                    }
+                    if seen.insert(start_key) {
+                        pairs.push(format!("{start_key}: {start_val}"));
+                        wrote = true;
+                    }
+                    if wrote {
+                        needs.viewport |= expr_needs.viewport;
+                        needs.container_width |= expr_needs.container_width;
+                        needs.container_height |= expr_needs.container_height;
+                        needs.percent = true;
+                    }
+                    continue;
+                }
+            }
+            if prop.unsupported_on_native().is_none() {
+                match prop {
+                    StyleProperty::SpaceX(_) => {
+                        seen.insert("marginInlineStart");
+                        seen.insert("marginInlineEnd");
+                    }
+                    StyleProperty::SpaceY(_) => {
+                        seen.insert("marginTop");
+                        seen.insert("marginBottom");
+                    }
+                    _ => {}
+                }
+            }
+        } else if let Some(entries) = parent_layout_entries(&prop) {
+            if let Some(expr) = parent_calc_expr(&prop) {
+                let expr_needs = expr.needs();
+                let clamp = non_negative_layout_prop(&prop);
+                let mut wrote = false;
+                for &(key, axis) in entries.iter().rev() {
+                    if let Some(mut js) = expr.to_js(&CalcBindings {
+                        viewport: Some(&vp_binding),
+                        container: Some(CONTAINER_BINDING),
+                        percent: Some(axis.js(is_absolute)),
+                    }) {
+                        if clamp {
+                            js = format!("Math.max(0, {js})");
+                        }
+                        if seen.insert(key) {
+                            pairs.push(format!("{key}: {js}"));
+                            wrote = true;
+                        }
+                    }
+                }
+                if wrote {
+                    needs.viewport |= expr_needs.viewport;
+                    needs.container_width |= expr_needs.container_width;
+                    needs.container_height |= expr_needs.container_height;
+                    needs.percent = true;
+                }
+                continue;
+            }
+            if prop.unsupported_on_native().is_none() {
+                seen.extend(entries.iter().map(|(key, _)| *key));
+            }
+        }
+        remaining.push(prop);
+    }
+
+    pairs.reverse();
+    remaining.reverse();
+    *props = remaining;
+    if pairs.is_empty() {
+        return None;
+    }
+    if needs.viewport {
+        runtime.hooks.push(RuntimeHook::Viewport);
+    }
+    let object = format!("{{ {} }}", pairs.join(", "));
+    let guard = match container_guard(needs.container_width, needs.container_height) {
+        Some(cq) => format!("{PARENT_BINDING} && {cq}"),
+        None => PARENT_BINDING.to_string(),
+    };
+    Some(format!("({guard} && {object})"))
+}
 
 /// RN StyleSheet key for a border-radius variant.
 pub(super) fn radius_key(prop: &StyleProperty) -> Option<&'static str> {
@@ -74,6 +337,10 @@ fn non_negative_layout_prop(prop: &StyleProperty) -> bool {
             | StyleProperty::BorderStartEndRadius(_)
             | StyleProperty::BorderEndStartRadius(_)
             | StyleProperty::BorderEndEndRadius(_)
+    ) || matches!(
+        prop,
+        StyleProperty::Arbitrary(name, _)
+            if matches!(name.as_str(), "padding" | "padding-inline" | "padding-block")
     )
 }
 
@@ -288,9 +555,11 @@ pub(super) fn self_measured_needs(prop: &StyleProperty) -> Option<CalcNeeds> {
 }
 
 /// Whether `prop` requires `HozoContainerSizeQuery` (either directly or inside
-/// a self-measured `%`-mixed expression like `translate-x-[calc(50%-10cqw)]`).
+/// a self- or parent-measured `%`-mixed expression like `w-[calc(100%-10cqw)]`).
 pub(super) fn uses_container_size(prop: &StyleProperty) -> bool {
-    is_container_sized(prop) || self_measured_needs(prop).is_some_and(|n| n.needs_container())
+    is_container_sized(prop)
+        || self_measured_needs(prop).is_some_and(|n| n.needs_container())
+        || parent_calc_expr(prop).is_some_and(|e| e.needs().needs_container())
 }
 
 fn translate_dim_js(

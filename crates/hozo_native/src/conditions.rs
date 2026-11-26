@@ -17,6 +17,7 @@ mod unwired;
 
 use dark::with_dark_copies;
 pub(super) use hooks::RuntimeHook;
+pub(crate) use inline_parts::MeasuredOptions;
 pub(super) use presence::{presence_closed, AnimatedFrames};
 use presence::{EXIT_WITHOUT_TRANSITION, STARTING_WITHOUT_TRANSITION};
 
@@ -57,26 +58,28 @@ pub(super) fn build_style_entries(
     frames: Option<&mut AnimatedFrames>,
     cx: &mut crate::NativeRenderContext<'_>,
 ) -> usize {
-    build_style_entries_with_self_measured(
+    build_style_entries_with_measured(
         declarations,
         base_name,
         target,
         style_array_parts,
         pressed_parts,
         None,
+        inline_parts::MeasuredOptions::default(),
         frames,
         cx,
     )
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn build_style_entries_with_self_measured(
+pub(super) fn build_style_entries_with_measured(
     declarations: &[StyleDeclaration],
     base_name: &str,
     target: &StyleTarget<'_>,
     style_array_parts: &mut Vec<String>,
     pressed_parts: &mut Vec<String>,
     mut self_style_parts: Option<&mut Vec<String>>,
+    measured: inline_parts::MeasuredOptions,
     mut frames: Option<&mut AnimatedFrames>,
     cx: &mut crate::NativeRenderContext<'_>,
 ) -> usize {
@@ -160,6 +163,7 @@ pub(super) fn build_style_entries_with_self_measured(
             inline_parts::InlineParts {
                 viewport,
                 container,
+                parent_measured,
                 self_measured,
                 safe_area,
                 animation,
@@ -171,13 +175,18 @@ pub(super) fn build_style_entries_with_self_measured(
             declarations,
             node,
             theme,
-            self_style_parts.is_some(),
+            inline_parts::MeasuredOptions {
+                allow_self_measured: self_style_parts.is_some() && measured.allow_self_measured,
+                allow_parent_measured: measured.allow_parent_measured,
+                parent_inset_absolute: measured.parent_inset_absolute,
+            },
             runtime,
             diagnostics,
         );
         if props.is_empty()
             && viewport.is_none()
             && container.is_none()
+            && parent_measured.is_none()
             && self_measured.is_none()
             && safe_area.is_none()
             && animation.is_none()
@@ -210,6 +219,7 @@ pub(super) fn build_style_entries_with_self_measured(
             .into_iter()
             .chain(viewport.clone())
             .chain(container.clone())
+            .chain(parent_measured.clone())
             .chain(safe_area.clone())
             .chain(animation.clone())
             .chain(keyframes.clone())
