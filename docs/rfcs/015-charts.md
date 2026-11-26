@@ -68,8 +68,8 @@ import { BarChart, LineChart } from '@hozo/charts'
   x={{ key: 'month', label: 'Month' }}
   y={{ label: 'Revenue', format: (v) => `$${v.toLocaleString()}` }}
   series={[
-    { key: 'online', label: 'Online', className: 'fill-primary' },
-    { key: 'store', label: 'In store', className: 'fill-secondary' },
+    { key: 'online', label: 'Online' },
+    { key: 'store', label: 'In store', color: '#0891b2' },
   ]}
   height={240}
 />
@@ -84,11 +84,14 @@ import { BarChart, LineChart } from '@hozo/charts'
 - `height` is required; width fills the container and is measured
   (ResizeObserver on Web, `onLayout` on Native). `width` may be given to
   skip the measurement, and server rendering uses it when present.
-- `className` on a series reaches the mark elements, so `fill-*` and
-  `stroke-*` follow the theme through the compiler as on any SVG shape.
-  A default palette from theme tokens applies when it is absent.
+- `color` on a series is a colour value, not a class list. Series
+  arrive as data at run time, and on Native `className` is compile-time
+  input that a runtime string never reaches, so a class would work on Web
+  only. A default palette of six hues applies when it is absent, each
+  keeping 3:1 against white and near-black. Theme-token colours are a
+  later step, once a runtime token read exists on both platforms.
 - Bar has `grouped` (default) and `stacked`. Line has `points` (whether
-  each datum gets a dot) and `curve: 'linear' | 'monotone'`.
+  each datum gets a dot); `curve: 'monotone'` is deferred to after phase 1.
 
 ## 4. The shared layer
 

@@ -1,3 +1,8 @@
+import { ChartBox } from './chart-box.native.tsx'
+import { createCharts } from './charts.tsx'
+
+export const { BarChart, LineChart } = createCharts(ChartBox)
+export type { BarChartProps, LineChartProps } from './charts.tsx'
 export {
   type BarChartInput,
   barChartModel,
@@ -14,6 +19,7 @@ export {
   rowValue,
   type Tick,
 } from './model.ts'
+export { DEFAULT_PALETTE, seriesColor } from './palette.ts'
 export {
   type BandOptions,
   type BandScale,

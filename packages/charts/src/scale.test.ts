@@ -6,7 +6,9 @@ import { bandScale, linearScale, niceDomain, pointScale, ticks } from './scale.t
 // Answers from d3-array 3.2.4 and d3-scale 4.0.2 for the same inputs,
 // generated once and kept as data so d3 is not a dependency. A difference
 // here is a tick a reader would not expect on the axis.
-const d3 = JSON.parse(readFileSync(new URL('./d3-reference.json', import.meta.url), 'utf8')) as {
+const d3 = JSON.parse(
+  readFileSync(new URL('../src/d3-reference.json', import.meta.url), 'utf8'),
+) as {
   ticks: [number, number, number, number[]][]
   nice: [number, number, number, [number, number]][]
   band: [
