@@ -1,6 +1,6 @@
 # @hozo/charts
 
-Bar, Line, Pie and Donut charts that a screen reader, a keyboard and a finger can all use, drawn with
+Bar, Line, Pie and Donut charts, and sparklines, that a screen reader, a keyboard and a finger can all use, drawn with
 [`@hozo/svg`](https://www.npmjs.com/package/@hozo/svg) on the Web and React Native.
 
 ```tsx
@@ -79,6 +79,17 @@ slice and no legend row, and the table still lists it. Slices take the palette i
 last slice that would repeat the first colour beside it takes the next colour instead. `colors`
 sets them by row. The legend sits beside the circle when there is room and under it otherwise. The
 pointer finds a slice by its angle, or a legend row by its line.
+
+## Sparklines
+
+```tsx
+<Sparkline accessibilityLabel="Visits, last 7 days" values={[412, 380, 455, 71, 520, 730, 640]} />
+```
+
+A word-sized line for a sentence or a table cell, 96 × 24 by default, with the last value marked.
+It is one image, not a tab stop, and has no table. Its name is the label plus what the line shows:
+"Visits, last 7 days: 7 values, from 412 to 640; lowest 71, highest 730." A gap breaks the line
+and is counted.
 
 ## Props
 

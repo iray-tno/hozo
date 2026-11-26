@@ -3,8 +3,8 @@
 // every series there, the pointer does the same with a tooltip, and a
 // screen reader also has the table of the data, out of sight unless shown.
 
-import { BarChart, DonutChart, LineChart, PieChart } from '@hozo/charts'
-import { View } from '@hozo/primitives'
+import { BarChart, DonutChart, LineChart, PieChart, Sparkline } from '@hozo/charts'
+import { Text, View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
@@ -120,6 +120,30 @@ export const PieAndDonut: StoryObj<typeof meta> = {
           height={220}
         />
       </Section>
+    </View>
+  ),
+}
+
+const metrics = [
+  { name: 'Visits', week: [412, 380, 455, 71, 520, 730, 640] },
+  { name: 'Sign-ups', week: [12, 15, null, 9, 14, 22, 19] },
+  { name: 'Refunds', week: [3, 2, 2, 1, 1, 0, 0] },
+]
+
+/**
+ * Word-sized lines beside each metric. Each is one image whose name says
+ * where it starts and ends and its extremes; none is a tab stop.
+ */
+export const Sparklines: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="max-w-md gap-3 p-6 text-slate-700">
+      <Heading level={2}>This week</Heading>
+      {metrics.map((metric) => (
+        <View key={metric.name} className="flex-row items-center justify-between gap-4">
+          <Text>{metric.name}</Text>
+          <Sparkline accessibilityLabel={`${metric.name}, last 7 days`} values={metric.week} />
+        </View>
+      ))}
     </View>
   ),
 }

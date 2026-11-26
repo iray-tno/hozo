@@ -33,7 +33,7 @@ While `docs/proposal.md` describes the foundational vision and `docs/decisions/`
 | [012](012-hozo-add.md) | `hozo add`: an `@hozo/ui` component as project source | `@hozo/cli`, `@hozo/ui` | **Implemented** | Not assigned |
 | [013](013-hozo-init.md) | `hozo init`: Hozo added to an existing project | `@hozo/cli`, `@hozo/compiler` | **Implemented** | Not assigned |
 | [014](014-windowed-table.md) | Windowed Table | Patterns, core, semantics and primitives | **Implemented (declared-width, fixed-height slice)**; Native screen-reader speech is not yet verified on a device | [#1373](https://github.com/iray-tno/hozo/issues/1373), [#2130](https://github.com/iray-tno/hozo/issues/2130) |
-| [015](015-charts.md) | Charts: a shared scale, layout and mark layer with thin SVG and Canvas renderers | New `@hozo/charts`; `@hozo/svg`, `@hozo/canvas`, `@hozo/semantics` | **Implemented (phase 1: Bar and Line on SVG)**; pie and donut added; sparklines in progress | [#154](https://github.com/iray-tno/hozo/issues/154) |
+| [015](015-charts.md) | Charts: a shared scale, layout and mark layer with thin SVG and Canvas renderers | New `@hozo/charts`; `@hozo/svg`, `@hozo/canvas`, `@hozo/semantics` | **Implemented (phase 1: Bar and Line on SVG)**; pie, donut and sparklines added | [#154](https://github.com/iray-tno/hozo/issues/154) |
 
 ### Unnumbered design notes
 

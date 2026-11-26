@@ -1,7 +1,10 @@
 import { ChartBox } from './chart-box.tsx'
 import { createCharts } from './charts.tsx'
+import { createSparkline } from './sparkline.tsx'
 
 export const { BarChart, LineChart, PieChart, DonutChart } = createCharts(ChartBox)
+// The root's own name makes it one image on Web.
+export const Sparkline = createSparkline({})
 export { datumSentence, nextDatum } from './active.ts'
 export type { BarChartProps, LineChartProps, PieChartProps } from './charts.tsx'
 export {
@@ -42,4 +45,11 @@ export {
   tickIncrement,
   ticks,
 } from './scale.ts'
+export {
+  type SparklineInput,
+  type SparklineModel,
+  type SparklineProps,
+  sparklineModel,
+  sparklineSummary,
+} from './sparkline.tsx'
 export { chartSummary, TABLE_ROW_LIMIT } from './summary.ts'
