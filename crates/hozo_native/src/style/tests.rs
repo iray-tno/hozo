@@ -285,3 +285,60 @@ fn percentage_radius_padding_and_gap_lower_on_native() {
         );
     }
 }
+
+#[test]
+fn arbitrary_scale_and_translate_lower_on_native() {
+    for (class_name, expected) in [
+        ("scale-[1.5]", "transform: [{ scale: 1.5 }]"),
+        ("scale-[50%]", "transform: [{ scale: 0.5 }]"),
+        ("scale-x-[1.5]", "transform: [{ scaleX: 1.5 }]"),
+        ("scale-x-[50%]", "transform: [{ scaleX: 0.5 }]"),
+        ("scale-y-[1.5]", "transform: [{ scaleY: 1.5 }]"),
+        ("scale-y-[50%]", "transform: [{ scaleY: 0.5 }]"),
+        (
+            "translate-[10px]",
+            "transform: [{ translateX: 10 }, { translateY: 10 }]",
+        ),
+        (
+            "translate-[2rem]",
+            "transform: [{ translateX: 32 }, { translateY: 32 }]",
+        ),
+        (
+            "translate-[50%]",
+            "transform: [{ translateX: '50%' }, { translateY: '50%' }]",
+        ),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.styles.contains(expected),
+            "{class_name}: {}",
+            out.styles
+        );
+    }
+    for invalid in [
+        "scale-[nonsense]",
+        "scale-x-[10px]",
+        "translate-[auto]",
+        "translate-[1.5em]",
+        "perspective-[10px]",
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{invalid}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            !out.diagnostics.is_empty(),
+            "{invalid} should be refused on Native"
+        );
+    }
+}

@@ -435,7 +435,6 @@ const LENGTH_ONLY_RN_PREFIXES = new Set([
   'ring-offset',
   'tracking',
   'backdrop-blur',
-  'perspective',
 ])
 const LAYOUT_OR_LENGTH_RN_PREFIXES = new Set([
   ...BOX_LENGTH_PERCENTAGE_RN_PREFIXES,
@@ -456,7 +455,11 @@ const STANDALONE_TRANSFORM_OR_SPECIAL = new Set([
   'skew',
   'skew-x',
   'skew-y',
-  'perspective',
+  // Note: CSS `perspective` applies to a container's 3D children, whereas
+  // RN's `transform: [{ perspective }]` applies to the element itself
+  // (equivalent to `transform: perspective(...)`). Keep `perspective-*`
+  // Web-only here, matching named `perspective-dramatic`/`perspective-normal`
+  // and StyleX's `perspective`.
   'backdrop-blur',
   'ring-offset',
   'grid-cols',
@@ -579,7 +582,6 @@ function classifyRefusedCandidate(
     (ROUNDED_PREFIXES.has(prefix) && value === '50%') ||
     (SCALE_PREFIXES.has(prefix) && (value === '1.5' || value === '50%')) ||
     (prefix === 'translate' && (value === '10px' || value === '2rem' || value === '50%')) ||
-    (prefix === 'perspective' && (value === '10px' || value === '2rem')) ||
     (prefix === 'aspect' && value === '1.5') ||
     (prefix === 'opacity' && value === '50%') ||
     (prefix === 'flex' && (value === '1.5' || value === 'auto')) ||

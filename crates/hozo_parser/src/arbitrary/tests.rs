@@ -272,7 +272,22 @@ fn an_arbitrary_scale_is_a_ratio_and_a_named_one_is_a_percentage() {
     // sixty-sixth that renders as nothing.
     assert_eq!(
         properties("scale-x-[1.5]"),
-        Some(vec![StyleProperty::ScaleX(Scale::Css("1.5".to_string()))])
+        Some(vec![StyleProperty::ScaleX(Scale::Ratio(1.5))])
+    );
+    assert_eq!(
+        properties("scale-x-[50%]"),
+        Some(vec![StyleProperty::ScaleX(Scale::Percent(50.0))])
+    );
+    assert_eq!(
+        properties("scale-[1.5]"),
+        Some(vec![StyleProperty::Scale(vec![Scale::Ratio(1.5)])])
+    );
+    assert_eq!(
+        properties("translate-[10px]"),
+        Some(vec![StyleProperty::Translate(vec![
+            Dimension::Length(Length::Px(10.0)),
+            Dimension::Length(Length::Px(10.0)),
+        ])])
     );
 }
 

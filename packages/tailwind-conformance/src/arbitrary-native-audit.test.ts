@@ -104,6 +104,7 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'animate-[10px]',
     'bg-conic-[10px]',
     'scale-z-[1.5]',
+    'perspective-[10px]',
     '[&>*]:p-4',
     '[--my-var:4px]',
     // Invalid CSS from synthetic cross-product
@@ -141,8 +142,8 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('rounded-[50%]'), 'validCovered')
   assert.equal(byCandidate.get('p-[50%]'), 'validCovered')
   assert.equal(byCandidate.get('gap-[50%]'), 'validCovered')
-  assert.equal(byCandidate.get('scale-[1.5]'), 'implementable')
-  assert.equal(byCandidate.get('translate-[10px]'), 'implementable')
+  assert.equal(byCandidate.get('scale-[1.5]'), 'validCovered')
+  assert.equal(byCandidate.get('translate-[10px]'), 'validCovered')
   assert.equal(byCandidate.get('aspect-[1.5]'), 'implementable')
   assert.equal(byCandidate.get('flex-[1.5]'), 'implementable')
   assert.equal(byCandidate.get('opacity-[50%]'), 'implementable')
@@ -163,6 +164,7 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('animate-[10px]'), 'webOnly')
   assert.equal(byCandidate.get('bg-conic-[10px]'), 'webOnly')
   assert.equal(byCandidate.get('scale-z-[1.5]'), 'webOnly')
+  assert.equal(byCandidate.get('perspective-[10px]'), 'webOnly')
   assert.equal(byCandidate.get('[&>*]:p-4'), 'webOnly')
   assert.equal(byCandidate.get('[--my-var:4px]'), 'webOnly')
 

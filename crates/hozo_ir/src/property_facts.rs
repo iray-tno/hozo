@@ -567,6 +567,16 @@ impl StyleProperty {
                 "`[{value}]`: React Native's transform takes a number of degrees, and this is CSS \
                  text that only a browser can resolve to one"
             )),
+            StyleProperty::Scale(values)
+                if values.is_empty()
+                    || values.iter().any(|value| matches!(value, Scale::Css(_))) =>
+            {
+                Some(
+                    "`scale`: React Native's scale takes numeric ratios or percentages, not raw \
+                     CSS text"
+                        .to_string(),
+                )
+            }
             StyleProperty::ScaleX(Scale::Css(value))
             | StyleProperty::ScaleY(Scale::Css(value))
             | StyleProperty::ScaleZ(Scale::Css(value)) => {
@@ -574,6 +584,26 @@ impl StyleProperty {
                     "`[{value}]`: React Native's scale is a ratio, and this is CSS text that only \
                      a browser can resolve to one"
                 ))
+            }
+            StyleProperty::Translate(values)
+                if values.is_empty()
+                    || values.iter().any(|value| match value {
+                        Dimension::Length(length) => {
+                            length.css_expression().is_some()
+                                || length.unresolved_unit().is_some()
+                        }
+                        Dimension::Percent(_) => false,
+                        Dimension::Auto
+                        | Dimension::ViewportWidth(_)
+                        | Dimension::ViewportHeight(_)
+                        | Dimension::Css(_) => true,
+                    }) =>
+            {
+                Some(
+                    "`translate`: React Native's translate transforms accept statically \
+                     resolvable lengths or percentages"
+                        .to_string(),
+                )
             }
             StyleProperty::LineClamp(Some(Clamp::Css(value))) => Some(format!(
                 "`line-clamp-[{value}]`: React Native's numberOfLines is a line count, and this \

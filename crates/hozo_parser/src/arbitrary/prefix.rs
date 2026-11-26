@@ -340,10 +340,24 @@ pub(super) fn from_prefix(
         // defaults the second axis to the first for `translate` but *not*
         // for `border-spacing`, and Tailwind writes both in every case, so
         // matching means writing both here too.
-        "translate" => one(StyleProperty::Arbitrary(
-            "translate".to_string(),
-            format!("{value} {value}"),
-        )),
+        "translate" => {
+            let parsed = dimension();
+            let resolvable = match &parsed {
+                Dimension::Percent(pct) => pct.is_finite(),
+                Dimension::Length(length) => {
+                    length.unresolved_unit().is_none() && length.css_expression().is_none()
+                }
+                _ => false,
+            };
+            if resolvable {
+                one(StyleProperty::Translate(vec![parsed.clone(), parsed]))
+            } else {
+                one(StyleProperty::Arbitrary(
+                    "translate".to_string(),
+                    format!("{value} {value}"),
+                ))
+            }
+        }
         "border-spacing" => one(StyleProperty::Arbitrary(
             "border-spacing".to_string(),
             format!("{value} {value}"),
@@ -398,11 +412,20 @@ pub(super) fn from_prefix(
         "rotate-z" => one(StyleProperty::RotateZ(angle())),
         "skew-x" => one(StyleProperty::SkewX(angle())),
         "skew-y" => one(StyleProperty::SkewY(angle())),
-        // An arbitrary scale is a ratio, not the percentage the named
-        // scale is: `scale-x-[1.5]` is `scale: 1.5`, where `scale-x-150`
-        // is `scale: 150%`.
-        "scale-x" => one(StyleProperty::ScaleX(Scale::Css(value.to_string()))),
-        "scale-y" => one(StyleProperty::ScaleY(Scale::Css(value.to_string()))),
+        // An arbitrary scale is a ratio or percentage (`scale-x-[1.5]` is
+        // `scale: 1.5`, `scale-x-[50%]` is `scale: 50%`), unlike the named
+        // scale which always means a percentage. Parsing finite ratios and
+        // percentages into `Scale::Ratio`/`Scale::Percent` preserves the
+        // exact CSS spelling on Web and lets Native emit numeric ratios.
+        "scale" => match parse_scale(value) {
+            Scale::Css(_) => one(StyleProperty::Arbitrary(
+                "scale".to_string(),
+                value.to_string(),
+            )),
+            scale => one(StyleProperty::Scale(vec![scale])),
+        },
+        "scale-x" => one(StyleProperty::ScaleX(parse_scale(value))),
+        "scale-y" => one(StyleProperty::ScaleY(parse_scale(value))),
         // Writing the z axis also switches the declaration to its
         // three-value form -- see `StyleProperty::Scale3d`.
         "scale-z" => Some(vec![
@@ -582,6 +605,22 @@ pub(super) fn from_prefix(
                 )]
             }),
     }
+}
+
+fn parse_scale(value: &str) -> Scale {
+    if let Some(percent) = value.strip_suffix('%') {
+        if let Ok(number) = percent.parse::<f64>() {
+            if number.is_finite() {
+                return Scale::Percent(number);
+            }
+        }
+    }
+    if let Ok(number) = value.parse::<f64>() {
+        if number.is_finite() {
+            return Scale::Ratio(number);
+        }
+    }
+    Scale::Css(value.to_string())
 }
 
 /// Prefixes that name one CSS property and pass their value straight
