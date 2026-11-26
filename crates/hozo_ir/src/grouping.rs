@@ -313,10 +313,10 @@ pub(super) fn independent_owner_guard_runs(
             if item.condition == Condition::Always {
                 return true;
             }
-            if !item
+            if item
                 .condition
                 .owner_interaction_specificity()
-                .is_some_and(|weight| weight > 0)
+                .is_none_or(|weight| weight == 0)
             {
                 return false;
             }
