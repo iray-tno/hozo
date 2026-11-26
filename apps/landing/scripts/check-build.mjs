@@ -508,6 +508,18 @@ checks.push(
     `the sitemap lists ${(sitemap.match(/<loc>/g) ?? []).length} URLs for ${sitePages.length} pages`,
   ],
   [!sitemap.includes('mdx-example'), 'the sitemap lists the MDX probe'],
+  // Every page dated from git, or none: a shallow clone leaves them all out
+  // rather than stating its one commit's date for every page.
+  [
+    [0, sitePages.length].includes((sitemap.match(/<lastmod>/g) ?? []).length),
+    `the sitemap dates ${(sitemap.match(/<lastmod>/g) ?? []).length} of ${sitePages.length} pages`,
+  ],
+  [
+    (sitemap.match(/<lastmod>[^<]*<\/lastmod>/g) ?? []).every((tag) =>
+      /^<lastmod>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})<\/lastmod>$/.test(tag),
+    ),
+    'a sitemap <lastmod> is not a W3C datetime',
+  ],
   [llms.startsWith('# Hozo\n'), 'llms.txt does not start with its title'],
   [
     /- \[@hozo\/core\]\(https:\/\/www\.npmjs\.com\/package\/@hozo\/core\): \S/.test(llms),

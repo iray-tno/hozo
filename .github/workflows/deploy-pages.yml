@@ -42,6 +42,11 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: main
+          # The sitemap dates each page by its source's last commit, which
+          # needs the history; a shallow clone leaves every <lastmod> out.
+          # Commits and trees only: no old file contents are downloaded.
+          fetch-depth: 0
+          filter: blob:none
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -79,6 +84,21 @@ jobs:
         run: |
           mkdir -p apps/landing/dist/storybook
           cp -r examples/storybook-demo/storybook-static/* apps/landing/dist/storybook/
+
+      # Before the deploy, the live sitemap is still the previous one, so this
+      # is the moment to list the pages the deploy changes. Never fails.
+      - name: List changed pages for search engines
+        run: >-
+          node apps/landing/scripts/notify-search-engines.mjs prepare
+          --built apps/landing/dist/sitemap.xml
+          --live https://iray-tno.github.io/hozo/sitemap.xml
+          --out search-notify
+      - uses: actions/upload-artifact@v6
+        with:
+          name: search-notify
+          path: search-notify/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Report (Rust nextest)
         run: |
@@ -233,3 +253,51 @@ jobs:
         run: |
           echo "Reported checks failed in the build job; see the 'Check reported checks' step and the deployed Allure report." >&2
           exit 1
+
+  # Sends the pages this deploy changed to IndexNow and, once configured, to
+  # Google's Indexing API (docs/search-engine-notifications.md). After a real
+  # deploy of main only: the workflow has no pull_request trigger, and the ref
+  # check stops a dispatch from another branch. Its failure never fails the run.
+  notify-search-engines:
+    needs: [build, deploy]
+    if: ${{ needs.deploy.result == 'success' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Only for Google's short-lived token. The Google side accepts it only
+      # for this repository's main branch.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          sparse-checkout: apps/landing
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 25
+          package-manager-cache: false
+      - uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: search-notify
+          path: search-notify
+      - name: Authenticate to Google (keyless)
+        id: google
+        if: ${{ vars.GOOGLE_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GOOGLE_INDEXING_SERVICE_ACCOUNT != '' }}
+        continue-on-error: true
+        # v3.0.0, pinned by commit because this step holds an OIDC token.
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: ${{ vars.GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GOOGLE_INDEXING_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/indexing
+          access_token_lifetime: 600s
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Notify search engines
+        continue-on-error: true
+        run: node apps/landing/scripts/notify-search-engines.mjs submit --changes search-notify/changes.json
+        env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
