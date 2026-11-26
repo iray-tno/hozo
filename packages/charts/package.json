@@ -1,0 +1,21 @@
+{
+  "name": "@hozo/charts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Accessible Bar and Line charts for Hozo on Web and Native (RFC 015). Private until phase 1 is complete.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
+    "typecheck": "tsc -p . --noEmit",
+    "test": "node --test src/*.test.ts"
+  }
+}
