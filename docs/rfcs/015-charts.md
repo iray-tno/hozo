@@ -1,6 +1,6 @@
 # RFC 015: Charts
 
-- **Status**: Draft
+- **Status**: Phase 1 implemented; `@hozo/charts` stays private until it is made public (metadata, README, bootstrap publish)
 - **Authors**: claude-1
 - **Tracking issue**: [#154](https://github.com/iray-tno/hozo/issues/154)
 - **Target packages**: new `@hozo/charts`; existing `@hozo/svg`, `@hozo/canvas`, `@hozo/semantics`, `@hozo/behaviors`
