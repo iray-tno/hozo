@@ -60,6 +60,11 @@ const PACKAGES = {
     native: true,
     keywords: ['react-native', 'canvas', 'graphics', 'skia', 'charts'],
   },
+  charts: {
+    exports: { '.': './dist/index.js' },
+    native: true,
+    keywords: ['react-native', 'react', 'charts', 'svg', 'accessibility', 'data-visualization'],
+  },
   three: {
     exports: {
       '.': './dist/index.js',

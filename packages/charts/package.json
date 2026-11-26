@@ -1,12 +1,29 @@
 {
   "name": "@hozo/charts",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Accessible Bar and Line charts for Hozo on Web and Native (RFC 015). Private until phase 1 is complete.",
+  "version": "0.5.1",
+  "description": "Accessible Bar and Line charts for Hozo on Web and Native: one tab stop, a live region, and a table of the data.",
+  "keywords": [
+    "react-native",
+    "react",
+    "charts",
+    "svg",
+    "accessibility",
+    "data-visualization"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iray-tno/hozo.git",
+    "directory": "packages/charts"
+  },
+  "homepage": "https://iray-tno.github.io/hozo/",
+  "bugs": {
+    "url": "https://github.com/iray-tno/hozo/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
       "react-native": {
@@ -15,7 +32,20 @@
       },
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "CHANGELOG.md",
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!src/**/*.bench.ts"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "node ../../scripts/clean-package-dist.mjs && tsc -p .",
@@ -28,14 +58,10 @@
   },
   "peerDependencies": {
     "react": "^19.0.0",
-    "react-native": ">=0.87",
-    "react-native-svg": ">=15.9.0"
+    "react-native": ">=0.87"
   },
   "peerDependenciesMeta": {
     "react-native": {
-      "optional": true
-    },
-    "react-native-svg": {
       "optional": true
     }
   },
