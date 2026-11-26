@@ -59,6 +59,20 @@ expect(/measureText/.test(bundle), 'the Native text alignment measurement reache
 expect(/Native chart: revenue by month/.test(bundle), 'the charts fixture is bundled')
 expect(/barChartModel/.test(bundle), 'the shared chart model reached the Native bundle')
 expect(/react-native-svg/.test(bundle), 'react-native-svg is resolved for the charts')
+// Metro resolves react-native-svg's JavaScript from the workspace whether or
+// not this app declares it, but only a declared dependency is autolinked
+// into the Android and iOS builds; without it the app dies on launch with
+// RNSVG's views unregistered, which is how #2302's first run failed.
+const manifest = JSON.parse(
+  readFileSync(
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'),
+    'utf8',
+  ),
+)
+expect(
+  manifest.dependencies?.['react-native-svg'] !== undefined,
+  "react-native-svg is this app's own dependency, so its native views are linked",
+)
 expect(/charts[\\/]dist[\\/]chart-box\.native\.js/.test(bundle), 'the Native chart box is bundled')
 expect(
   !/charts[\\/]dist[\\/]chart-box\.js/.test(bundle),
