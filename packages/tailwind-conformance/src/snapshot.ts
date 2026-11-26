@@ -65,6 +65,12 @@ const WORSE_WHEN_UP = new Set([
   // `fillStyle` nor Skia resolves those. Worse than a refusal, because a
   // refusal is visible: this one draws nothing and says nothing.
   'unresolvable',
+  // Arbitrary values scored as COVERED on Native whose emitted RN style or
+  // prop string contains an unresolvable/invalid value (e.g. `var(--x)`,
+  // `nonsense`, `blur(#ff0000)`, `borderColor: '50%'`) that RN silently
+  // ignores at runtime, plus valid zero-cost RN gaps still refused.
+  'unresolvableCovered',
+  'implementable',
   // A diagnostic that fires on correct code. Worse than a missing check:
   // the first thing anyone does with a noisy one is turn it off, and the
   // real findings leave with it.
@@ -99,6 +105,7 @@ const WORSE_WHEN_DOWN = new Set([
   'coverage',
   'fidelity',
   'covered',
+  'validCovered',
   'total',
   'comparable',
   'candidates',

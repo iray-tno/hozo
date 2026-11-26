@@ -144,6 +144,19 @@
     "noOp": 32,
     "silent": 0
   },
+  "arbitraryNativeAudit": {
+    "candidates": 2845,
+    "validCovered": 368,
+    "unresolvableCovered": 253,
+    "contextCovered": 7,
+    "implementable": 56,
+    "layoutMeasurable": 68,
+    "dynamicCss": 239,
+    "webOnly": 1223,
+    "invalidCss": 599,
+    "noOp": 32,
+    "silent": 0
+  },
   "canvas": {
     "candidates": 23286,
     "covered": 609,
