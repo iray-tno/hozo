@@ -1,5 +1,33 @@
 # Native development bundle allowance
 
+## 555,000: Native text metrics (#2285)
+
+Measured on Windows on 2026-11-26 at main `f139b36e`, with a rebuilt native
+addon and fresh workspace builds. The Pages deploy had been red since
+`e7d5ebc2` (#2285): the development check rejected **552,009** against
+550,000. Following the maintainer's standing allowance to accept measured
+growth, the ceiling increases by 5,000 to **555,000**, leaving 2,991.
+
+The module count is unchanged at 155, so no new leaf or barrel arrived; the
++4,724 is inside existing modules, from the Native Text work that resolves
+percentage, em and relative line heights and tracking against a resolvable
+font size (#2285 and the commits leading to it). The production increment
+gate was not touched.
+
+| Current package | 550,000 refresh | Now | Change |
+| --- | ---: | ---: | ---: |
+| patterns | 127,672 | 128,587 | +915 |
+| form | 110,560 | 110,560 | 0 |
+| engine | 88,352 | 90,465 | +2,113 |
+| primitives | 75,241 | 76,240 | +999 |
+| behaviors | 59,430 | 60,127 | +697 |
+| semantics | 37,481 | 37,481 | 0 |
+| core | 18,060 | 18,060 | 0 |
+| typography | 16,096 | 16,096 | 0 |
+| rn-compat | 9,432 | 9,432 | 0 |
+| native | 4,961 | 4,961 | 0 |
+| **Total** | **547,285** | **552,009** | **+4,724** |
+
 ## 550,000: refresh after runtime and owner-contract changes
 
 Measured on Windows on 2026-11-20 after synchronizing to main `1b655da6`,
