@@ -166,10 +166,10 @@
   },
   "canvasArbitrary": {
     "candidates": 2845,
-    "covered": 19,
-    "refused": 2822,
+    "covered": 9,
+    "refused": 2836,
     "silent": 0,
-    "unresolvable": 4
+    "unresolvable": 0
   },
   "canvasNative": {
     "candidates": 23286,
@@ -180,10 +180,10 @@
   },
   "canvasArbitraryNative": {
     "candidates": 2845,
-    "covered": 19,
-    "refused": 2822,
+    "covered": 9,
+    "refused": 2836,
     "silent": 0,
-    "unresolvable": 4
+    "unresolvable": 0
   },
   "compositions": {
     "candidates": 50,
