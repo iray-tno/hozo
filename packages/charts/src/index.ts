@@ -1,4 +1,20 @@
 export {
+  type BarChartInput,
+  barChartModel,
+  type ChartInput,
+  type ChartModel,
+  type ChartSeries,
+  type ChartXAxis,
+  type ChartYAxis,
+  estimateTextWidth,
+  lineChartModel,
+  linePath,
+  type Margin,
+  type Mark,
+  type Tick,
+  valueOf,
+} from './model.ts'
+export {
   type BandOptions,
   type BandScale,
   bandScale,
