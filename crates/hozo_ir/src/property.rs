@@ -171,7 +171,7 @@ pub enum StyleProperty {
     /// part of the keyword tail.
     FlexGrow(f64),
     FlexShrink(f64),
-    AspectRatio(&'static str),
+    AspectRatio(String),
     /// `border-s/e/x/y/bs/be-*`: a border width and its style on a
     /// *logical* edge.
     ///
@@ -739,7 +739,7 @@ pub enum StyleProperty {
     /// recognising the utilities, not lowering them.
     Fill(Color),
     Stroke(Color),
-    StrokeWidth(f64),
+    StrokeWidth(StrokeWidth),
     AccentColor(Color),
     CaretColor(Color),
     TextDecorationColor(Color),

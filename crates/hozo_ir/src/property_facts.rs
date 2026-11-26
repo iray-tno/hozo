@@ -685,9 +685,17 @@ impl StyleProperty {
             StyleProperty::ZIndex(None) => Some(
                 "`z-auto`: React Native's zIndex is a number and has no auto".to_string(),
             ),
-            StyleProperty::AspectRatio("auto") => Some(
-                "`aspect-auto`: React Native's aspectRatio is a number and has no auto".to_string(),
-            ),
+            StyleProperty::AspectRatio(value) if parse_native_aspect_ratio(value).is_none() => {
+                Some(if value == "auto" {
+                    "`aspect-auto`: React Native's aspectRatio is a number and has no auto"
+                        .to_string()
+                } else {
+                    format!(
+                        "`aspect-[{value}]`: React Native's aspectRatio requires a positive number \
+                         or `w / h` ratio"
+                    )
+                })
+            }
             StyleProperty::Columns(_) => {
                 Some("`columns-*`: React Native has no multi-column layout".to_string())
             }

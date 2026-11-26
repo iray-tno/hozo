@@ -584,19 +584,19 @@
     "UNREADABLE_ARBITRARY_VALUE": {
       "summary": "A class carries square brackets or a `(--var)` -- Tailwind's arbitrary syntax -- and Hozo couldn't read it.\n\nThis exists because the alternative is so much worse than silence. Hozo's utility parsing ends in a colour catch-all: whatever the specific forms decline becomes a palette token. Before this code existed, `text-[14px]` -- a font size -- came out the other end as `color: var(--hozo-color-[14px])`, and `w-[32px]` was dropped with no trace at all. Neither failed; both produced a page that was simply wrong somewhere the author would have to find by eye.\n\nBrackets are what makes this detectable. A bare unknown class is ordinary -- projects have their own CSS and Hozo must leave it alone -- but a bracket is unambiguously Tailwind asking for something, so failing to read one is worth saying out loud.",
       "example": {
-        "jsx": "<View className=\"ring-offset-[2rem]\">x</View>",
+        "jsx": "<View className=\"unknown-prefix-[2rem]\">x</View>",
         "backend": "both"
       },
       "emitted": [
         {
           "backend": "web",
           "severity": "warning",
-          "message": "`ring-offset-[2rem]` uses Tailwind's arbitrary syntax and Hozo couldn't read it, so no style is generated for it. The class still reaches the DOM, so a hand-written rule for it will still apply."
+          "message": "`unknown-prefix-[2rem]` uses Tailwind's arbitrary syntax and Hozo couldn't read it, so no style is generated for it. The class still reaches the DOM, so a hand-written rule for it will still apply."
         },
         {
           "backend": "native",
           "severity": "warning",
-          "message": "`ring-offset-[2rem]` uses Tailwind's arbitrary syntax and Hozo couldn't read it, so no style is generated for it. The class still reaches the DOM, so a hand-written rule for it will still apply."
+          "message": "`unknown-prefix-[2rem]` uses Tailwind's arbitrary syntax and Hozo couldn't read it, so no style is generated for it. The class still reaches the DOM, so a hand-written rule for it will still apply."
         }
       ]
     },

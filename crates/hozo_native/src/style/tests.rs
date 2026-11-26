@@ -342,3 +342,88 @@ fn arbitrary_scale_and_translate_lower_on_native() {
         );
     }
 }
+
+#[test]
+fn remaining_zero_cost_arbitrary_values_lower_on_native() {
+    for (class_name, expected) in [
+        ("aspect-[1.5]", "aspectRatio: 1.5"),
+        ("flex-[1.5]", "flex: 1.5"),
+        ("flex-[auto]", "flexGrow: 1"),
+        ("opacity-[50%]", "opacity: 0.5"),
+        ("align-[auto]", "verticalAlign: 'auto'"),
+        ("cursor-[auto]", "cursor: 'auto'"),
+        ("ring-offset-[10px]", "boxShadow: '0 0 0 10px #fff'"),
+        ("ring-offset-[2rem]", "boxShadow: '0 0 0 32px #fff'"),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.styles.contains(expected),
+            "{class_name}: {}",
+            out.styles
+        );
+    }
+
+    // `[color:red]` lowers cleanly on Text.
+    let color_source =
+        "import { Text } from '@hozo/core'\nconst el = <Text className=\"[color:red]\">hi</Text>\n";
+    let parsed = hozo_parser::parse_tsx(color_source);
+    let out = crate::lower(&parsed.roots[0].node, color_source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.styles.contains("color: 'red'"), "{}", out.styles);
+
+    // `backdrop-blur-[2rem]` folds rem to 32px in the backdrop adapter.
+    let blur_source = "import { View } from '@hozo/core'\nconst el = <View className=\"backdrop-blur-[2rem]\" />\n";
+    let parsed = hozo_parser::parse_tsx(blur_source);
+    let out = crate::lower(&parsed.roots[0].node, blur_source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("hozoBlurRadius={32}"), "{}", out.jsx);
+
+    // `grid-cols-[2rem]` and `grid-rows-[2rem]` fold rem to points inside HozoGrid.
+    let grid_source = "import { View } from '@hozo/core'\nconst el = <View className=\"grid grid-cols-[2rem] grid-rows-[2rem]\"><View /></View>\n";
+    let parsed = hozo_parser::parse_tsx(grid_source);
+    let out = crate::lower(&parsed.roots[0].node, grid_source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(
+        out.jsx.contains("{ kind: 'points', value: 32 }"),
+        "{}",
+        out.jsx
+    );
+
+    // `stroke-[10px]` and `stroke-[2rem]` fold to numeric strokeWidth props inside <Svg>.
+    let svg_source = "import { Svg } from '@hozo/svg'\nconst el = <Svg><Svg.Rect className=\"stroke-[2rem]\" /></Svg>\n";
+    let parsed = hozo_parser::parse_tsx(svg_source);
+    let out = crate::lower(&parsed.roots[0].node, svg_source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.contains("strokeWidth={32}"), "{}", out.jsx);
+
+    // Invalid arbitrary values remain refused.
+    for invalid in [
+        "aspect-[auto]",
+        "aspect-[nonsense]",
+        "flex-[nonsense]",
+        "opacity-[nonsense]",
+        "align-[baseline]",
+        "cursor-[grab]",
+        "ring-offset-[nonsense]",
+        "[color:var(--x)]",
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{invalid}\" />\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            !out.diagnostics.is_empty(),
+            "{invalid} should be refused on Native"
+        );
+    }
+}

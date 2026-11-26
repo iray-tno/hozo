@@ -264,6 +264,22 @@ pub fn native_color_literal_valid(text: &str) -> bool {
     NAMED_COLORS.binary_search(&lower.as_str()).is_ok()
 }
 
+/// Parses a positive CSS aspect-ratio value (`w / h` or a positive bare number)
+/// into the numeric ratio React Native's `aspectRatio` accepts.
+pub fn parse_native_aspect_ratio(value: &str) -> Option<f64> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || contains_dynamic_css(trimmed) {
+        return None;
+    }
+    if let Some((w, h)) = trimmed.split_once('/') {
+        let w = w.trim().parse::<f64>().ok()?;
+        let h = h.trim().parse::<f64>().ok()?;
+        return (w.is_finite() && h.is_finite() && w > 0.0 && h > 0.0).then_some(w / h);
+    }
+    let ratio = trimmed.parse::<f64>().ok()?;
+    (ratio.is_finite() && ratio > 0.0).then_some(ratio)
+}
+
 /// Parses a CSS length token that resolves statically to density-independent
 /// pixels on React Native (`0`, `px`, `rem`, and physical CSS units).
 pub fn resolve_native_length_px(token: &str) -> Option<f64> {

@@ -128,7 +128,10 @@ fn simple_projections_share_exact_css_ownership_with_scalar_eligibility() {
         (StyleProperty::InsetRight(crate::Dimension::Auto), "right"),
         (StyleProperty::InsetBottom(crate::Dimension::Auto), "bottom"),
         (StyleProperty::InsetLeft(crate::Dimension::Auto), "left"),
-        (StyleProperty::AspectRatio("16 / 9"), "aspect-ratio"),
+        (
+            StyleProperty::AspectRatio("16 / 9".to_string()),
+            "aspect-ratio",
+        ),
         (StyleProperty::Order(1), "order"),
         (
             StyleProperty::BorderRadius(crate::Radius::Full),

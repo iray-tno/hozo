@@ -1,8 +1,9 @@
 //! Each utility prefix's reading of a bracketed value.
 
 use hozo_ir::{
-    Angle, BorderStyle, Clamp, Color, ColumnCount, Dimension, Edge, GradientKind, GradientStop,
-    GridSpan, GridTracks, LetterSpacing, LineHeight, MaskSlot, Radius, Scale, StyleProperty,
+    Angle, BorderStyle, Clamp, Color, ColumnCount, Dimension, Edge, FlexShorthand, GradientKind,
+    GradientStop, GridSpan, GridTracks, LetterSpacing, LineHeight, MaskSlot, Radius, Scale,
+    StrokeWidth, StyleProperty,
 };
 
 use super::color::{is_color, looks_like_color};
@@ -232,6 +233,8 @@ pub(super) fn from_prefix(
         ]),
         "ring" if is_color(value, hint) => one(StyleProperty::RingColor(color())),
         "ring" => one(StyleProperty::RingWidth(length()?)),
+        "ring-offset" if is_color(value, hint) => one(StyleProperty::RingOffsetColor(color())),
+        "ring-offset" => one(StyleProperty::RingOffsetWidth(length()?)),
         "placeholder" => one(StyleProperty::PlaceholderColor(color())),
         "accent" => one(StyleProperty::AccentColor(color())),
         "caret" => one(StyleProperty::CaretColor(color())),
@@ -242,7 +245,17 @@ pub(super) fn from_prefix(
             Some(or_raw(
                 "stroke-width",
                 value,
-                number().map(StyleProperty::StrokeWidth),
+                number()
+                    .filter(|n| n.is_finite() && *n >= 0.0)
+                    .map(StrokeWidth::Number)
+                    .or_else(|| {
+                        length()
+                            .filter(|l| {
+                                l.unresolved_unit().is_none() && l.css_expression().is_none()
+                            })
+                            .map(StrokeWidth::Length)
+                    })
+                    .map(StyleProperty::StrokeWidth),
             ))
         }
         "stroke" => one(StyleProperty::Stroke(color())),
@@ -296,7 +309,10 @@ pub(super) fn from_prefix(
         "opacity" => Some(or_raw(
             "opacity",
             value,
-            number().map(StyleProperty::Opacity),
+            number()
+                .filter(|n| n.is_finite())
+                .or_else(|| parse_non_negative_percent(value).map(|pct| pct / 100.0))
+                .map(StyleProperty::Opacity),
         )),
         // Integers only. `ZIndex` and `Order` hold an `i32`, so `z-[1.5]`
         // went in as `1` -- a plausible number that isn't the one written,
@@ -317,6 +333,38 @@ pub(super) fn from_prefix(
             value,
             number().map(StyleProperty::FlexShrink),
         )),
+        "flex" => match value {
+            "auto" => one(StyleProperty::Flex(FlexShorthand::Auto)),
+            "initial" => one(StyleProperty::Flex(FlexShorthand::Initial)),
+            "none" => one(StyleProperty::Flex(FlexShorthand::None)),
+            _ => match number().filter(|n| n.is_finite() && *n >= 0.0) {
+                Some(grow) => one(StyleProperty::Flex(FlexShorthand::Grow(grow))),
+                None => one(StyleProperty::Arbitrary(
+                    "flex".to_string(),
+                    value.to_string(),
+                )),
+            },
+        },
+        "align" => match value {
+            "auto" => one(StyleProperty::Keyword("vertical-align", "auto")),
+            "top" => one(StyleProperty::Keyword("vertical-align", "top")),
+            "bottom" => one(StyleProperty::Keyword("vertical-align", "bottom")),
+            "middle" => one(StyleProperty::Keyword("vertical-align", "middle")),
+            _ => one(StyleProperty::Arbitrary(
+                "vertical-align".to_string(),
+                value.to_string(),
+            )),
+        },
+        "cursor" => match value {
+            "auto" | "pointer" => one(StyleProperty::Cursor(value.to_string())),
+            _ => one(StyleProperty::Arbitrary(
+                "cursor".to_string(),
+                value.to_string(),
+            )),
+        },
+        "aspect" if hozo_ir::parse_native_aspect_ratio(value).is_some() => {
+            one(StyleProperty::AspectRatio(value.to_string()))
+        }
         "aspect" => one(StyleProperty::Arbitrary(
             "aspect-ratio".to_string(),
             value.to_string(),

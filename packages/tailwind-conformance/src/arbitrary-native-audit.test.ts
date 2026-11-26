@@ -76,9 +76,11 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'translate-x-[auto]',
     // Context covered (works inside HozoGrid / <Svg>)
     'grid-cols-[10px]',
+    'grid-cols-[2rem]',
     'fill-[#ff0000]',
     'stroke-[1.5]',
-    // Implementable (zero-cost RN 0.87.1 gaps)
+    'stroke-[2rem]',
+    // Zero-cost RN 0.87.1 arbitrary values (Phase 2 completed)
     'rounded-[50%]',
     'p-[50%]',
     'gap-[50%]',
@@ -86,7 +88,10 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'translate-[10px]',
     'aspect-[1.5]',
     'flex-[1.5]',
+    'flex-[auto]',
     'opacity-[50%]',
+    'align-[auto]',
+    'cursor-[auto]',
     'backdrop-blur-[2rem]',
     'ring-offset-[10px]',
     '[color:red]',
@@ -136,20 +141,26 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(summary.unresolvableCovered, 0)
 
   assert.equal(byCandidate.get('grid-cols-[10px]'), 'contextCovered')
+  assert.equal(byCandidate.get('grid-cols-[2rem]'), 'contextCovered')
   assert.equal(byCandidate.get('fill-[#ff0000]'), 'contextCovered')
   assert.equal(byCandidate.get('stroke-[1.5]'), 'contextCovered')
+  assert.equal(byCandidate.get('stroke-[2rem]'), 'contextCovered')
 
   assert.equal(byCandidate.get('rounded-[50%]'), 'validCovered')
   assert.equal(byCandidate.get('p-[50%]'), 'validCovered')
   assert.equal(byCandidate.get('gap-[50%]'), 'validCovered')
   assert.equal(byCandidate.get('scale-[1.5]'), 'validCovered')
   assert.equal(byCandidate.get('translate-[10px]'), 'validCovered')
-  assert.equal(byCandidate.get('aspect-[1.5]'), 'implementable')
-  assert.equal(byCandidate.get('flex-[1.5]'), 'implementable')
-  assert.equal(byCandidate.get('opacity-[50%]'), 'implementable')
-  assert.equal(byCandidate.get('backdrop-blur-[2rem]'), 'implementable')
-  assert.equal(byCandidate.get('ring-offset-[10px]'), 'implementable')
-  assert.equal(byCandidate.get('[color:red]'), 'implementable')
+  assert.equal(byCandidate.get('aspect-[1.5]'), 'validCovered')
+  assert.equal(byCandidate.get('flex-[1.5]'), 'validCovered')
+  assert.equal(byCandidate.get('flex-[auto]'), 'validCovered')
+  assert.equal(byCandidate.get('opacity-[50%]'), 'validCovered')
+  assert.equal(byCandidate.get('align-[auto]'), 'validCovered')
+  assert.equal(byCandidate.get('cursor-[auto]'), 'validCovered')
+  assert.equal(byCandidate.get('backdrop-blur-[2rem]'), 'validCovered')
+  assert.equal(byCandidate.get('ring-offset-[10px]'), 'validCovered')
+  assert.equal(byCandidate.get('[color:red]'), 'validCovered')
+  assert.equal(summary.implementable, 0)
 
   assert.equal(byCandidate.get('w-[calc(100%-2rem)]'), 'layoutMeasurable')
   assert.equal(byCandidate.get('p-[calc(100%-2rem)]'), 'layoutMeasurable')

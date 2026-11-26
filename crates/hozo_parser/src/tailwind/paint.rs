@@ -85,7 +85,9 @@ pub(super) fn expand_paint(token: &str) -> Option<Vec<StyleProperty>> {
     if let Some(rest) = token.strip_prefix("stroke-") {
         // `stroke-2` is a width; SVG stroke-width is unitless.
         if let Ok(n) = rest.parse::<f64>() {
-            return Some(vec![StyleProperty::StrokeWidth(n)]);
+            return Some(vec![StyleProperty::StrokeWidth(
+                hozo_ir::StrokeWidth::Number(n),
+            )]);
         }
         if is_paint_keyword(rest) {
             return None;

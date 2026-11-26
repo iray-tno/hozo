@@ -60,6 +60,9 @@ pub fn is_arbitrary(token: &str) -> bool {
 /// answer that helps nobody -- see `DiagnosticCode::UnreadableArbitraryValue`.
 pub fn properties(token: &str) -> Option<Vec<StyleProperty>> {
     if let Some((property, value)) = split_property(token) {
+        if property == "color" {
+            return Some(vec![StyleProperty::TextColor(hozo_ir::Color::Css(value))]);
+        }
         return Some(vec![StyleProperty::Arbitrary(property, value)]);
     }
     let parsed = split(token)?;

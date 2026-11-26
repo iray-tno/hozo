@@ -28,7 +28,9 @@ pub(super) fn native_backdrop_filter(
         StyleProperty::BackdropFilter(FilterFunction::None, _) => Some(NativeBackdropFilter::None),
         StyleProperty::BackdropFilter(FilterFunction::Blur, value) => value
             .strip_prefix("blur(")?
-            .strip_suffix("px)")
+            .strip_suffix(')')
+            .and_then(hozo_ir::resolve_native_length_px)
+            .filter(|px| *px >= 0.0)
             .map(|radius| NativeBackdropFilter::Blur(radius.to_string())),
         _ => None,
     }
@@ -57,7 +59,7 @@ pub(super) fn report_refused(
                     c,
                     hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
                 ),
-                StyleProperty::StrokeWidth(_) => true,
+                StyleProperty::StrokeWidth(width) => width.px(theme).is_some(),
                 _ => false,
             }
         {

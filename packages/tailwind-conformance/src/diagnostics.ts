@@ -117,7 +117,7 @@ const PROVOCATIONS: Record<string, Provocation> = {
   A11Y_POSITIVE_TAB_INDEX: {
     source: '<Pressable role="button" aria-label="Go" tabIndex={3} onPress={go}>x</Pressable>',
   },
-  UNREADABLE_ARBITRARY_VALUE: { source: '<View className="ring-offset-[2rem]">x</View>' },
+  UNREADABLE_ARBITRARY_VALUE: { source: '<View className="unknown-prefix-[2rem]">x</View>' },
   UNSAFE_PROP_SPREAD_AFTER_STYLE: { source: '<View className="p-4" {...rest}>x</View>' },
   WEB_ONLY_PROPERTY_ON_NATIVE: {
     source: '<View className="inline-block">x</View>',

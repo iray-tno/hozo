@@ -121,7 +121,9 @@ pub(super) fn svg_paint(
                             .to_string(),
                     ))
                 }
-                StyleProperty::StrokeWidth(width) => Some(("strokeWidth", format!("{{{width}}}"))),
+                StyleProperty::StrokeWidth(width) => width
+                    .px(theme)
+                    .map(|px| ("strokeWidth", format!("{{{px}}}"))),
                 _ => None,
             })
             .collect()

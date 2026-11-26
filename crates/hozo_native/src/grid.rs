@@ -424,16 +424,15 @@ fn parse_native_grid_tracks(css: &str) -> Option<NativeTracks> {
                 .and_then(|value| value.strip_suffix(')'))
             {
                 let (min, max) = inner.split_once(',')?;
-                let min = min.strip_suffix("px")?.parse::<f64>().ok()?;
-                let fr = max.strip_suffix("fr")?.parse::<f64>().ok()?;
+                let min = hozo_ir::resolve_native_length_px(min.trim())?;
+                let fr = max.trim().strip_suffix("fr")?.parse::<f64>().ok()?;
                 return (min >= 0.0 && fr > 0.0).then_some(NativeTrack::Minmax { min, fr });
             }
             if let Some(value) = token.strip_suffix("fr") {
                 let value = value.parse::<f64>().ok()?;
                 return (value > 0.0).then_some(NativeTrack::Fr(value));
             }
-            if let Some(value) = token.strip_suffix("px") {
-                let value = value.parse::<f64>().ok()?;
+            if let Some(value) = hozo_ir::resolve_native_length_px(token) {
                 return (value >= 0.0).then_some(NativeTrack::Points(value));
             }
             None

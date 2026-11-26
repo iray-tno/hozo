@@ -201,8 +201,14 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         | StyleProperty::MaskComposite(_) => ("mask-image", String::new()),
         StyleProperty::Fill(c) => ("fill", color_var(c)),
         StyleProperty::Stroke(c) => ("stroke", color_var(c)),
-        // SVG stroke-width is unitless, unlike every other length here.
-        StyleProperty::StrokeWidth(n) => ("stroke-width", format!("{n}")),
+        // SVG stroke-width may be unitless (`stroke-2`) or a CSS length (`stroke-[2rem]`).
+        StyleProperty::StrokeWidth(width) => (
+            "stroke-width",
+            match width {
+                hozo_ir::StrokeWidth::Number(n) => format!("{n}"),
+                hozo_ir::StrokeWidth::Length(l) => length_px(l, theme),
+            },
+        ),
         StyleProperty::AccentColor(c) => ("accent-color", color_var(c)),
         StyleProperty::CaretColor(c) => ("caret-color", color_var(c)),
         StyleProperty::TextDecorationColor(c) => ("text-decoration-color", color_var(c)),

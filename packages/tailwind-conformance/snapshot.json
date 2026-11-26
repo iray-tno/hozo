@@ -139,22 +139,22 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 408,
-    "refused": 2415,
-    "noOp": 22,
+    "covered": 418,
+    "refused": 2403,
+    "noOp": 24,
     "silent": 0
   },
   "arbitraryNativeAudit": {
     "candidates": 2845,
-    "validCovered": 408,
+    "validCovered": 418,
     "unresolvableCovered": 0,
-    "contextCovered": 7,
-    "implementable": 16,
+    "contextCovered": 11,
+    "implementable": 0,
     "layoutMeasurable": 68,
     "dynamicCss": 270,
     "webOnly": 1253,
     "invalidCss": 801,
-    "noOp": 22,
+    "noOp": 24,
     "silent": 0
   },
   "canvas": {
@@ -166,8 +166,8 @@
   },
   "canvasArbitrary": {
     "candidates": 2845,
-    "covered": 16,
-    "refused": 2825,
+    "covered": 19,
+    "refused": 2822,
     "silent": 0,
     "unresolvable": 4
   },
@@ -180,8 +180,8 @@
   },
   "canvasArbitraryNative": {
     "candidates": 2845,
-    "covered": 16,
-    "refused": 2825,
+    "covered": 19,
+    "refused": 2822,
     "silent": 0,
     "unresolvable": 4
   },
