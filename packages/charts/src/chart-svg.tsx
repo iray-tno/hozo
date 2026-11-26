@@ -5,6 +5,7 @@
 // table of the data instead.
 
 import { Circle, G, Line, Path, Rect, Svg, SvgText } from '@hozo/svg'
+import { memo } from 'react'
 import { datumRows, tooltipBox } from './active.ts'
 import type { ChartModel, ChartSeries } from './model.ts'
 import { seriesColor } from './palette.ts'
@@ -31,9 +32,7 @@ export function ChartSvg({
   active,
   format,
 }: ChartSvgProps) {
-  const { plot } = model
   const ink = textColor ?? 'currentColor'
-  const bottom = plot.y + plot.height
   return (
     <Svg
       width={model.width}
@@ -41,6 +40,45 @@ export function ChartSvg({
       viewBox={`0 0 ${model.width} ${model.height}`}
       {...(textColor ? { color: textColor } : {})}
     >
+      <Drawing model={model} series={series} points={points} fontSize={fontSize} ink={ink} />
+      {active !== undefined && active >= 0 && active < model.categories.length ? (
+        <Tooltip
+          model={model}
+          series={series}
+          datum={active}
+          fontSize={fontSize}
+          ink={ink}
+          format={format}
+          points={points}
+        />
+      ) : null}
+    </Svg>
+  )
+}
+
+/**
+ * The axes and the marks: everything but the tooltip. Memoised, because the
+ * active datum changes on every key press and pointer move while this does
+ * not, and re-reconciling one element per mark on each step is what made a
+ * step cost grow with the data (docs/measurements/charts-scale.md).
+ */
+const Drawing = memo(function Drawing({
+  model,
+  series,
+  points,
+  fontSize,
+  ink,
+}: {
+  model: ChartModel
+  series: readonly ChartSeries[]
+  points: boolean
+  fontSize: number
+  ink: string
+}) {
+  const { plot } = model
+  const bottom = plot.y + plot.height
+  return (
+    <>
       <G>
         {model.yTicks.map((tick) => (
           <G key={`y${tick.label}`}>
@@ -126,20 +164,9 @@ export function ChartSvg({
           return null
         })}
       </G>
-      {active !== undefined && active >= 0 && active < model.categories.length ? (
-        <Tooltip
-          model={model}
-          series={series}
-          datum={active}
-          fontSize={fontSize}
-          ink={ink}
-          format={format}
-          points={points}
-        />
-      ) : null}
-    </Svg>
+    </>
   )
-}
+})
 
 /**
  * The active datum: a band behind it, a ring on each line's value, and a

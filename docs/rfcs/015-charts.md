@@ -190,6 +190,10 @@ What is then left is decided afresh, not continued by default.
 - **Canvas renderer**, for data too large for one element per mark. It
   needs a measurement of where SVG stops being enough before it is worth
   building; the shared layer is ready for it.
+  [Measured](../measurements/charts-scale.md): at 20,000 bars the SVG
+  elements are about 100 ms of a 457 ms first draw and the accessible
+  table 351 ms, and Line draws one element per series at any size. Large
+  data needs a different accessible equivalent before a second renderer.
 - **Pie and donut, area, sparklines, scatter.** Area is a small step from
   Line and may come first.
 - **Time scale, log scale, brushing and zoom, animation.**

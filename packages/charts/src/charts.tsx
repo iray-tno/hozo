@@ -7,7 +7,7 @@
 // rather than this module importing one: an explicit `.tsx` import would
 // pick the Web half on Native too.
 
-import { type ComponentType, type ReactNode, useState } from 'react'
+import { type ComponentType, type ReactNode, useMemo, useState } from 'react'
 import { datumSentence, nextDatum } from './active.ts'
 import { ChartSvg } from './chart-svg.tsx'
 import { ChartTable } from './chart-table.tsx'
@@ -62,6 +62,19 @@ export interface ChartBoxComponentProps {
   interaction: ChartInteraction
 }
 
+/** `model`, remembering its last answer: the box asks at one width until it resizes. */
+function lastWidth(model: (width: number) => ChartModel): (width: number) => ChartModel {
+  let width: number | undefined
+  let last: ChartModel | undefined
+  return (next) => {
+    if (last === undefined || width !== next) {
+      width = next
+      last = model(next)
+    }
+    return last
+  }
+}
+
 export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
   function Chart({
     props,
@@ -78,7 +91,14 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     // model at any width rather than waiting for the box to be measured: a
     // screen reader and server rendering both get it on the first pass.
     const [active, setActive] = useState<number | undefined>(undefined)
-    const data = model(width ?? 1)
+    // Moving the active datum re-renders this component and nothing above
+    // it, so `model` keeps its identity across those steps and the layout,
+    // the table and the marks are reused rather than rebuilt per key press.
+    const drawn = useMemo(() => lastWidth(model), [model])
+    const data = useMemo(
+      () => (width === undefined ? model(1) : drawn(width)),
+      [model, drawn, width],
+    )
     const count = data.categories.length
     const interaction = {
       label: accessibilityLabel,
@@ -86,8 +106,8 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
         active === undefined ? undefined : datumSentence(data, series, active, y?.format),
       // A position is answered by the model at the drawn width; everything
       // else by the width-independent one the table uses.
-      onPointer: (at: number, drawnWidth: number) => {
-        const datum = model(drawnWidth).datumAt(at)
+      onPointer: (position: number, drawnWidth: number) => {
+        const datum = drawn(drawnWidth).datumAt(position)
         if (datum >= 0) setActive(datum)
       },
       onLeave: () => setActive(undefined),
@@ -98,14 +118,17 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
         return true
       },
     }
-    const table = (
-      <ChartTable
-        model={data}
-        series={series}
-        accessibilityLabel={accessibilityLabel}
-        categoryLabel={x.label}
-        format={y?.format}
-      />
+    const table = useMemo(
+      () => (
+        <ChartTable
+          model={data}
+          series={series}
+          accessibilityLabel={accessibilityLabel}
+          categoryLabel={x.label}
+          format={y?.format}
+        />
+      ),
+      [data, series, accessibilityLabel, x.label, y?.format],
     )
     return (
       <ChartBox
@@ -115,9 +138,9 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
         showTable={showTable}
         interaction={interaction}
       >
-        {(at) => (
+        {(drawnWidth) => (
           <ChartSvg
-            model={model(at)}
+            model={drawn(drawnWidth)}
             active={active}
             format={y?.format}
             series={series}
