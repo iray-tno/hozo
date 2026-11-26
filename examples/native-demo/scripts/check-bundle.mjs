@@ -188,6 +188,12 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // that baseline. No facade barrel returned; the production increment gate
 // stays at 8,000 raw / 3,000 gzip. The package census and production result
 // are recorded in docs/measurements/native-development-budget.md.
+//
+// Raised to 555 KB on main f139b36e under the same standing allowance: 552,009
+// with the same 155 modules, +4,724 over 547,285. Native text metrics
+// resolving percentage, em and relative line heights and tracking (#2285 and
+// the commits before it) account for it: engine +2,113, primitives +999,
+// patterns +915, behaviors +697. No barrel returned.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -201,8 +207,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 550_000,
-  `Hozo's modules stay below 550 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 555_000,
+  `Hozo's modules stay below 555 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // The cause behind the six raises above, watched directly rather than
