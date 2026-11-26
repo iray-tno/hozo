@@ -16,6 +16,7 @@ pub(super) struct Lowered {
     pub(super) ios_line_break: bool,
     pub(super) keyframes: bool,
     pub(super) caret: bool,
+    pub(super) self_measured: bool,
 }
 
 pub(super) fn native_backdrop_filter(
@@ -48,7 +49,10 @@ pub(super) fn report_refused(
     let mut backdrop_filter = None;
 
     for declaration in style {
-        if is_viewport_sized(&declaration.property) {
+        if is_viewport_sized(&declaration.property)
+            || crate::measured::is_container_sized(&declaration.property)
+            || (elsewhere.self_measured && crate::measured::is_self_measured(&declaration.property))
+        {
             continue;
         }
         // Lowered as a prop just above, so it must not also be reported as

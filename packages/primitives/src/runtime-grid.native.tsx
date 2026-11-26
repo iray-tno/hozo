@@ -46,6 +46,7 @@ export function HozoGrid({
   const layout = gridLayout(placements, tracks.length)
   const measured =
     rowTracks.length > 0 ||
+    tracks.some((track) => track.kind === 'calc') ||
     placements.some((item) => (item.rowSpan ?? 1) > 1 || item.rowStart !== undefined)
   if (measured) {
     const columns = gridTrackSizes(tracks, width, columnGap)

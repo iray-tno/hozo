@@ -2,6 +2,7 @@ export type GridTrack =
   | { kind: 'fr'; value: number }
   | { kind: 'points'; value: number }
   | { kind: 'minmax'; min: number; value: number }
+  | { kind: 'calc'; evaluate: (size: number) => number }
 
 export interface GridCell {
   child: number | null
@@ -128,11 +129,13 @@ export function gridCellStyle(
 }
 
 export function gridTrackSizes(tracks: readonly GridTrack[], width: number, gap: number): number[] {
-  const fixed = tracks.reduce(
-    (sum, track) =>
-      sum + (track.kind === 'points' ? track.value : track.kind === 'minmax' ? track.min : 0),
-    0,
-  )
+  const fixedSize = (track: GridTrack): number => {
+    if (track.kind === 'points') return track.value
+    if (track.kind === 'minmax') return track.min
+    if (track.kind === 'calc') return Math.max(0, track.evaluate(width))
+    return 0
+  }
+  const fixed = tracks.reduce((sum, track) => sum + fixedSize(track), 0)
   const fr = tracks.reduce(
     (sum, track) => sum + (track.kind === 'fr' || track.kind === 'minmax' ? track.value : 0),
     0,
@@ -140,6 +143,7 @@ export function gridTrackSizes(tracks: readonly GridTrack[], width: number, gap:
   const free = Math.max(0, width - fixed - Math.max(0, tracks.length - 1) * gap)
   return tracks.map((track) => {
     if (track.kind === 'points') return track.value
+    if (track.kind === 'calc') return Math.max(0, track.evaluate(width))
     const share = fr === 0 ? 0 : (free * track.value) / fr
     return track.kind === 'minmax' ? track.min + share : share
   })

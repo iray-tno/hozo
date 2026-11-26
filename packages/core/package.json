@@ -145,6 +145,10 @@
       "types": "./dist/generated/listbox.d.ts",
       "default": "./dist/generated/listbox.js"
     },
+    "./generated/measured-box": {
+      "types": "./dist/generated/measured-box.d.ts",
+      "default": "./dist/generated/measured-box.js"
+    },
     "./generated/menu": {
       "types": "./dist/generated/menu.d.ts",
       "default": "./dist/generated/menu.js"

@@ -45,7 +45,16 @@ import { keepIfSettled } from './runtime-measured.ts'
  */
 export type HozoContainerWidths = Readonly<Record<string, number | undefined>>
 
+/** Both axes of a measured `@container` box, for `cqw`/`cqh`/`cqmin`/`cqmax` units. */
+export interface HozoContainerSize {
+  readonly width?: number
+  readonly height?: number
+}
+
+export type HozoContainerSizes = Readonly<Record<string, HozoContainerSize | undefined>>
+
 const HozoContainerContext = createContext<HozoContainerWidths>({})
+const HozoContainerSizeContext = createContext<HozoContainerSizes>({})
 
 export type HozoContainerProps<Host extends ElementType = typeof View> =
   ComponentPropsWithRef<Host> & {
@@ -56,7 +65,8 @@ export type HozoContainerProps<Host extends ElementType = typeof View> =
   }
 
 /**
- * Measures the existing host and hands its width to its subtree.
+ * Measures the existing host and hands its width (and height for container
+ * length units) to its subtree.
  *
  * A provider adds no layout node. The host keeps its own style/children
  * callbacks, refs and events rather than asking a replacement View to
@@ -70,36 +80,60 @@ export function HozoContainer<Host extends ElementType = typeof View>({
   ...rest
 }: HozoContainerProps<Host>): ReactNode {
   const Component: ElementType = hozoContainerComponent ?? View
-  const [width, setWidth] = useState<number | undefined>(undefined)
-  const outer = useContext(HozoContainerContext)
+  const [size, setSize] = useState<HozoContainerSize>({})
+  const outerWidths = useContext(HozoContainerContext)
+  const outerSizes = useContext(HozoContainerSizeContext)
 
   const widths = useMemo(
     () => ({
-      ...outer,
-      '': width,
-      ...(hozoContainerName ? { [hozoContainerName]: width } : {}),
+      ...outerWidths,
+      '': size.width,
+      ...(hozoContainerName ? { [hozoContainerName]: size.width } : {}),
     }),
-    [outer, width, hozoContainerName],
+    [outerWidths, size.width, hozoContainerName],
+  )
+
+  const sizes = useMemo(
+    () => ({
+      ...outerSizes,
+      '': size,
+      ...(hozoContainerName ? { [hozoContainerName]: size } : {}),
+    }),
+    [outerSizes, size, hozoContainerName],
   )
 
   // The author's own `onLayout` still runs. Taking the prop and dropping
   // it would be the quiet kind of breakage this compiler exists to avoid.
   const measure = (event: LayoutChangeEvent) => {
-    const measured = event.nativeEvent.layout.width
+    const measuredW = event.nativeEvent.layout.width
+    const measuredH = event.nativeEvent.layout.height
     // A tolerance rather than `===`, for the reason `measured.ts` gives.
     // This one has not been seen looping, and it is the same shape as the
-    // one that was: a stored width, a render that depends on it, and a
+    // one that was: a stored size, a render that depends on it, and a
     // float coming back from Yoga.
-    setWidth((current) => keepIfSettled(current, measured))
+    setSize((current) => {
+      const nextW =
+        typeof measuredW === 'number' && Number.isFinite(measuredW)
+          ? keepIfSettled(current.width, measuredW)
+          : current.width
+      const nextH =
+        typeof measuredH === 'number' && Number.isFinite(measuredH)
+          ? keepIfSettled(current.height, measuredH)
+          : current.height
+      if (nextW === current.width && nextH === current.height) return current
+      return { width: nextW, height: nextH }
+    })
     onLayout?.(event)
   }
 
   return (
-    <HozoContainerContext.Provider value={widths}>
-      <Component {...rest} onLayout={measure}>
-        {children}
-      </Component>
-    </HozoContainerContext.Provider>
+    <HozoContainerSizeContext.Provider value={sizes}>
+      <HozoContainerContext.Provider value={widths}>
+        <Component {...rest} onLayout={measure}>
+          {children}
+        </Component>
+      </HozoContainerContext.Provider>
+    </HozoContainerSizeContext.Provider>
   )
 }
 
@@ -117,4 +151,16 @@ export function HozoContainerQuery({
   children: (widths: HozoContainerWidths) => ReactNode
 }): ReactNode {
   return children(useContext(HozoContainerContext))
+}
+
+/**
+ * Hands the measured `{ width, height }` container sizes in scope to an
+ * element using `cqw`/`cqh`/`cqi`/`cqb`/`cqmin`/`cqmax` units.
+ */
+export function HozoContainerSizeQuery({
+  children,
+}: {
+  children: (sizes: HozoContainerSizes) => ReactNode
+}): ReactNode {
+  return children(useContext(HozoContainerSizeContext))
 }

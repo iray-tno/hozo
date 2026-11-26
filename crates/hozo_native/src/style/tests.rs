@@ -427,3 +427,81 @@ fn remaining_zero_cost_arbitrary_values_lower_on_native() {
         );
     }
 }
+
+#[test]
+fn self_measured_calc_and_container_units_lower_on_native() {
+    for (class_name, expected) in [
+        (
+            "translate-x-[calc(50%-8px)]",
+            "hozoSelfStyle={(__hozoSelf) => ({ transform: [{ translateX: __hozoSelf.width * 0.5 - 8 }] })}",
+        ),
+        (
+            "translate-[calc(100%-2rem)]",
+            "hozoSelfStyle={(__hozoSelf) => ({ transform: [{ translateX: __hozoSelf.width - 32 }, { translateY: __hozoSelf.height - 32 }] })}",
+        ),
+        (
+            "translate-x-[calc(50%-8px)] rotate-45",
+            "transform: [{ translateX: __hozoSelf.width * 0.5 - 8 }, { rotate: '45deg' }]",
+        ),
+        (
+            "rounded-[calc(50%-8px)]",
+            "borderRadius: Math.max(0, Math.min(__hozoSelf.width, __hozoSelf.height) * 0.5 - 8)",
+        ),
+        (
+            "gap-[calc(10%-4px)]",
+            "rowGap: Math.max(0, __hozoSelf.height * 0.1 - 4), columnGap: Math.max(0, __hozoSelf.width * 0.1 - 4)",
+        ),
+        (
+            "w-[clamp(200px,50vw,400px)]",
+            "width: Math.min(Math.max(__hozoViewport.width * 0.5, 200), 400)",
+        ),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nfunction C() {{ return <View className=\"{class_name}\" /> }}\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.jsx.contains(expected),
+            "{class_name}: {}",
+            out.jsx
+        );
+    }
+
+    // Container query length units (`cqw` / `cqh` / `calc(100cqw - 2rem)`).
+    let cq_source = "import { View } from '@hozo/core'\nfunction C() { return <View className=\"@container\"><View className=\"w-[calc(100cqw-2rem)] h-[50cqh]\" /></View> }\n";
+    let parsed = hozo_parser::parse_tsx(cq_source);
+    let out = crate::lower(&parsed.roots[0].node, cq_source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.runtime_imports.contains(&"HozoContainer"));
+    assert!(out.runtime_imports.contains(&"HozoContainerSizeQuery"));
+    assert!(
+        out.jsx
+            .contains("width: Math.max(0, __hozoCqs[\"\"].width - 32)"),
+        "{}",
+        out.jsx
+    );
+    assert!(
+        out.jsx
+            .contains("height: Math.max(0, __hozoCqs[\"\"].height * 0.5)"),
+        "{}",
+        out.jsx
+    );
+
+    // Grid column `calc()` lowers to HozoGrid calc track.
+    let grid_source = "import { View } from '@hozo/core'\nfunction C() { return <View className=\"grid grid-cols-[calc(100%-2rem)]\"><View /></View> }\n";
+    let parsed = hozo_parser::parse_tsx(grid_source);
+    let out = crate::lower(&parsed.roots[0].node, grid_source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(
+        out.jsx
+            .contains("{ kind: 'calc', evaluate: (__hozoGridW) => Math.max(0, __hozoGridW - 32) }"),
+        "{}",
+        out.jsx
+    );
+}

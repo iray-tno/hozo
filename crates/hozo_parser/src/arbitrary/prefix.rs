@@ -390,14 +390,31 @@ pub(super) fn from_prefix(
         // matching means writing both here too.
         "translate" => {
             let parsed = dimension();
-            let resolvable = match &parsed {
+            let promotable = match &parsed {
                 Dimension::Percent(pct) => pct.is_finite(),
                 Dimension::Length(length) => {
                     length.unresolved_unit().is_none() && length.css_expression().is_none()
+                        || matches!(
+                            length,
+                            hozo_ir::Length::Unit(
+                                _,
+                                hozo_ir::LengthUnit::Vw
+                                    | hozo_ir::LengthUnit::Vh
+                                    | hozo_ir::LengthUnit::Vmin
+                                    | hozo_ir::LengthUnit::Vmax
+                                    | hozo_ir::LengthUnit::Cqw
+                                    | hozo_ir::LengthUnit::Cqh
+                                    | hozo_ir::LengthUnit::Cqi
+                                    | hozo_ir::LengthUnit::Cqb
+                                    | hozo_ir::LengthUnit::Cqmin
+                                    | hozo_ir::LengthUnit::Cqmax
+                            )
+                        )
                 }
+                Dimension::Css(css) => hozo_ir::parse_calc_length(css).is_some(),
                 _ => false,
             };
-            if resolvable {
+            if promotable {
                 one(StyleProperty::Translate(vec![parsed.clone(), parsed]))
             } else {
                 one(StyleProperty::Arbitrary(

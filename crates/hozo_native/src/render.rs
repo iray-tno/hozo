@@ -178,6 +178,8 @@ pub(super) fn render_node(
     let (has_keyframes, animated_style) = prepare::animation(&style, theme);
 
     let svg_paint = prepare::svg_paint(node, &style, theme);
+    let can_self_measure = !matches!(node.primitive, Primitive::Modal | Primitive::Dialog)
+        && !matches!(node.primitive, Primitive::Svg(svg) if svg != hozo_ir::SvgElement::Root);
     let backdrop_filter = refusals::report_refused(
         &style,
         refusals::Lowered {
@@ -190,6 +192,7 @@ pub(super) fn render_node(
             ios_line_break: ios_line_break.is_some(),
             keyframes: has_keyframes,
             caret: caret.is_some(),
+            self_measured: can_self_measure,
         },
         node,
         theme,
@@ -274,7 +277,8 @@ pub(super) fn render_node(
             gradients: mixing.compose_gradients,
         },
     };
-    let state_start = build_style_entries(
+    let mut self_style_parts: Vec<String> = Vec::new();
+    let state_start = build_style_entries_with_self_measured(
         // RN View cannot inherit these fields. Experimental ReferenceView
         // consumes them before rendering its host, including opaque labels.
         // Do not change normal output until RFC 006's rollout gates pass.
@@ -287,6 +291,7 @@ pub(super) fn render_node(
         &target,
         &mut style_array_parts,
         &mut pressed_parts,
+        can_self_measure.then_some(&mut self_style_parts),
         animates.then_some(&mut frames),
         cx,
     );
@@ -360,6 +365,7 @@ pub(super) fn render_node(
         container_name,
         declares_container,
         uses_container_query,
+        uses_container_size_query,
     } = host::container_use(node, &own_declarations, &descend);
     let renders_backdrop_filter = matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_)))
         && component == "View"
@@ -385,6 +391,17 @@ pub(super) fn render_node(
         node,
         cx,
     );
+    if !self_style_parts.is_empty() && !host::supports_layout_measurement_host(rendered_component) {
+        cx.diagnostics.push(unwired_variant(
+            node,
+            &format!(
+                "self-measured `%`-mixed `calc()` needs a single layout-reporting host on Native; \
+                 `{rendered_component}` cannot supply `onLayout` through this adapter."
+            ),
+            Severity::Error,
+        ));
+        self_style_parts.clear();
+    }
     let measures_host =
         host::measures_host(declares_container, rendered_component, node, cx.diagnostics);
     // An intervening control owns its own interaction. Neither an enhanced
@@ -635,6 +652,7 @@ pub(super) fn render_node(
     let tag = wrappers::host_tag(
         rendered_component,
         measures_host,
+        &self_style_parts,
         outermost_text,
         inherited,
         node,
@@ -665,6 +683,7 @@ pub(super) fn render_node(
         rendered.copies = Some(copies);
     }
     let rendered = wrappers::container_query(rendered, uses_container_query, cx);
+    let rendered = wrappers::container_size_query(rendered, uses_container_size_query, cx);
     let rendered = wrappers::grid_item(rendered, grid_item, cx);
     if let Some(evaluation) = node.root_class_evaluation() {
         let mut rendered = rendered;

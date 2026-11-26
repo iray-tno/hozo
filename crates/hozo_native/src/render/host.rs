@@ -78,6 +78,33 @@ pub(super) fn rendered_component(
     }
 }
 
+pub(super) fn supports_layout_measurement_host(rendered_component: &str) -> bool {
+    matches!(
+        rendered_component,
+        "View"
+            | "Animated.View"
+            | "Text"
+            | "Animated.Text"
+            | "TextInput"
+            | "HozoTextInput"
+            | "Image"
+            | "ScrollView"
+            | "Pressable"
+            | "HozoPressable"
+            | "HozoLink"
+            | "HozoFlatList"
+            | "HozoText"
+            | "HozoInteractionView"
+            | "HozoTextSize"
+            | "HozoRelativeText"
+            | "HozoAnimated"
+            | "HozoRuby"
+            | "HozoDetails"
+            | "HozoBadge"
+            | "Svg"
+    )
+}
+
 /// Only a host with one forwarded layout event can publish its width.
 /// Portals, non-layout SVG nodes, and identity-sensitive compound parts
 /// need their own adapter; a provider must not invent a measurable box
@@ -88,31 +115,7 @@ pub(super) fn measures_host(
     node: &Node,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> bool {
-    let measures_host = declares_container
-        && matches!(
-            rendered_component,
-            "View"
-                | "Animated.View"
-                | "Text"
-                | "Animated.Text"
-                | "TextInput"
-                | "HozoTextInput"
-                | "Image"
-                | "ScrollView"
-                | "Pressable"
-                | "HozoPressable"
-                | "HozoLink"
-                | "HozoFlatList"
-                | "HozoText"
-                | "HozoInteractionView"
-                | "HozoTextSize"
-                | "HozoRelativeText"
-                | "HozoAnimated"
-                | "HozoRuby"
-                | "HozoDetails"
-                | "HozoBadge"
-                | "Svg"
-        );
+    let measures_host = declares_container && supports_layout_measurement_host(rendered_component);
     if declares_container && !measures_host {
         diagnostics.push(unwired_variant(
             node,
@@ -185,11 +188,12 @@ pub(super) fn interaction_needs(
 }
 
 /// Whether the element declares a container, its name, and whether it (or
-/// its raw text) asks about a container's width.
+/// its raw text) asks about a container's width or container length units.
 pub(super) struct ContainerUse {
     pub(super) container_name: Option<String>,
     pub(super) declares_container: bool,
     pub(super) uses_container_query: bool,
+    pub(super) uses_container_size_query: bool,
 }
 
 pub(super) fn container_use(
@@ -224,10 +228,14 @@ pub(super) fn container_use(
         || own_declarations
             .iter()
             .any(|declaration| condition_contains(&declaration.condition, uses_container_width));
+    let uses_container_size_query = own_declarations
+        .iter()
+        .any(|declaration| crate::measured::uses_container_size(&declaration.property));
     ContainerUse {
         container_name,
         declares_container,
         uses_container_query,
+        uses_container_size_query,
     }
 }
 

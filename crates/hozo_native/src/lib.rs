@@ -68,6 +68,7 @@ mod keyframes;
 mod layout;
 mod lower;
 mod markup;
+mod measured;
 mod owner_style;
 mod pattern;
 mod pattern_layout;
@@ -108,7 +109,9 @@ use states::{
 use structural::{structural_holds, SiblingPosition};
 use variants::{condition_suffix, variant_spelling};
 
-use conditions::{build_style_entries, unwired_variant, RuntimeHook};
+use conditions::{
+    build_style_entries, build_style_entries_with_self_measured, unwired_variant, RuntimeHook,
+};
 
 /// One entry in the generated `StyleSheet`, and which palette to render it
 /// against.
