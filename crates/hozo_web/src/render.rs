@@ -540,7 +540,7 @@ pub(super) fn collect_from_expr<'a>(
 ) {
     use hozo_ir::ConditionExpr;
     match expr {
-        ConditionExpr::Static(_) => {}
+        ConditionExpr::Static(_) | ConditionExpr::RawJs(_) => {}
         ConditionExpr::Ref(r) => out.push((*r, css::expr_ref_class(*r), expr)),
         ConditionExpr::StateDisabled(r) => out.push((*r, css::state_disabled_ref_class(*r), expr)),
         ConditionExpr::Captured(capture) => out.push((

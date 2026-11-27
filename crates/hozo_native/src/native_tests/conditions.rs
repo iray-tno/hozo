@@ -604,6 +604,189 @@ fn which_element_the_condition_is_about_survives_the_handing_down() {
 }
 
 #[test]
+fn parent_elemental_variants_before_subtree_lower_honestly_on_native() {
+    // `rtl:*:` / `ltr:*:` read the component-wide direction hook.
+    let rtl = native_jsx(
+        r#"
+        import { View } from '@hozo/core'
+        export function C() { return <View className="rtl:*:p-4"><View>a</View></View> }
+        "#,
+    );
+    assert!(rtl.diagnostics.is_empty(), "{:?}", rtl.diagnostics);
+    assert!(rtl.jsx.contains("__hozoEnv_rtl"), "{}", rtl.jsx);
+
+    // Interactive `hover:*:` / `hover:**:` / `not-hover:*:` on a Pressable
+    // upgrades the parent to HozoPressable and its child Views to HozoInteractionView.
+    let pressable = native_jsx(
+        r#"
+        import { Pressable, View } from '@hozo/core'
+        export function C() {
+            return <Pressable accessibilityRole="button" className="hover:*:p-4 not-hover:*:opacity-50 focus-visible:**:bg-blue-500"><View><View>a</View></View></Pressable>
+        }
+        "#,
+    );
+    assert!(
+        pressable.diagnostics.is_empty(),
+        "{:?}",
+        pressable.diagnostics
+    );
+    assert!(
+        pressable.jsx.contains("<HozoPressable "),
+        "{}",
+        pressable.jsx
+    );
+    assert!(
+        pressable.jsx.contains("hozoFocusVisible"),
+        "{}",
+        pressable.jsx
+    );
+    assert!(
+        pressable.jsx.contains("<HozoInteractionView "),
+        "{}",
+        pressable.jsx
+    );
+    assert!(pressable.jsx.contains("!(hovered)"), "{}", pressable.jsx);
+
+    // Prop-driven `disabled:*:`, `aria-expanded:*:`, and `data-open:*:` evaluate on the parent.
+    let props = native_jsx(
+        r#"
+        import { Button, View } from '@hozo/core'
+        export function C({ off, open }) {
+            return <Button disabled={off} accessibilityState={{ expanded: open }} className="disabled:*:opacity-50 aria-expanded:*:p-4"><View>a</View></Button>
+        }
+        "#,
+    );
+    assert!(props.diagnostics.is_empty(), "{:?}", props.diagnostics);
+    assert!(props.jsx.contains("((off))"), "{}", props.jsx);
+    assert!(props.jsx.contains("expanded"), "{}", props.jsx);
+
+    let data_props = native_jsx(
+        r#"
+        import { View } from '@hozo/core'
+        export function C({ open }) {
+            return <View data-open={open ? '' : undefined} className="data-open:*:p-4"><View>a</View></View>
+        }
+        "#,
+    );
+    assert!(
+        data_props
+            .diagnostics
+            .iter()
+            .all(|d| d.severity != Severity::Error),
+        "{:?}",
+        data_props.diagnostics
+    );
+    assert!(
+        data_props.jsx.contains("open ? '' : undefined"),
+        "{}",
+        data_props.jsx
+    );
+
+    // `focus-within:*:` and `has-hover:*:` wrap ONLY the parent in
+    // HozoSubtreeScope + HozoSubtreeBoundary so children read the parent's
+    // `__hozoSubtree` without creating a shadowing inner scope.
+    let subtree = native_jsx(
+        r#"
+        import { View, Pressable } from '@hozo/core'
+        export function C() {
+            return <View className="focus-within:*:p-4 has-hover:*:bg-blue-500"><Pressable accessibilityRole="button">a</Pressable></View>
+        }
+        "#,
+    );
+    assert!(subtree.diagnostics.is_empty(), "{:?}", subtree.diagnostics);
+    assert_eq!(
+        subtree.jsx.matches("<HozoSubtreeScope>").count(),
+        1,
+        "{}",
+        subtree.jsx
+    );
+    assert_eq!(
+        subtree.jsx.matches("<HozoSubtreeBoundary ").count(),
+        1,
+        "{}",
+        subtree.jsx
+    );
+    assert!(
+        subtree.jsx.contains("__hozoSubtree.focused"),
+        "{}",
+        subtree.jsx
+    );
+    assert!(
+        subtree.jsx.contains("__hozoSubtree.hovered"),
+        "{}",
+        subtree.jsx
+    );
+
+    // `peer-hover:*:` wraps the parent in HozoPeerQuery so children read `__hozoPeer[0]`,
+    // and never wraps a leaf sibling with no child elements.
+    let peer = native_jsx(
+        r#"
+        import { View, Pressable } from '@hozo/core'
+        export function C() {
+            return <View><Pressable className="peer" accessibilityRole="button">p</Pressable><View className="peer-hover:*:p-4"><View>a</View></View></View>
+        }
+        "#,
+    );
+    assert!(peer.diagnostics.is_empty(), "{:?}", peer.diagnostics);
+    assert!(peer.jsx.contains("<HozoPeerScope>"), "{}", peer.jsx);
+    assert_eq!(
+        peer.jsx.matches("<HozoPeerQuery peerIds={[0]}>").count(),
+        1,
+        "{}",
+        peer.jsx
+    );
+    assert!(peer.jsx.contains("__hozoPeer[0].hovered"), "{}", peer.jsx);
+
+    let leaf_peer = native_jsx(
+        r#"
+        import { View, Pressable, Text } from '@hozo/core'
+        export function C() {
+            return <View><Pressable className="peer" accessibilityRole="button">p</Pressable><Text className="peer-hover:*:p-4">x</Text></View>
+        }
+        "#,
+    );
+    assert!(
+        leaf_peer.diagnostics.is_empty(),
+        "{:?}",
+        leaf_peer.diagnostics
+    );
+    assert!(
+        !leaf_peer.jsx.contains("HozoPeerScope") && !leaf_peer.jsx.contains("HozoPeerQuery"),
+        "{}",
+        leaf_peer.jsx
+    );
+
+    let leaf_group = native_jsx(
+        r#"
+        import { Pressable, Text } from '@hozo/core'
+        export function C() {
+            return <Pressable className="group" accessibilityRole="button"><Text className="group-hover:*:p-4">x</Text></Pressable>
+        }
+        "#,
+    );
+    assert!(
+        leaf_group.diagnostics.is_empty(),
+        "{:?}",
+        leaf_group.diagnostics
+    );
+    assert!(
+        !leaf_group.jsx.contains("HozoPressable"),
+        "{}",
+        leaf_group.jsx
+    );
+
+    // `empty:*:` can never match an element with children and remains refused.
+    let empty = native_jsx(
+        r#"
+        import { View } from '@hozo/core'
+        export function C() { return <View className="empty:*:p-4"><View>a</View></View> }
+        "#,
+    );
+    assert_eq!(empty.diagnostics.len(), 1, "{:?}", empty.diagnostics);
+    assert_eq!(empty.diagnostics[0].code, DiagnosticCode::NotWiredOnNative);
+}
+
+#[test]
 fn a_child_the_compiler_cannot_read_is_named_rather_than_skipped() {
     // "Every child" reaching some of them is the divergence worth a
     // build message: the selector reaches all of them on Web.

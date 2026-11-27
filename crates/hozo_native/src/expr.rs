@@ -38,6 +38,7 @@ pub(super) fn render_condition_expr(source: &str, expr: &ConditionExpr) -> Strin
             };
             format!("/{}/.test({})", conflict.pattern, value)
         }
+        ConditionExpr::RawJs(expr) => expr.clone(),
         ConditionExpr::Not(inner) => format!("!({})", render_condition_expr(source, inner)),
         ConditionExpr::And(a, b) => {
             format!(
@@ -95,6 +96,14 @@ pub(super) fn expr_key(expr: &ConditionExpr) -> String {
                 "conflict_{}_{}_{}",
                 conflict.reference.0.start, conflict.reference.0.end, slug
             )
+        }
+        ConditionExpr::RawJs(expr) => {
+            let mut hash: u64 = 0xcbf29ce484222325;
+            for byte in expr.as_bytes() {
+                hash ^= u64::from(*byte);
+                hash = hash.wrapping_mul(0x100000001b3);
+            }
+            format!("parent_{hash:016x}")
         }
         ConditionExpr::Not(inner) => format!("not_{}", expr_key(inner)),
         ConditionExpr::And(a, b) => format!("{}_and_{}", expr_key(a), expr_key(b)),

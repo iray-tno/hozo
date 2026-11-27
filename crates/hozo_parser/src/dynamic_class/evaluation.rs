@@ -34,7 +34,8 @@ fn collect_guards(expression: &ConditionExpr, out: &mut Vec<ExprRef>) {
         ConditionExpr::Static(_)
         | ConditionExpr::Captured(_)
         | ConditionExpr::StateDisabled(_)
-        | ConditionExpr::ClassConflict(_) => {}
+        | ConditionExpr::ClassConflict(_)
+        | ConditionExpr::RawJs(_) => {}
     }
 }
 

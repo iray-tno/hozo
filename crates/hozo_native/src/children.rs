@@ -1,65 +1,287 @@
 //! An element's children: spacing between them, verbatim source, and
 //! nested components.
 
-use hozo_ir::{Condition, Diagnostic, ExprRef, Node, Severity, StyleDeclaration};
+use hozo_ir::{
+    Condition, ConditionExpr, Environment, ExprRef, Node, Primitive, Severity, Structural,
+    StyleDeclaration,
+};
 
-use super::conditions;
-use super::conditions::unwired_variant;
+use super::conditions::{self, resolve_condition_guard, unwired_variant, ResolvedCondition};
 use super::context::{
     AncestorContext, FromAncestor, GroupAncestor, NativeRenderContext, PeerContext, PeerSibling,
     SubtreeReport,
 };
+use super::interaction;
 use super::lower::{forwarded_text, forwards_interaction};
 use super::render::render_node;
 use super::source_evidence::Rendered;
+use super::states::{group_interaction_state, group_unwired_message, peer_interaction_state};
 use super::structural::SiblingPosition;
 use super::variants::variant_spelling;
 
+/// Result of splitting and lowering an element's `*:` and `**:` declarations
+/// onto its children, including any parent host/scope requirements induced by
+/// parent-level conditions placed in front of `*:` / `**:`.
+pub(super) struct SubtreeChildren {
+    pub direct: Vec<StyleDeclaration>,
+    pub all: Vec<StyleDeclaration>,
+    pub needs_interaction_host: bool,
+    pub needs_focus_visible: bool,
+    pub subtree_report: SubtreeReport,
+}
+
+fn is_parent_elemental(condition: &Condition) -> bool {
+    match condition {
+        // On React Native `ltr:` / `rtl:` are component-wide environment hooks,
+        // not per-element `:dir()` selectors.
+        Condition::Environment(Environment::Ltr | Environment::Rtl) => false,
+        Condition::Not(inner) => is_parent_elemental(inner),
+        _ => condition.is_elemental(),
+    }
+}
+
+fn is_direct_interaction(condition: &Condition) -> bool {
+    match condition {
+        Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Pressed => true,
+        Condition::Not(inner) => is_direct_interaction(inner),
+        _ => false,
+    }
+}
+
+fn as_group_interaction(condition: &Condition) -> Condition {
+    match condition {
+        Condition::Not(inner) => Condition::Not(Box::new(as_group_interaction(inner))),
+        other => Condition::Group(Box::new(other.clone())),
+    }
+}
+
+fn unwrap_group_inner(condition: &Condition) -> Option<&Condition> {
+    match condition {
+        Condition::Group(inner) => Some(inner),
+        Condition::Not(inner) => unwrap_group_inner(inner),
+        _ => None,
+    }
+}
+
+fn condition_subtree_needs(condition: &Condition) -> SubtreeReport {
+    let mut out = SubtreeReport::default();
+    fn visit(condition: &Condition, out: &mut SubtreeReport) {
+        match condition {
+            Condition::FocusWithin => out.focus = true,
+            Condition::Has(inner) => match inner.as_ref() {
+                Condition::Hover | Condition::Pressed => out.hover = true,
+                Condition::Focus | Condition::FocusWithin => out.focus = true,
+                Condition::FocusVisible => out.focus_visible = true,
+                _ => {}
+            },
+            Condition::HasSelector(selector) => match selector.trim() {
+                ":focus" | "*:focus" | ":focus-within" | "*:focus-within" => out.focus = true,
+                ":focus-visible" | "*:focus-visible" => out.focus_visible = true,
+                ":hover" | "*:hover" | ":active" | "*:active" => out.hover = true,
+                _ => {}
+            },
+            Condition::Not(inner) => visit(inner, out),
+            Condition::All(list) => {
+                for item in list {
+                    visit(item, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    visit(condition, &mut out);
+    out
+}
+
 /// A parent's subtree declarations, rewritten as the child's own.
 ///
-/// The half of the condition that qualifies the parent is kept only when
-/// it is ambient -- a media query, the colour scheme, a container width.
-/// Those are answered by a hook declared once for the whole component, so
-/// a child reads the same binding the parent would. An *elemental* half
-/// is about the parent as an element -- `hover:*:` is the children of a
-/// hovered element -- and React Native has no way to hand that down
-/// except the interaction context `group-` uses. Reported rather than
-/// quietly turned into `*:hover:`, which is a different rule.
+/// Ambient conditions in front of `*:` / `**:` (breakpoints, dark mode,
+/// environment queries including `rtl:`/`ltr:`, container queries) are kept
+/// directly on the child because their hooks live at component scope.
+/// Elemental parent conditions are resolved on the parent itself:
+/// - Interactive parent states (`hover:*:`, `focus:*:`, `active:*:`, etc.)
+///   upgrade an interactive parent (`Pressable`/`Button`/`Link`) to
+///   `HozoPressable` and become `Condition::Group(...)` on its children.
+/// - Prop, structural, ARIA, `data-*`, `peer-*`, `group-*`, `focus-within:`,
+///   and `has-*:` conditions evaluate against the parent via
+///   `resolve_condition_guard` and forward as static folds or lexical JS guards.
+/// - Conditions the parent cannot answer (such as `hover:*:` on a plain `View`
+///   or `empty:*:`) remain explicit `NOT_WIRED_ON_NATIVE` diagnostics.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn subtree_for_children(
     declarations: &[StyleDeclaration],
     node: &Node,
-    diagnostics: &mut Vec<Diagnostic>,
-) -> (Vec<StyleDeclaration>, Vec<StyleDeclaration>) {
+    position: SiblingPosition,
+    parent_interaction_context: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
+    peers: &[PeerSibling<'_>],
+    cx: &mut NativeRenderContext<'_>,
+) -> SubtreeChildren {
     let mut direct = Vec::new();
     let mut all = Vec::new();
+    let mut needs_interaction_host = false;
+    let mut needs_focus_visible = false;
+    let mut subtree_report = SubtreeReport::default();
+    let mut reported_errors: Vec<String> = Vec::new();
+
+    let has_child_target = node
+        .children
+        .iter()
+        .any(|c| matches!(c, hozo_ir::Child::Node(_) | hozo_ir::Child::Verbatim { .. }));
+
+    let parent_target = conditions::StyleTarget {
+        owner_facts: cx.owner_inputs.facts,
+        owner_events: cx.owner_inputs.events,
+        node,
+        position,
+        interaction_context: false,
+        group_ancestor,
+        peers,
+        pattern_slot: None,
+        composition: Default::default(),
+    };
+
     for declaration in declarations {
         let Some((before, after, is_direct)) = declaration.condition.split_subtree() else {
             continue;
         };
-        if let Some(elemental) = before.iter().find(|condition| condition.is_elemental()) {
-            let name = variant_spelling(elemental).unwrap_or_else(|| "…".to_string());
-            diagnostics.push(unwired_variant(
-                node,
-                &format!(
-                    "`{name}:` in front of `*:` asks about *this* element while styling its children, and React Native has no way to hand an element's own state down. Put the condition after the `*:` if you meant the children, or move the style to a Pressable and use `group-{name}:` on them. On Web the same class works from the selector."
-                ),
-                Severity::Error,
-            ));
+        let mut kept = Vec::new();
+        let mut decl_applies = true;
+        let mut decl_needs_host = false;
+        let mut decl_needs_fv = false;
+        let mut decl_subtree = SubtreeReport::default();
+        let mut scratch_runtime = crate::context::RuntimeNeeds::default();
+
+        for cond in before {
+            if !is_parent_elemental(&cond) {
+                kept.push(cond);
+                continue;
+            }
+            if is_direct_interaction(&cond) {
+                if interaction::owns_events(node) {
+                    kept.push(as_group_interaction(&cond));
+                    decl_needs_host = true;
+                    decl_needs_fv |= interaction::uses_focus_visible(&cond);
+                } else {
+                    let name = variant_spelling(&cond).unwrap_or_else(|| "…".to_string());
+                    let msg = format!(
+                        "`{name}:` in front of `*:` asks about *this* element while styling its children, and React Native has no way to hand an element's own state down. Put the condition after the `*:` if you meant the children, or move the style to a Pressable and use `group-{name}:` on them. On Web the same class works from the selector."
+                    );
+                    if !reported_errors.contains(&msg) {
+                        cx.diagnostics
+                            .push(unwired_variant(node, &msg, Severity::Error));
+                        reported_errors.push(msg);
+                    }
+                    decl_applies = false;
+                    break;
+                }
+                continue;
+            }
+            if group_interaction_state(&cond).is_some() {
+                let has_group_owner = parent_interaction_context
+                    || (!has_child_target
+                        && group_ancestor.is_some_and(|g| interaction::owns_events(g.node)));
+                if has_group_owner
+                    && !interaction::owns_events(node)
+                    && !node.carried_classes.iter().any(|c| c == "group")
+                {
+                    kept.push(cond);
+                } else {
+                    let inner = unwrap_group_inner(&cond).unwrap_or(&cond);
+                    let msg = group_unwired_message(inner, false);
+                    if !reported_errors.contains(&msg) {
+                        cx.diagnostics
+                            .push(unwired_variant(node, &msg, Severity::Error));
+                        reported_errors.push(msg);
+                    }
+                    decl_applies = false;
+                    break;
+                }
+                continue;
+            }
+            if !has_child_target {
+                if let Some(peer_state) = peer_interaction_state(&cond) {
+                    let has_peer_owner = peers.iter().any(|p| {
+                        interaction::owns_events(p.node)
+                            || (matches!(peer_state, "focused" | "focusVisible")
+                                && p.node.primitive == Primitive::TextInput)
+                    });
+                    if has_peer_owner {
+                        continue;
+                    }
+                }
+            }
+            if matches!(&cond, Condition::Structural(Structural::Empty)) {
+                let msg = "`empty:` in front of `*:` cannot match an element that has children to style on React Native.".to_string();
+                if !reported_errors.contains(&msg) {
+                    cx.diagnostics
+                        .push(unwired_variant(node, &msg, Severity::Error));
+                    reported_errors.push(msg);
+                }
+                decl_applies = false;
+                break;
+            }
+            match resolve_condition_guard(
+                &cond,
+                &parent_target,
+                cx.source,
+                &mut scratch_runtime,
+                false,
+            ) {
+                Ok(ResolvedCondition::Always) => {}
+                Ok(ResolvedCondition::Never) => {
+                    decl_applies = false;
+                    break;
+                }
+                Ok(ResolvedCondition::Guarded { expr, .. }) => {
+                    kept.push(Condition::Expr(ConditionExpr::RawJs(expr)));
+                    let report = condition_subtree_needs(&cond);
+                    decl_subtree.focus |= report.focus;
+                    decl_subtree.hover |= report.hover;
+                    decl_subtree.focus_visible |= report.focus_visible;
+                }
+                Err(reason) => {
+                    if !reported_errors.contains(&reason) {
+                        cx.diagnostics
+                            .push(unwired_variant(node, &reason, Severity::Error));
+                        reported_errors.push(reason);
+                    }
+                    decl_applies = false;
+                    break;
+                }
+            }
+        }
+
+        if !decl_applies {
             continue;
         }
-        let condition = Condition::all(before.into_iter().chain(after).collect());
-        let rewritten = StyleDeclaration {
-            source: declaration.source,
-            property: declaration.property.clone(),
-            condition,
-        };
-        if is_direct {
-            direct.push(rewritten);
-        } else {
-            all.push(rewritten);
+        if has_child_target {
+            cx.runtime.hooks.extend(scratch_runtime.hooks);
+            needs_interaction_host |= decl_needs_host;
+            needs_focus_visible |= decl_needs_fv;
+            subtree_report.focus |= decl_subtree.focus;
+            subtree_report.hover |= decl_subtree.hover;
+            subtree_report.focus_visible |= decl_subtree.focus_visible;
+            let condition = Condition::all(kept.into_iter().chain(after).collect());
+            let rewritten = StyleDeclaration {
+                source: declaration.source,
+                property: declaration.property.clone(),
+                condition,
+            };
+            if is_direct {
+                direct.push(rewritten);
+            } else {
+                all.push(rewritten);
+            }
         }
     }
-    (direct, all)
+    SubtreeChildren {
+        direct,
+        all,
+        needs_interaction_host,
+        needs_focus_visible,
+        subtree_report,
+    }
 }
 
 /// Wraps `inner` in `HozoSpaced` when the element carries `space-*` or

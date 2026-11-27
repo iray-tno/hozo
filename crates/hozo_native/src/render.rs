@@ -306,7 +306,19 @@ pub(super) fn render_node(
         style,
         to_children,
         descendants,
-    } = inheritance::inherit(node, component, style, ancestor, cx);
+        subtree_needs_interaction_host,
+        subtree_needs_focus_visible,
+        subtree_child_report,
+    } = inheritance::inherit(
+        node,
+        component,
+        position,
+        interaction_context,
+        peer.preceding,
+        style,
+        ancestor,
+        cx,
+    );
 
     let text_handoff::TextHandoff {
         text_declarations,
@@ -460,9 +472,10 @@ pub(super) fn render_node(
         &text_declarations,
         runtime_states,
         transition.is_some() || label_style.is_some(),
-        peer.publish_id.is_some() || reports_subtree_pressable,
+        peer.publish_id.is_some() || reports_subtree_pressable || subtree_needs_interaction_host,
         peer.publish_focus_visible
-            || (interaction::owns_events(node) && subtree_report.focus_visible),
+            || (interaction::owns_events(node) && subtree_report.focus_visible)
+            || subtree_needs_focus_visible,
         cx.runtime,
     );
     let host::ContainerUse {
@@ -738,20 +751,43 @@ pub(super) fn render_node(
         &mut props_text,
         cx,
     );
+    let mut self_decl_subtree = SubtreeReport::default();
+    for declaration in own_declarations
+        .iter()
+        .chain(text_declarations.iter())
+        .chain(layout.backdrop.iter())
+        .chain(
+            node.style
+                .iter()
+                .filter(|d| d.condition.split_subtree().is_none()),
+        )
+    {
+        let report = condition_subtree_report(&declaration.condition);
+        self_decl_subtree.focus |= report.focus;
+        self_decl_subtree.hover |= report.hover;
+        self_decl_subtree.focus_visible |= report.focus_visible;
+    }
     let mut own_subtree = SubtreeReport {
-        focus: props_text.contains("__hozoSubtree.focused")
-            || self_style_parts
-                .iter()
-                .any(|part| part.contains("__hozoSubtree.focused")),
-        hover: props_text.contains("__hozoSubtree.hovered")
-            || props_text.contains("__hozoSubtree.pressed")
-            || self_style_parts.iter().any(|part| {
-                part.contains("__hozoSubtree.hovered") || part.contains("__hozoSubtree.pressed")
-            }),
-        focus_visible: props_text.contains("__hozoSubtree.focusVisible")
-            || self_style_parts
-                .iter()
-                .any(|part| part.contains("__hozoSubtree.focusVisible")),
+        focus: subtree_child_report.focus
+            || (self_decl_subtree.focus
+                && (props_text.contains("__hozoSubtree.focused")
+                    || self_style_parts
+                        .iter()
+                        .any(|part| part.contains("__hozoSubtree.focused")))),
+        hover: subtree_child_report.hover
+            || (self_decl_subtree.hover
+                && (props_text.contains("__hozoSubtree.hovered")
+                    || props_text.contains("__hozoSubtree.pressed")
+                    || self_style_parts.iter().any(|part| {
+                        part.contains("__hozoSubtree.hovered")
+                            || part.contains("__hozoSubtree.pressed")
+                    }))),
+        focus_visible: subtree_child_report.focus_visible
+            || (self_decl_subtree.focus_visible
+                && (props_text.contains("__hozoSubtree.focusVisible")
+                    || self_style_parts
+                        .iter()
+                        .any(|part| part.contains("__hozoSubtree.focusVisible")))),
     };
     let has_raw_text = node
         .children
@@ -884,14 +920,45 @@ pub(super) fn render_node(
             peer_interaction_state(c).is_some()
         })
     });
+    let own_reads_peer = own_declarations
+        .iter()
+        .chain(text_declarations.iter())
+        .chain(layout.backdrop.iter())
+        .chain(
+            node.style
+                .iter()
+                .filter(|d| d.condition.split_subtree().is_none()),
+        )
+        .any(|declaration| {
+            condition_contains(&declaration.condition, |c| {
+                peer_interaction_state(c).is_some()
+            })
+        })
+        || node.props.class_slots.iter().any(|slot| {
+            slot.style.iter().any(|declaration| {
+                condition_contains(&declaration.condition, |c| {
+                    peer_interaction_state(c).is_some()
+                })
+            })
+        });
     let queried_peer_ids: Vec<usize> = peer
         .preceding
         .iter()
         .filter_map(|p| p.interactive_id)
         .filter(|id| {
+            let needle = format!("__hozoPeer[{id}]");
+            let forwarded_reads_peer = to_children
+                .iter()
+                .chain(descendants.iter())
+                .any(|declaration| {
+                    condition_contains(&declaration.condition, |c| {
+                        matches!(c, Condition::Expr(ConditionExpr::RawJs(expr)) if expr.contains(&needle))
+                    })
+                });
             raw_text_reads_peer
                 || child_decls_read_peer
-                || props_text.contains(&format!("__hozoPeer[{id}]"))
+                || forwarded_reads_peer
+                || (own_reads_peer && props_text.contains(&needle))
         })
         .collect();
     let mut rendered = if component == "TextInput"

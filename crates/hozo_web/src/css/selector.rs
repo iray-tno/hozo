@@ -48,7 +48,7 @@ pub fn conflict_ref_class(conflict: &hozo_ir::ClassConflictGuard) -> String {
 
 pub(super) fn condition_expr_selector(expr: &ConditionExpr) -> String {
     match expr {
-        ConditionExpr::Static(true) => String::new(),
+        ConditionExpr::Static(true) | ConditionExpr::RawJs(_) => String::new(),
         ConditionExpr::Static(false) => ":not(*)".to_string(),
         // Weightless, because a branch the source picks is still the resting
         // look: `size === 'sm' ? 'px-3' : 'px-4'` is (0,1,0) like a plain

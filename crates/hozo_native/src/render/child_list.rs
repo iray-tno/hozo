@@ -24,7 +24,14 @@ fn node_peer_interaction_needs(node: &Node) -> (bool, bool, bool) {
             focus_visible = true;
         }
     };
+    let has_child_target = node
+        .children
+        .iter()
+        .any(|c| matches!(c, hozo_ir::Child::Node(_) | hozo_ir::Child::Verbatim { .. }));
     for decl in &node.style {
+        if decl.condition.split_subtree().is_some() && !has_child_target {
+            continue;
+        }
         scan(&decl.condition);
     }
     for slot in &node.props.class_slots {

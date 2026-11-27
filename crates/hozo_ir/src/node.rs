@@ -291,6 +291,7 @@ pub(super) fn render_stylex_condition(source: &str, condition: &ConditionExpr) -
             };
             format!("/{}/.test({value})", conflict.pattern)
         }
+        ConditionExpr::RawJs(expr) => expr.clone(),
         ConditionExpr::Not(inner) => format!("!({})", render_stylex_condition(source, inner)),
         ConditionExpr::And(left, right) => format!(
             "({}) && ({})",
