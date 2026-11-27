@@ -1,9 +1,9 @@
-// Charts (RFC 015): Bar, Line, Pie and Donut from @hozo/charts. Each is one tab stop;
+// Charts (RFC 015): Bar, Line, Area, Pie and Donut from @hozo/charts. Each is one tab stop;
 // the arrow keys, Home and End move along the data and a live region reads
 // every series there, the pointer does the same with a tooltip, and a
 // screen reader also has the table of the data, out of sight unless shown.
 
-import { BarChart, DonutChart, LineChart, PieChart, Sparkline } from '@hozo/charts'
+import { AreaChart, BarChart, DonutChart, LineChart, PieChart, Sparkline } from '@hozo/charts'
 import { Text, View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
@@ -63,6 +63,23 @@ function Gallery({ showTable = false }: { showTable?: boolean }) {
           series={series}
           height={240}
           points
+          showTable={showTable}
+        />
+      </Section>
+      <Section className="gap-2">
+        <Heading level={2}>Stacked areas</Heading>
+        <Paragraph>
+          The top edge is the total; the table still gives each channel. February's missing in-store
+          figure breaks its band.
+        </Paragraph>
+        <AreaChart
+          accessibilityLabel="Revenue by month, stacked areas by channel"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={series}
+          height={240}
+          stacked
           showTable={showTable}
         />
       </Section>

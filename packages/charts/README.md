@@ -1,6 +1,6 @@
 # @hozo/charts
 
-Bar, Line, Pie and Donut charts, and sparklines, that a screen reader, a keyboard and a finger can all use, drawn with
+Bar, Line, Area, Pie and Donut charts, and sparklines, that a screen reader, a keyboard and a finger can all use, drawn with
 [`@hozo/svg`](https://www.npmjs.com/package/@hozo/svg) on the Web and React Native.
 
 ```tsx
@@ -104,14 +104,14 @@ and is counted.
 | `width` | A fixed width. Otherwise the chart fills its container and lays out again when that resizes. |
 | `textColor` | Axis text and lines. On the Web it otherwise inherits the surrounding colour. |
 | `showTable` | Show the table under the chart. |
-| `stacked` | `BarChart`: stack the series instead of grouping them. |
-| `points` | `LineChart`: draw a dot at each value. |
+| `stacked` | `BarChart` and `AreaChart`: stack the series instead of grouping or overlapping them. A stacked area's top edge is the total; the table still reads each series' own value. |
+| `points` | `LineChart` and `AreaChart`: draw a dot at each value. |
 
 `color` is a runtime string rather than a `className`, because a class list is compile-time
 input on Native.
 
 The scales (`linearScale`, `bandScale`, `pointScale` and `ticks`) and the layout models
-(`barChartModel` and `lineChartModel`) are exported too. They give the same answers as d3-scale,
+(`barChartModel`, `lineChartModel` and `areaChartModel`) are exported too. They give the same answers as d3-scale,
 and the models are plain data, so another renderer can draw them. See
 [RFC 015](https://github.com/iray-tno/hozo/blob/main/docs/rfcs/015-charts.md).
 
