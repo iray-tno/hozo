@@ -7,8 +7,8 @@
 import { Circle, Path, Svg } from '@hozo/svg'
 import { linePath } from './model.ts'
 import { NO_VALUE } from './no-value.ts'
-import { DEFAULT_PALETTE } from './palette.ts'
 import { linearScale } from './scale.ts'
+import { type ColorScheme, useChartTheme } from './theme.tsx'
 
 export interface SparklineInput {
   values: readonly (number | null | undefined)[]
@@ -68,7 +68,7 @@ export interface SparklineProps {
   values: readonly (number | null | undefined)[]
   width?: number
   height?: number
-  /** The line's colour; the palette's first by default. */
+  /** The line's colour; the theme palette's first by default. */
   color?: string
   format?: (value: number) => string
 }
@@ -78,15 +78,20 @@ export interface SparklineProps {
  * named image there: on Web the root's own `accessibilityLabel` does it,
  * on Native the view also needs to be `accessible` with the image role.
  */
-export function createSparkline(image: Record<string, unknown>) {
+export function createSparkline(
+  image: Record<string, unknown>,
+  useSystemScheme: () => ColorScheme = () => 'light',
+) {
   return function Sparkline({
     accessibilityLabel,
     values,
     width = 96,
     height = 24,
-    color = DEFAULT_PALETTE[0],
+    color,
     format,
   }: SparklineProps) {
+    const theme = useChartTheme(undefined, useSystemScheme)
+    const stroke = color ?? (theme.palette[0] as string)
     const model = sparklineModel({ values, width, height })
     return (
       <Svg
@@ -100,13 +105,13 @@ export function createSparkline(image: Record<string, unknown>) {
           <Path
             d={model.path}
             fill="none"
-            stroke={color}
+            stroke={stroke}
             strokeWidth={1.5}
             strokeLinejoin="round"
             strokeLinecap="round"
           />
         ) : null}
-        {model.last ? <Circle cx={model.last.cx} cy={model.last.cy} r={2} fill={color} /> : null}
+        {model.last ? <Circle cx={model.last.cx} cy={model.last.cy} r={2} fill={stroke} /> : null}
       </Svg>
     )
   }

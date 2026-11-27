@@ -81,6 +81,15 @@ export interface ChartInput {
    * way to tell them apart. Shown for two or more series unless false.
    */
   legend?: boolean
+  /** How thick bars get and how far apart they stand; a theme sets it. */
+  bar?: BarShape
+}
+
+export interface BarShape {
+  /** The thickest a bar gets; 24 by default. */
+  maxWidth?: number
+  /** Between touching bars and between stacked segments; 2 by default. */
+  gap?: number
 }
 
 /** One series in the key above the plot: a swatch at `x`, its label after it. */
@@ -349,12 +358,14 @@ const BAR_GAP = 2
 
 /**
  * Where each of `groups` bars sits across a band starting at `start`: as
- * thick as fits up to BAR_MAX, a gap apart, and centred on the band. A band
+ * thick as fits up to `shape.maxWidth`, a gap apart, and centred on the band. A band
  * too narrow for the gap drops it rather than the bars.
  */
-function barSlots(start: number, bandwidth: number, groups: number) {
-  const gap = bandwidth / groups > BAR_GAP * 3 ? BAR_GAP : 0
-  const size = Math.max(0, Math.min(BAR_MAX, (bandwidth - gap * (groups - 1)) / groups))
+function barSlots(start: number, bandwidth: number, groups: number, shape?: BarShape) {
+  const max = shape?.maxWidth ?? BAR_MAX
+  const want = shape?.gap ?? BAR_GAP
+  const gap = bandwidth / groups > want * 3 ? want : 0
+  const size = Math.max(0, Math.min(max, (bandwidth - gap * (groups - 1)) / groups))
   const first = start + (bandwidth - (size * groups + gap * (groups - 1))) / 2
   return { size, at: (slot: number) => first + slot * (size + gap) }
 }
@@ -371,6 +382,7 @@ function finishBars(
   values: (number | undefined)[][],
   horizontal: boolean,
   stacked: boolean,
+  shape?: BarShape,
 ): Mark[] {
   const last = new Map<string, number>()
   const seen = new Set<string>()
@@ -382,7 +394,7 @@ function finishBars(
     if (!stacked) continue
     if (seen.has(side)) {
       const length = horizontal ? mark.width : mark.height
-      const gap = Math.min(BAR_GAP, length / 2)
+      const gap = Math.min(shape?.gap ?? BAR_GAP, length / 2)
       if (horizontal) mark.width -= gap
       else mark.height -= gap
       if (horizontal === up) {
@@ -405,8 +417,15 @@ function finishBars(
  * A bar's outline with its value end rounded and its base square, so it
  * still stands on the baseline. The radius shrinks for a bar too small for it.
  */
-export function barPath(x: number, y: number, width: number, height: number, end: BarEnd) {
-  const r = Math.min(4, width / 2, height / 2)
+export function barPath(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  end: BarEnd,
+  radius = 4,
+) {
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2))
   const [right, bottom] = [x + width, y + height]
   const p = (points: (readonly [number, number])[], arcs: number[]) =>
     `${points
@@ -603,7 +622,7 @@ export function barChartModel(input: BarChartInput): ChartModel {
       }
       const top = Math.min(y(from), y(to))
       const height = Math.abs(y(to) - y(from))
-      const slots = barSlots(band(datum) as number, band.bandwidth, groups)
+      const slots = barSlots(band(datum) as number, band.bandwidth, groups, input.bar)
       marks.push({
         kind: 'bar',
         series,
@@ -622,7 +641,7 @@ export function barChartModel(input: BarChartInput): ChartModel {
     plot,
     categories,
     values,
-    marks: finishBars(marks, values, false, input.stacked ?? false),
+    marks: finishBars(marks, values, false, input.stacked ?? false, input.bar),
     xTicks: xTicks(categories, centers, band.step, fontSize),
     yTicks,
     references,
@@ -655,7 +674,12 @@ export function composedChartModel(input: ComposedChartInput): ChartModel {
   for (const [slot, series] of barSeries.entries())
     for (const [datum, value] of (values[series] ?? []).entries()) {
       if (value === undefined) continue
-      const slots = barSlots(band(datum) as number, band.bandwidth, Math.max(1, barSeries.length))
+      const slots = barSlots(
+        band(datum) as number,
+        band.bandwidth,
+        Math.max(1, barSeries.length),
+        input.bar,
+      )
       marks.push({
         kind: 'bar',
         series,
@@ -747,7 +771,7 @@ function horizontalBars(
     for (const [datum, span] of column.entries()) {
       if (!span) continue
       const [a, b] = [x(span[0]), x(span[1])]
-      const slots = barSlots(band(datum) as number, band.bandwidth, groups)
+      const slots = barSlots(band(datum) as number, band.bandwidth, groups, input.bar)
       marks.push({
         kind: 'bar',
         series,
@@ -758,7 +782,7 @@ function horizontalBars(
         height: slots.size,
       })
     }
-  finishBars(marks, values, true, input.stacked ?? false)
+  finishBars(marks, values, true, input.stacked ?? false, input.bar)
   // Every n-th category, so that labels a line apart do not overlap.
   const every = band.step > 0 ? Math.max(1, Math.ceil((fontSize * 1.2) / band.step)) : 1
   const yTicks: Tick[] = []

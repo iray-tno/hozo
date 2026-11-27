@@ -91,6 +91,28 @@ It is one image, not a tab stop, and has no table. Its name is the label plus wh
 "Visits, last 7 days: 7 values, from 412 to 640; lowest 71, highest 730." A gap breaks the line
 and is counted.
 
+## Theme
+
+```tsx
+<ChartThemeProvider
+  theme={{
+    palette: { light: ['#0d9488', '#c2410c'], dark: ['#0d9488', '#ea580c'] },
+    bar: { radius: 0, maxWidth: 40, gap: 0 },
+  }}
+>
+  <App />
+</ChartThemeProvider>
+```
+
+A theme changes how charts look, not what they say. `palette` is one set for light and dark
+pages, or a `{ light, dark }` pair picked by the system colour scheme, or by the provider's
+`colorScheme` when the app has its own switch. `bar` sets the rounding, the thickest a bar gets and
+the gap between bars; `line` the stroke width and dot radius; `frame` how strongly gridlines and
+the baseline show, as a fraction of the text colour. Every field is optional. A provider inside
+another changes only what it names, a chart's `theme` prop goes on top, and a series' `color` wins
+over both. The key, the tick label contrast and the default palette's checks are not part of a
+theme.
+
 ## Props
 
 | Prop | |
@@ -100,6 +122,7 @@ and is counted.
 | `x` | `{ key, label?, format? }`: the field that holds each row's category. |
 | `y` | `{ label?, format?, domain? }`. The domain otherwise comes from the data, rounded to tidy ticks. |
 | `series` | `{ key, label, color? }[]`. Without `color`, a series takes the next colour of `DEFAULT_PALETTE`. Each palette colour has at least 3:1 contrast on white and on near-black, and the order keeps neighbours apart under protanopia and deuteranopia, so one set serves light and dark pages. |
+| `theme` | Palette, bar shape, line weight and frame for this chart, over any `ChartThemeProvider` above it. See [Theme](#theme). |
 | `legend` | Every chart but Pie and Donut: `false` hides the key above the plot. It is shown for two or more series, each swatch shaped like the series' mark (a block for bars, a stroke for a line, a dot for points). |
 | `height` | Required, in points. |
 | `width` | A fixed width. Otherwise the chart fills its container and lays out again when that resizes. |

@@ -24,6 +24,10 @@ export const DEFAULT_PALETTE = [
   '#16a34a', // green
 ] as const
 
-export function seriesColor(index: number, given?: string): string {
-  return given ?? (DEFAULT_PALETTE[index % DEFAULT_PALETTE.length] as string)
+export function seriesColor(
+  index: number,
+  given?: string,
+  palette: readonly string[] = DEFAULT_PALETTE,
+): string {
+  return given ?? (palette[index % palette.length] as string)
 }

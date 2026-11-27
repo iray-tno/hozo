@@ -93,6 +93,38 @@ import { BarChart, LineChart } from '@hozo/charts'
 - Bar has `grouped` (default) and `stacked`. Line has `points` (whether
   each datum gets a dot); `curve: 'monotone'` is deferred to after phase 1.
 
+### 3.1 Theme
+
+A chart's look splits in two. What keeps it readable is a default no
+option turns off: the series key, tick labels at 4.5:1, and a palette
+order checked under colour-vision simulation. What is taste is a theme:
+
+```ts
+interface ChartTheme {
+  palette?: readonly string[] | { light: readonly string[]; dark: readonly string[] }
+  bar?: { radius?: number; maxWidth?: number; gap?: number }
+  line?: { width?: number; pointRadius?: number }
+  frame?: { grid?: number; axis?: number }   // fractions of the text colour
+}
+```
+
+- **Two ways to give it.** `<ChartThemeProvider theme>` sets it for
+  every chart inside, so an app states it once. A chart's `theme` prop
+  goes on top, and a series' own `color` on top of that. A provider
+  inside another changes only what it names.
+- **One palette or two.** An array is used on light and dark pages
+  alike, as the default is: it then has to hold 3:1 against both. A
+  `{ light, dark }` pair is picked by the colour scheme, which is the
+  system's (`prefers-color-scheme` on Web, `useColorScheme` on Native)
+  unless the provider's `colorScheme` names one, for an app with its own
+  switch. The server renders light, as React Native Web does.
+- **Plain values.** Like a series' `color`, a theme is run-time data, so
+  it cannot be a class list on Native.
+- **Not in the theme.** Tick label strength, because a lower value breaks
+  the contrast floor. The tooltip, which is dark on any page. Font size,
+  which stays the `fontSize` prop because the margins are estimated from
+  it.
+
 ## 4. The shared layer
 
 ### Scales
@@ -206,7 +238,7 @@ What is then left is decided afresh, not continued by default.
 - A key above the plot for two or more series, a palette order checked
   under colour-vision simulation, capped bars with a rounded value end,
   and a quieter frame have since been added; how much of that a user can
-  change is a theme, still to be designed.
+  change is the theme in §3.1.
 - **Time scale, log scale, brushing and zoom, animation.**
 
 ## 9. Open questions
