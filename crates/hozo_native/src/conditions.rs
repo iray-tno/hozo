@@ -37,6 +37,7 @@ pub(crate) struct StyleTarget<'a> {
     pub position: SiblingPosition,
     pub interaction_context: bool,
     pub group_ancestor: Option<GroupAncestor<'a>>,
+    pub peers: &'a [PeerSibling<'a>],
     pub pattern_slot: Option<&'a str>,
     pub composition: hozo_ir::OwnerSlotComposition,
 }
@@ -241,6 +242,7 @@ pub(super) fn build_style_entries_with_measured(
             | Condition::Structural(_)
             | Condition::Not(_)
             | Condition::Group(_)
+            | Condition::Peer(_)
             | Condition::Pressed
             | Condition::Hover
             | Condition::Focus
@@ -426,7 +428,9 @@ fn is_element_state(condition: &Condition) -> bool {
         | Condition::Focus
         | Condition::FocusVisible
         | Condition::Pressed => true,
-        Condition::Group(inner) | Condition::Not(inner) => is_element_state(inner),
+        Condition::Group(inner) | Condition::Peer(inner) | Condition::Not(inner) => {
+            is_element_state(inner)
+        }
         Condition::All(conditions) => conditions.iter().any(is_element_state),
         _ => false,
     }

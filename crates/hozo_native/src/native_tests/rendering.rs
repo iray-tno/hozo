@@ -967,6 +967,89 @@ fn authored_data_attribute_variants_lower_on_self_and_group_ancestors() {
 }
 
 #[test]
+fn peer_sibling_props_and_interactive_states_lower_in_same_parent() {
+    // Prop-driven `peer-aria-expanded:` / `peer-disabled:` / `peer-data-*:` / `peer-first:`
+    // add zero peer runtime scope or wrappers.
+    let prop_peer = lower_element(
+        r#"<View><Pressable className="peer" accessibilityState={{ expanded: open }} disabled={off} data-state={state}>p</Pressable><Text className="peer-aria-expanded:p-4 peer-disabled:opacity-50 peer-data-[state=open]:m-2 peer-first:bg-blue-500">x</Text></View>"#,
+    );
+    assert!(
+        prop_peer.diagnostics.is_empty(),
+        "{:?}",
+        prop_peer.diagnostics
+    );
+    assert!(
+        !prop_peer.jsx.contains("HozoPeerScope") && !prop_peer.jsx.contains("HozoPeerQuery"),
+        "{}",
+        prop_peer.jsx
+    );
+    assert!(
+        prop_peer
+            .jsx
+            .contains("({ expanded: open })?.expanded === true")
+            && prop_peer
+                .jsx
+                .contains("(off) && hozoStyles.hozo2_peerdisabled")
+            && prop_peer
+                .jsx
+                .contains("((state) != null && String(state) === 'open')")
+            && prop_peer.jsx.contains("hozoStyles.hozo2_peerfirst"),
+        "{}",
+        prop_peer.jsx
+    );
+
+    // Interactive `peer-hover:` / `peer-focus-visible:` / `not-peer-hover:` emit
+    // `HozoPeerScope` + `hozoPeerId={0}` + `HozoPeerQuery peerIds={[0]}`.
+    let interactive_peer = lower_element(
+        r#"<View><Pressable className="peer">p</Pressable><Text className="peer-hover:p-4 peer-focus-visible:m-2 not-peer-hover:opacity-50 dark:peer-hover:bg-blue-500">x</Text></View>"#,
+    );
+    assert!(
+        interactive_peer.diagnostics.is_empty(),
+        "{:?}",
+        interactive_peer.diagnostics
+    );
+    assert!(
+        interactive_peer.jsx.contains("<HozoPeerScope>")
+            && interactive_peer
+                .jsx
+                .contains("<HozoPressable hozoFocusVisible hozoPeerId={0}>")
+            && interactive_peer
+                .jsx
+                .contains("<HozoPeerQuery peerIds={[0]}>{(__hozoPeer) => (")
+            && interactive_peer.jsx.contains("__hozoPeer[0].hovered &&")
+            && interactive_peer
+                .jsx
+                .contains("__hozoPeer[0].focusVisible &&")
+            && interactive_peer.jsx.contains("!(__hozoPeer[0].hovered) &&")
+            && interactive_peer
+                .jsx
+                .contains("__hozoDark && __hozoPeer[0].hovered &&"),
+        "{}",
+        interactive_peer.jsx
+    );
+    assert!(interactive_peer.runtime_imports.contains(&"HozoPeerScope"));
+    assert!(interactive_peer.runtime_imports.contains(&"HozoPeerQuery"));
+
+    // Refuses when no preceding `.peer` sibling exists or peer lacks the driver.
+    for element in [
+        r#"<View className="peer-hover:p-4" />"#,
+        r#"<View><Text className="peer-hover:p-4">x</Text><Pressable className="peer">p</Pressable></View>"#,
+        r#"<View><View className="peer" /><Text className="peer-hover:p-4">x</Text></View>"#,
+        r#"<View><Pressable className="peer">p</Pressable><Text className="peer-aria-expanded:p-4">x</Text></View>"#,
+        r#"<View><Pressable className="peer">p</Pressable><Text className="peer-first-of-type:p-4">x</Text></View>"#,
+    ] {
+        let output = lower_element(element);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{element}: {:?}",
+            output.diagnostics
+        );
+    }
+}
+
+#[test]
 fn a_refusal_names_the_variant_the_way_it_was_written() {
     // The names used to be the style-entry suffix: `group-ariachecked:`,
     // `hashover:`, and `data:` for every data attribute.
@@ -986,9 +1069,10 @@ fn a_refusal_names_the_variant_the_way_it_was_written() {
             "`focus-visible:`",
         ),
         (
-            r#"<View className="hover:peer-hover:p-4" />"#,
-            "`hover:peer-hover`",
+            r#"<View className="hover:in-hover:p-4" />"#,
+            "`hover:in-hover`",
         ),
+        (r#"<View className="peer-hover:p-4" />"#, "`peer-hover:`"),
         (
             r#"<View className="not-focus-visible:p-4" />"#,
             "`not-focus-visible:`",

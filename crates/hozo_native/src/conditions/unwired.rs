@@ -94,13 +94,6 @@ pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnost
             "`*:`/`**:` is handed to this element's children at build time, and this one is wrapped in a variant that cannot be. On Web the same class works from the selector.",
             Severity::Error,
         ),
-        Condition::Peer(_) => unwired_variant(
-            node,
-            "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
-             and there are none here -- a parent can hand its state down through context, and \
-             a sibling has nowhere to hand it. On Web the same class works.",
-            Severity::Error,
-        ),
         Condition::In(_) => unwired_variant(
             node,
             "`in-…:` asks whether any ancestor is in a state, through a selector. React \
@@ -157,6 +150,7 @@ pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnost
         Condition::Always
         | Condition::All(_)
         | Condition::Group(_)
+        | Condition::Peer(_)
         | Condition::StartingStyle
         | Condition::Expr(_)
         | Condition::Disabled

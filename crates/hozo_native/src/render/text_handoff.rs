@@ -148,6 +148,7 @@ pub(super) fn hand_down_text(
 /// The label's text styles, by state, for `HozoPressable` to hand to a
 /// label that arrives as `children`. Compiled here like any other entry;
 /// only which element they land on waits for runtime.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn label_style(
     forwards_label: bool,
     text_declarations: &[StyleDeclaration],
@@ -155,6 +156,7 @@ pub(super) fn label_style(
     node: &Node,
     position: SiblingPosition,
     group_ancestor: Option<GroupAncestor<'_>>,
+    peers: &[PeerSibling<'_>],
     cx: &mut NativeRenderContext<'_>,
 ) -> Option<Vec<String>> {
     if forwards_label {
@@ -167,6 +169,7 @@ pub(super) fn label_style(
             position,
             interaction_context: true,
             group_ancestor,
+            peers,
             pattern_slot: None,
             composition: Default::default(),
         };

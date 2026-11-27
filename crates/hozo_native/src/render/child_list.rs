@@ -3,9 +3,41 @@
 
 use super::*;
 
+fn node_peer_interaction_needs(node: &Node) -> (bool, bool, bool) {
+    let mut pointer = false;
+    let mut focus = false;
+    let mut focus_visible = false;
+    let mut scan = |condition: &Condition| {
+        if condition_contains(condition, |c| {
+            matches!(peer_interaction_state(c), Some("hovered" | "pressed"))
+        }) {
+            pointer = true;
+        }
+        if condition_contains(condition, |c| {
+            matches!(peer_interaction_state(c), Some("focused" | "focusVisible"))
+        }) {
+            focus = true;
+        }
+        if condition_contains(condition, |c| {
+            peer_interaction_state(c) == Some("focusVisible")
+        }) {
+            focus_visible = true;
+        }
+    };
+    for decl in &node.style {
+        scan(&decl.condition);
+    }
+    for slot in &node.props.class_slots {
+        for decl in &slot.style {
+            scan(&decl.condition);
+        }
+    }
+    (pointer, focus, focus_visible)
+}
+
 /// Every child, in source order. A `Verbatim` is re-emitted from source
 /// rather than dropped; a bare string on a non-Text element gets the
-/// wrapper described above.
+/// wrapper described above. Returns `(rendered, needs_peer_scope)`.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn render_child_list(
     node: &Node,
@@ -15,8 +47,9 @@ pub(super) fn render_child_list(
     base_name: &str,
     position: SiblingPosition,
     parent_group_ancestor: Option<GroupAncestor<'_>>,
+    parent_peers: &[PeerSibling<'_>],
     cx: &mut NativeRenderContext<'_>,
-) -> Rendered {
+) -> (Rendered, bool) {
     let mut inner = Rendered::new(cx.source_evidence);
     // Tracks whether any earlier sibling could occupy an element position.
     // A `Verbatim` may render nothing, one element, or a hundred
@@ -43,17 +76,83 @@ pub(super) fn render_child_list(
             }
         })
         .collect();
+
+    let has_any_peer = node.children.iter().any(|child| {
+        matches!(
+            child,
+            hozo_ir::Child::Node(child_node)
+                if child_node.carried_classes.iter().any(|cls| cls == "peer")
+        )
+    });
+    let mut publish_ids: Vec<Option<usize>> = Vec::new();
+    let mut publish_focus_visible: Vec<bool> = Vec::new();
+    let mut needs_peer_scope = false;
+    if has_any_peer {
+        let child_needs: Vec<(bool, bool, bool)> = node
+            .children
+            .iter()
+            .map(|child| match child {
+                hozo_ir::Child::Node(child_node) => node_peer_interaction_needs(child_node),
+                _ => (false, false, false),
+            })
+            .collect();
+        publish_ids = vec![None; node.children.len()];
+        publish_focus_visible = vec![false; node.children.len()];
+        let mut next_peer_id = 0usize;
+        for (index, child) in node.children.iter().enumerate() {
+            let hozo_ir::Child::Node(child_node) = child else {
+                continue;
+            };
+            if !child_node.carried_classes.iter().any(|cls| cls == "peer") {
+                continue;
+            }
+            let can_pointer = interaction::owns_events(child_node);
+            let can_focus = can_pointer || child_node.primitive == Primitive::TextInput;
+            if !can_focus {
+                continue;
+            }
+            let later = &child_needs[index + 1..];
+            let wants_pointer = can_pointer && later.iter().any(|&(p, _, _)| p);
+            let wants_focus = later.iter().any(|&(_, f, _)| f);
+            let wants_fv = later.iter().any(|&(_, _, fv)| fv);
+            if wants_pointer || wants_focus {
+                publish_ids[index] = Some(next_peer_id);
+                publish_focus_visible[index] = wants_fv;
+                next_peer_id += 1;
+                needs_peer_scope = true;
+            }
+        }
+    }
+
+    let mut preceding_peers: Vec<PeerSibling<'_>> = Vec::new();
     for (index, child) in node.children.iter().enumerate() {
         match child {
             hozo_ir::Child::Node(child_node) => {
                 let child_position = positions[index];
+                let peer_ctx = if has_any_peer {
+                    PeerContext {
+                        preceding: &preceding_peers,
+                        publish_id: publish_ids[index],
+                        publish_focus_visible: publish_focus_visible[index],
+                    }
+                } else {
+                    PeerContext::default()
+                };
                 inner.append(render_node(
                     child_node,
                     child_position,
                     child_interaction_context,
                     for_children,
+                    peer_ctx,
                     cx,
                 ));
+                if has_any_peer && child_node.carried_classes.iter().any(|cls| cls == "peer") {
+                    preceding_peers.push(PeerSibling {
+                        node: child_node,
+                        position: child_position,
+                        interactive_id: publish_ids[index],
+                    });
+                }
             }
             hozo_ir::Child::Text(text) => {
                 let text = if node.primitive == Primitive::NoBreak {
@@ -77,6 +176,7 @@ pub(super) fn render_child_list(
                         position,
                         child_interaction_context,
                         parent_group_ancestor,
+                        parent_peers,
                         cx,
                     )
                 } else {
@@ -98,5 +198,5 @@ pub(super) fn render_child_list(
             }
         }
     }
-    inner
+    (inner, needs_peer_scope)
 }

@@ -52,6 +52,8 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoOtpInput: '@hozo/core/generated/otp-input',
   HozoPagination: '@hozo/core/generated/pagination',
   HozoParentSizeQuery: '@hozo/core/generated/measured-box',
+  HozoPeerQuery: '@hozo/core/generated/peer',
+  HozoPeerScope: '@hozo/core/generated/peer',
   HozoPressable: '@hozo/core/generated/pressable',
   HozoRefreshControl: '@hozo/core/generated/refresh-control',
   HozoRelativeText: '@hozo/core/generated/text-size',

@@ -16,6 +16,7 @@ pub(super) fn place_children(
     position: SiblingPosition,
     parent_measured: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
+    peers: &[PeerSibling<'_>],
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if let Some(grid) = grid {
@@ -61,6 +62,7 @@ pub(super) fn place_children(
             position,
             parent_measured,
             group_ancestor,
+            peers,
             cx,
         )
     }
@@ -76,6 +78,7 @@ pub(super) fn inherited_scope(
     position: SiblingPosition,
     interaction_context: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
+    peers: &[PeerSibling<'_>],
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if unified_scope.is_empty() {
@@ -90,6 +93,7 @@ pub(super) fn inherited_scope(
             position,
             interaction_context,
             group_ancestor,
+            peers,
             pattern_slot: None,
             composition: Default::default(),
         };
@@ -177,6 +181,49 @@ pub(super) fn host_tag(
         tag = "HozoMeasuredParent";
     }
     tag
+}
+
+/// Supplies interactive state from preceding `.peer` siblings inside the same
+/// parent's `HozoPeerScope`. Renders no native host View.
+pub(super) fn peer_query(
+    rendered: Rendered,
+    peer_ids: &[usize],
+    cx: &mut NativeRenderContext<'_>,
+) -> Rendered {
+    if peer_ids.is_empty() {
+        rendered
+    } else {
+        cx.runtime.need_component("HozoPeerQuery");
+        let ids = peer_ids
+            .iter()
+            .map(usize::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let text = format!(
+            "<HozoPeerQuery peerIds={{[{ids}]}}>{{(__hozoPeer) => ({})}}</HozoPeerQuery>",
+            rendered.text
+        );
+        let mut rendered = rendered.wrap(text, ")}</HozoPeerQuery>".len());
+        rendered.forget_scope();
+        rendered
+    }
+}
+
+/// Provides a sibling-scoped store so `.peer` siblings can publish hover/focus/press
+/// state to following siblings without re-rendering the parent container.
+pub(super) fn peer_scope(
+    inner: Rendered,
+    needs_peer_scope: bool,
+    cx: &mut NativeRenderContext<'_>,
+) -> Rendered {
+    if needs_peer_scope {
+        cx.runtime.need_component("HozoPeerScope");
+        let close = "</HozoPeerScope>";
+        let text = format!("<HozoPeerScope>{}{close}", inner.text);
+        inner.wrap(text, close.len())
+    } else {
+        inner
+    }
 }
 
 /// Supplies derived containing-block sizes from the enclosing same-component

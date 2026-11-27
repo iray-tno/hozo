@@ -38,6 +38,7 @@ pub(super) fn stacked_guard(
                 | Condition::DataAttribute(_)
                 | Condition::Enabled
                 | Condition::Group(_)
+                | Condition::Peer(_)
                 | Condition::Environment(_)
                 | Condition::Pressed
                 | Condition::Expr(_)
@@ -93,6 +94,7 @@ pub(super) fn stacked_guard(
             | Condition::Structural(_)
             | Condition::Not(_)
             | Condition::Group(_)
+            | Condition::Peer(_)
             | Condition::Pressed
             | Condition::Hover
             | Condition::Focus

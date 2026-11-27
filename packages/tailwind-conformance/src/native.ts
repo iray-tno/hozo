@@ -237,6 +237,16 @@ const PROBE_CONTEXTS = [
       `        <Text className="${candidate}">x</Text>\n      </Pressable>\n    </View>\n  )\n}\n`,
   },
   {
+    // `peer-*:` styles an element by the state of a preceding `peer` sibling
+    // in the same parent, so it needs one.
+    name: 'Text after a peer Pressable',
+    render: (candidate: string) =>
+      `import { View, Pressable, Text } from '@hozo/core'\n` +
+      `export function C({ on }) {\n` +
+      `  return (\n    <View>\n      <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `      <Text className="${candidate}">x</Text>\n    </View>\n  )\n}\n`,
+  },
+  {
     // `even:`, `nth-2:` and `not-first:` resolve from the element's
     // position in the JSX tree; the first child below can answer none of
     // them.

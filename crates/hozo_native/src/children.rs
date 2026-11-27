@@ -5,7 +5,9 @@ use hozo_ir::{Condition, Diagnostic, ExprRef, Node, Severity, StyleDeclaration};
 
 use super::conditions;
 use super::conditions::unwired_variant;
-use super::context::{AncestorContext, FromAncestor, GroupAncestor, NativeRenderContext};
+use super::context::{
+    AncestorContext, FromAncestor, GroupAncestor, NativeRenderContext, PeerContext, PeerSibling,
+};
 use super::lower::{forwarded_text, forwards_interaction};
 use super::render::render_node;
 use super::source_evidence::Rendered;
@@ -80,6 +82,7 @@ pub(super) fn spaced_children(
     position: SiblingPosition,
     parent_measured: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
+    peers: &[PeerSibling<'_>],
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if child_declarations.is_empty() {
@@ -98,6 +101,7 @@ pub(super) fn spaced_children(
         position,
         interaction_context: false,
         group_ancestor,
+        peers,
         pattern_slot: None,
         composition: Default::default(),
     };
@@ -263,6 +267,7 @@ pub(super) fn render_nested(
         SiblingPosition::UNKNOWN,
         interaction_context || forwards_interaction(&entry.forwarded),
         ancestor,
+        PeerContext::default(),
         cx,
     )
 }

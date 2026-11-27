@@ -13,6 +13,7 @@ pub(super) struct HostChoice {
     pub(super) interaction_context: bool,
     pub(super) relative_at_runtime: bool,
     pub(super) publishes_size: bool,
+    pub(super) publishes_peer_state: bool,
 }
 
 /// Choose the actual host before adding measurement. Replacing it with a
@@ -32,6 +33,7 @@ pub(super) fn rendered_component(
         interaction_context,
         relative_at_runtime,
         publishes_size,
+        publishes_peer_state,
     } = choice;
     if renders_backdrop_filter {
         cx.runtime.need_component("HozoBackdropFilter");
@@ -39,6 +41,7 @@ pub(super) fn rendered_component(
     } else if component == "TextInput"
         && (has_pressed_parts
             || runtime_states
+            || publishes_peer_state
             || node.props.effective_disabled().is_some()
             || node.props.aria_invalid.is_some())
     {
@@ -172,6 +175,7 @@ pub(super) struct InteractionNeeds {
     pub(super) link_interaction: bool,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn interaction_needs(
     node: &Node,
     component: &str,
@@ -179,6 +183,8 @@ pub(super) fn interaction_needs(
     text_declarations: &[StyleDeclaration],
     runtime_states: bool,
     has_transition_or_label: bool,
+    publish_peer_interaction: bool,
+    publish_peer_focus_visible: bool,
     runtime: &mut RuntimeNeeds,
 ) -> InteractionNeeds {
     // The owner collects events for both inherited styles and child-authored
@@ -190,6 +196,7 @@ pub(super) fn interaction_needs(
         .any(|declaration| interaction::uses_focus_visible(&declaration.condition))
         || (interaction::owns_events(node)
             && interaction::descendant_uses(node, interaction::uses_focus_visible))
+        || publish_peer_focus_visible
         || runtime_states;
     let needs_hover_or_focus =
         own_declarations
@@ -210,6 +217,7 @@ pub(super) fn interaction_needs(
     // style is never referenced (or borrows an unrelated outer owner).
     let needs_interaction_host = needs_hover_or_focus
         || has_transition_or_label
+        || (publish_peer_interaction && interaction::owns_events(node))
         || text_declarations
             .iter()
             .any(|declaration| interaction::uses_interaction(&declaration.condition));

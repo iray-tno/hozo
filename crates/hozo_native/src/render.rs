@@ -107,6 +107,7 @@ pub(super) fn render_node(
     position: SiblingPosition,
     interaction_context: bool,
     ancestor: AncestorContext<'_>,
+    peer: PeerContext<'_>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     let AncestorContext {
@@ -300,6 +301,7 @@ pub(super) fn render_node(
                         .any(|declaration| interaction::uses_group_state(&declaration.condition))))
             && pattern_style_prop.is_none(),
         group_ancestor,
+        peers: peer.preceding,
         pattern_slot: Some("className"),
         composition: hozo_ir::OwnerSlotComposition {
             filters: mixing.project_filter_slots,
@@ -364,6 +366,7 @@ pub(super) fn render_node(
         node,
         position,
         group_ancestor,
+        peer.preceding,
         cx,
     );
     let (effects, deferred_effects) = effects::plan(
@@ -408,6 +411,8 @@ pub(super) fn render_node(
         &text_declarations,
         runtime_states,
         transition.is_some() || label_style.is_some(),
+        peer.publish_id.is_some(),
+        peer.publish_focus_visible,
         cx.runtime,
     );
     let host::ContainerUse {
@@ -436,6 +441,7 @@ pub(super) fn render_node(
             interaction_context,
             relative_at_runtime: relative_at_runtime.is_some(),
             publishes_size,
+            publishes_peer_state: peer.publish_id.is_some(),
         },
         node,
         cx,
@@ -626,6 +632,11 @@ pub(super) fn render_node(
     if needs_focus_visible && (owns_pressable_interaction || link_interaction) {
         props_text.push_str(" hozoFocusVisible");
     }
+    if let Some(peer_id) = peer.publish_id.filter(|_| {
+        owns_pressable_interaction || link_interaction || rendered_component == "HozoTextInput"
+    }) {
+        props_text.push_str(&format!(" hozoPeerId={{{peer_id}}}"));
+    }
     if let Some(parts) = label_style
         .as_ref()
         .filter(|_| owns_pressable_interaction || link_interaction)
@@ -667,6 +678,7 @@ pub(super) fn render_node(
         node,
         position,
         group_ancestor,
+        peer.preceding,
         &mut held,
         &mut props_text,
         cx,
@@ -712,7 +724,7 @@ pub(super) fn render_node(
         parent_measured: measures_parent,
         group_ancestor: child_group_ancestor,
     };
-    let inner = child_list::render_child_list(
+    let (inner, needs_peer_scope) = child_list::render_child_list(
         node,
         component,
         for_children,
@@ -720,6 +732,7 @@ pub(super) fn render_node(
         &base_name,
         position,
         group_ancestor,
+        peer.preceding,
         cx,
     );
 
@@ -736,8 +749,11 @@ pub(super) fn render_node(
         position,
         measures_parent,
         group_ancestor,
+        peer.preceding,
         cx,
     );
+
+    let inner = wrappers::peer_scope(inner, needs_peer_scope, cx);
 
     let inner = wrappers::inherited_scope(
         inner,
@@ -747,6 +763,7 @@ pub(super) fn render_node(
         position,
         interaction_context,
         group_ancestor,
+        peer.preceding,
         cx,
     );
 
@@ -761,6 +778,30 @@ pub(super) fn render_node(
         &mut props_text,
         cx,
     );
+    let raw_text_reads_peer = node
+        .children
+        .iter()
+        .any(|child| matches!(child, hozo_ir::Child::Text(_)))
+        && descend.iter().any(|declaration| {
+            condition_contains(&declaration.condition, |c| {
+                peer_interaction_state(c).is_some()
+            })
+        });
+    let child_decls_read_peer = child_declarations.iter().any(|declaration| {
+        condition_contains(&declaration.condition, |c| {
+            peer_interaction_state(c).is_some()
+        })
+    });
+    let queried_peer_ids: Vec<usize> = peer
+        .preceding
+        .iter()
+        .filter_map(|p| p.interactive_id)
+        .filter(|id| {
+            raw_text_reads_peer
+                || child_decls_read_peer
+                || props_text.contains(&format!("__hozoPeer[{id}]"))
+        })
+        .collect();
     let mut rendered = if component == "TextInput"
         || rendered_component == "HozoTextInput"
         || component == "Image"
@@ -784,6 +825,7 @@ pub(super) fn render_node(
         }
         rendered.copies = Some(copies);
     }
+    let rendered = wrappers::peer_query(rendered, &queried_peer_ids, cx);
     let rendered = wrappers::parent_size_query(rendered, uses_parent_size_query, cx);
     let rendered = wrappers::container_query(rendered, uses_container_query, cx);
     let rendered = wrappers::container_size_query(rendered, uses_container_size_query, cx);
