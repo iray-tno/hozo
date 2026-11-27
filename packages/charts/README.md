@@ -99,7 +99,8 @@ and is counted.
 | `data` | Rows. A missing, `null` or non-finite value is a gap. |
 | `x` | `{ key, label?, format? }`: the field that holds each row's category. |
 | `y` | `{ label?, format?, domain? }`. The domain otherwise comes from the data, rounded to tidy ticks. |
-| `series` | `{ key, label, color? }[]`. Without `color`, a series takes the next colour of `DEFAULT_PALETTE`. Each palette colour has at least 3:1 contrast on white and on near-black. |
+| `series` | `{ key, label, color? }[]`. Without `color`, a series takes the next colour of `DEFAULT_PALETTE`. Each palette colour has at least 3:1 contrast on white and on near-black, and the order keeps neighbours apart under protanopia and deuteranopia, so one set serves light and dark pages. |
+| `legend` | Every chart but Pie and Donut: `false` hides the key above the plot. It is shown for two or more series, each swatch shaped like the series' mark (a block for bars, a stroke for a line, a dot for points). |
 | `height` | Required, in points. |
 | `width` | A fixed width. Otherwise the chart fills its container and lays out again when that resizes. |
 | `textColor` | Axis text and lines. On the Web it otherwise inherits the surrounding colour. |

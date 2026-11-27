@@ -203,6 +203,10 @@ What is then left is decided afresh, not continued by default.
 - Pie and donut, area, sparklines, horizontal bars, scatter, bars with lines and reference lines have since
   been added (#2339). A scatter point has no category, so the rows are
   read in x order, each named and given its x value.
+- A key above the plot for two or more series, a palette order checked
+  under colour-vision simulation, capped bars with a rounded value end,
+  and a quieter frame have since been added; how much of that a user can
+  change is a theme, still to be designed.
 - **Time scale, log scale, brushing and zoom, animation.**
 
 ## 9. Open questions

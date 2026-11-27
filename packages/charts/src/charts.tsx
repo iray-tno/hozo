@@ -63,7 +63,7 @@ export type ComposedChartProps = Omit<Common, 'series'> & {
   points?: boolean
 }
 
-export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin' | 'references'> & {
+export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin' | 'references' | 'legend'> & {
   /** The field each slice's size comes from, and what to call it when read. */
   value: PieValue
   /** Slice colours by row; the default palette fills the rest. */

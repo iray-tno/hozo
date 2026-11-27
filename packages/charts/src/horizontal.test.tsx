@@ -50,7 +50,9 @@ test('stacked horizontal bars sit end to end', () => {
   const model = barChartModel({ ...base, stacked: true })
   const [open, closed] = bars(model.marks).filter((mark) => mark.datum === 0)
   assert.ok(open && closed)
-  assert.ok(Math.abs(closed.x - (open.x + open.width)) < 0.01)
+  assert.ok(Math.abs(closed.x - (open.x + open.width) - 2) < 0.01, '2px apart')
+  assert.equal(open.end, undefined)
+  assert.equal(closed.end, 'right', 'the end of the row is rounded')
   assert.equal(closed.y, open.y, 'one row, not grouped')
 })
 
@@ -77,6 +79,10 @@ test('the tooltip sits below the row, inside the chart', () => {
 test('the Web markup draws vertical gridlines and the categories as left labels', () => {
   const html = renderToStaticMarkup(<BarChart accessibilityLabel="Tickets by team" {...base} />)
   assert.match(html, />Customer support<\/text>/)
-  assert.equal([...html.matchAll(/<rect [^>]*fill="#/g)].length, 5)
+  assert.equal(
+    [...html.matchAll(/<path d="M[^"]*A[^"]*" fill="#/g)].length,
+    5,
+    'one rounded bar per value',
+  )
   assert.match(html, /<table/)
 })

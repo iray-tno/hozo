@@ -7,8 +7,21 @@
 import { Circle, G, Line, Path, Rect, Svg, SvgText } from '@hozo/svg'
 import { memo } from 'react'
 import { datumRows, datumTitle, tooltipBox } from './active.ts'
-import type { ChartModel, ChartSeries, PlacedReference } from './model.ts'
+import { barPath, type ChartModel, type ChartSeries, type PlacedReference } from './model.ts'
 import { seriesColor } from './palette.ts'
+
+// The frame recedes so the data is the loudest thing on the chart. Each is a
+// fraction of the surrounding text colour rather than a colour of its own, so
+// one value works on a light page and a dark one, on Web and on Native.
+/** Gridlines: there to be found, not seen first. */
+const GRID = 0.1
+/** The baseline the bars stand on. */
+const AXIS = 0.3
+/**
+ * Value tick labels, quieter than category names but still text: 0.8 of
+ * slate-700 or slate-600 text keeps 4.5:1 on white; 0.7 of slate-700 fell to 4.2.
+ */
+const MUTED = 0.8
 
 export interface ChartSvgProps {
   model: ChartModel
@@ -104,7 +117,7 @@ const Drawing = memo(function Drawing({
                 y1={tick.position}
                 y2={tick.position}
                 stroke={ink}
-                strokeOpacity={0.15}
+                strokeOpacity={GRID}
               />
             )}
             <SvgText
@@ -112,6 +125,7 @@ const Drawing = memo(function Drawing({
               y={tick.position}
               dy={fontSize * 0.35}
               fill={ink}
+              fillOpacity={horizontal ? 1 : MUTED}
               fontSize={fontSize}
               textAnchor="end"
             >
@@ -128,13 +142,14 @@ const Drawing = memo(function Drawing({
                 y1={plot.y}
                 y2={bottom}
                 stroke={ink}
-                strokeOpacity={0.15}
+                strokeOpacity={GRID}
               />
             ) : null}
             <SvgText
               x={tick.position}
               y={bottom + fontSize * 1.25}
               fill={ink}
+              fillOpacity={horizontal || model.xColumn ? MUTED : 1}
               fontSize={fontSize}
               textAnchor="middle"
             >
@@ -143,7 +158,7 @@ const Drawing = memo(function Drawing({
           </G>
         ))}
         {radial ? null : horizontal ? (
-          <Line x1={plot.x} x2={plot.x} y1={plot.y} y2={bottom} stroke={ink} strokeOpacity={0.4} />
+          <Line x1={plot.x} x2={plot.x} y1={plot.y} y2={bottom} stroke={ink} strokeOpacity={AXIS} />
         ) : (
           <Line
             x1={plot.x}
@@ -151,7 +166,7 @@ const Drawing = memo(function Drawing({
             y1={bottom}
             y2={bottom}
             stroke={ink}
-            strokeOpacity={0.4}
+            strokeOpacity={AXIS}
           />
         )}
       </G>
@@ -176,7 +191,13 @@ const Drawing = memo(function Drawing({
             case 'arc':
               return <Path key={`s${mark.datum}`} d={mark.path} fill={color} />
             case 'bar':
-              return (
+              return mark.end ? (
+                <Path
+                  key={`b${mark.series}-${mark.datum}`}
+                  d={barPath(mark.x, mark.y, mark.width, mark.height, mark.end)}
+                  fill={color}
+                />
+              ) : (
                 <Rect
                   key={`b${mark.series}-${mark.datum}`}
                   x={mark.x}
@@ -214,7 +235,7 @@ const Drawing = memo(function Drawing({
                   key={`p${mark.series}-${mark.datum}`}
                   cx={mark.cx}
                   cy={mark.cy}
-                  r={3}
+                  r={4}
                   fill={color}
                 />
               ) : null
@@ -236,6 +257,9 @@ const Drawing = memo(function Drawing({
           ) : null,
         )}
       </G>
+      {model.legend?.length ? (
+        <SeriesLegend model={model} series={series} fontSize={fontSize} ink={ink} />
+      ) : null}
       {radial ? (
         <G>
           {radial.legend.map((entry) => (
@@ -262,6 +286,74 @@ const Drawing = memo(function Drawing({
     </>
   )
 })
+
+/**
+ * The key above the plot. Each swatch has the shape of its series' mark, a
+ * block for bars, a stroke for a line, a dot for points, so a bars-and-line
+ * chart's key says which is which before colour does.
+ */
+function SeriesLegend({
+  model,
+  series,
+  fontSize,
+  ink,
+}: {
+  model: ChartModel
+  series: readonly ChartSeries[]
+  fontSize: number
+  ink: string
+}) {
+  const shapes = new Map<number, 'bar' | 'line' | 'point'>()
+  for (const mark of model.marks)
+    if (mark.kind === 'bar' || mark.kind === 'line' || mark.kind === 'area')
+      shapes.set(mark.series, mark.kind === 'bar' ? 'bar' : (shapes.get(mark.series) ?? 'line'))
+    else if (mark.kind === 'point' && !shapes.has(mark.series)) shapes.set(mark.series, 'point')
+  const middle = fontSize * 0.8
+  return (
+    <G>
+      {(model.legend ?? []).map((key) => {
+        const color = seriesColor(key.series, series[key.series]?.color)
+        const shape = shapes.get(key.series) ?? 'bar'
+        const cy = key.y + middle
+        return (
+          <G key={`k${key.series}`}>
+            {shape === 'line' ? (
+              <Line
+                x1={key.x}
+                x2={key.x + fontSize}
+                y1={cy}
+                y2={cy}
+                stroke={color}
+                strokeWidth={2}
+                strokeLinecap="round"
+              />
+            ) : shape === 'point' ? (
+              <Circle cx={key.x + fontSize / 2} cy={cy} r={4} fill={color} />
+            ) : (
+              <Rect
+                x={key.x + fontSize * 0.125}
+                y={cy - fontSize * 0.375}
+                width={fontSize * 0.75}
+                height={fontSize * 0.75}
+                rx={2}
+                fill={color}
+              />
+            )}
+            <SvgText
+              x={key.x + fontSize * 1.5}
+              y={cy}
+              dy={fontSize * 0.35}
+              fill={ink}
+              fontSize={fontSize}
+            >
+              {key.label}
+            </SvgText>
+          </G>
+        )
+      })}
+    </G>
+  )
+}
 
 interface ReferenceProps {
   reference: PlacedReference
