@@ -285,3 +285,40 @@ export const BarsAndLine: StoryObj<typeof meta> = {
     </View>
   ),
 }
+
+/**
+ * A target line over the bars and a range shaded under a line. Both are
+ * drawn and also read: the summary ends "Target: $150." and "Usual range:
+ * $80 to $140.".
+ */
+export const ReferenceLines: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-8 p-6 text-slate-700">
+      <Section className="gap-2">
+        <Heading level={2}>Against a target</Heading>
+        <BarChart
+          accessibilityLabel="Online revenue by month against the target"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={[{ key: 'online', label: 'Online' }]}
+          height={220}
+          references={[{ value: 150, label: 'Target' }]}
+        />
+      </Section>
+      <Section className="gap-2">
+        <Heading level={2}>Within a range</Heading>
+        <LineChart
+          accessibilityLabel="In-store revenue by month within its usual range"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={[{ key: 'store', label: 'In store' }]}
+          height={220}
+          points
+          references={[{ value: 80, to: 140, label: 'Usual range' }]}
+        />
+      </Section>
+    </View>
+  ),
+}

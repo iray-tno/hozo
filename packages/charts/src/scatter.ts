@@ -15,6 +15,7 @@ import {
   extent,
   frame,
   type Mark,
+  referenceRoom,
   rowValue,
   type Tick,
 } from './model.ts'
@@ -77,8 +78,10 @@ export function scatterChartModel(input: ScatterChartInput): ChartModel {
   const tickValues = linearScale([x0, x1], [0, 1]).ticks(count)
   const tickLabels = tickValues.map(formatX)
   const last = estimateTextWidth(tickLabels.at(-1) ?? '', fontSize)
-  const right = input.margin?.right ?? Math.ceil(Math.max(gap * 2, last / 2 + gap))
-  const { plot, y, yTicks } = frame(
+  const right =
+    input.margin?.right ??
+    Math.ceil(Math.max(gap * 2, last / 2 + gap, referenceRoom(input.references, fontSize)))
+  const { plot, y, yTicks, references } = frame(
     { ...input, x: { key: input.x.key, label: input.x.label }, margin: { ...input.margin, right } },
     extent(values, false),
   )
@@ -103,6 +106,7 @@ export function scatterChartModel(input: ScatterChartInput): ChartModel {
     marks,
     xTicks,
     yTicks,
+    references,
     centers,
     // The dot nearest the pointer in both directions; by x alone when there
     // is no y, as for a touch that only reports a column.

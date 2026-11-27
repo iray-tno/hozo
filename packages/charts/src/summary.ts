@@ -66,6 +66,13 @@ export function chartSummary(
             `highest ${format(values[high] as number)} at ${categories[high]}${missing}.`,
     )
   })
+  // A reference is what the values are read against, so it comes after them.
+  for (const reference of model.references)
+    parts.push(
+      reference.to === undefined
+        ? `${reference.label}: ${format(reference.value)}.`
+        : `${reference.label}: ${format(reference.value)} to ${format(reference.to)}.`,
+    )
   if (x && x.missing > 0)
     parts.push(
       `${x.missing.toLocaleString('en-US')} ${x.missing === 1 ? 'row' : 'rows'} without ${x.label} left out.`,

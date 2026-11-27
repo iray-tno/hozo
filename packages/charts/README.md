@@ -104,6 +104,7 @@ and is counted.
 | `width` | A fixed width. Otherwise the chart fills its container and lays out again when that resizes. |
 | `textColor` | Axis text and lines. On the Web it otherwise inherits the surrounding colour. |
 | `showTable` | Show the table under the chart. |
+| `references` | Every chart but Pie and Donut: `{ value, label }[]` draws a dashed line, for example a target, and `{ value, to, label }` shades a range. The axis widens to show them, and the summary reads each one after the series ("Target: $150."). |
 | `series[].type` | `ComposedChart`: `'line'` draws that series as a line over the bars; the rest are bars, side by side. |
 | `name` | `ScatterChart`: `{ key, label? }`, the field that names each point. Without it, a point is named by its x value. In `ScatterChart`, `x` is numeric (`{ key, label?, format?, domain? }`) and the rows are read in its order. |
 | `horizontal` | `BarChart`: bars run left to right, with the categories down the left side, for long labels and rankings. `y` still describes the values. Down and Up also step through the rows. |
