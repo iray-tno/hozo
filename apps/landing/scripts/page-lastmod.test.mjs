@@ -6,6 +6,7 @@ const log = [
   '',
   '2026-11-24T05:00:00+09:00\n\napps/landing/src/pages/index.astro\napps/landing/src/content/docs/docs/a.mdx\n',
   '2026-11-20T05:00:00+09:00\n\napps/landing/src/content/docs/docs/a.mdx\napps/landing/src/content/docs/docs/b.md\n',
+  '2026-11-18T05:00:00+09:00\n\npackages/tailwind-conformance/snapshot.json\n',
 ].join('\0')
 
 test('a path takes the date of the newest commit that touched it', () => {
@@ -15,6 +16,7 @@ test('a path takes the date of the newest commit that touched it', () => {
       ['apps/landing/src/pages/index.astro', '2026-11-24T05:00:00+09:00'],
       ['apps/landing/src/content/docs/docs/a.mdx', '2026-11-24T05:00:00+09:00'],
       ['apps/landing/src/content/docs/docs/b.md', '2026-11-20T05:00:00+09:00'],
+      ['packages/tailwind-conformance/snapshot.json', '2026-11-18T05:00:00+09:00'],
     ],
   )
 })
@@ -38,6 +40,16 @@ test('dates come back keyed by the paths as given, relative to the package', () 
       ['./src/content/docs/docs/b.md', '2026-11-20T05:00:00+09:00'],
     ],
     'a file with no history yet has no date rather than a guessed one',
+  )
+})
+
+test('a path outside the package, such as the data a page shows, is dated too', () => {
+  const dates = lastModified(['../../packages/tailwind-conformance/snapshot.json'], {
+    git: fakeGit(false),
+  })
+  assert.deepEqual(
+    [...dates],
+    [['../../packages/tailwind-conformance/snapshot.json', '2026-11-18T05:00:00+09:00']],
   )
 })
 
