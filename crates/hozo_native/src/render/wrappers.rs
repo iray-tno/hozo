@@ -183,6 +183,47 @@ pub(super) fn host_tag(
     tag
 }
 
+/// Provides the descendant reporting context strictly inside the host's
+/// children so a host's own interaction never feeds into `:has(...)`.
+pub(super) fn subtree_boundary(
+    inner: Rendered,
+    uses_subtree_scope: bool,
+    cx: &mut NativeRenderContext<'_>,
+) -> Rendered {
+    if uses_subtree_scope {
+        cx.runtime.need_component("HozoSubtreeBoundary");
+        let close = "</HozoSubtreeBoundary>";
+        let text = format!(
+            "<HozoSubtreeBoundary scope={{__hozoSubtree}}>{}{close}",
+            inner.text
+        );
+        inner.wrap(text, close.len())
+    } else {
+        inner
+    }
+}
+
+/// Supplies descendant interaction state (`__hozoSubtree`) to a host using
+/// `focus-within:`, `has-[:focus]:`, or `has-hover:`. Renders no native View.
+pub(super) fn subtree_scope(
+    rendered: Rendered,
+    uses_subtree_scope: bool,
+    cx: &mut NativeRenderContext<'_>,
+) -> Rendered {
+    if uses_subtree_scope {
+        cx.runtime.need_component("HozoSubtreeScope");
+        let text = format!(
+            "<HozoSubtreeScope>{{(__hozoSubtree) => ({})}}</HozoSubtreeScope>",
+            rendered.text
+        );
+        let mut rendered = rendered.wrap(text, ")}</HozoSubtreeScope>".len());
+        rendered.forget_scope();
+        rendered
+    } else {
+        rendered
+    }
+}
+
 /// Supplies interactive state from preceding `.peer` siblings inside the same
 /// parent's `HozoPeerScope`. Renders no native host View.
 pub(super) fn peer_query(

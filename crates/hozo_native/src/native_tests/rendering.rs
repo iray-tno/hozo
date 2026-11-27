@@ -1050,6 +1050,86 @@ fn peer_sibling_props_and_interactive_states_lower_in_same_parent() {
 }
 
 #[test]
+fn focus_within_and_has_descendant_interaction_variants_lower_with_subtree_scope() {
+    // Container wrapping a Pressable lowers `focus-within:`, `has-[:focus]:`,
+    // `has-hover:`, and their negations/stacks via HozoSubtreeScope + HozoSubtreeBoundary.
+    let out = lower_element(
+        r#"<View className="focus-within:p-4 has-[:focus]:m-2 has-hover:bg-blue-500 not-has-hover:opacity-50 dark:focus-within:border"><Pressable>x</Pressable></View>"#,
+    );
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(
+        out.jsx
+            .starts_with("<HozoSubtreeScope>{(__hozoSubtree) => (<View ")
+            && out
+                .jsx
+                .contains("<HozoSubtreeBoundary scope={__hozoSubtree}><HozoPressable>")
+            && out
+                .jsx
+                .contains("__hozoSubtree.focused && hozoStyles.hozo0_focuswithin")
+            && out
+                .jsx
+                .contains("__hozoSubtree.focused && hozoStyles.hozo0_has_focus")
+            && out
+                .jsx
+                .contains("__hozoSubtree.hovered && hozoStyles.hozo0_hashover")
+            && out
+                .jsx
+                .contains("!(__hozoSubtree.hovered) && hozoStyles.hozo0_nothashover")
+            && out.jsx.contains(
+                "__hozoDark && __hozoSubtree.focused && hozoStyles.hozo0_dark_focuswithin"
+            ),
+        "{}",
+        out.jsx
+    );
+    assert!(out.runtime_imports.contains(&"HozoSubtreeScope"));
+    assert!(out.runtime_imports.contains(&"HozoSubtreeBoundary"));
+    assert!(out.runtime_imports.contains(&"HozoPressable"));
+
+    // TextInput inside a `focus-within:` container upgrades to `HozoTextInput hozoReportSubtree`.
+    let input_source = r#"import { View, TextInput } from '@hozo/core'
+const el = <View className="focus-within:p-4"><TextInput accessibilityLabel="Email" /></View>"#;
+    let parsed = hozo_parser::parse_tsx(input_source);
+    let input_out = lower(&parsed.roots[0].node, input_source, &Theme::default());
+    assert!(
+        input_out.diagnostics.is_empty(),
+        "{:?}",
+        input_out.diagnostics
+    );
+    assert!(
+        input_out.jsx.contains("<HozoTextInput hozoReportSubtree ")
+            && input_out.jsx.contains("<HozoSubtreeScope>")
+            && input_out
+                .jsx
+                .contains("<HozoSubtreeBoundary scope={__hozoSubtree}>"),
+        "{}",
+        input_out.jsx
+    );
+
+    // Opaque child expression (`{children}`) is allowed so custom components can report focus.
+    let opaque = lower_element(r#"<View className="focus-within:p-4">{children}</View>"#);
+    assert!(opaque.diagnostics.is_empty(), "{:?}", opaque.diagnostics);
+    assert!(opaque.jsx.contains("<HozoSubtreeScope>"), "{}", opaque.jsx);
+
+    // Leaf elements with no focusable/hoverable descendant stay refused honestly.
+    for element in [
+        r#"<View className="focus-within:p-4" />"#,
+        r#"<View className="focus-within:p-4">x</View>"#,
+        r#"<View className="has-[:focus]:p-4" />"#,
+        r#"<View className="has-hover:p-4" />"#,
+        r#"<View className="has-hover:p-4"><View>x</View></View>"#,
+    ] {
+        let output = lower_element(element);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{element}: {:?}",
+            output.diagnostics
+        );
+    }
+}
+
+#[test]
 fn a_refusal_names_the_variant_the_way_it_was_written() {
     // The names used to be the style-entry suffix: `group-ariachecked:`,
     // `hashover:`, and `data:` for every data attribute.

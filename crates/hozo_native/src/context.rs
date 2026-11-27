@@ -133,6 +133,15 @@ pub(crate) struct PeerContext<'a> {
     pub publish_focus_visible: bool,
 }
 
+/// Which descendant interaction channels an enclosing `HozoSubtreeBoundary`
+/// observes (`focus-within:`, `has-[:focus]:`, `has-hover:`, etc.).
+#[derive(Clone, Copy, Default)]
+pub(crate) struct SubtreeReport {
+    pub focus: bool,
+    pub hover: bool,
+    pub focus_visible: bool,
+}
+
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
 #[derive(Clone, Copy)]
 pub(crate) struct AncestorContext<'a> {
@@ -147,6 +156,7 @@ pub(crate) struct AncestorContext<'a> {
     /// layout box via `HozoMeasuredParent` and provides `HozoParentSizeContext`.
     pub parent_measured: bool,
     pub group_ancestor: Option<GroupAncestor<'a>>,
+    pub subtree_report: SubtreeReport,
 }
 
 /// Declarations an ancestor handed down through `*:` or `**:`.

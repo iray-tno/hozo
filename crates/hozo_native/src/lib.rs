@@ -90,7 +90,7 @@ mod variants;
 use children::{render_verbatim, spaced_children, subtree_for_children};
 use context::{
     AncestorContext, FromAncestor, GroupAncestor, NativeRenderContext, PeerContext, PeerSibling,
-    RuntimeNeeds,
+    RuntimeNeeds, SubtreeReport,
 };
 use environment::{
     environment_name, environment_unwired_message, native_environment, uses_container_width,

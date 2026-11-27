@@ -120,6 +120,10 @@
       "types": "./dist/generated/spaced.d.ts",
       "default": "./dist/generated/spaced.js"
     },
+    "./generated/subtree": {
+      "types": "./dist/generated/subtree.d.ts",
+      "default": "./dist/generated/subtree.js"
+    },
     "./generated/text": {
       "types": "./dist/generated/text.d.ts",
       "default": "./dist/generated/text.js"

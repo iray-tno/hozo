@@ -67,6 +67,8 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoSpaced: '@hozo/core/generated/spaced',
   hozoSpreadStyles: '@hozo/core/generated/spread-styles',
   HozoStepper: '@hozo/core/generated/stepper',
+  HozoSubtreeBoundary: '@hozo/core/generated/subtree',
+  HozoSubtreeScope: '@hozo/core/generated/subtree',
   HozoSummary: '@hozo/core/generated/disclosure',
   HozoTable: '@hozo/core/generated/table',
   HozoTableCaption: '@hozo/core/generated/table',

@@ -35,6 +35,7 @@ import {
 } from 'react-native'
 import { nativeDisabledProps } from './native-disabled.ts'
 import { HozoPeerContext } from './peer-context.native.ts'
+import { useReportSubtreeInteraction } from './subtree-context.native.ts'
 import { easingFor, useHozoTextColorTransition } from './text-color-transition.native.ts'
 
 export interface HozoTransition {
@@ -277,6 +278,7 @@ export function HozoPressable({
     if (!peerStore || hozoPeerId === undefined) return
     return () => peerStore.clear(hozoPeerId)
   }, [peerStore, hozoPeerId])
+  useReportSubtreeInteraction(interaction)
   const context = useMemo(
     () => ({ ...interaction, transition: hozoTransition }),
     [hozoTransition, interaction],

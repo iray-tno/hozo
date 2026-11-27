@@ -45,6 +45,9 @@ pub(super) fn stacked_guard(
                 | Condition::Hover
                 | Condition::Focus
                 | Condition::FocusVisible
+                | Condition::FocusWithin
+                | Condition::Has(_)
+                | Condition::HasSelector(_)
                 | Condition::Responsive(_)
                 | Condition::Width { .. }
                 | Condition::Container { .. }
@@ -99,6 +102,9 @@ pub(super) fn stacked_guard(
             | Condition::Hover
             | Condition::Focus
             | Condition::FocusVisible
+            | Condition::FocusWithin
+            | Condition::Has(_)
+            | Condition::HasSelector(_)
             | Condition::Responsive(_)
             | Condition::Width { .. }
             | Condition::Dark

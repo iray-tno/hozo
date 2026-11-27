@@ -5,6 +5,7 @@ import {
 import { type ComponentRef, type Ref, useContext, useLayoutEffect } from 'react'
 import { TextInput, type TextInputProps } from 'react-native'
 import { HozoPeerContext } from './peer-context.native.ts'
+import { HozoSubtreeContext, useReportSubtreeInteraction } from './subtree-context.native.ts'
 import { type NativeTextInputProps, nativeTextInputProps } from './text-input-props.native.ts'
 
 export interface HozoTextInputProps extends NativeTextInputProps {
@@ -13,6 +14,8 @@ export interface HozoTextInputProps extends NativeTextInputProps {
   hozoStyle?: (state: HozoPressableInteractionState) => TextInputProps['style']
   /** Channel ID inside an enclosing `HozoPeerScope` when a following sibling reads `peer-focus:`/`peer-focus-visible:`. */
   hozoPeerId?: number
+  /** Enables focus reporting to an enclosing `HozoSubtreeBoundary` (`focus-within:` / `has-[:focus]:`). */
+  hozoReportSubtree?: boolean
 }
 
 /**
@@ -24,10 +27,23 @@ export interface HozoTextInputProps extends NativeTextInputProps {
  * it (Selectors 4 §9.4). A button's pointer modality is not its policy.
  */
 export function HozoTextInput(props: HozoTextInputProps) {
+  const subtreeReporter = useContext(HozoSubtreeContext)
   // A prop-only adapter needs no state subscription. The focus child exists
-  // only for a compiler callback or peer channel and still renders exactly one RN field.
-  if (!props.hozoStyle && props.hozoPeerId === undefined) {
-    const { hozoStyle: _hozoStyle, hozoPeerId: _hozoPeerId, ref, ...hostProps } = props
+  // only for a compiler callback, peer channel, or enclosing subtree scope
+  // and still renders exactly one RN field.
+  if (
+    !props.hozoStyle &&
+    props.hozoPeerId === undefined &&
+    !props.hozoReportSubtree &&
+    subtreeReporter === null
+  ) {
+    const {
+      hozoStyle: _hozoStyle,
+      hozoPeerId: _hozoPeerId,
+      hozoReportSubtree: _hozoReportSubtree,
+      ref,
+      ...hostProps
+    } = props
     return <TextInput {...nativeTextInputProps(hostProps)} ref={ref} />
   }
   return <FocusedTextInput {...props} />
@@ -37,6 +53,7 @@ function FocusedTextInput({
   ref,
   hozoStyle,
   hozoPeerId,
+  hozoReportSubtree: _hozoReportSubtree,
   style,
   onFocus,
   onBlur,
@@ -53,6 +70,7 @@ function FocusedTextInput({
     if (!peerStore || hozoPeerId === undefined) return
     return () => peerStore.clear(hozoPeerId)
   }, [peerStore, hozoPeerId])
+  useReportSubtreeInteraction(state)
   return (
     <TextInput
       {...nativeTextInputProps(props)}

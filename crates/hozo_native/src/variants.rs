@@ -49,7 +49,17 @@ pub(super) fn condition_suffix(condition: &Condition) -> Option<String> {
             Some("data".to_string())
         }
         Condition::Supports(_) => Some("supports".to_string()),
-        Condition::HasSelector(_) => Some("has".to_string()),
+        Condition::HasSelector(selector) => {
+            let clean: String = selector
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .collect();
+            Some(if clean.is_empty() {
+                "has".to_string()
+            } else {
+                format!("has_{clean}")
+            })
+        }
         Condition::Has(inner) => Some(format!(
             "has{}",
             condition_suffix(inner).unwrap_or_default()

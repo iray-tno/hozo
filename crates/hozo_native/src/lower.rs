@@ -7,6 +7,7 @@ use super::candidate::style_pairs;
 use super::conditions::RuntimeHook;
 use super::context::{
     AncestorContext, FromAncestor, NameAllocator, NativeRenderContext, PeerContext, RuntimeNeeds,
+    SubtreeReport,
 };
 use super::owner_style::{OwnerStyle, OwnerStyleInputs};
 use super::render::render_node;
@@ -206,6 +207,7 @@ pub(super) fn lower_forwarded_capturing(
         grid_rows: None,
         parent_measured: false,
         group_ancestor: None,
+        subtree_report: SubtreeReport::default(),
     };
     let jsx = render_node(
         root,

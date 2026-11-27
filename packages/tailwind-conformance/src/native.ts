@@ -247,6 +247,15 @@ const PROBE_CONTEXTS = [
       `      <Text className="${candidate}">x</Text>\n    </View>\n  )\n}\n`,
   },
   {
+    // `focus-within:`, `has-[:focus]:`, and `has-hover:` observe an
+    // interactive descendant, so they require one inside the styled container.
+    name: 'View with interactive child',
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C() {\n` +
+      `  return (\n    <View className="${candidate}">\n      <Pressable accessibilityRole="button">x</Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
     // `even:`, `nth-2:` and `not-first:` resolve from the element's
     // position in the JSX tree; the first child below can answer none of
     // them.

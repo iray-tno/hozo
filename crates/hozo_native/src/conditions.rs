@@ -243,6 +243,9 @@ pub(super) fn build_style_entries_with_measured(
             | Condition::Not(_)
             | Condition::Group(_)
             | Condition::Peer(_)
+            | Condition::FocusWithin
+            | Condition::Has(_)
+            | Condition::HasSelector(_)
             | Condition::Pressed
             | Condition::Hover
             | Condition::Focus
@@ -427,6 +430,9 @@ fn is_element_state(condition: &Condition) -> bool {
         | Condition::Hover
         | Condition::Focus
         | Condition::FocusVisible
+        | Condition::FocusWithin
+        | Condition::Has(_)
+        | Condition::HasSelector(_)
         | Condition::Pressed => true,
         Condition::Group(inner) | Condition::Peer(inner) | Condition::Not(inner) => {
             is_element_state(inner)

@@ -193,6 +193,7 @@ pub(super) fn render_child_list(
                     for_children.inherited,
                     child_interaction_context,
                     for_children.group_ancestor,
+                    for_children.subtree_report,
                     cx,
                 ));
             }

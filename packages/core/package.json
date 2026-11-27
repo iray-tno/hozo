@@ -213,6 +213,10 @@
       "types": "./dist/generated/stepper.d.ts",
       "default": "./dist/generated/stepper.js"
     },
+    "./generated/subtree": {
+      "types": "./dist/generated/subtree.d.ts",
+      "default": "./dist/generated/subtree.js"
+    },
     "./generated/table": {
       "types": "./dist/generated/table.d.ts",
       "default": "./dist/generated/table.js"

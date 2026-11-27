@@ -204,7 +204,11 @@ pub(super) fn interaction_needs(
             .chain(text_declarations.iter())
             .any(|declaration| {
                 condition_contains(&declaration.condition, |condition| {
-                    uses_hover(condition) || focus_state(condition).is_some()
+                    uses_hover(condition)
+                        || focus_state(condition).is_some()
+                        || (matches!(condition, Condition::FocusWithin)
+                            && interaction::owns_events(node)
+                            && interaction::has_focusable_descendant(node))
                 })
             })
             || (interaction::owns_events(node)

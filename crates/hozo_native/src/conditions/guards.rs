@@ -126,6 +126,9 @@ pub(super) fn resolve(
             .map_err(|reason| format!("`not-{}:` cannot be resolved: {reason}", variant_spelling(inner).unwrap_or_default())),
         Condition::Group(inner) => resolve_group(inner, target, source, runtime),
         Condition::Peer(inner) => resolve_peer(inner, target, source, runtime),
+        Condition::FocusWithin => resolve_focus_within(node),
+        Condition::Has(inner) => resolve_has(inner, node),
+        Condition::HasSelector(selector) => resolve_has_selector(selector, node),
         Condition::Disabled => node.props.effective_disabled().as_ref()
             .map(|disabled| Guard::Dynamic(format!("({})", render_condition_expr(source, disabled))))
             .ok_or_else(|| "`disabled:` needs a `disabled` prop on the same element to drive it, and this one has none.".into()),
@@ -671,6 +674,105 @@ fn resolve_single_peer(
             .map_err(|reason| format!("`{written}:` on the preceding `peer` sibling: {reason}")),
         _ => Err(format!(
             "`{written}:` reads a state React Native does not carry for a preceding `peer` sibling. On Web the same class works from the selector."
+        )),
+    }
+}
+
+fn resolve_focus_within(node: &Node) -> Result<Guard, String> {
+    if !interaction::has_focusable_descendant(node) {
+        return Err(
+            "`focus-within:` asks whether a focusable descendant inside this element has focus, and this element has none on Native. Put `focus:` on the focusable element itself, or wrap a focusable child such as `TextInput`, `Pressable`, `Button`, or `Link`. On Web the same class works."
+                .into(),
+        );
+    }
+    if interaction::owns_events(node) {
+        Ok(Guard::Interactive(
+            "(focused || __hozoSubtree.focused)".into(),
+        ))
+    } else {
+        Ok(Guard::Dynamic("__hozoSubtree.focused".into()))
+    }
+}
+
+fn resolve_has(inner: &Condition, node: &Node) -> Result<Guard, String> {
+    let written = variant_spelling(&Condition::Has(Box::new(inner.clone())))
+        .unwrap_or_else(|| "has-…".to_string());
+    match inner {
+        Condition::Hover => {
+            if !interaction::has_hoverable_descendant(node) {
+                return Err(format!(
+                    "`{written}:` asks whether a descendant inside this element is hovered, and this element has no hoverable descendant on Native. On Web the same class works."
+                ));
+            }
+            Ok(Guard::Dynamic("__hozoSubtree.hovered".into()))
+        }
+        Condition::Pressed => {
+            if !interaction::has_hoverable_descendant(node) {
+                return Err(format!(
+                    "`{written}:` asks whether a descendant inside this element is pressed, and this element has no pressable descendant on Native. On Web the same class works."
+                ));
+            }
+            Ok(Guard::Dynamic("__hozoSubtree.pressed".into()))
+        }
+        Condition::Focus | Condition::FocusWithin => {
+            if !interaction::has_focusable_descendant(node) {
+                return Err(format!(
+                    "`{written}:` asks whether a descendant inside this element has focus, and this element has no focusable descendant on Native. On Web the same class works."
+                ));
+            }
+            Ok(Guard::Dynamic("__hozoSubtree.focused".into()))
+        }
+        Condition::FocusVisible => {
+            if !interaction::has_focusable_descendant(node) {
+                return Err(format!(
+                    "`{written}:` asks whether a descendant inside this element has focus-visible, and this element has no focusable descendant on Native. On Web the same class works."
+                ));
+            }
+            Ok(Guard::Dynamic("__hozoSubtree.focusVisible".into()))
+        }
+        _ => Err(format!(
+            "`{written}:` has no React Native equivalent -- only descendant interaction states (`hover`, `focus`, `focus-visible`, `active`, `focus-within`) are tracked on Native. On Web the same class works."
+        )),
+    }
+}
+
+fn resolve_has_selector(selector: &str, node: &Node) -> Result<Guard, String> {
+    let trimmed = selector.trim();
+    match trimmed {
+        ":focus" | "*:focus" | ":focus-within" | "*:focus-within" => {
+            if !interaction::has_focusable_descendant(node) {
+                return Err(format!(
+                    "`has-[{selector}]:` asks whether a descendant inside this element has focus, and this element has no focusable descendant on Native. On Web the same class works."
+                ));
+            }
+            Ok(Guard::Dynamic("__hozoSubtree.focused".into()))
+        }
+        ":focus-visible" | "*:focus-visible" => {
+            if !interaction::has_focusable_descendant(node) {
+                return Err(format!(
+                    "`has-[{selector}]:` asks whether a descendant inside this element has focus-visible, and this element has no focusable descendant on Native. On Web the same class works."
+                ));
+            }
+            Ok(Guard::Dynamic("__hozoSubtree.focusVisible".into()))
+        }
+        ":hover" | "*:hover" => {
+            if !interaction::has_hoverable_descendant(node) {
+                return Err(format!(
+                    "`has-[{selector}]:` asks whether a descendant inside this element is hovered, and this element has no hoverable descendant on Native. On Web the same class works."
+                ));
+            }
+            Ok(Guard::Dynamic("__hozoSubtree.hovered".into()))
+        }
+        ":active" | "*:active" => {
+            if !interaction::has_hoverable_descendant(node) {
+                return Err(format!(
+                    "`has-[{selector}]:` asks whether a descendant inside this element is active, and this element has no pressable descendant on Native. On Web the same class works."
+                ));
+            }
+            Ok(Guard::Dynamic("__hozoSubtree.pressed".into()))
+        }
+        _ => Err(format!(
+            "`has-[{selector}]:` has no React Native equivalent -- it selects on a descendant CSS selector, and there are no selectors here. On Web the same class works."
         )),
     }
 }
