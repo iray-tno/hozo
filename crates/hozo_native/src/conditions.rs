@@ -42,6 +42,105 @@ pub(crate) struct StyleTarget<'a> {
     pub composition: hozo_ir::OwnerSlotComposition,
 }
 
+/// Outcome of resolving a standalone or stacked condition into a plain JS
+/// boolean expression (used by TextInput field colour props and parent-to-child
+/// subtree guards).
+pub(crate) enum ResolvedCondition {
+    Always,
+    Never,
+    Guarded {
+        expr: String,
+        uses_interactive: bool,
+    },
+}
+
+/// Evaluates `condition` against `target` without emitting diagnostics or
+/// leaking hooks when resolution fails.
+pub(crate) fn resolve_condition_guard(
+    condition: &Condition,
+    target: &StyleTarget<'_>,
+    source: &str,
+    runtime: &mut RuntimeNeeds,
+    allow_interactive: bool,
+) -> Result<ResolvedCondition, String> {
+    let mut atoms = Vec::new();
+    let mut pending = vec![condition];
+    while let Some(atom) = pending.pop() {
+        if let Condition::All(nested) = atom {
+            pending.extend(nested.iter().rev());
+        } else {
+            atoms.push(atom);
+        }
+    }
+    let mut scratch = RuntimeNeeds::default();
+    let mut parts = Vec::new();
+    let mut uses_interactive = false;
+    let mut applies = true;
+    for atom in atoms {
+        match atom {
+            Condition::Always => {}
+            Condition::Expr(expr) => {
+                parts.push(format!("({})", render_condition_expr(source, expr)));
+            }
+            Condition::StartingStyle => {
+                return Err("`starting:` cannot drive this prop on React Native.".into());
+            }
+            Condition::DataAttribute(_)
+                if presence_closed(atom) && !guards::has_authored_data_prop(target.node, atom) =>
+            {
+                return Err(
+                    "`data-[state=closed]:` is a Presence exit frame and cannot drive this prop without an authored `data-state` prop."
+                        .into(),
+                );
+            }
+            _ => match guards::resolve(atom, target, source, &mut scratch)? {
+                guards::Guard::Known(true) => {}
+                guards::Guard::Known(false) => applies = false,
+                guards::Guard::Dynamic(expr) => parts.push(expr),
+                guards::Guard::Interactive(expr) => {
+                    if !allow_interactive {
+                        return Err(format!(
+                            "`{}:` requires an interactive callback that this prop does not support.",
+                            variant_spelling(atom).unwrap_or_default()
+                        ));
+                    }
+                    parts.push(expr);
+                    uses_interactive = true;
+                }
+                guards::Guard::InteractiveScoped {
+                    available,
+                    predicate,
+                } => {
+                    if !allow_interactive {
+                        return Err(format!(
+                            "`{}:` requires an interactive callback that this prop does not support.",
+                            variant_spelling(atom).unwrap_or_default()
+                        ));
+                    }
+                    parts.push(format!("({available} && {predicate})"));
+                    uses_interactive = true;
+                }
+                guards::Guard::Scoped {
+                    available,
+                    predicate,
+                } => parts.push(format!("({available} && {predicate})")),
+            },
+        }
+    }
+    if !applies {
+        return Ok(ResolvedCondition::Never);
+    }
+    runtime.hooks.extend(scratch.hooks);
+    if parts.is_empty() {
+        Ok(ResolvedCondition::Always)
+    } else {
+        Ok(ResolvedCondition::Guarded {
+            expr: parts.join(" && "),
+            uses_interactive,
+        })
+    }
+}
+
 /// Groups `declarations` by condition, registers a named style entry for
 /// each group, and records how each should be referenced from the rendered
 /// `style` prop. Shared by a node and any `Text` wrapper inserted inside

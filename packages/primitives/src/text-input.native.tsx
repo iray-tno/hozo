@@ -8,10 +8,18 @@ import { HozoPeerContext } from './peer-context.native.ts'
 import { HozoSubtreeContext, useReportSubtreeInteraction } from './subtree-context.native.ts'
 import { type NativeTextInputProps, nativeTextInputProps } from './text-input-props.native.ts'
 
+export interface HozoTextInputFieldColors {
+  placeholderTextColor?: TextInputProps['placeholderTextColor']
+  selectionColor?: TextInputProps['selectionColor']
+  cursorColor?: TextInputProps['cursorColor']
+}
+
 export interface HozoTextInputProps extends NativeTextInputProps {
   ref?: Ref<ComponentRef<typeof TextInput>>
   /** Compiler-only style evaluation on this input, not an ancestor Pressable. */
   hozoStyle?: (state: HozoPressableInteractionState) => TextInputProps['style']
+  /** Compiler-only focus-driven field colour props (`focus:placeholder:*`, `focus:selection:bg-*`, `focus:caret-*`). */
+  hozoFieldColors?: (state: HozoPressableInteractionState) => HozoTextInputFieldColors
   /** Channel ID inside an enclosing `HozoPeerScope` when a following sibling reads `peer-focus:`/`peer-focus-visible:`. */
   hozoPeerId?: number
   /** Enables focus reporting to an enclosing `HozoSubtreeBoundary` (`focus-within:` / `has-[:focus]:`). */
@@ -33,12 +41,14 @@ export function HozoTextInput(props: HozoTextInputProps) {
   // and still renders exactly one RN field.
   if (
     !props.hozoStyle &&
+    !props.hozoFieldColors &&
     props.hozoPeerId === undefined &&
     !props.hozoReportSubtree &&
     subtreeReporter === null
   ) {
     const {
       hozoStyle: _hozoStyle,
+      hozoFieldColors: _hozoFieldColors,
       hozoPeerId: _hozoPeerId,
       hozoReportSubtree: _hozoReportSubtree,
       ref,
@@ -52,6 +62,7 @@ export function HozoTextInput(props: HozoTextInputProps) {
 function FocusedTextInput({
   ref,
   hozoStyle,
+  hozoFieldColors,
   hozoPeerId,
   hozoReportSubtree: _hozoReportSubtree,
   style,
@@ -71,9 +82,14 @@ function FocusedTextInput({
     return () => peerStore.clear(hozoPeerId)
   }, [peerStore, hozoPeerId])
   useReportSubtreeInteraction(state)
+  const fieldColors = hozoFieldColors?.(state)
+  const normalized = nativeTextInputProps(props)
   return (
     <TextInput
-      {...nativeTextInputProps(props)}
+      {...normalized}
+      placeholderTextColor={normalized.placeholderTextColor ?? fieldColors?.placeholderTextColor}
+      selectionColor={normalized.selectionColor ?? fieldColors?.selectionColor}
+      cursorColor={normalized.cursorColor ?? fieldColors?.cursorColor}
       ref={ref}
       style={hozoStyle ? [hozoStyle(state), style] : style}
       onFocus={(event) => {

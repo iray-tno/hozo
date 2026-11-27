@@ -185,29 +185,38 @@ pub(super) fn render_node(
     // Same shape as truncation: a CSS concept React Native keeps on a prop,
     // absorbed before the refusal check so the thing that *does* express it
     // isn't reported as impossible.
-    let placeholder = placeholder_props(node, theme, cx.runtime);
-    // The caret colour is another TextInput prop rather than a style. Kept
-    // separate from placeholder because React Native names the two props
-    // independently and either utility may appear alone.
-    let caret = caret_props(node, theme, cx.runtime);
-    // The selection highlight is a third TextInput colour prop.
-    let selection = selection_props(node, theme, cx.runtime);
+    let field_target = crate::conditions::StyleTarget {
+        owner_facts: cx.owner_inputs.facts,
+        owner_events: cx.owner_inputs.events,
+        node,
+        position,
+        interaction_context: false,
+        group_ancestor,
+        peers: peer.preceding,
+        pattern_slot: None,
+        composition: Default::default(),
+    };
+    let FieldColours {
+        placeholder,
+        caret,
+        selection,
+        interactive_callback: field_colors_callback,
+        consumed: field_consumed,
+    } = resolve_field_colours(node, &field_target, source, theme, cx.runtime);
 
     // `leading-tight`/`tracking-wide` are relative to the font size, which
     // React Native's equivalents aren't. Resolved here, before the refusal
     // check, so only the ones that genuinely can't be resolved are refused.
-    // A placeholder colour travels as a prop, never as the field's own text
-    // colour or a pseudo-element StyleSheet entry. Consume only declarations
-    // the prop adapter actually handles, leaving every other pseudo/style
-    // stack visible to the usual diagnostics.
-    let field_style: Option<Vec<_>> = (placeholder.is_some() || selection.is_some()).then(|| {
+    // Field colours travel as props (or `hozoFieldColors` when focus-driven),
+    // never as StyleSheet entries. Consume only declarations the prop adapter
+    // actually lowered, leaving every other pseudo/style stack visible to the
+    // usual diagnostics.
+    let field_style: Option<Vec<_>> = field_consumed.iter().any(|&used| used).then(|| {
         node.style
             .iter()
-            .filter(|declaration| {
-                (placeholder.is_none() || placeholder_colour(declaration).is_none())
-                    && (selection.is_none() || selection_colour(declaration).is_none())
-            })
-            .cloned()
+            .enumerate()
+            .filter(|(index, _)| !field_consumed[*index])
+            .map(|(_, declaration)| declaration.clone())
             .collect()
     });
     let style = lower_inline_flex(fold_font_relative(
@@ -250,7 +259,6 @@ pub(super) fn render_node(
             text_break: text_break.is_some(),
             ios_line_break: ios_line_break.is_some(),
             keyframes: has_keyframes,
-            caret: caret.is_some(),
             self_measured: can_self_measure,
             parent_measured,
             parent_measured_space: can_measure_space,
@@ -478,6 +486,7 @@ pub(super) fn render_node(
             relative_at_runtime: relative_at_runtime.is_some(),
             publishes_size,
             publishes_peer_state: peer.publish_id.is_some() || reports_subtree_input,
+            has_field_colors_callback: field_colors_callback.is_some(),
         },
         node,
         cx,
@@ -693,6 +702,7 @@ pub(super) fn render_node(
             placeholder,
             caret,
             selection,
+            field_colors_callback,
             text_break,
             ios_line_break,
             truncation,
@@ -901,6 +911,7 @@ pub(super) fn render_node(
         }
         rendered.copies = Some(copies);
     }
+    let uses_container_query = uses_container_query || props_text.contains("__hozoCq[");
     let rendered = wrappers::subtree_scope(rendered, uses_subtree_scope, cx);
     let rendered = wrappers::peer_query(rendered, &queried_peer_ids, cx);
     let rendered = wrappers::parent_size_query(rendered, uses_parent_size_query, cx);

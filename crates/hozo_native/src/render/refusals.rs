@@ -15,7 +15,6 @@ pub(super) struct Lowered {
     pub(super) text_break: bool,
     pub(super) ios_line_break: bool,
     pub(super) keyframes: bool,
-    pub(super) caret: bool,
     pub(super) self_measured: bool,
     pub(super) parent_measured: bool,
     pub(super) parent_measured_space: bool,
@@ -228,7 +227,7 @@ pub(super) fn report_refused(
             ) {
                 if let Some(reason) = placeholder_only_reason(&declaration.property) {
                     let reason = if node.primitive == Primitive::TextInput {
-                        "conditional placeholder colours beyond dark mode are not wired to TextInput's placeholderTextColor prop".to_string()
+                        "this condition cannot drive TextInput's placeholderTextColor prop on React Native".to_string()
                     } else {
                         reason
                     };
@@ -242,11 +241,9 @@ pub(super) fn report_refused(
                 color,
                 hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
             ) {
-                if elsewhere.caret && caret_colour(declaration).is_some() {
-                    continue;
-                }
                 let reason = if node.primitive == Primitive::TextInput {
-                    "conditional caret colours beyond dark mode are not wired to TextInput's cursorColor prop".to_string()
+                    "this condition cannot drive TextInput's cursorColor prop on React Native"
+                        .to_string()
                 } else {
                     caret_only_reason()
                 };
