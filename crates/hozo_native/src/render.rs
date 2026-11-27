@@ -224,7 +224,13 @@ pub(super) fn render_node(
         inherited,
         theme,
     ));
-    let layout = crate::pattern_layout::adapt(node.primitive, "className", style);
+    let mut layout = crate::pattern_layout::adapt(node.primitive, "className", style);
+    let backdrop_blur = crate::pattern_layout::resolve_backdrop_blur(
+        &mut layout,
+        &field_target,
+        source,
+        cx.runtime,
+    );
     let style = layout.style;
     let style = prepare::motion_safe_skeleton(style, node, from_ancestor.in_skeleton);
     let can_measure_grid_height = !has_display_contents(&style)
@@ -572,7 +578,7 @@ pub(super) fn render_node(
         host_props::Leading {
             scroll_prop: layout.scroll_prop,
             backdrop_parts: &backdrop_parts,
-            backdrop_blur: layout.backdrop_blur.as_ref(),
+            backdrop_blur: backdrop_blur.as_ref(),
             backdrop_filter: backdrop_filter.as_ref(),
             link_interaction,
         },

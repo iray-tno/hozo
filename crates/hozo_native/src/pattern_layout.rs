@@ -4,13 +4,20 @@
 
 use hozo_ir::{Condition, Position, Primitive, StyleDeclaration, StyleProperty};
 
+pub(super) struct BackdropBlurCandidate {
+    original: StyleDeclaration,
+    condition: Condition,
+    /// `Some(px)` for `blur(...)`, `None` for `backdrop-blur-none`.
+    radius: Option<String>,
+}
+
 pub(super) struct Layout {
     pub style: Vec<StyleDeclaration>,
     pub scroll_prop: Option<&'static str>,
     pub backdrop: Vec<StyleDeclaration>,
-    /// `backdrop:backdrop-blur-*`'s radius in px, which the Dialog draws
-    /// through the backdrop-filter adapter behind its panel (#1310).
-    pub backdrop_blur: Option<String>,
+    /// Candidate `backdrop:backdrop-blur-*` declarations resolved after `adapt`
+    /// once the element's condition target and runtime hooks are available.
+    pub backdrop_blur_candidates: Vec<BackdropBlurCandidate>,
 }
 
 pub(super) fn applies(primitive: Primitive, slot: &str) -> bool {
@@ -29,14 +36,14 @@ pub(super) fn adapt(
             style: declarations,
             scroll_prop: None,
             backdrop: Vec::new(),
-            backdrop_blur: None,
+            backdrop_blur_candidates: Vec::new(),
         };
     }
     let mut out = Layout {
         style: Vec::new(),
         scroll_prop: None,
         backdrop: Vec::new(),
-        backdrop_blur: None,
+        backdrop_blur_candidates: Vec::new(),
     };
     for declaration in declarations {
         if declaration.condition == Condition::Always {
@@ -72,21 +79,47 @@ pub(super) fn adapt(
         // `background-color` went before, so `backdrop:px-4` stayed on the
         // panel, was reported as not wired, and wrote a StyleSheet entry under
         // the scrim's own key, overwriting it (#1311). A backdrop filter is not
-        // a style the scrim can take: an unconditional blur is handed over as
-        // its radius, for the Dialog to draw through the backdrop-filter
-        // adapter (#1310); any other stays behind and is refused.
+        // a style the scrim can take: blur radii (unconditional or guarded by
+        // Native-wired conditions) are handed over as `hozoBackdropBlur` for
+        // the Dialog to draw through the backdrop-filter adapter (#1310); any
+        // other filter function or unwired condition stays behind and is refused.
         if crate::pattern::backdrop_style_prop(primitive, slot).is_some() {
-            if let StyleProperty::BackdropFilter(hozo_ir::FilterFunction::Blur, value) =
-                &declaration.property
-            {
-                let radius = value
-                    .strip_prefix("blur(")
-                    .and_then(|rest| rest.strip_suffix("px)"));
-                if let (Some(radius), Some(Condition::Always)) =
-                    (radius, backdrop_condition(&declaration.condition))
-                {
-                    out.backdrop_blur = Some(radius.to_string());
-                    continue;
+            if let Some(condition) = backdrop_condition(&declaration.condition) {
+                match &declaration.property {
+                    StyleProperty::BackdropFilter(hozo_ir::FilterFunction::Blur, value)
+                        if value.is_empty() =>
+                    {
+                        out.backdrop_blur_candidates.push(BackdropBlurCandidate {
+                            original: declaration,
+                            condition,
+                            radius: None,
+                        });
+                        continue;
+                    }
+                    StyleProperty::BackdropFilter(hozo_ir::FilterFunction::Blur, value) => {
+                        if let Some(px) = value
+                            .strip_prefix("blur(")
+                            .and_then(|rest| rest.strip_suffix(')'))
+                            .and_then(hozo_ir::resolve_native_length_px)
+                            .filter(|px| *px >= 0.0)
+                        {
+                            out.backdrop_blur_candidates.push(BackdropBlurCandidate {
+                                original: declaration,
+                                condition,
+                                radius: Some(px.to_string()),
+                            });
+                            continue;
+                        }
+                    }
+                    StyleProperty::BackdropFilter(hozo_ir::FilterFunction::None, _) => {
+                        out.backdrop_blur_candidates.push(BackdropBlurCandidate {
+                            original: declaration,
+                            condition,
+                            radius: None,
+                        });
+                        continue;
+                    }
+                    _ => {}
                 }
             }
         }
@@ -104,6 +137,58 @@ pub(super) fn adapt(
         out.style.push(declaration);
     }
     out
+}
+
+/// Resolves `backdrop:backdrop-blur-*` / `backdrop:backdrop-blur-none` into a
+/// single `hozoBackdropBlur` JS expression (preserving last-wins cascade order
+/// across conditions). Any candidate whose condition cannot be evaluated on
+/// Native is pushed back onto `layout.style` so refusal diagnostics still fire.
+pub(super) fn resolve_backdrop_blur(
+    layout: &mut Layout,
+    target: &crate::conditions::StyleTarget<'_>,
+    source: &str,
+    runtime: &mut crate::context::RuntimeNeeds,
+) -> Option<String> {
+    let candidates = std::mem::take(&mut layout.backdrop_blur_candidates);
+    if candidates.is_empty() {
+        return None;
+    }
+    let mut base: Option<Option<String>> = None;
+    let mut conditional: Vec<(String, String)> = Vec::new();
+    let mut scratch = crate::context::RuntimeNeeds::default();
+
+    for candidate in candidates {
+        match crate::conditions::resolve_condition_guard(
+            &candidate.condition,
+            target,
+            source,
+            &mut scratch,
+            false,
+        ) {
+            Ok(crate::conditions::ResolvedCondition::Always) => {
+                base = Some(candidate.radius);
+            }
+            Ok(crate::conditions::ResolvedCondition::Never) => {}
+            Ok(crate::conditions::ResolvedCondition::Guarded { expr, .. }) => {
+                let value = candidate.radius.unwrap_or_else(|| "undefined".to_string());
+                conditional.push((expr, value));
+            }
+            Err(_) => {
+                layout.style.push(candidate.original);
+            }
+        }
+    }
+
+    let base_radius = base.flatten();
+    if base_radius.is_none() && conditional.is_empty() {
+        return None;
+    }
+    runtime.hooks.extend(scratch.hooks);
+    let mut acc = base_radius.unwrap_or_else(|| "undefined".to_string());
+    for (guard, value) in conditional {
+        acc = format!("{guard} ? {value} : {acc}");
+    }
+    Some(acc)
 }
 
 fn backdrop_condition(condition: &Condition) -> Option<Condition> {
@@ -348,6 +433,28 @@ mod backdrop_keys {
         let source = r#"import { View } from '@hozo/core'; function C() { return <View className="backdrop:backdrop-blur-xs" /> }"#;
         let parsed = hozo_parser::parse_tsx(source);
         let out = crate::lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(!out.jsx.contains("hozoBackdropBlur"), "{}", out.jsx);
+        assert!(!out.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn conditional_and_arbitrary_backdrop_blur_lower_to_guarded_radius() {
+        let source = r#"import { Dialog } from '@hozo/core'; function C() { return <Dialog className="backdrop:backdrop-blur-[2rem] dark:backdrop:backdrop-blur-md motion-reduce:backdrop:backdrop-blur-none" open onClose={close} accessibilityLabel="Test" /> }"#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let out = crate::lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+        assert!(
+            out.jsx.contains(
+                "hozoBackdropBlur={__hozoEnv_motion_reduce ? undefined : __hozoDark ? 12 : 32}"
+            ),
+            "{}",
+            out.jsx
+        );
+
+        // Unwired interaction condition on Dialog backdrop blur still diagnoses.
+        let bad = r#"import { Dialog } from '@hozo/core'; function C() { return <Dialog className="hover:backdrop:backdrop-blur-md" open onClose={close} accessibilityLabel="Test" /> }"#;
+        let parsed = hozo_parser::parse_tsx(bad);
+        let out = crate::lower(&parsed.roots[0].node, bad, &Theme::default());
         assert!(!out.jsx.contains("hozoBackdropBlur"), "{}", out.jsx);
         assert!(!out.diagnostics.is_empty());
     }

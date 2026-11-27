@@ -282,6 +282,19 @@ const PROBE_CONTEXTS = [
       `      <View className="${candidate}">x</View>\n    </View>\n  )\n}\n`,
   },
   {
+    // `backdrop:` styles a Dialog's modal scrim (`hozoBackdropStyle`) on
+    // Native, so it has a driver only on a Dialog. Gated to candidates that
+    // use `backdrop:` so unrelated utilities are not measured against Dialog's
+    // modal host restrictions, matching `View with a transition` above.
+    name: 'Dialog',
+    appliesTo: (candidate: string) => candidate.split(':').includes('backdrop'),
+    render: (candidate: string) =>
+      `import { Dialog } from '@hozo/core'\n` +
+      `export function C({ open, onClose }) {\n` +
+      `  return <Dialog open={open} onClose={onClose} accessibilityLabel="Dialog" className="${candidate}" />\n` +
+      `}\n`,
+  },
+  {
     // `starting:` is the frame an enter transition starts from, so it has a
     // driver only beside a `transition-*` class on the same element. With
     // no context carrying one, all of its cases were refused, each for want
