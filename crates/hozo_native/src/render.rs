@@ -271,6 +271,7 @@ pub(super) fn render_node(
         },
         node,
         theme,
+        cx.runtime,
         cx.diagnostics,
     );
 

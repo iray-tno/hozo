@@ -22,18 +22,22 @@ pub(super) struct Lowered {
 
 pub(super) fn native_backdrop_filter(
     declaration: &StyleDeclaration,
+    runtime: &mut RuntimeNeeds,
 ) -> Option<NativeBackdropFilter> {
     if declaration.condition != Condition::Always {
         return None;
     }
     match &declaration.property {
         StyleProperty::BackdropFilter(FilterFunction::None, _) => Some(NativeBackdropFilter::None),
-        StyleProperty::BackdropFilter(FilterFunction::Blur, value) => value
-            .strip_prefix("blur(")?
-            .strip_suffix(')')
-            .and_then(hozo_ir::resolve_native_length_px)
-            .filter(|px| *px >= 0.0)
-            .map(|radius| NativeBackdropFilter::Blur(radius.to_string())),
+        StyleProperty::BackdropFilter(FilterFunction::Blur, value) => {
+            let inner = value.strip_prefix("blur(")?.strip_suffix(')')?;
+            if let Some(px) = hozo_ir::resolve_native_length_px(inner).filter(|px| *px >= 0.0) {
+                return Some(NativeBackdropFilter::Blur(px.to_string()));
+            }
+            let expr = crate::layout::viewport_length_str(inner, true)?;
+            runtime.hooks.push(RuntimeHook::Viewport);
+            Some(NativeBackdropFilter::Blur(expr))
+        }
         _ => None,
     }
 }
@@ -45,6 +49,7 @@ pub(super) fn report_refused(
     elsewhere: Lowered,
     node: &Node,
     theme: &Theme,
+    runtime: &mut RuntimeNeeds,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<NativeBackdropFilter> {
     let mut backdrop_filter = None;
@@ -113,7 +118,7 @@ pub(super) fn report_refused(
             });
             continue;
         }
-        if let Some(filter) = native_backdrop_filter(declaration) {
+        if let Some(filter) = native_backdrop_filter(declaration, runtime) {
             backdrop_filter = Some(filter);
             continue;
         }

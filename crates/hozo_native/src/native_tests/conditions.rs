@@ -1720,20 +1720,29 @@ fn spin_animation_uses_one_native_driver_hook() {
 
 #[test]
 fn a_partial_viewport_size_multiplies_the_window() {
+    let theme = Theme::default();
     assert_eq!(
-        take_viewport_object(&mut vec![StyleProperty::Width(
-            hozo_ir::Dimension::ViewportWidth(50.0)
-        )]),
+        take_viewport_object(
+            &mut vec![StyleProperty::Width(hozo_ir::Dimension::ViewportWidth(
+                50.0
+            ))],
+            &[],
+            &theme,
+        ),
         Some("{ width: __hozoViewport.width * 0.5 }".to_string())
     );
     assert_eq!(
-        take_viewport_object(&mut vec![StyleProperty::MaxHeight(
-            hozo_ir::Dimension::ViewportHeight(100.0)
-        )]),
+        take_viewport_object(
+            &mut vec![StyleProperty::MaxHeight(
+                hozo_ir::Dimension::ViewportHeight(100.0)
+            )],
+            &[],
+            &theme,
+        ),
         Some("{ maxHeight: __hozoViewport.height }".to_string())
     );
     assert_eq!(
-        take_viewport_object(&mut vec![StyleProperty::Opacity(0.5)]),
+        take_viewport_object(&mut vec![StyleProperty::Opacity(0.5)], &[], &theme),
         None
     );
 }
@@ -1743,6 +1752,7 @@ fn a_later_native_key_wins_even_when_one_write_is_inline() {
     use hozo_ir::{Dimension, Length};
     use StyleProperty::*;
 
+    let theme = Theme::default();
     // inset-block expands to two keys. A later fixed top replaces only
     // that half; putting both viewport keys after the sheet would undo it.
     let mut props = vec![
@@ -1750,7 +1760,7 @@ fn a_later_native_key_wins_even_when_one_write_is_inline() {
         InsetTop(Dimension::Length(Length::Px(16.0))),
     ];
     assert_eq!(
-        take_viewport_object(&mut props).as_deref(),
+        take_viewport_object(&mut props, &[], &theme).as_deref(),
         Some("{ bottom: __hozoViewport.height * 0.1 }")
     );
     assert_eq!(props, vec![InsetTop(Dimension::Length(Length::Px(16.0)))]);
@@ -1760,14 +1770,14 @@ fn a_later_native_key_wins_even_when_one_write_is_inline() {
         Width(Dimension::ViewportWidth(50.0)),
     ];
     assert_eq!(
-        take_viewport_object(&mut props).as_deref(),
+        take_viewport_object(&mut props, &[], &theme).as_deref(),
         Some("{ width: __hozoViewport.width * 0.5 }")
     );
     let mut props = vec![
         Width(Dimension::ViewportWidth(50.0)),
         InlineSize(Dimension::Length(Length::Px(20.0))),
     ];
-    assert_eq!(take_viewport_object(&mut props), None);
+    assert_eq!(take_viewport_object(&mut props, &[], &theme), None);
 }
 
 #[test]

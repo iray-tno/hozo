@@ -41,7 +41,7 @@ pub(super) fn inline_parts(
     // inline object read from a hook instead, so it stays in the same
     // style array -- and therefore in the same last-wins order -- as the
     // static entry it sits beside.
-    let viewport = take_viewport_object(&mut props);
+    let viewport = take_viewport_object(&mut props, declarations, theme);
     if viewport.is_some() {
         runtime.hooks.push(RuntimeHook::Viewport);
     }

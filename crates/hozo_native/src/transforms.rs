@@ -44,6 +44,9 @@ pub(super) fn can_mix(declarations: &[hozo_ir::StyleDeclaration]) -> bool {
     declarations
         .iter()
         .any(|d| slots(&d.property) != 0 || is_control(&d.property))
+        && !declarations
+            .iter()
+            .any(|d| crate::layout::is_viewport_translate(&d.property))
 }
 
 /// Whether separate style objects write different transform slots.

@@ -601,6 +601,10 @@ fn translate_dim_js(
         needs.percent |= expr_needs.percent;
         return Some(js);
     }
+    if let Some(js) = crate::layout::viewport_dim_js(dim, false) {
+        needs.viewport = true;
+        return Some(js);
+    }
     match dim {
         Dimension::Percent(pct) if pct.is_finite() => Some(format!("'{pct}%'")),
         Dimension::Length(length)

@@ -7,8 +7,9 @@ use hozo_ir::{Condition, Position, Primitive, StyleDeclaration, StyleProperty};
 pub(super) struct BackdropBlurCandidate {
     original: StyleDeclaration,
     condition: Condition,
-    /// `Some(px)` for `blur(...)`, `None` for `backdrop-blur-none`.
+    /// `Some(expr)` for `blur(...)`, `None` for `backdrop-blur-none`.
     radius: Option<String>,
+    uses_viewport: bool,
 }
 
 pub(super) struct Layout {
@@ -93,22 +94,35 @@ pub(super) fn adapt(
                             original: declaration,
                             condition,
                             radius: None,
+                            uses_viewport: false,
                         });
                         continue;
                     }
                     StyleProperty::BackdropFilter(hozo_ir::FilterFunction::Blur, value) => {
-                        if let Some(px) = value
+                        if let Some(inner) = value
                             .strip_prefix("blur(")
                             .and_then(|rest| rest.strip_suffix(')'))
-                            .and_then(hozo_ir::resolve_native_length_px)
-                            .filter(|px| *px >= 0.0)
                         {
-                            out.backdrop_blur_candidates.push(BackdropBlurCandidate {
-                                original: declaration,
-                                condition,
-                                radius: Some(px.to_string()),
-                            });
-                            continue;
+                            if let Some(px) =
+                                hozo_ir::resolve_native_length_px(inner).filter(|px| *px >= 0.0)
+                            {
+                                out.backdrop_blur_candidates.push(BackdropBlurCandidate {
+                                    original: declaration,
+                                    condition,
+                                    radius: Some(px.to_string()),
+                                    uses_viewport: false,
+                                });
+                                continue;
+                            }
+                            if let Some(expr) = crate::layout::viewport_length_str(inner, true) {
+                                out.backdrop_blur_candidates.push(BackdropBlurCandidate {
+                                    original: declaration,
+                                    condition,
+                                    radius: Some(expr),
+                                    uses_viewport: true,
+                                });
+                                continue;
+                            }
                         }
                     }
                     StyleProperty::BackdropFilter(hozo_ir::FilterFunction::None, _) => {
@@ -116,6 +130,7 @@ pub(super) fn adapt(
                             original: declaration,
                             condition,
                             radius: None,
+                            uses_viewport: false,
                         });
                         continue;
                     }
@@ -153,8 +168,8 @@ pub(super) fn resolve_backdrop_blur(
     if candidates.is_empty() {
         return None;
     }
-    let mut base: Option<Option<String>> = None;
-    let mut conditional: Vec<(String, String)> = Vec::new();
+    let mut base: Option<(Option<String>, bool)> = None;
+    let mut conditional: Vec<(String, String, bool)> = Vec::new();
     let mut scratch = crate::context::RuntimeNeeds::default();
 
     for candidate in candidates {
@@ -166,12 +181,12 @@ pub(super) fn resolve_backdrop_blur(
             false,
         ) {
             Ok(crate::conditions::ResolvedCondition::Always) => {
-                base = Some(candidate.radius);
+                base = Some((candidate.radius, candidate.uses_viewport));
             }
             Ok(crate::conditions::ResolvedCondition::Never) => {}
             Ok(crate::conditions::ResolvedCondition::Guarded { expr, .. }) => {
                 let value = candidate.radius.unwrap_or_else(|| "undefined".to_string());
-                conditional.push((expr, value));
+                conditional.push((expr, value, candidate.uses_viewport));
             }
             Err(_) => {
                 layout.style.push(candidate.original);
@@ -179,13 +194,19 @@ pub(super) fn resolve_backdrop_blur(
         }
     }
 
-    let base_radius = base.flatten();
+    let (base_radius, base_vp) = match base {
+        Some((radius, vp)) => (radius, vp),
+        None => (None, false),
+    };
     if base_radius.is_none() && conditional.is_empty() {
         return None;
     }
     runtime.hooks.extend(scratch.hooks);
+    if base_vp || conditional.iter().any(|(_, _, vp)| *vp) {
+        runtime.hooks.push(crate::conditions::RuntimeHook::Viewport);
+    }
     let mut acc = base_radius.unwrap_or_else(|| "undefined".to_string());
-    for (guard, value) in conditional {
+    for (guard, value, _) in conditional {
         acc = format!("{guard} ? {value} : {acc}");
     }
     Some(acc)
@@ -284,6 +305,131 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn viewport_units_lower_across_all_numeric_native_length_properties() {
+        // Scalar length families: flex-basis, border-radius, border-width, outline, typography.
+        let scalar = compile(
+            r#"import { View, Text } from '@hozo/core'; function C() { return <View className="basis-[50vw] rounded-[10vh] rounded-tl-[2vw] border-[1vh] outline-[1vh] outline-offset-[-1vh]"><Text className="text-[5vw] leading-[6vh] tracking-[-0.5vw]">hi</Text></View> }"#,
+        );
+        assert!(scalar.diagnostics.is_empty(), "{:?}", scalar.diagnostics);
+        for snippet in [
+            "flexBasis: __hozoViewport.width * 0.5",
+            "borderRadius: __hozoViewport.height * 0.1",
+            "borderTopLeftRadius: __hozoViewport.width * 0.02",
+            "borderTopWidth: __hozoViewport.height * 0.01",
+            "outlineWidth: __hozoViewport.height * 0.01",
+            "outlineOffset: __hozoViewport.height * -0.01",
+            "fontSize: __hozoViewport.width * 0.05",
+            "lineHeight: __hozoViewport.height * 0.06",
+            "letterSpacing: __hozoViewport.width * -0.005",
+        ] {
+            assert!(
+                scalar.jsx.contains(snippet),
+                "missing `{snippet}` in {}",
+                scalar.jsx
+            );
+        }
+
+        // Transforms compose viewport translate with sibling static transforms.
+        let transform = compile(
+            r#"import { View } from '@hozo/core'; function C() { return <View className="rotate-45 translate-y-[calc(100vh-4rem)]" /> }"#,
+        );
+        assert!(
+            transform.diagnostics.is_empty(),
+            "{:?}",
+            transform.diagnostics
+        );
+        assert!(
+            transform.jsx.contains(
+                "transform: [{ translateY: __hozoViewport.height - 64 }, { rotate: '45deg' }]"
+            ),
+            "{}",
+            transform.jsx
+        );
+
+        // Child spacing & dividers.
+        let spaced = compile(
+            r#"import { View } from '@hozo/core'; function C() { return <View className="space-y-[5vh] divide-y-[1vh]"><View /><View /></View> }"#,
+        );
+        assert!(spaced.diagnostics.is_empty(), "{:?}", spaced.diagnostics);
+        assert!(spaced.jsx.contains("<HozoSpaced "), "{}", spaced.jsx);
+        assert!(
+            spaced
+                .jsx
+                .contains("marginBottom: __hozoViewport.height * 0.05"),
+            "{}",
+            spaced.jsx
+        );
+        assert!(
+            spaced
+                .jsx
+                .contains("borderBottomWidth: __hozoViewport.height * 0.01"),
+            "{}",
+            spaced.jsx
+        );
+
+        // Rings & backdrop blur & grid tracks.
+        let ring = compile(
+            r#"import { View } from '@hozo/core'; function C() { return <View className="ring-[1vh] ring-red-500" /> }"#,
+        );
+        assert!(ring.diagnostics.is_empty(), "{:?}", ring.diagnostics);
+        assert!(
+            ring.jsx
+                .contains("boxShadow: `0 0 0 ${__hozoViewport.height * 0.01}px"),
+            "{}",
+            ring.jsx
+        );
+
+        let blur = compile(
+            r#"import { View } from '@hozo/core'; function C() { return <View className="backdrop-blur-[2vh]" /> }"#,
+        );
+        assert!(blur.diagnostics.is_empty(), "{:?}", blur.diagnostics);
+        assert!(
+            blur.jsx
+                .contains("hozoBlurRadius={__hozoViewport.height * 0.02}"),
+            "{}",
+            blur.jsx
+        );
+
+        let grid = compile(
+            r#"import { View } from '@hozo/core'; function C() { return <View className="grid grid-cols-[25vw_1fr] grid-rows-[50vh]"><View /></View> }"#,
+        );
+        assert!(grid.diagnostics.is_empty(), "{:?}", grid.diagnostics);
+        assert!(
+            grid.jsx
+                .contains("{ kind: 'points', value: __hozoViewport.width * 0.25 }"),
+            "{}",
+            grid.jsx
+        );
+        assert!(
+            grid.jsx
+                .contains("{ kind: 'points', value: __hozoViewport.height * 0.5 }"),
+            "{}",
+            grid.jsx
+        );
+
+        // Negative viewport literals on non-negative properties remain refused.
+        for bad in [
+            "rounded-[-10vh]",
+            "border-[-1vh]",
+            "text-[-5vw]",
+            "divide-y-[-1vh]",
+            "ring-[-1vh]",
+            "backdrop-blur-[-2vh]",
+        ] {
+            let out = compile(&format!(
+                "import {{ View }} from '@hozo/core'; function C() {{ return <View className=\"{bad}\" /> }}"
+            ));
+            assert!(
+                out.diagnostics
+                    .iter()
+                    .any(|d| d.severity == Severity::Error),
+                "{bad} should be refused: {:?}",
+                out.diagnostics
+            );
+        }
     }
 
     #[test]
