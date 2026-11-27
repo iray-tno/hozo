@@ -155,6 +155,16 @@ const Drawing = memo(function Drawing({
                   fill={color}
                 />
               )
+            case 'area':
+              // A series of lone values has no band to fill.
+              return mark.path ? (
+                <Path
+                  key={`f${mark.series}`}
+                  d={mark.path}
+                  fill={color}
+                  fillOpacity={mark.opacity}
+                />
+              ) : null
             case 'line':
               return (
                 <Path

@@ -12,6 +12,8 @@ import { datumSentence, nextDatum } from './active.ts'
 import { ChartSvg } from './chart-svg.tsx'
 import { ChartTable } from './chart-table.tsx'
 import {
+  type AreaChartInput,
+  areaChartModel,
   type BarChartInput,
   barChartModel,
   type ChartInput,
@@ -41,6 +43,8 @@ export type LineChartProps = Common & {
   /** Draw a dot at each value. */
   points?: boolean
 }
+
+export type AreaChartProps = LineChartProps & Pick<AreaChartInput, 'stacked'>
 
 export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin'> & {
   /** The field each slice's size comes from, and what to call it when read. */
@@ -187,6 +191,16 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     )
   }
 
+  function AreaChart({ points, stacked, ...props }: AreaChartProps) {
+    return (
+      <Chart
+        props={props}
+        points={points}
+        model={(width) => areaChartModel({ ...props, stacked, width })}
+      />
+    )
+  }
+
   // A pie is one series whose values are also read as shares of the
   // whole, so the table, the summary and the sentence say "$120 (40%)".
   function PieChart({ value, colors, innerRadius, ...props }: PieChartProps) {
@@ -204,5 +218,5 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     return <PieChart {...props} innerRadius={innerRadius} />
   }
 
-  return { BarChart, LineChart, PieChart, DonutChart }
+  return { BarChart, LineChart, AreaChart, PieChart, DonutChart }
 }

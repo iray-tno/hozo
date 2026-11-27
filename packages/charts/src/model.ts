@@ -63,6 +63,11 @@ export interface BarChartInput extends ChartInput {
   stacked?: boolean
 }
 
+export interface AreaChartInput extends ChartInput {
+  /** Each series' band sits on the ones before it, so the top edge is the total. */
+  stacked?: boolean
+}
+
 export type Mark =
   | {
       kind: 'bar'
@@ -74,6 +79,11 @@ export type Mark =
       height: number
     }
   | { kind: 'line'; series: number; path: string }
+  /**
+   * The filled band under a line, or between two in a stack; translucent
+   * when the bands of an unstacked chart overlap.
+   */
+  | { kind: 'area'; series: number; path: string; opacity: number }
   | { kind: 'point'; series: number; datum: number; cx: number; cy: number }
   /**
    * A pie or donut slice; `cx`/`cy` is the middle of its ring, and `tone`
@@ -215,31 +225,85 @@ function extent(values: (number | undefined)[][], includeZero: boolean): [number
   return lo <= hi ? [lo, hi] : [0, 1]
 }
 
+/**
+ * A stack's domain: positives stack up and negatives down from zero, so it
+ * is the largest sum each way, not the largest value.
+ */
+function stackedExtent(values: (number | undefined)[][]): [number, number] {
+  let lo = 0
+  let hi = 0
+  for (let datum = 0; datum < (values[0]?.length ?? 0); datum++) {
+    let up = 0
+    let down = 0
+    for (const series of values) {
+      const value = series[datum] ?? 0
+      if (value >= 0) up += value
+      else down += value
+    }
+    lo = Math.min(lo, down)
+    hi = Math.max(hi, up)
+  }
+  return lo === hi ? [0, 1] : [lo, hi]
+}
+
+/**
+ * Each series' band at each datum, `[from, to]` in data units: from the
+ * baseline, or stacked on the series before it the way bars are. A gap has
+ * no band, and adds nothing to the stack above it.
+ */
+function bands(
+  values: (number | undefined)[][],
+  stacked: boolean,
+  baseline: number,
+): ([number, number] | undefined)[][] {
+  const up: number[] = []
+  const down: number[] = []
+  return values.map((column) =>
+    column.map((value, datum) => {
+      if (value === undefined) return undefined
+      if (!stacked) return [baseline, value]
+      const stack = value >= 0 ? up : down
+      const from = stack[datum] ?? 0
+      stack[datum] = from + value
+      return [from, from + value]
+    }),
+  )
+}
+
+/**
+ * A closed path per unbroken run of bands: along the tops, then back along
+ * the bottoms. A run of one value has no width and draws nothing.
+ */
+export function areaPath(
+  points: readonly (readonly [x: number, top: number, bottom: number] | undefined)[],
+): string {
+  let path = ''
+  let run: (readonly [number, number, number])[] = []
+  const close = () => {
+    if (run.length > 1) {
+      path += run.map(([x, top], i) => `${i ? 'L' : 'M'}${round(x)},${round(top)}`).join('')
+      for (let i = run.length - 1; i >= 0; i--) {
+        const [x, , bottom] = run[i] as readonly [number, number, number]
+        path += `L${round(x)},${round(bottom)}`
+      }
+      path += 'Z'
+    }
+    run = []
+  }
+  for (const point of points) {
+    if (point) run.push(point)
+    else close()
+  }
+  close()
+  return path
+}
+
 export function barChartModel(input: BarChartInput): ChartModel {
   const categories = categoriesOf(input)
   const values = input.series.map((series) => input.data.map((row) => rowValue(row, series.key)))
   const fontSize = input.fontSize ?? 12
 
-  // Stacked bars stack positives up and negatives down from zero, so the
-  // domain is the largest sum each way, not the largest value.
-  let domain: [number, number]
-  if (input.stacked) {
-    let lo = 0
-    let hi = 0
-    for (let datum = 0; datum < input.data.length; datum++) {
-      let up = 0
-      let down = 0
-      for (const series of values) {
-        const value = series[datum] ?? 0
-        if (value >= 0) up += value
-        else down += value
-      }
-      lo = Math.min(lo, down)
-      hi = Math.max(hi, up)
-    }
-    domain = lo === hi ? [0, 1] : [lo, hi]
-  } else domain = extent(values, true)
-
+  const domain = input.stacked ? stackedExtent(values) : extent(values, true)
   const { plot, y, yTicks } = frame(input, domain)
   const band: BandScale<number> = bandScale(
     input.data.map((_, i) => i),
@@ -315,10 +379,26 @@ export function linePath(points: readonly (readonly [number, number] | undefined
 const round = (value: number) => Math.round(value * 100) / 100
 
 export function lineChartModel(input: ChartInput): ChartModel {
+  return pointChart(input, undefined)
+}
+
+/**
+ * Lines with the band under each filled. Unstacked, the bands run down to
+ * zero, so zero is in the domain; stacked, each line is the running total
+ * and the table still reads each series' own value.
+ */
+export function areaChartModel(input: AreaChartInput): ChartModel {
+  return pointChart(input, input.stacked ?? false)
+}
+
+/** Line and Area: one point per datum, a line through each series, and for Area its bands. */
+function pointChart(input: ChartInput, area: boolean | undefined): ChartModel {
   const categories = categoriesOf(input)
   const values = input.series.map((series) => input.data.map((row) => rowValue(row, series.key)))
   const fontSize = input.fontSize ?? 12
-  const { plot, y, yTicks } = frame(input, extent(values, false))
+  const domain =
+    area === undefined ? extent(values, false) : area ? stackedExtent(values) : extent(values, true)
+  const { plot, y, yTicks } = frame(input, domain)
   const x: BandScale<number> = pointScale(
     input.data.map((_, i) => i),
     [plot.x, plot.x + plot.width],
@@ -326,9 +406,24 @@ export function lineChartModel(input: ChartInput): ChartModel {
   )
   const centers = input.data.map((_, i) => x(i) as number)
   const marks: Mark[] = []
-  for (const [series, column] of values.entries()) {
-    const points = column.map((value, datum) =>
-      value === undefined ? undefined : ([centers[datum] as number, y(value)] as const),
+  const baseline = Math.min(Math.max(0, y.domain[0]), y.domain[1])
+  const spans = bands(values, area ?? false, baseline)
+  // Bands first, so every line and dot is drawn over every fill.
+  if (area !== undefined)
+    for (const [series, column] of spans.entries())
+      marks.push({
+        kind: 'area',
+        series,
+        path: areaPath(
+          column.map((span, datum) =>
+            span ? [centers[datum] as number, y(span[1]), y(span[0])] : undefined,
+          ),
+        ),
+        opacity: area ? 0.7 : 0.25,
+      })
+  for (const [series, column] of spans.entries()) {
+    const points = column.map((span, datum) =>
+      span === undefined ? undefined : ([centers[datum] as number, y(span[1])] as const),
     )
     marks.push({ kind: 'line', series, path: linePath(points) })
     for (const [datum, point] of points.entries())

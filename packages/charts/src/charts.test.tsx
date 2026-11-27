@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { BarChart, DEFAULT_PALETTE, LineChart, NO_VALUE } from './index.tsx'
+import { AreaChart, BarChart, DEFAULT_PALETTE, LineChart, NO_VALUE } from './index.tsx'
 
 const data = [
   { month: 'Jan', online: 120, store: 80 },
@@ -50,6 +50,24 @@ test('a Line chart draws a broken path at the gap, and dots only when asked', ()
   assert.doesNotMatch(plain, /<circle/)
   const dotted = renderToStaticMarkup(<LineChart {...props} points />)
   assert.equal([...dotted.matchAll(/<circle/g)].length, 5)
+})
+
+test('an Area chart fills under each line, and reads like a Line chart', () => {
+  const html = renderToStaticMarkup(
+    <AreaChart
+      accessibilityLabel="Sales"
+      data={data}
+      x={{ key: 'month' }}
+      series={series}
+      width={320}
+      height={200}
+    />,
+  )
+  const fills = [...html.matchAll(/<path [^>]*fill="([^"]+)"[^>]*fill-opacity="0.25"/g)]
+  assert.equal(fills.length, 1, 'the store, all lone values around February, has no band')
+  assert.equal(fills[0]?.[1], DEFAULT_PALETTE[0])
+  assert.equal([...html.matchAll(/fill="none"/g)].length, 2, 'both lines are still drawn')
+  assert.match(html, /<table/)
 })
 
 test('without a width the server draws nothing until the box is measured', () => {
