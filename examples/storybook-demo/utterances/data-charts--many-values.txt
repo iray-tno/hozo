@@ -1,0 +1,2 @@
+heading, Daily visits, level 2
+chart, Daily visits over 5,000 days, 5,000 categories, Day 1 to Day 5000. Visits: lowest 71 at Day 694, highest 730 at Day 1570. Too many to list as a table; step through them on the chart.

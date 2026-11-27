@@ -19,6 +19,11 @@ export function nextDatum(
       return active === undefined ? 0 : Math.min(count - 1, at + 1)
     case 'ArrowLeft':
       return active === undefined ? count - 1 : Math.max(0, at - 1)
+    // A tenth of the data per press, so a long series is crossed in ten.
+    case 'PageDown':
+      return Math.min(count - 1, at + Math.max(1, Math.round(count / 10)))
+    case 'PageUp':
+      return Math.max(0, (active ?? count) - Math.max(1, Math.round(count / 10)))
     case 'Home':
       return 0
     case 'End':

@@ -129,13 +129,45 @@ test('the drawing is one named tab stop, with a polite live region beside it', (
   )
   assert.match(
     html,
-    /<div role="group" aria-roledescription="chart" aria-label="Trend" tabindex="0"/,
+    /<div role="group" aria-roledescription="chart" aria-label="Trend" aria-describedby="[^"]+" tabindex="0"/,
   )
   assert.match(html, /aria-live="polite" aria-atomic="true"/)
   assert.ok(
     html.indexOf('tabindex') < html.indexOf('aria-hidden="true"'),
     'the hidden drawing is inside the tab stop',
   )
+})
+
+test('the chart is described by its summary, and a large one leaves the table out', () => {
+  const html = renderToStaticMarkup(
+    <BarChart
+      accessibilityLabel="Sales"
+      data={data}
+      x={{ key: 'month' }}
+      series={series}
+      width={320}
+      height={200}
+    />,
+  )
+  const id = html.match(/aria-describedby="([^"]+)"/)?.[1]
+  assert.ok(id)
+  assert.match(html, new RegExp(`<p id="${id}"[^>]*>3 categories, Jan to Mar\\.`))
+  const many = Array.from({ length: 1001 }, (_, i) => ({ month: `d${i}`, online: i }))
+  const large = (showTable: boolean) =>
+    renderToStaticMarkup(
+      <BarChart
+        accessibilityLabel="Sales"
+        data={many}
+        x={{ key: 'month' }}
+        series={[{ key: 'online', label: 'Online' }]}
+        width={320}
+        height={200}
+        showTable={showTable}
+      />,
+    )
+  assert.doesNotMatch(large(false), /<table/)
+  assert.match(large(false), /Too many to list as a table/)
+  assert.match(large(true), /<table/, 'showTable still lists every row')
 })
 
 test('the default palette keeps 3:1 against white and near-black', () => {

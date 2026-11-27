@@ -4,7 +4,7 @@
 // so the main demo's bundle budget keeps measuring what Hozo costs an app
 // that does not install charts.
 
-import { BarChart, LineChart } from '@hozo/charts'
+import { BarChart, DonutChart, LineChart, Sparkline } from '@hozo/charts'
 import { Text, View } from '@hozo/core'
 
 const sales = [
@@ -38,6 +38,18 @@ export function ChartsBench() {
         height={200}
         textColor="#4b5563"
         points
+      />
+      <DonutChart
+        accessibilityLabel="Native chart: revenue by channel"
+        data={sales}
+        x={{ key: 'month' }}
+        value={{ key: 'online', label: 'Online' }}
+        height={200}
+        textColor="#4b5563"
+      />
+      <Sparkline
+        accessibilityLabel="Native sparkline: online revenue"
+        values={[120, 200, 90, 160]}
       />
     </View>
   )

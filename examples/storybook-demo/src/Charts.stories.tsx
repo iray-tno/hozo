@@ -1,10 +1,10 @@
-// Charts (RFC 015): Bar and Line from @hozo/charts. Each is one tab stop;
+// Charts (RFC 015): Bar, Line, Pie and Donut from @hozo/charts. Each is one tab stop;
 // the arrow keys, Home and End move along the data and a live region reads
 // every series there, the pointer does the same with a tooltip, and a
 // screen reader also has the table of the data, out of sight unless shown.
 
-import { BarChart, LineChart } from '@hozo/charts'
-import { View } from '@hozo/primitives'
+import { BarChart, DonutChart, LineChart, PieChart, Sparkline } from '@hozo/charts'
+import { Text, View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
@@ -81,3 +81,94 @@ export const Default: StoryObj<typeof meta> = {}
 
 /** The same charts with their tables on screen, as `showTable` puts them. */
 export const WithTables: StoryObj<typeof meta> = { args: { showTable: true } }
+
+const channels = [
+  { channel: 'Online', revenue: 960 },
+  { channel: 'In store', revenue: 475 },
+  { channel: 'Partners', revenue: 310 },
+  { channel: 'Phone', revenue: null },
+  { channel: 'Wholesale', revenue: 220 },
+  { channel: 'Events', revenue: 85 },
+]
+const share = { key: 'revenue', label: 'Revenue', format: (value: number) => `$${value}` }
+
+/**
+ * A pie and a donut of the same revenue: the active slice is outlined and
+ * read with its share, and Phone, which has no figure, has no slice and no
+ * legend row but is still in the table.
+ */
+export const PieAndDonut: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="max-w-2xl gap-8 p-6 text-slate-700">
+      <Section className="gap-2">
+        <Heading level={2}>Pie</Heading>
+        <PieChart
+          accessibilityLabel="Revenue by channel"
+          data={channels}
+          x={{ key: 'channel', label: 'Channel' }}
+          value={share}
+          height={220}
+        />
+      </Section>
+      <Section className="gap-2">
+        <Heading level={2}>Donut</Heading>
+        <DonutChart
+          accessibilityLabel="Revenue by channel, as a donut"
+          data={channels}
+          x={{ key: 'channel', label: 'Channel' }}
+          value={share}
+          height={220}
+        />
+      </Section>
+    </View>
+  ),
+}
+
+const metrics = [
+  { name: 'Visits', week: [412, 380, 455, 71, 520, 730, 640] },
+  { name: 'Sign-ups', week: [12, 15, null, 9, 14, 22, 19] },
+  { name: 'Refunds', week: [3, 2, 2, 1, 1, 0, 0] },
+]
+
+/**
+ * Word-sized lines beside each metric. Each is one image whose name says
+ * where it starts and ends and its extremes; none is a tab stop.
+ */
+export const Sparklines: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="max-w-md gap-3 p-6 text-slate-700">
+      <Heading level={2}>This week</Heading>
+      {metrics.map((metric) => (
+        <View key={metric.name} className="flex-row items-center justify-between gap-4">
+          <Text>{metric.name}</Text>
+          <Sparkline accessibilityLabel={`${metric.name}, last 7 days`} values={metric.week} />
+        </View>
+      ))}
+    </View>
+  ),
+}
+
+const daily = Array.from({ length: 5000 }, (_, day) => ({
+  day: `Day ${day + 1}`,
+  visits: Math.round(400 + 250 * Math.sin(day / 40) + 80 * Math.sin(day / 3)),
+}))
+
+/**
+ * Five thousand values: too many rows for a table, so the summary stands in
+ * for it and the keys (Page Up and Page Down a tenth at a time) step through.
+ */
+export const ManyValues: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="max-w-2xl gap-2 p-6 text-slate-700">
+      <Heading level={2}>Daily visits</Heading>
+      <LineChart
+        accessibilityLabel="Daily visits over 5,000 days"
+        data={daily}
+        x={{ key: 'day' }}
+        y={{ label: 'Visits' }}
+        series={[{ key: 'visits', label: 'Visits' }]}
+        height={240}
+      />
+    </View>
+  ),
+}

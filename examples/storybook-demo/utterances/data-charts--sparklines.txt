@@ -1,0 +1,7 @@
+heading, This week, level 2
+Visits
+image, Visits, last 7 days: 7 values, from 412 to 640; lowest 71, highest 730.
+Sign-ups
+image, Sign-ups, last 7 days: 7 values, from 12 to 19; lowest 9, highest 22, 1 without a value.
+Refunds
+image, Refunds, last 7 days: 7 values, from 3 to 0; lowest 0, highest 3.

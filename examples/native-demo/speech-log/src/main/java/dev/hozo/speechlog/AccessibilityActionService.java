@@ -22,7 +22,11 @@ public final class AccessibilityActionService extends AccessibilityService {
         if (activated || event.getEventType() != AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
             return;
         AccessibilityNodeInfo target = event.getSource();
-        if (target == null || !TARGET_LABEL.contentEquals(target.getContentDescription())) return;
+        // A node read from its text (a chart's summary or table cell) has no
+        // content description, and contentEquals(null) throws, killing the
+        // service before TalkBack reaches the target.
+        CharSequence description = target == null ? null : target.getContentDescription();
+        if (description == null || !TARGET_LABEL.contentEquals(description)) return;
         Log.i(
                 TAG,
                 "target "

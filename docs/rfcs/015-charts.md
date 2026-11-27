@@ -1,6 +1,6 @@
 # RFC 015: Charts
 
-- **Status**: Phase 1 implemented and `@hozo/charts` published with the next release; Canvas rendering, pie and donut, and sparklines in progress
+- **Status**: Phase 1 implemented and `@hozo/charts` published with the next release; pie, donut and sparklines added; a Canvas renderer set aside after [measurement](../measurements/charts-scale.md)
 - **Authors**: claude-1
 - **Tracking issue**: [#154](https://github.com/iray-tno/hozo/issues/154)
 - **Target packages**: new `@hozo/charts`; existing `@hozo/svg`, `@hozo/canvas`, `@hozo/semantics`, `@hozo/behaviors`
@@ -155,6 +155,12 @@ from bars and points is worse than one built from the series.
   `adjustable` element: swipe up and down move the active datum, and its
   `accessibilityValue` is the same sentence. The name is therefore heard on
   the tab stop and on the table; each is a different way in.
+- **A summary, and no table past 1,000 rows.** The tab stop is described
+  by a summary: the categories' range and each series' lowest and highest
+  value, gaps counted. Above 1,000 categories the table is left out unless
+  `showTable` asks for it, because it was most of the first draw and no one
+  reads that many rows ([measured](../measurements/charts-scale.md)); the
+  summary says so, and Page Up/Page Down move a tenth of the data.
 - **Pointer and touch.** Hover on Web and touch on Native set the same
   active datum, so the tooltip, the announcement and the keyboard share
   one state. The tooltip is drawn in the SVG, so both platforms share it:
@@ -190,6 +196,10 @@ What is then left is decided afresh, not continued by default.
 - **Canvas renderer**, for data too large for one element per mark. It
   needs a measurement of where SVG stops being enough before it is worth
   building; the shared layer is ready for it.
+  [Measured](../measurements/charts-scale.md): at 20,000 bars the SVG
+  elements are about 100 ms of a 457 ms first draw and the accessible
+  table 351 ms, and Line draws one element per series at any size. Large
+  data needs a different accessible equivalent before a second renderer.
 - **Pie and donut, area, sparklines, scatter.** Area is a small step from
   Line and may come first.
 - **Time scale, log scale, brushing and zoom, animation.**

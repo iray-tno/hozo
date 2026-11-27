@@ -1,0 +1,72 @@
+heading, Pie, level 2
+chart, Revenue by channel, 6 categories, Online to Events. Revenue: lowest $85 (4.1%) at Events, highest $960 (46.8%) at Online, 1 without a value.
+table, Revenue by channel
+rowgroup
+row, Channel Revenue
+columnheader, Channel
+columnheader, Revenue
+end of row, Channel Revenue
+end of rowgroup
+rowgroup
+row, Online $960 (46.8%)
+rowheader, Online
+cell, $960 (46.8%)
+end of row, Online $960 (46.8%)
+row, In store $475 (23.2%)
+rowheader, In store
+cell, $475 (23.2%)
+end of row, In store $475 (23.2%)
+row, Partners $310 (15.1%)
+rowheader, Partners
+cell, $310 (15.1%)
+end of row, Partners $310 (15.1%)
+row, Phone No value
+rowheader, Phone
+cell, No value
+end of row, Phone No value
+row, Wholesale $220 (10.7%)
+rowheader, Wholesale
+cell, $220 (10.7%)
+end of row, Wholesale $220 (10.7%)
+row, Events $85 (4.1%)
+rowheader, Events
+cell, $85 (4.1%)
+end of row, Events $85 (4.1%)
+end of rowgroup
+end of table, Revenue by channel
+heading, Donut, level 2
+chart, Revenue by channel, as a donut, 6 categories, Online to Events. Revenue: lowest $85 (4.1%) at Events, highest $960 (46.8%) at Online, 1 without a value.
+table, Revenue by channel, as a donut
+rowgroup
+row, Channel Revenue
+columnheader, Channel
+columnheader, Revenue
+end of row, Channel Revenue
+end of rowgroup
+rowgroup
+row, Online $960 (46.8%)
+rowheader, Online
+cell, $960 (46.8%)
+end of row, Online $960 (46.8%)
+row, In store $475 (23.2%)
+rowheader, In store
+cell, $475 (23.2%)
+end of row, In store $475 (23.2%)
+row, Partners $310 (15.1%)
+rowheader, Partners
+cell, $310 (15.1%)
+end of row, Partners $310 (15.1%)
+row, Phone No value
+rowheader, Phone
+cell, No value
+end of row, Phone No value
+row, Wholesale $220 (10.7%)
+rowheader, Wholesale
+cell, $220 (10.7%)
+end of row, Wholesale $220 (10.7%)
+row, Events $85 (4.1%)
+rowheader, Events
+cell, $85 (4.1%)
+end of row, Events $85 (4.1%)
+end of rowgroup
+end of table, Revenue by channel, as a donut

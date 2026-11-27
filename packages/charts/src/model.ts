@@ -2,6 +2,7 @@
 // out (RFC 015 §4). Pure: no React, no platform, so the SVG renderer, a
 // later Canvas renderer and the accessible table all read one answer.
 
+import type { Radial } from './pie.ts'
 import {
   type BandScale,
   bandScale,
@@ -74,6 +75,19 @@ export type Mark =
     }
   | { kind: 'line'; series: number; path: string }
   | { kind: 'point'; series: number; datum: number; cx: number; cy: number }
+  /**
+   * A pie or donut slice; `cx`/`cy` is the middle of its ring, and `tone`
+   * its index into the palette, which is by slice rather than by row.
+   */
+  | {
+      kind: 'arc'
+      series: number
+      datum: number
+      tone: number
+      path: string
+      cx: number
+      cy: number
+    }
 
 export interface Tick {
   position: number
@@ -93,8 +107,13 @@ export interface ChartModel {
   yTicks: Tick[]
   /** The x centre of each datum, for pointer and touch to find the nearest. */
   centers: number[]
-  /** The datum nearest to an x position inside the chart, or -1 with no data. */
-  datumAt(x: number): number
+  /**
+   * The datum at a point in the chart: nearest in x for Bar and Line, the
+   * slice or legend row under it for a pie. -1 when there is none.
+   */
+  datumAt(x: number, y?: number): number
+  /** A pie's geometry; absent on Bar and Line. */
+  radial?: Radial
 }
 
 /** A row's value: finite, or a gap. A string or null is a gap, not zero. */
