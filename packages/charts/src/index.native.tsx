@@ -2,11 +2,19 @@ import { ChartBox } from './chart-box.native.tsx'
 import { createCharts } from './charts.tsx'
 import { createSparkline } from './sparkline.tsx'
 
-export const { BarChart, LineChart, AreaChart, PieChart, DonutChart } = createCharts(ChartBox)
+export const { BarChart, LineChart, AreaChart, ComposedChart, ScatterChart, PieChart, DonutChart } =
+  createCharts(ChartBox)
 // react-native-svg takes the name as a view prop; the view must also be one element.
 export const Sparkline = createSparkline({ accessible: true, accessibilityRole: 'image' })
-export { datumSentence, nextDatum } from './active.ts'
-export type { AreaChartProps, BarChartProps, LineChartProps, PieChartProps } from './charts.tsx'
+export { datumSentence, datumTitle, nextDatum } from './active.ts'
+export type {
+  AreaChartProps,
+  BarChartProps,
+  ComposedChartProps,
+  LineChartProps,
+  PieChartProps,
+  ScatterChartProps,
+} from './charts.tsx'
 export {
   type AreaChartInput,
   areaChartModel,
@@ -18,6 +26,9 @@ export {
   type ChartSeries,
   type ChartXAxis,
   type ChartYAxis,
+  type ComposedChartInput,
+  type ComposedSeries,
+  composedChartModel,
   estimateTextWidth,
   lineChartModel,
   linePath,
@@ -48,6 +59,12 @@ export {
   tickIncrement,
   ticks,
 } from './scale.ts'
+export {
+  type ScatterChartInput,
+  type ScatterName,
+  type ScatterXAxis,
+  scatterChartModel,
+} from './scatter.ts'
 export {
   type SparklineInput,
   type SparklineModel,

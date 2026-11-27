@@ -32,6 +32,11 @@ export function ChartTable({
           <HozoTableCell head scope="col">
             {categoryLabel}
           </HozoTableCell>
+          {model.xColumn?.inTable ? (
+            <HozoTableCell head scope="col">
+              {model.xColumn.label}
+            </HozoTableCell>
+          ) : null}
           {series.map((entry) => (
             <HozoTableCell key={entry.key} head scope="col">
               {entry.label}
@@ -47,6 +52,9 @@ export function ChartTable({
             <HozoTableCell head scope="row">
               {category}
             </HozoTableCell>
+            {model.xColumn?.inTable ? (
+              <HozoTableCell>{model.xColumn.values[datum]}</HozoTableCell>
+            ) : null}
             {series.map((entry, index) => {
               const value = model.values[index]?.[datum]
               return (

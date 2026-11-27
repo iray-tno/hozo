@@ -46,6 +46,23 @@ export interface Margin {
   left: number
 }
 
+/**
+ * A target, threshold or normal range on the value axis: a line at
+ * `value`, or a band from `value` to `to`. It is part of what the chart
+ * says, so the summary reads it after the series.
+ */
+export interface ChartReference {
+  value: number
+  to?: number
+  label: string
+}
+
+/** A reference placed on the value axis: `start` and `end` are positions. */
+export interface PlacedReference extends ChartReference {
+  start: number
+  end?: number
+}
+
 export interface ChartInput {
   data: readonly Record<string, unknown>[]
   x: ChartXAxis
@@ -57,6 +74,8 @@ export interface ChartInput {
   margin?: Partial<Margin>
   /** The tick label size the margins are estimated for. */
   fontSize?: number
+  /** Lines and bands on the value axis; the domain widens to show them. */
+  references?: readonly ChartReference[]
 }
 
 export interface BarChartInput extends ChartInput {
@@ -66,6 +85,15 @@ export interface BarChartInput extends ChartInput {
    * labels and rankings. `y` still describes the values, now along x.
    */
   horizontal?: boolean
+}
+
+/** A series of a composed chart, drawn as bars (the default) or as a line. */
+export interface ComposedSeries extends ChartSeries {
+  type?: 'bar' | 'line'
+}
+
+export interface ComposedChartInput extends ChartInput {
+  series: readonly ComposedSeries[]
 }
 
 export interface AreaChartInput extends ChartInput {
@@ -134,6 +162,14 @@ export interface ChartModel {
    * and `yTicks` the categories.
    */
   horizontal?: boolean
+  /**
+   * A scatter plot's x values, read with each point: `values` formatted in
+   * datum order, and how many rows had no x and were left out.
+   * `inTable` is false when the x value is already the row's name.
+   */
+  xColumn?: { label: string; values: string[]; missing: number; inTable: boolean }
+  /** Reference lines and bands, placed on the value axis (x when `horizontal`). */
+  references: PlacedReference[]
 }
 
 /** A row's value: finite, or a gap. A string or null is a gap, not zero. */
@@ -142,7 +178,7 @@ export function rowValue(row: Record<string, unknown>, key: string): number | un
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
-const defaultFormat = (value: number) => {
+export const defaultFormat = (value: number) => {
   // Ticks come from `ticks()`, which already avoids binary noise; this only
   // keeps a long fraction from widening the axis.
   return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(6)))
@@ -165,15 +201,57 @@ export function estimateTextWidth(text: string, fontSize: number): number {
   return ems * fontSize
 }
 
-interface Frame {
+export interface Frame {
   margin: Margin
   plot: ChartModel['plot']
   y: LinearScale
   yTicks: Tick[]
+  references: PlacedReference[]
+}
+
+/**
+ * The room a reference's label takes outside the plot: to the right of an
+ * upright chart, so it never covers a bar or a line, or 0 with none.
+ */
+export function referenceRoom(
+  references: readonly ChartReference[] | undefined,
+  fontSize: number,
+): number {
+  if (!references?.length) return 0
+  const widest = Math.max(...references.map((entry) => estimateTextWidth(entry.label, fontSize)))
+  return Math.ceil(widest + fontSize)
+}
+
+/** The data's domain, widened so that every reference is inside it. */
+function withReferences(
+  domain: [number, number],
+  references: readonly ChartReference[] = [],
+): [number, number] {
+  let [lo, hi] = domain
+  for (const reference of references)
+    for (const value of [reference.value, reference.to ?? reference.value])
+      if (Number.isFinite(value)) {
+        lo = Math.min(lo, value)
+        hi = Math.max(hi, value)
+      }
+  return [lo, hi]
+}
+
+function placeReferences(
+  references: readonly ChartReference[] = [],
+  scale: LinearScale,
+): PlacedReference[] {
+  return references
+    .filter((reference) => Number.isFinite(reference.value))
+    .map((reference) => ({
+      ...reference,
+      start: scale(reference.value),
+      ...(reference.to === undefined ? {} : { end: scale(reference.to) }),
+    }))
 }
 
 /** Margins and the y scale, which depend on each other through the tick labels. */
-function frame(input: ChartInput, domain: [number, number]): Frame {
+export function frame(input: ChartInput, domain: [number, number]): Frame {
   const fontSize = input.fontSize ?? 12
   const format = input.y?.format ?? defaultFormat
   const gap = fontSize / 2
@@ -181,20 +259,22 @@ function frame(input: ChartInput, domain: [number, number]): Frame {
   const bottom = input.margin?.bottom ?? fontSize + gap * 2 + (input.x.label ? fontSize + gap : 0)
   const plotHeight = Math.max(0, input.height - top - bottom)
   const count = Math.max(2, Math.floor(plotHeight / 40))
-  const [d0, d1] = input.y?.domain ?? niceDomain(domain[0], domain[1], count)
+  const [lo, hi] = withReferences(domain, input.references)
+  const [d0, d1] = input.y?.domain ?? niceDomain(lo, hi, count)
   const y = linearScale([d0, d1], [top + plotHeight, top])
   const tickValues = y.ticks(count)
   const labels = tickValues.map(format)
   const widest = Math.max(0, ...labels.map((label) => estimateTextWidth(label, fontSize)))
   const left =
     input.margin?.left ?? Math.ceil(widest + gap * 2 + (input.y?.label ? fontSize + gap : 0))
-  const right = input.margin?.right ?? gap * 2
+  const right = input.margin?.right ?? Math.max(gap * 2, referenceRoom(input.references, fontSize))
   const margin = { top, right, bottom, left }
   return {
     margin,
     plot: { x: left, y: top, width: Math.max(0, input.width - left - right), height: plotHeight },
     y,
     yTicks: tickValues.map((value, i) => ({ position: y(value), label: labels[i] as string })),
+    references: placeReferences(input.references, y),
   }
 }
 
@@ -208,7 +288,7 @@ function xTicks(categories: string[], centers: number[], step: number, fontSize:
   return out
 }
 
-function nearest(centers: number[]) {
+export function nearest(centers: number[]) {
   return (x: number) => {
     let best = -1
     let distance = Number.POSITIVE_INFINITY
@@ -223,7 +303,7 @@ function nearest(centers: number[]) {
   }
 }
 
-function extent(values: (number | undefined)[][], includeZero: boolean): [number, number] {
+export function extent(values: (number | undefined)[][], includeZero: boolean): [number, number] {
   let lo = includeZero ? 0 : Number.POSITIVE_INFINITY
   let hi = includeZero ? 0 : Number.NEGATIVE_INFINITY
   for (const series of values)
@@ -315,7 +395,7 @@ export function barChartModel(input: BarChartInput): ChartModel {
 
   const domain = input.stacked ? stackedExtent(values) : extent(values, true)
   if (input.horizontal) return horizontalBars(input, categories, values, domain)
-  const { plot, y, yTicks } = frame(input, domain)
+  const { plot, y, yTicks, references } = frame(input, domain)
   const band: BandScale<number> = bandScale(
     input.data.map((_, i) => i),
     [plot.x, plot.x + plot.width],
@@ -364,6 +444,65 @@ export function barChartModel(input: BarChartInput): ChartModel {
     marks,
     xTicks: xTicks(categories, centers, band.step, fontSize),
     yTicks,
+    references,
+    centers,
+    datumAt: nearest(centers),
+  }
+}
+
+/**
+ * Bars and lines over one category axis, as for revenue and its margin.
+ * The bar series share each band side by side; a line runs through the
+ * band centres. One y axis, so it includes zero for the bars. Bars are
+ * drawn first, so every line stays visible.
+ */
+export function composedChartModel(input: ComposedChartInput): ChartModel {
+  const categories = categoriesOf(input)
+  const values = input.series.map((series) => input.data.map((row) => rowValue(row, series.key)))
+  const fontSize = input.fontSize ?? 12
+  const { plot, y, yTicks, references } = frame(input, extent(values, true))
+  const band: BandScale<number> = bandScale(
+    input.data.map((_, i) => i),
+    [plot.x, plot.x + plot.width],
+    { paddingInner: 0.2, paddingOuter: 0.1 },
+  )
+  const centers = input.data.map((_, i) => (band(i) as number) + band.bandwidth / 2)
+  const zero = y(Math.min(Math.max(0, y.domain[0]), y.domain[1]))
+  const barSeries = input.series.flatMap((entry, i) => (entry.type === 'line' ? [] : [i]))
+  const width = band.bandwidth / Math.max(1, barSeries.length)
+  const marks: Mark[] = []
+  for (const [slot, series] of barSeries.entries())
+    for (const [datum, value] of (values[series] ?? []).entries()) {
+      if (value === undefined) continue
+      marks.push({
+        kind: 'bar',
+        series,
+        datum,
+        x: (band(datum) as number) + slot * width,
+        y: Math.min(zero, y(value)),
+        width,
+        height: Math.abs(y(value) - zero),
+      })
+    }
+  for (const [series, entry] of input.series.entries()) {
+    if (entry.type !== 'line') continue
+    const points = (values[series] ?? []).map((value, datum) =>
+      value === undefined ? undefined : ([centers[datum] as number, y(value)] as const),
+    )
+    marks.push({ kind: 'line', series, path: linePath(points) })
+    for (const [datum, point] of points.entries())
+      if (point) marks.push({ kind: 'point', series, datum, cx: point[0], cy: point[1] })
+  }
+  return {
+    width: input.width,
+    height: input.height,
+    plot,
+    categories,
+    values,
+    marks,
+    xTicks: xTicks(categories, centers, band.step, fontSize),
+    yTicks,
+    references,
     centers,
     datumAt: nearest(centers),
   }
@@ -389,12 +528,14 @@ function horizontalBars(
   )
   const left =
     input.margin?.left ?? Math.ceil(widestCategory + gap * 2 + (input.x.label ? fontSize + gap : 0))
-  const top = input.margin?.top ?? gap
+  // Reference labels sit above the plot, over their line.
+  const top = input.margin?.top ?? gap + (input.references?.length ? fontSize * 1.4 : 0)
   const bottom = input.margin?.bottom ?? fontSize + gap * 2 + (input.y?.label ? fontSize + gap : 0)
   const plotHeight = Math.max(0, input.height - top - bottom)
   const roughWidth = Math.max(0, input.width - left - gap * 2)
   const count = Math.max(2, Math.floor(roughWidth / 80))
-  const [d0, d1] = input.y?.domain ?? niceDomain(domain[0], domain[1], count)
+  const [lo, hi] = withReferences(domain, input.references)
+  const [d0, d1] = input.y?.domain ?? niceDomain(lo, hi, count)
   const tickValues = linearScale([d0, d1], [0, 1]).ticks(count)
   const labels = tickValues.map(format)
   const lastLabel = estimateTextWidth(labels.at(-1) ?? '', fontSize)
@@ -406,6 +547,7 @@ function horizontalBars(
     height: plotHeight,
   }
   const x = linearScale([d0, d1], [plot.x, plot.x + plot.width])
+  const references = placeReferences(input.references, x)
   const band: BandScale<number> = bandScale(
     input.data.map((_, i) => i),
     [plot.y, plot.y + plot.height],
@@ -444,6 +586,7 @@ function horizontalBars(
     marks,
     xTicks: tickValues.map((value, i) => ({ position: x(value), label: labels[i] as string })),
     yTicks,
+    references,
     centers,
     datumAt: (px, py) => nearest(centers)(py ?? px),
     horizontal: true,
@@ -490,7 +633,7 @@ function pointChart(input: ChartInput, area: boolean | undefined): ChartModel {
   const fontSize = input.fontSize ?? 12
   const domain =
     area === undefined ? extent(values, false) : area ? stackedExtent(values) : extent(values, true)
-  const { plot, y, yTicks } = frame(input, domain)
+  const { plot, y, yTicks, references } = frame(input, domain)
   const x: BandScale<number> = pointScale(
     input.data.map((_, i) => i),
     [plot.x, plot.x + plot.width],
@@ -530,6 +673,7 @@ function pointChart(input: ChartInput, area: boolean | undefined): ChartModel {
     marks,
     xTicks: xTicks(categories, centers, x.step, fontSize),
     yTicks,
+    references,
     centers,
     datumAt: nearest(centers),
   }

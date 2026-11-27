@@ -62,6 +62,18 @@ export function datumRows(
 }
 
 /**
+ * What a datum is called when read: its category, or for a scatter point
+ * its name and x value ("Acme, Price: $12"), or its x value alone.
+ */
+export function datumTitle(model: ChartModel, datum: number): string {
+  const category = model.categories[datum] ?? ''
+  const x = model.xColumn
+  if (!x) return category
+  const at = `${x.label}: ${x.values[datum] ?? ''}`
+  return x.inTable ? `${category}, ${at}` : at
+}
+
+/**
  * What a reader hears for `datum`: "Mar. Online: 90. In store: 60." All
  * series at once, so moving along x is the only navigation a reader needs.
  */
@@ -71,7 +83,7 @@ export function datumSentence(
   datum: number,
   format?: (value: number) => string,
 ): string {
-  const category = model.categories[datum] ?? ''
+  const category = datumTitle(model, datum)
   const rows = datumRows(model, series, datum, format)
   return [category, ...rows.map((row) => `${row.label}: ${row.value}`)].join('. ').concat('.')
 }

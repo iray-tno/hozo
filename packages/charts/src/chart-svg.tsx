@@ -6,8 +6,8 @@
 
 import { Circle, G, Line, Path, Rect, Svg, SvgText } from '@hozo/svg'
 import { memo } from 'react'
-import { datumRows, tooltipBox } from './active.ts'
-import type { ChartModel, ChartSeries } from './model.ts'
+import { datumRows, datumTitle, tooltipBox } from './active.ts'
+import type { ChartModel, ChartSeries, PlacedReference } from './model.ts'
 import { seriesColor } from './palette.ts'
 
 export interface ChartSvgProps {
@@ -155,6 +155,20 @@ const Drawing = memo(function Drawing({
           />
         )}
       </G>
+      {/* Bands under the marks, so the data stays on top of a range. */}
+      <G>
+        {model.references.map((reference) =>
+          reference.end === undefined ? null : (
+            <ReferenceBand
+              key={`r${reference.label}`}
+              reference={reference}
+              model={model}
+              ink={ink}
+              fontSize={fontSize}
+            />
+          ),
+        )}
+      </G>
       <G>
         {model.marks.map((mark) => {
           const color = markColor(mark, series, colors)
@@ -208,6 +222,20 @@ const Drawing = memo(function Drawing({
           return null
         })}
       </G>
+      {/* Lines over the marks, so a target is seen across the bars. */}
+      <G>
+        {model.references.map((reference) =>
+          reference.end === undefined ? (
+            <ReferenceLine
+              key={`r${reference.label}`}
+              reference={reference}
+              model={model}
+              ink={ink}
+              fontSize={fontSize}
+            />
+          ) : null,
+        )}
+      </G>
       {radial ? (
         <G>
           {radial.legend.map((entry) => (
@@ -234,6 +262,78 @@ const Drawing = memo(function Drawing({
     </>
   )
 })
+
+interface ReferenceProps {
+  reference: PlacedReference
+  model: ChartModel
+  ink: string
+  fontSize: number
+}
+
+/** A dashed line across the plot, labelled outside it. */
+function ReferenceLine({ reference, model, ink, fontSize }: ReferenceProps) {
+  const { plot, horizontal } = model
+  const at = reference.start
+  return (
+    <G>
+      <Line
+        x1={horizontal ? at : plot.x}
+        x2={horizontal ? at : plot.x + plot.width}
+        y1={horizontal ? plot.y : at}
+        y2={horizontal ? plot.y + plot.height : at}
+        stroke={ink}
+        strokeWidth={1.5}
+        strokeDasharray="5 4"
+      />
+      <ReferenceLabel reference={reference} model={model} ink={ink} fontSize={fontSize} />
+    </G>
+  )
+}
+
+/** A shaded range across the plot, labelled outside it. */
+function ReferenceBand({ reference, model, ink, fontSize }: ReferenceProps) {
+  const { plot, horizontal } = model
+  const lo = Math.min(reference.start, reference.end ?? reference.start)
+  const size = Math.abs((reference.end ?? reference.start) - reference.start)
+  return (
+    <G>
+      <Rect
+        x={horizontal ? lo : plot.x}
+        y={horizontal ? plot.y : lo}
+        width={horizontal ? size : plot.width}
+        height={horizontal ? plot.height : size}
+        fill={ink}
+        fillOpacity={0.06}
+      />
+      <ReferenceLabel reference={reference} model={model} ink={ink} fontSize={fontSize} />
+    </G>
+  )
+}
+
+/**
+ * The label outside the plot, where the model left room for it: right of
+ * an upright chart, level with the line or the band's middle, or above a
+ * horizontal one. Inside, it would cover the data it is read against.
+ */
+function ReferenceLabel({ reference, model, ink, fontSize }: ReferenceProps) {
+  const { plot, horizontal } = model
+  const at = reference.end === undefined ? reference.start : (reference.start + reference.end) / 2
+  return horizontal ? (
+    <SvgText x={at} y={plot.y - fontSize / 2} fill={ink} fontSize={fontSize} textAnchor="middle">
+      {reference.label}
+    </SvgText>
+  ) : (
+    <SvgText
+      x={plot.x + plot.width + fontSize / 2}
+      y={at}
+      dy={fontSize * 0.35}
+      fill={ink}
+      fontSize={fontSize}
+    >
+      {reference.label}
+    </SvgText>
+  )
+}
 
 function sliceColor(
   model: ChartModel,
@@ -280,7 +380,7 @@ function Tooltip({
   points: boolean
   colors?: readonly string[]
 }) {
-  const title = model.categories[datum] ?? ''
+  const title = datumTitle(model, datum)
   const rows = datumRows(model, series, datum, format).map((row) =>
     model.radial ? { ...row, color: sliceColor(model, datum, colors) ?? row.color } : row,
   )
@@ -298,7 +398,7 @@ function Tooltip({
             <Path key="active" d={mark.path} fill="none" stroke={ink} strokeWidth={2} />
           ) : null,
         )
-      ) : model.horizontal ? (
+      ) : model.xColumn ? null : model.horizontal ? (
         <Rect
           x={model.plot.x}
           y={center - band / 2}

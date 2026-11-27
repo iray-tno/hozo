@@ -220,5 +220,6 @@ export function pieChartModel(input: PieChartInput): PieModel {
       return -1
     },
     radial: { cx, cy, outer, inner, total, legend, swatch },
+    references: [],
   }
 }
