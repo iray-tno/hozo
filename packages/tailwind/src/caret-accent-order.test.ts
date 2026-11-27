@@ -24,7 +24,7 @@ const source = (classes: string) =>
   `import {TextInput} from '@hozo/core';export const A=()=> <TextInput accessibilityLabel="x" className="${classes}"/>`
 
 test('caret and accent colours settle in Tailwind order, and Native takes the winning caret', async () => {
-  const names = [...new Set([...inputs.flat(), 'focus:caret-red-500'])]
+  const names = [...new Set([...inputs.flat(), 'focus:caret-red-500', 'hover:caret-red-500'])]
   const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const final = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
   const authored = prepareAuthoredTailwindContext(JSON.stringify(prepared.snapshot))
@@ -58,12 +58,19 @@ test('caret and accent colours settle in Tailwind order, and Native takes the wi
     native('dark:caret-red-500 caret-blue-500').jsx,
     /cursorColor=\{__hozoDark \? '#fb2c36' : '#2b7fff'\}/,
   )
-  // A `focus:` caret is not wired: diagnosed, never applied to every state.
+  // A `focus:` caret lowers through `HozoTextInput`'s focus callback, never applied unconditionally.
   const focus = native('focus:caret-red-500 caret-blue-500')
-  assert.match(focus.jsx, /cursorColor=\{'#2b7fff'\}/)
+  assert.deepEqual(focus.diagnostics, [])
+  assert.match(
+    focus.jsx,
+    /hozoFieldColors=\{\(\{ focused \}\) => \(\{ cursorColor: focused \? '#fb2c36' : '#2b7fff' \}\)\}/,
+  )
+  // An unwired condition on `TextInput` (such as `hover:`) stays diagnosed and keeps the base caret.
+  const hover = native('hover:caret-red-500 caret-blue-500')
+  assert.match(hover.jsx, /cursorColor=\{'#2b7fff'\}/)
   assert.ok(
-    focus.diagnostics.some((entry) => /conditional caret colours/.test(entry.message)),
-    JSON.stringify(focus.diagnostics),
+    hover.diagnostics.some((entry) => /cannot drive TextInput's cursorColor/.test(entry.message)),
+    JSON.stringify(hover.diagnostics),
   )
   // A caret no longer holds a padding conflict on the old path.
   const padding = compiler.prepareWebModule(source('p-4 p-2 caret-red-500')).emit(final)[0]!
