@@ -98,9 +98,11 @@ impl<'a> Visit<'a> for CanvasCollector {
                 let is_paint = condition == Condition::Always
                     && !properties.is_empty()
                     && properties.iter().all(|property| match property {
-                        StyleProperty::Fill(_)
-                        | StyleProperty::Stroke(_)
-                        | StyleProperty::Opacity(_) => true,
+                        StyleProperty::Fill(color) | StyleProperty::Stroke(color) => match color {
+                            hozo_ir::Color::Css(text) => hozo_ir::native_color_literal_valid(text),
+                            _ => true,
+                        },
+                        StyleProperty::Opacity(_) => true,
                         StyleProperty::StrokeWidth(width) => {
                             width.px(&hozo_ir::Theme::default()).is_some()
                         }
@@ -190,5 +192,38 @@ mod tests {
         assert_eq!(paints.len(), 1);
         assert_eq!(paints[0].static_classes, None);
         assert!(paints[0].paint.is_empty());
+    }
+
+    #[test]
+    fn refuses_unresolvable_and_invalid_arbitrary_canvas_colors() {
+        let source = r#"
+            import { Canvas } from '@hozo/canvas'
+            const chart = <Canvas.Rect className="fill-[#ff0000] stroke-[rgb(0_0_0)] stroke-[2rem] opacity-[50%] fill-[var(--x)] fill-[calc(100%-2rem)] fill-[nonsense] fill-[10px] stroke-[auto] stroke-[var(--x)]" />
+        "#;
+        let paints = parse_canvas_paints(source);
+        assert_eq!(paints.len(), 1);
+        assert_eq!(
+            paints[0].paint,
+            vec![
+                StyleProperty::Fill(Color::Css("#ff0000".to_string())),
+                StyleProperty::Stroke(Color::Css("rgb(0 0 0)".to_string())),
+                StyleProperty::StrokeWidth(hozo_ir::StrokeWidth::Length(hozo_ir::Length::Unit(
+                    2.0,
+                    hozo_ir::LengthUnit::Rem
+                ))),
+                StyleProperty::Opacity(0.5),
+            ]
+        );
+        assert_eq!(
+            paints[0].remaining,
+            vec![
+                "fill-[var(--x)]",
+                "fill-[calc(100%-2rem)]",
+                "fill-[nonsense]",
+                "fill-[10px]",
+                "stroke-[auto]",
+                "stroke-[var(--x)]",
+            ]
+        );
     }
 }

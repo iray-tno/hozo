@@ -5,7 +5,7 @@ use hozo_ir::{Condition, Diagnostic, ExprRef, Node, Severity, StyleDeclaration};
 
 use super::conditions;
 use super::conditions::unwired_variant;
-use super::context::{AncestorContext, FromAncestor, NativeRenderContext};
+use super::context::{AncestorContext, FromAncestor, GroupAncestor, NativeRenderContext};
 use super::lower::{forwarded_text, forwards_interaction};
 use super::render::render_node;
 use super::source_evidence::Rendered;
@@ -79,6 +79,7 @@ pub(super) fn spaced_children(
     node: &Node,
     position: SiblingPosition,
     parent_measured: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if child_declarations.is_empty() {
@@ -96,6 +97,7 @@ pub(super) fn spaced_children(
         node,
         position,
         interaction_context: false,
+        group_ancestor,
         pattern_slot: None,
         composition: Default::default(),
     };
@@ -180,6 +182,7 @@ pub(super) fn render_verbatim(
     nested: &[hozo_ir::NestedNode],
     inherited: &[StyleDeclaration],
     interaction_context: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     let mut out = Rendered::new(cx.source_evidence);
@@ -193,11 +196,26 @@ pub(super) fn render_verbatim(
         cursor,
         expr_ref.0.end as usize,
         &spans,
-        |index| render_nested(&nested[index], inherited, interaction_context, cx).text,
+        |index| {
+            render_nested(
+                &nested[index],
+                inherited,
+                interaction_context,
+                group_ancestor,
+                cx,
+            )
+            .text
+        },
     );
     for (entry, _) in nested.iter().zip(planned).filter(|(_, planned)| !planned) {
         out.copy(cx.source, cursor, entry.span.start as usize);
-        out.append(render_nested(entry, inherited, interaction_context, cx));
+        out.append(render_nested(
+            entry,
+            inherited,
+            interaction_context,
+            group_ancestor,
+            cx,
+        ));
         cursor = entry.span.end as usize;
     }
     out.copy(cx.source, cursor, expr_ref.0.end as usize);
@@ -210,6 +228,7 @@ pub(super) fn render_nested(
     entry: &hozo_ir::NestedNode,
     inherited: &[StyleDeclaration],
     interaction_context: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     // After what the elements above hand down, so a component written
@@ -237,6 +256,7 @@ pub(super) fn render_nested(
         grid_columns: None,
         grid_rows: None,
         parent_measured: false,
+        group_ancestor,
     };
     render_node(
         &entry.node,

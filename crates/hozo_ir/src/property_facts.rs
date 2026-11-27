@@ -545,10 +545,15 @@ impl StyleProperty {
                  rather than assuming this hint controls the Native renderer"
                     .to_string(),
             ),
-            StyleProperty::Flex(FlexShorthand::Fraction(n, d)) => Some(format!(
-                "`flex-{n}/{d}`: React Native's `flex` is a grow factor, not a fraction of the 
-                 parent -- use a percentage width instead"
-            )),
+            StyleProperty::Flex(FlexShorthand::Fraction(_, 0)) => {
+                Some("`flex` fraction cannot divide by zero".to_string())
+            }
+            StyleProperty::Flex(FlexShorthand::BasisUnit(_, unit)) if unit.px().is_none() => {
+                Some(format!(
+                    "`flex` basis unit `{}` has no fixed pixel size on React Native",
+                    unit.css()
+                ))
+            }
             // Scale3d is metadata selecting the three-axis form. Native
             // lowers its Z component through RN's supported 4x4 matrix.
             StyleProperty::Scale3d => None,

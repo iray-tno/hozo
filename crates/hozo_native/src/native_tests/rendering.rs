@@ -714,7 +714,7 @@ fn a_group_state_the_context_does_not_carry_says_so_under_a_pressable() {
     // Pressable right there.
     for child in ["Text", "View"] {
         let output = lower_element(&format!(
-            r#"<Pressable className="group" accessibilityState={{{{ checked: on }}}}><{child} className="group-aria-checked:p-4">x</{child}></Pressable>"#
+            r#"<Pressable className="group"><{child} className="group-open:p-4">x</{child}></Pressable>"#
         ));
         let messages: Vec<_> = output
             .diagnostics
@@ -737,6 +737,160 @@ fn a_group_state_the_context_does_not_carry_says_so_under_a_pressable() {
         "{:?}",
         output.diagnostics
     );
+}
+
+#[test]
+fn group_ancestor_props_direction_and_position_lower_without_extra_wrappers() {
+    // `group-aria-*` reads the enclosing `.group` ancestor's `accessibilityState`
+    // without forcing `HozoPressable` or `HozoInteractionView`.
+    for child in ["Text", "View"] {
+        let output = lower_element(&format!(
+            r#"<Pressable className="group" accessibilityState={{{{ checked: on }}}}><{child} className="group-aria-checked:p-4">x</{child}></Pressable>"#
+        ));
+        assert!(
+            output.diagnostics.is_empty(),
+            "{child}: {:?}",
+            output.diagnostics
+        );
+        assert!(
+            output.jsx.contains("({ checked: on })?.checked === true")
+                && output.jsx.contains("hozo1_groupariachecked"),
+            "{child}: {}",
+            output.jsx
+        );
+        assert!(
+            !output.jsx.contains("HozoPressable") && !output.jsx.contains("HozoInteractionView"),
+            "{child}: {}",
+            output.jsx
+        );
+    }
+
+    // `group-disabled:` and `group-enabled:` read the enclosing `.group` ancestor's `disabled` prop.
+    let disabled_out = lower_element(
+        r#"<Pressable className="group" disabled={off}><Text className="group-disabled:opacity-50 group-enabled:opacity-100">x</Text></Pressable>"#,
+    );
+    assert!(
+        disabled_out.diagnostics.is_empty(),
+        "{:?}",
+        disabled_out.diagnostics
+    );
+    assert!(
+        disabled_out
+            .jsx
+            .contains("(off) && hozoStyles.hozo1_groupdisabled"),
+        "{}",
+        disabled_out.jsx
+    );
+    assert!(
+        disabled_out
+            .jsx
+            .contains("!(off) && hozoStyles.hozo1_groupenabled"),
+        "{}",
+        disabled_out.jsx
+    );
+
+    // `group-rtl:` / `group-ltr:` reuse `useHozoEnvironment` when the ancestor has no explicit `dir`,
+    // or resolve statically from an explicit `dir` prop on the `.group` ancestor.
+    let rtl_env = lower_element(
+        r#"<View className="group"><Text className="group-rtl:p-4 dark:group-rtl:m-2">x</Text></View>"#,
+    );
+    assert!(rtl_env.diagnostics.is_empty(), "{:?}", rtl_env.diagnostics);
+    assert!(
+        rtl_env
+            .prelude
+            .iter()
+            .any(|p| p.contains("useHozoEnvironment('rtl')")),
+        "{:?}",
+        rtl_env.prelude
+    );
+    assert!(
+        rtl_env
+            .jsx
+            .contains("__hozoEnv_rtl && hozoStyles.hozo1_grouprtl")
+            && rtl_env
+                .jsx
+                .contains("__hozoDark && __hozoEnv_rtl && hozoStyles.hozo1_dark_grouprtl"),
+        "{}",
+        rtl_env.jsx
+    );
+
+    let rtl_explicit = lower_element(
+        r#"<View className="group" dir="rtl"><Text className="group-rtl:p-4 group-ltr:m-2">x</Text></View>"#,
+    );
+    assert!(
+        rtl_explicit.diagnostics.is_empty(),
+        "{:?}",
+        rtl_explicit.diagnostics
+    );
+    assert!(
+        rtl_explicit.prelude.is_empty(),
+        "{:?}",
+        rtl_explicit.prelude
+    );
+    assert!(
+        rtl_explicit.jsx.contains("hozoStyles.hozo1_grouprtl")
+            && !rtl_explicit.jsx.contains("hozoStyles.hozo1_groupltr"),
+        "{}",
+        rtl_explicit.jsx
+    );
+
+    // `group-first:` / `group-last:` / `group-even:` / `group-nth-2:` resolve from the `.group` ancestor's sibling position.
+    let pos_out = lower_element(
+        r#"<View><View className="group"><Text className="group-first:p-4 group-last:m-2">a</Text></View><View className="group"><Text className="group-first:p-4 group-even:m-2">b</Text></View></View>"#,
+    );
+    assert!(pos_out.diagnostics.is_empty(), "{:?}", pos_out.diagnostics);
+    assert!(
+        pos_out.jsx.contains("hozoStyles.hozo2_groupfirst")
+            && !pos_out.jsx.contains("hozoStyles.hozo2_grouplast")
+            && !pos_out.jsx.contains("hozoStyles.hozo4_groupfirst")
+            && pos_out.jsx.contains("hozoStyles.hozo4_groupeven"),
+        "{}",
+        pos_out.jsx
+    );
+
+    // Conditional JSX inside a `.group` still inherits the ancestor, and negated group variants work.
+    let nested_and_not = lower_element(
+        r#"<Pressable className="group" accessibilityState={{ checked: on }}>{show && <Text className="group-aria-checked:p-4 not-group-aria-checked:m-2 not-group-hover:opacity-50">x</Text>}</Pressable>"#,
+    );
+    assert!(
+        nested_and_not.diagnostics.is_empty(),
+        "{:?}",
+        nested_and_not.diagnostics
+    );
+    assert!(
+        nested_and_not.jsx.starts_with("<HozoPressable")
+            && nested_and_not.jsx.contains("<HozoText")
+            && nested_and_not.jsx.contains("!(hovered) &&")
+            && nested_and_not
+                .jsx
+                .contains("!((({ checked: on })?.checked === true)) &&"),
+        "{}",
+        nested_and_not.jsx
+    );
+}
+
+#[test]
+fn group_ancestor_variants_refuse_without_group_or_undecidable_position() {
+    for element in [
+        r#"<View className="group-aria-checked:p-4" />"#,
+        r#"<View className="group-disabled:p-4" />"#,
+        r#"<View className="group-enabled:p-4" />"#,
+        r#"<View className="group-rtl:p-4" />"#,
+        r#"<View className="group-first:p-4" />"#,
+        // Root `.group` has unknown sibling position -> must refuse `group-first:`.
+        r#"<View className="group"><Text className="group-first:p-4">x</Text></View>"#,
+        // `-of-type` stays refused per Decision 003.
+        r#"<View><View className="group"><Text className="group-first-of-type:p-4">x</Text></View></View>"#,
+    ] {
+        let output = lower_element(element);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{element}: {:?}",
+            output.diagnostics
+        );
+    }
 }
 
 #[test]

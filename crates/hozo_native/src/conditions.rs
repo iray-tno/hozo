@@ -36,6 +36,7 @@ pub(crate) struct StyleTarget<'a> {
     pub node: &'a Node,
     pub position: SiblingPosition,
     pub interaction_context: bool,
+    pub group_ancestor: Option<GroupAncestor<'a>>,
     pub pattern_slot: Option<&'a str>,
     pub composition: hozo_ir::OwnerSlotComposition,
 }
@@ -89,7 +90,6 @@ pub(super) fn build_style_entries_with_measured(
     let runtime = &mut *cx.runtime;
     let style_entries = &mut *cx.style_entries;
     let node = target.node;
-    let interaction_context = target.interaction_context;
 
     // Before anything reads them: a paired token becomes a second
     // declaration, so everything below treats it as an ordinary condition.
@@ -240,6 +240,7 @@ pub(super) fn build_style_entries_with_measured(
             | Condition::LastChild
             | Condition::Structural(_)
             | Condition::Not(_)
+            | Condition::Group(_)
             | Condition::Pressed
             | Condition::Hover
             | Condition::Focus
@@ -262,20 +263,6 @@ pub(super) fn build_style_entries_with_measured(
                     None => Ok(lands::Lands::Nowhere),
                 }
             }
-            Condition::Group(inner) => match group_state(inner, interaction_context) {
-                // `pressed_parts`, not `conditional_parts`: these names
-                // come from the render-prop the interaction context hands
-                // down, and only that list makes the component take the
-                // form where they are in scope. Putting them in the other
-                // one emitted `hovered && …` against an identifier that
-                // does not exist there.
-                Some(state) => Ok(lands::Lands::Pressed(format!("{state} && "))),
-                None => Err(unwired_variant(
-                    node,
-                    &group_unwired_message(inner, interaction_context),
-                    Severity::Error,
-                )),
-            },
             // The frame an element leaves to inside `Presence` (decision
             // 007, amendment 1). On Web it is the attribute `Presence` sets;
             // here it is the state `HozoAnimated` reads from `Presence`, so
@@ -437,7 +424,7 @@ fn is_element_state(condition: &Condition) -> bool {
         | Condition::Focus
         | Condition::FocusVisible
         | Condition::Pressed => true,
-        Condition::Not(inner) => is_element_state(inner),
+        Condition::Group(inner) | Condition::Not(inner) => is_element_state(inner),
         Condition::All(conditions) => conditions.iter().any(is_element_state),
         _ => false,
     }

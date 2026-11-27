@@ -77,7 +77,10 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     // Context covered (works inside HozoGrid / <Svg>)
     'grid-cols-[10px]',
     'grid-cols-[2rem]',
+    'grid-cols-[50%]',
     'grid-cols-[calc(100%-2rem)]',
+    'grid-rows-[50%]',
+    'grid-rows-[calc(100%-2rem)]',
     'fill-[#ff0000]',
     'stroke-[1.5]',
     'stroke-[2rem]',
@@ -90,6 +93,9 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'aspect-[1.5]',
     'flex-[1.5]',
     'flex-[auto]',
+    'flex-[10px]',
+    'flex-[2rem]',
+    'flex-[50%]',
     'opacity-[50%]',
     'align-[auto]',
     'cursor-[auto]',
@@ -104,8 +110,6 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'w-[calc(100%-2rem)]',
     'p-[calc(100%-2rem)]',
     'space-x-[calc(100%-2rem)]',
-    // Remaining layout-measurable refusal (auto-height HozoGrid row tracks)
-    'grid-rows-[calc(100%-2rem)]',
     // Dynamic CSS (out-of-scope runtime state)
     'w-[var(--x)]',
     'w-[1.5em]',
@@ -150,7 +154,10 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
 
   assert.equal(byCandidate.get('grid-cols-[10px]'), 'contextCovered')
   assert.equal(byCandidate.get('grid-cols-[2rem]'), 'contextCovered')
+  assert.equal(byCandidate.get('grid-cols-[50%]'), 'contextCovered')
   assert.equal(byCandidate.get('grid-cols-[calc(100%-2rem)]'), 'contextCovered')
+  assert.equal(byCandidate.get('grid-rows-[50%]'), 'contextCovered')
+  assert.equal(byCandidate.get('grid-rows-[calc(100%-2rem)]'), 'contextCovered')
   assert.equal(byCandidate.get('fill-[#ff0000]'), 'contextCovered')
   assert.equal(byCandidate.get('stroke-[1.5]'), 'contextCovered')
   assert.equal(byCandidate.get('stroke-[2rem]'), 'contextCovered')
@@ -163,6 +170,9 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('aspect-[1.5]'), 'validCovered')
   assert.equal(byCandidate.get('flex-[1.5]'), 'validCovered')
   assert.equal(byCandidate.get('flex-[auto]'), 'validCovered')
+  assert.equal(byCandidate.get('flex-[10px]'), 'validCovered')
+  assert.equal(byCandidate.get('flex-[2rem]'), 'validCovered')
+  assert.equal(byCandidate.get('flex-[50%]'), 'validCovered')
   assert.equal(byCandidate.get('opacity-[50%]'), 'validCovered')
   assert.equal(byCandidate.get('align-[auto]'), 'validCovered')
   assert.equal(byCandidate.get('cursor-[auto]'), 'validCovered')
@@ -176,8 +186,7 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('p-[calc(100%-2rem)]'), 'validCovered')
   assert.equal(byCandidate.get('space-x-[calc(100%-2rem)]'), 'validCovered')
   assert.equal(summary.implementable, 0)
-
-  assert.equal(byCandidate.get('grid-rows-[calc(100%-2rem)]'), 'layoutMeasurable')
+  assert.equal(summary.layoutMeasurable, 0)
 
   assert.equal(byCandidate.get('w-[var(--x)]'), 'dynamicCss')
   assert.equal(byCandidate.get('w-[1.5em]'), 'dynamicCss')

@@ -124,6 +124,7 @@ pub(super) fn resolve(
         Condition::Not(inner) => resolve(inner, target, source, runtime)
             .map(Guard::negate)
             .map_err(|reason| format!("`not-{}:` cannot be resolved: {reason}", variant_spelling(inner).unwrap_or_default())),
+        Condition::Group(inner) => resolve_group(inner, target, source, runtime),
         Condition::Disabled => node.props.effective_disabled().as_ref()
             .map(|disabled| Guard::Dynamic(format!("({})", render_condition_expr(source, disabled))))
             .ok_or_else(|| "`disabled:` needs a `disabled` prop on the same element to drive it, and this one has none.".into()),
@@ -302,6 +303,171 @@ pub(super) fn resolve(
         // An unimplemented predicate must not become true by default merely
         // because the author negates it.
         _ => Err("this inner condition is not wired for Native negation yet. On Web the same class works.".into()),
+    }
+}
+
+fn resolve_group(
+    inner: &Condition,
+    target: &super::StyleTarget<'_>,
+    source: &str,
+    runtime: &mut RuntimeNeeds,
+) -> Result<Guard, String> {
+    let interaction_context = target.interaction_context;
+    match inner {
+        Condition::Not(nested) => resolve_group(nested, target, source, runtime)
+            .map(Guard::negate)
+            .map_err(|reason| {
+                format!(
+                    "`group-not-{}:` cannot be resolved: {reason}",
+                    variant_spelling(nested).unwrap_or_default()
+                )
+            }),
+        Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Pressed => {
+            group_state(inner, interaction_context)
+                .map(|state| Guard::Interactive(state.to_string()))
+                .ok_or_else(|| group_unwired_message(inner, interaction_context))
+        }
+        Condition::Aria(state) => {
+            let driver = if state == "invalid" {
+                "an `aria-invalid` prop"
+            } else {
+                "an `accessibilityState`"
+            };
+            let Some(group) = target.group_ancestor else {
+                return Err(format!(
+                    "`group-aria-{state}:` needs an enclosing `group` ancestor in the same component with {driver} to drive it on Native, and none was found. On Web the same class works from the selector."
+                ));
+            };
+            aria_state_guard(group.node, source, state)
+                .map(|guard| Guard::Dynamic(format!("({guard})")))
+                .ok_or_else(|| {
+                    format!(
+                        "`group-aria-{state}:` needs {driver} on the enclosing `group` ancestor to drive it on Native, and this one has none. On Web the same class works from the selector."
+                    )
+                })
+        }
+        Condition::Disabled => {
+            let Some(group) = target.group_ancestor else {
+                return Err(
+                    "`group-disabled:` needs an enclosing `group` ancestor with a `disabled` prop in the same component, and none was found. On Web the same class works from the selector."
+                        .into(),
+                );
+            };
+            group
+                .node
+                .props
+                .effective_disabled()
+                .as_ref()
+                .map(|disabled| {
+                    Guard::Dynamic(format!("({})", render_condition_expr(source, disabled)))
+                })
+                .ok_or_else(|| {
+                    "`group-disabled:` needs a `disabled` prop on the enclosing `group` ancestor to drive it, and this one has none."
+                        .into()
+                })
+        }
+        Condition::Enabled => {
+            let Some(group) = target.group_ancestor else {
+                return Err(
+                    "`group-enabled:` needs an enclosing `group` ancestor in the same component, and none was found. On Web the same class works from the selector."
+                        .into(),
+                );
+            };
+            Ok(group.node.props.effective_disabled().as_ref().map_or(
+                Guard::Known(true),
+                |disabled| {
+                    Guard::Dynamic(format!("!({})", render_condition_expr(source, disabled)))
+                },
+            ))
+        }
+        Condition::Environment(query @ (Environment::Rtl | Environment::Ltr)) => {
+            let name = environment_name(*query);
+            let Some(group) = target.group_ancestor else {
+                return Err(format!(
+                    "`group-{name}:` needs an enclosing `group` ancestor in the same component, and none was found. On Web the same class works from the selector."
+                ));
+            };
+            match authored(group.node, source, "dir") {
+                Some(Authored::Literal(dir)) if dir.eq_ignore_ascii_case("rtl") => {
+                    Ok(Guard::Known(*query == Environment::Rtl))
+                }
+                Some(Authored::Literal(dir)) if dir.eq_ignore_ascii_case("ltr") => {
+                    Ok(Guard::Known(*query == Environment::Ltr))
+                }
+                Some(Authored::Literal(other)) => Err(format!(
+                    "`group-{name}:` cannot resolve `dir=\"{other}\"` on the enclosing `group` ancestor on Native at build time. On Web the same class works from the selector."
+                )),
+                Some(Authored::Expr(expr)) => Ok(Guard::Dynamic(format!(
+                    "(({expr}) === '{}')",
+                    if *query == Environment::Rtl {
+                        "rtl"
+                    } else {
+                        "ltr"
+                    }
+                ))),
+                None => {
+                    let hook = RuntimeHook::Environment(*query);
+                    let guard = hook.binding();
+                    runtime.hooks.push(hook);
+                    Ok(Guard::Dynamic(guard))
+                }
+            }
+        }
+        Condition::Structural(structural) if structural.counts_by_type() => {
+            let name = structural.variant_name();
+            Err(format!(
+                "`group-{name}:` counts only siblings that share the `group` ancestor's tag, and React Native has no tags -- the `-of-type` variants are not compiled on React Native. On Web the same class works."
+            ))
+        }
+        Condition::FirstChild | Condition::LastChild | Condition::Structural(_) => {
+            let name = match inner {
+                Condition::FirstChild => "first".into(),
+                Condition::LastChild => "last".into(),
+                Condition::Structural(structural) => structural.variant_name(),
+                _ => unreachable!("matched above"),
+            };
+            let Some(group) = target.group_ancestor else {
+                return Err(format!(
+                    "`group-{name}:` needs an enclosing `group` ancestor in the same component, and none was found. On Web the same class works from the selector."
+                ));
+            };
+            let known = match inner {
+                Condition::FirstChild => group.position.first,
+                Condition::LastChild => group.position.last,
+                Condition::Structural(structural) => {
+                    structural_holds(structural, group.node, group.position)
+                }
+                _ => unreachable!("matched above"),
+            };
+            known.map(Guard::Known).ok_or_else(|| {
+                format!(
+                    "`group-{name}:` can only be resolved when the compiler can see the enclosing `group` ancestor's position among its siblings, and here it can't -- it's either the root of a component or a sibling of something Hozo doesn't model."
+                )
+            })
+        }
+        Condition::FormState(FormState::ReadOnly) => {
+            let Some(group) = target.group_ancestor else {
+                return Err(
+                    "`group-read-only:` needs an enclosing `group` TextInput ancestor in the same component, and none was found. On Web the same class works from the selector."
+                        .into(),
+                );
+            };
+            read_only(group.node, source).map_err(|reason| {
+                format!("`group-read-only:` on the enclosing `group` ancestor: {reason}")
+            })
+        }
+        Condition::FormState(FormState::PlaceholderShown) => {
+            let Some(group) = target.group_ancestor else {
+                return Err(
+                    "`group-placeholder-shown:` needs an enclosing `group` TextInput ancestor in the same component, and none was found. On Web the same class works from the selector."
+                        .into(),
+                );
+            };
+            placeholder_shown(group.node, source).map_err(|reason| {
+                format!("`group-placeholder-shown:` on the enclosing `group` ancestor: {reason}")
+            })
+        }
+        _ => Err(group_unwired_message(inner, interaction_context)),
     }
 }
 

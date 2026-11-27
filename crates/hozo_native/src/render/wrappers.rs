@@ -15,6 +15,7 @@ pub(super) fn place_children(
     node: &Node,
     position: SiblingPosition,
     parent_measured: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if let Some(grid) = grid {
@@ -31,11 +32,26 @@ pub(super) fn place_children(
             .as_ref()
             .map(|tracks| format!(" rowTracks={{{tracks}}}"))
             .unwrap_or_default();
+        let container_height = if grid.uses_measured_height {
+            " containerHeight={__hozoParent?.height}"
+        } else {
+            ""
+        };
         let text = format!(
-            "<HozoGrid tracks={{{}}}{row_tracks} columnGap={{{}}} rowGap={{{}}}>{}</HozoGrid>",
+            "<HozoGrid tracks={{{}}}{row_tracks}{container_height} columnGap={{{}}} rowGap={{{}}}>{}</HozoGrid>",
             grid.tracks_js, grid.column_gap, grid.row_gap, inner.text
         );
-        inner.wrap(text, "</HozoGrid>".len())
+        let mut rendered = inner.wrap(text, "</HozoGrid>".len());
+        if grid.uses_measured_height {
+            cx.runtime.need_component("HozoParentSizeQuery");
+            let wrapped = format!(
+                "<HozoParentSizeQuery>{{(__hozoParent) => ({})}}</HozoParentSizeQuery>",
+                rendered.text
+            );
+            rendered = rendered.wrap(wrapped, ")}</HozoParentSizeQuery>".len());
+            rendered.forget_scope();
+        }
+        rendered
     } else {
         spaced_children(
             inner,
@@ -44,12 +60,14 @@ pub(super) fn place_children(
             node,
             position,
             parent_measured,
+            group_ancestor,
             cx,
         )
     }
 }
 
 /// The children inside a `HozoInheritedScope` carrying a Decision 013 scope.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn inherited_scope(
     inner: Rendered,
     unified_scope: &[StyleDeclaration],
@@ -57,6 +75,7 @@ pub(super) fn inherited_scope(
     node: &Node,
     position: SiblingPosition,
     interaction_context: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if unified_scope.is_empty() {
@@ -70,6 +89,7 @@ pub(super) fn inherited_scope(
             node,
             position,
             interaction_context,
+            group_ancestor,
             pattern_slot: None,
             composition: Default::default(),
         };

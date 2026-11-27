@@ -107,10 +107,36 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         )],
         StyleProperty::Flex(shorthand) => match shorthand {
             FlexShorthand::Grow(n) => vec![("flex", format!("{n}"))],
-            // RN's `flex` is a grow factor, and a fraction of the parent is
-            // not one -- refused upstream rather than divided into
-            // something that would lay out differently.
+            // CSS Flexbox Level 1 §7.1.1: single-value `<length-percentage>`
+            // `flex` shorthand (`flex-1/2`, `flex-[50%]`, `flex-[10px]`, `flex-[2rem]`)
+            // expands to `flex-grow: 1; flex-shrink: 1; flex-basis: <value>`.
+            FlexShorthand::Fraction(n, d) if *d != 0 => {
+                let pct = (*n as f64 / *d as f64) * 100.0;
+                vec![
+                    ("flexGrow", "1".to_string()),
+                    ("flexShrink", "1".to_string()),
+                    ("flexBasis", format!("'{pct}%'")),
+                ]
+            }
             FlexShorthand::Fraction(..) => Vec::new(),
+            FlexShorthand::BasisPx(px) => vec![
+                ("flexGrow", "1".to_string()),
+                ("flexShrink", "1".to_string()),
+                ("flexBasis", format!("{px}")),
+            ],
+            FlexShorthand::BasisUnit(v, unit) => match unit.px() {
+                Some(factor) => vec![
+                    ("flexGrow", "1".to_string()),
+                    ("flexShrink", "1".to_string()),
+                    ("flexBasis", format!("{}", v * factor)),
+                ],
+                None => Vec::new(),
+            },
+            FlexShorthand::BasisPercent(pct) => vec![
+                ("flexGrow", "1".to_string()),
+                ("flexShrink", "1".to_string()),
+                ("flexBasis", format!("'{pct}%'")),
+            ],
             FlexShorthand::Auto => vec![("flexGrow", "1".to_string()), ("flexShrink", "1".to_string())],
             FlexShorthand::Initial => vec![("flexGrow", "0".to_string()), ("flexShrink", "1".to_string())],
             FlexShorthand::None => vec![("flexGrow", "0".to_string()), ("flexShrink", "0".to_string())],

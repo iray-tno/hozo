@@ -99,6 +99,21 @@ pub(super) fn report_refused(
         if elsewhere.grid && grid_absorbs(&declaration.property) {
             continue;
         }
+        if !elsewhere.grid
+            && matches!(declaration.property, StyleProperty::GridTemplateRows(_))
+            && crate::grid::grid_rows_needs_definite_height(style)
+        {
+            diagnostics.push(Diagnostic {
+                code: DiagnosticCode::WebOnlyPropertyOnNative,
+                severity: Severity::Error,
+                message: "`grid-template-rows` with `%` or `%`-mixed `calc()` requires a definite \
+                          height on the grid container on React Native (e.g. `h-64`, `h-screen`, \
+                          or `h-full`); on an auto-height grid, percentage row tracks are indefinite."
+                    .to_string(),
+                span: node.span,
+            });
+            continue;
+        }
         if let Some(filter) = native_backdrop_filter(declaration) {
             backdrop_filter = Some(filter);
             continue;

@@ -118,6 +118,7 @@ pub(super) fn render_node(
         grid_columns,
         grid_rows,
         parent_measured,
+        group_ancestor,
     } = ancestor;
     let source = cx.source;
     let theme = cx.theme;
@@ -185,7 +186,10 @@ pub(super) fn render_node(
     let layout = crate::pattern_layout::adapt(node.primitive, "className", style);
     let style = layout.style;
     let style = prepare::motion_safe_skeleton(style, node, from_ancestor.in_skeleton);
-    let grid = native_grid(&style, theme, cx.runtime);
+    let can_measure_grid_height = !has_display_contents(&style)
+        && host::primitive_can_measure_parent(node.primitive)
+        && crate::grid::has_definite_grid_height(&style, parent_measured);
+    let grid = native_grid(&style, theme, can_measure_grid_height, cx.runtime);
     let grid_item = native_grid_item(&style, grid_columns, grid_rows);
     // The fast Native transition path is deliberately narrow: opacity on
     // Pressable interaction state can stay entirely on the native driver.
@@ -295,6 +299,7 @@ pub(super) fn render_node(
                         .iter()
                         .any(|declaration| interaction::uses_group_state(&declaration.condition))))
             && pattern_style_prop.is_none(),
+        group_ancestor,
         pattern_slot: Some("className"),
         composition: hozo_ir::OwnerSlotComposition {
             filters: mixing.project_filter_slots,
@@ -358,6 +363,7 @@ pub(super) fn render_node(
         &base_name,
         node,
         position,
+        group_ancestor,
         cx,
     );
     let (effects, deferred_effects) = effects::plan(
@@ -473,6 +479,9 @@ pub(super) fn render_node(
     }
     let measures_parent =
         can_measure_parent && (has_parent_measured_child || has_parent_measured_space);
+    let measures_grid_height = grid.as_ref().is_some_and(|grid| grid.uses_measured_height)
+        && !has_display_contents(&own_declarations)
+        && host::supports_parent_measurement_host(rendered_component);
     // An intervening control owns its own interaction. Neither an enhanced
     // nor a plain link may borrow an outer button's hover/focus context.
     let owns_pressable_interaction = rendered_component == "HozoPressable";
@@ -649,12 +658,29 @@ pub(super) fn render_node(
         &mut props_text,
         cx,
     );
-    project_spread_gap |=
-        class_slots::class_slot_props(node, position, &mut held, &mut props_text, cx);
+    let child_group_ancestor = if node.carried_classes.iter().any(|class| class == "group") {
+        Some(GroupAncestor { node, position })
+    } else {
+        group_ancestor
+    };
+    project_spread_gap |= class_slots::class_slot_props(
+        node,
+        position,
+        group_ancestor,
+        &mut held,
+        &mut props_text,
+        cx,
+    );
     // Everything Hozo doesn't model, re-emitted verbatim and last so JSX's
     // last-wins duplicate resolution keeps matching the source's own
     // ordering semantics.
-    let rendered = passthrough::render_passthrough(node, &descend, child_interaction_context, cx);
+    let rendered = passthrough::render_passthrough(
+        node,
+        &descend,
+        child_interaction_context,
+        child_group_ancestor,
+        cx,
+    );
     let prop_copies = spreads::append_passthrough(
         node,
         rendered,
@@ -684,6 +710,7 @@ pub(super) fn render_node(
         grid_columns: grid.as_ref().and_then(|grid| grid.track_count),
         grid_rows: grid.as_ref().and_then(|grid| grid.row_track_count),
         parent_measured: measures_parent,
+        group_ancestor: child_group_ancestor,
     };
     let inner = child_list::render_child_list(
         node,
@@ -692,6 +719,7 @@ pub(super) fn render_node(
         child_interaction_context,
         &base_name,
         position,
+        group_ancestor,
         cx,
     );
 
@@ -707,6 +735,7 @@ pub(super) fn render_node(
         node,
         position,
         measures_parent,
+        group_ancestor,
         cx,
     );
 
@@ -717,13 +746,14 @@ pub(super) fn render_node(
         node,
         position,
         interaction_context,
+        group_ancestor,
         cx,
     );
 
     let tag = wrappers::host_tag(
         rendered_component,
         measures_host,
-        measures_parent,
+        measures_parent || measures_grid_height,
         &self_style_parts,
         outermost_text,
         inherited,

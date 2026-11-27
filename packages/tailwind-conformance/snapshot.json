@@ -107,15 +107,15 @@
     "inOrder": 22705
   },
   "refusalAudit": {
-    "refusals": 10363,
-    "checkable": 10029,
+    "refusals": 10337,
+    "checkable": 10003,
     "confirmed": 10000,
-    "partial": 28,
+    "partial": 2,
     "suspect": 1,
     "uncheckable": 334
   },
   "nativeTypes": {
-    "entries": 21226,
+    "entries": 21278,
     "rejected": 0
   },
   "render": {
@@ -139,21 +139,21 @@
   },
   "arbitraryNative": {
     "candidates": 2845,
-    "covered": 490,
-    "refused": 2331,
+    "covered": 493,
+    "refused": 2328,
     "noOp": 24,
     "silent": 0
   },
   "arbitraryNativeAudit": {
     "candidates": 2845,
-    "validCovered": 490,
+    "validCovered": 493,
     "unresolvableCovered": 0,
-    "contextCovered": 12,
+    "contextCovered": 15,
     "implementable": 0,
-    "layoutMeasurable": 1,
+    "layoutMeasurable": 0,
     "dynamicCss": 270,
     "webOnly": 1247,
-    "invalidCss": 801,
+    "invalidCss": 796,
     "noOp": 24,
     "silent": 0
   },
@@ -166,10 +166,10 @@
   },
   "canvasArbitrary": {
     "candidates": 2845,
-    "covered": 19,
-    "refused": 2822,
+    "covered": 9,
+    "refused": 2836,
     "silent": 0,
-    "unresolvable": 4
+    "unresolvable": 0
   },
   "canvasNative": {
     "candidates": 23286,
@@ -180,10 +180,10 @@
   },
   "canvasArbitraryNative": {
     "candidates": 2845,
-    "covered": 19,
-    "refused": 2822,
+    "covered": 9,
+    "refused": 2836,
     "silent": 0,
-    "unresolvable": 4
+    "unresolvable": 0
   },
   "compositions": {
     "candidates": 50,
@@ -212,9 +212,9 @@
   },
   "nativeVariants": {
     "total": 29403,
-    "covered": 11748,
-    "restricted": 8214,
-    "refused": 17655,
+    "covered": 12657,
+    "restricted": 9123,
+    "refused": 16746,
     "noCounterpart": 8235,
     "silent": 0,
     "noOp": 0

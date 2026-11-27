@@ -616,3 +616,40 @@ fn same_component_parent_calc_lowers_with_css_percentage_axes() {
         );
     }
 }
+
+#[test]
+fn flex_fractions_and_arbitrary_basis_expand_to_rn_longhands() {
+    for (class_name, expected_basis) in [
+        ("flex-1/2", "flexBasis: '50%'"),
+        ("flex-3/4", "flexBasis: '75%'"),
+        ("flex-[50%]", "flexBasis: '50%'"),
+        ("flex-[10px]", "flexBasis: 10"),
+        ("flex-[2rem]", "flexBasis: 32"),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nfunction C() {{ return <View className=\"{class_name}\" /> }}\n"
+        );
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.styles.contains("flexGrow: 1"),
+            "{class_name}: {}",
+            out.styles
+        );
+        assert!(
+            out.styles.contains("flexShrink: 1"),
+            "{class_name}: {}",
+            out.styles
+        );
+        assert!(
+            out.styles.contains(expected_basis),
+            "{class_name}: {}",
+            out.styles
+        );
+    }
+}

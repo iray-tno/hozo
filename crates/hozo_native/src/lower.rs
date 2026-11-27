@@ -205,6 +205,7 @@ pub(super) fn lower_forwarded_capturing(
         grid_columns: None,
         grid_rows: None,
         parent_measured: false,
+        group_ancestor: None,
     };
     let jsx = render_node(
         root,

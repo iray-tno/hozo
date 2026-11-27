@@ -85,6 +85,23 @@ pub(super) fn group_state(inner: &Condition, interaction_context: bool) -> Optio
     }
 }
 
+/// Interaction state carried by a `group-*:` or negated `not-group-*:` / `group-not-*:`
+/// condition, used to determine whether the enclosing control must provide context.
+pub(super) fn group_interaction_state(condition: &Condition) -> Option<&'static str> {
+    match condition {
+        Condition::Group(inner) => group_interaction_inner(inner),
+        Condition::Not(inner) => group_interaction_state(inner),
+        _ => None,
+    }
+}
+
+fn group_interaction_inner(inner: &Condition) -> Option<&'static str> {
+    match inner {
+        Condition::Not(nested) => group_interaction_inner(nested),
+        other => group_state(other, true),
+    }
+}
+
 /// Why a `group-…:` could not be wired, in the terms the author can act on.
 pub(super) fn group_unwired_message(inner: &Condition, interaction_context: bool) -> String {
     let name = variant_spelling(inner).unwrap_or_else(|| "…".to_string());

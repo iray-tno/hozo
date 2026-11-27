@@ -154,18 +154,24 @@ export function gridRowSizes(
   measuredHeights: readonly number[],
   rowGap: number,
   explicitTracks: readonly GridTrack[] = [],
+  containerHeight?: number,
 ): number[] {
   const count = Math.max(explicitTracks.length, 0, ...layout.map((item) => item.row + item.rowSpan))
-  const rows = Array.from({ length: count }, (_, row) =>
-    explicitTracks[row]?.kind === 'points'
-      ? explicitTracks[row].value
-      : explicitTracks[row]?.kind === 'minmax'
-        ? explicitTracks[row].min
-        : 0,
-  )
+  const fixedRowSize = (track: GridTrack | undefined): number | undefined => {
+    if (track?.kind === 'points') return track.value
+    if (track?.kind === 'calc' && containerHeight !== undefined) {
+      return Math.max(0, track.evaluate(containerHeight))
+    }
+    return undefined
+  }
+  const rows = Array.from({ length: count }, (_, row) => {
+    const fixed = fixedRowSize(explicitTracks[row])
+    if (fixed !== undefined) return fixed
+    return explicitTracks[row]?.kind === 'minmax' ? explicitTracks[row].min : 0
+  })
   for (const item of layout.filter((item) => item.rowSpan === 1)) {
     const track = explicitTracks[item.row]
-    if (track?.kind === 'points') continue
+    if (fixedRowSize(track) !== undefined) continue
     const factor = track?.kind === 'fr' || track?.kind === 'minmax' ? track.value : 1
     const intrinsic = Math.max(
       0,
@@ -191,11 +197,34 @@ export function gridRowSizes(
       (item.rowSpan - 1) * rowGap
     const deficit = Math.max(0, (measuredHeights[item.child] ?? 0) - current)
     const flexible = Array.from({ length: item.rowSpan }, (_, offset) => item.row + offset).filter(
-      (row) => explicitTracks[row]?.kind !== 'points',
+      (row) => fixedRowSize(explicitTracks[row]) === undefined,
     )
     const targets = flexible.length > 0 ? flexible : []
     for (const row of targets) {
       rows[row] = (rows[row] ?? 0) + deficit / targets.length
+    }
+  }
+  if (containerHeight !== undefined) {
+    const frTotal = explicitTracks.reduce(
+      (sum, track) => sum + (track.kind === 'fr' || track.kind === 'minmax' ? track.value : 0),
+      0,
+    )
+    if (frTotal > 0) {
+      const nonFr = rows.reduce((sum, size, row) => {
+        const track = explicitTracks[row]
+        if (track?.kind === 'fr') return sum
+        if (track?.kind === 'minmax') return sum + track.min
+        return sum + size
+      }, 0)
+      const free = Math.max(0, containerHeight - nonFr - Math.max(0, count - 1) * rowGap)
+      for (let row = 0; row < explicitTracks.length; row += 1) {
+        const track = explicitTracks[row]!
+        if (track.kind === 'fr') {
+          rows[row] = Math.max(rows[row]!, (free * track.value) / frTotal)
+        } else if (track.kind === 'minmax') {
+          rows[row] = Math.max(rows[row]!, track.min + (free * track.value) / frTotal)
+        }
+      }
     }
   }
   return rows
