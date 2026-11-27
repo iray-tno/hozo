@@ -37,7 +37,7 @@ type Common = Omit<ChartInput, 'width'> & {
   showTable?: boolean
 }
 
-export type BarChartProps = Common & Pick<BarChartInput, 'stacked'>
+export type BarChartProps = Common & Pick<BarChartInput, 'stacked' | 'horizontal'>
 
 export type LineChartProps = Common & {
   /** Draw a dot at each value. */
@@ -132,7 +132,7 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
       },
       onLeave: () => setActive(undefined),
       onKey: (key: string) => {
-        const next = nextDatum(key, active, count)
+        const next = nextDatum(key, active, count, data.horizontal)
         if (next === undefined) return false
         setActive(next)
         return true
@@ -181,8 +181,13 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     )
   }
 
-  function BarChart({ stacked, ...props }: BarChartProps) {
-    return <Chart props={props} model={(width) => barChartModel({ ...props, stacked, width })} />
+  function BarChart({ stacked, horizontal, ...props }: BarChartProps) {
+    return (
+      <Chart
+        props={props}
+        model={(width) => barChartModel({ ...props, stacked, horizontal, width })}
+      />
+    )
   }
 
   function LineChart({ points, ...props }: LineChartProps) {

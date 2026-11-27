@@ -25,7 +25,7 @@ const dollars = { label: 'Revenue', format: (value: number) => `$${value}` }
 
 function Gallery({ showTable = false }: { showTable?: boolean }) {
   return (
-    <View className="max-w-2xl gap-8 p-6 text-slate-700">
+    <View className="w-full max-w-2xl gap-8 p-6 text-slate-700">
       <Section className="gap-2">
         <Heading level={2}>Grouped bars</Heading>
         <Paragraph>February has no in-store figure: no bar, and the table says so.</Paragraph>
@@ -116,7 +116,7 @@ const share = { key: 'revenue', label: 'Revenue', format: (value: number) => `$$
  */
 export const PieAndDonut: StoryObj<typeof meta> = {
   render: () => (
-    <View className="max-w-2xl gap-8 p-6 text-slate-700">
+    <View className="w-full max-w-2xl gap-8 p-6 text-slate-700">
       <Section className="gap-2">
         <Heading level={2}>Pie</Heading>
         <PieChart
@@ -176,7 +176,7 @@ const daily = Array.from({ length: 5000 }, (_, day) => ({
  */
 export const ManyValues: StoryObj<typeof meta> = {
   render: () => (
-    <View className="max-w-2xl gap-2 p-6 text-slate-700">
+    <View className="w-full max-w-2xl gap-2 p-6 text-slate-700">
       <Heading level={2}>Daily visits</Heading>
       <LineChart
         accessibilityLabel="Daily visits over 5,000 days"
@@ -185,6 +185,37 @@ export const ManyValues: StoryObj<typeof meta> = {
         y={{ label: 'Visits' }}
         series={[{ key: 'visits', label: 'Visits' }]}
         height={240}
+      />
+    </View>
+  ),
+}
+
+const tickets = [
+  { team: 'Customer support', open: 42, closed: 30 },
+  { team: 'Billing and invoices', open: 12, closed: null },
+  { team: 'Platform', open: 27, closed: 18 },
+  { team: 'Mobile apps', open: 19, closed: 22 },
+]
+
+/**
+ * Horizontal bars for long category names: the rows run down the chart,
+ * so Down and Up step through them as well as Right and Left.
+ */
+export const HorizontalBars: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-2 p-6 text-slate-700">
+      <Heading level={2}>Tickets by team</Heading>
+      <BarChart
+        accessibilityLabel="Open and closed tickets by team"
+        data={tickets}
+        x={{ key: 'team', label: 'Team' }}
+        y={{ label: 'Tickets' }}
+        series={[
+          { key: 'open', label: 'Open' },
+          { key: 'closed', label: 'Closed' },
+        ]}
+        height={220}
+        horizontal
       />
     </View>
   ),

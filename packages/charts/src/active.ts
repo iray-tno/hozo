@@ -11,9 +11,14 @@ export function nextDatum(
   key: string,
   active: number | undefined,
   count: number,
+  horizontal = false,
 ): number | undefined {
   if (count === 0) return undefined
   const at = active ?? -1
+  // Categories run down a horizontal bar chart, so Down and Up step
+  // through them too; Right and Left still do, as on every chart.
+  if (horizontal && key === 'ArrowDown') key = 'ArrowRight'
+  if (horizontal && key === 'ArrowUp') key = 'ArrowLeft'
   switch (key) {
     case 'ArrowRight':
       return active === undefined ? 0 : Math.min(count - 1, at + 1)
@@ -102,6 +107,14 @@ export function tooltipBox(
   const height = Math.ceil(lineHeight * (rows.length + 1) + padding * 2)
   const center = model.centers[datum] ?? 0
   const gap = fontSize
+  if (model.horizontal) {
+    // Below the category's band if it fits, else above, at the plot's right.
+    const half = model.plot.height / Math.max(1, model.centers.length) / 2
+    const below = center + half + gap / 2
+    const y = below + height <= model.height ? below : Math.max(0, center - half - gap / 2 - height)
+    const x = Math.max(0, model.plot.x + model.plot.width - width)
+    return { x, y, width, height, lineHeight, padding }
+  }
   const right = center + gap
   const x = right + width <= model.width ? right : Math.max(0, center - gap - width)
   const y = Math.max(0, Math.min(model.plot.y, model.height - height))

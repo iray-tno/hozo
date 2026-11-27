@@ -61,6 +61,11 @@ export interface ChartInput {
 
 export interface BarChartInput extends ChartInput {
   stacked?: boolean
+  /**
+   * Bars run left to right, categories top to bottom: the layout for long
+   * labels and rankings. `y` still describes the values, now along x.
+   */
+  horizontal?: boolean
 }
 
 export interface AreaChartInput extends ChartInput {
@@ -124,6 +129,11 @@ export interface ChartModel {
   datumAt(x: number, y?: number): number
   /** A pie's geometry; absent on Bar and Line. */
   radial?: Radial
+  /**
+   * Horizontal bars: `centers` are then y positions, `xTicks` the values
+   * and `yTicks` the categories.
+   */
+  horizontal?: boolean
 }
 
 /** A row's value: finite, or a gap. A string or null is a gap, not zero. */
@@ -304,6 +314,7 @@ export function barChartModel(input: BarChartInput): ChartModel {
   const fontSize = input.fontSize ?? 12
 
   const domain = input.stacked ? stackedExtent(values) : extent(values, true)
+  if (input.horizontal) return horizontalBars(input, categories, values, domain)
   const { plot, y, yTicks } = frame(input, domain)
   const band: BandScale<number> = bandScale(
     input.data.map((_, i) => i),
@@ -355,6 +366,87 @@ export function barChartModel(input: BarChartInput): ChartModel {
     yTicks,
     centers,
     datumAt: nearest(centers),
+  }
+}
+
+/**
+ * Bars along x. The category labels set the left margin, and the value
+ * labels, centred under their ticks, set the right one, so the last label
+ * is not cut off.
+ */
+function horizontalBars(
+  input: BarChartInput,
+  categories: string[],
+  values: (number | undefined)[][],
+  domain: [number, number],
+): ChartModel {
+  const fontSize = input.fontSize ?? 12
+  const format = input.y?.format ?? defaultFormat
+  const gap = fontSize / 2
+  const widestCategory = Math.max(
+    0,
+    ...categories.map((label) => estimateTextWidth(label, fontSize)),
+  )
+  const left =
+    input.margin?.left ?? Math.ceil(widestCategory + gap * 2 + (input.x.label ? fontSize + gap : 0))
+  const top = input.margin?.top ?? gap
+  const bottom = input.margin?.bottom ?? fontSize + gap * 2 + (input.y?.label ? fontSize + gap : 0)
+  const plotHeight = Math.max(0, input.height - top - bottom)
+  const roughWidth = Math.max(0, input.width - left - gap * 2)
+  const count = Math.max(2, Math.floor(roughWidth / 80))
+  const [d0, d1] = input.y?.domain ?? niceDomain(domain[0], domain[1], count)
+  const tickValues = linearScale([d0, d1], [0, 1]).ticks(count)
+  const labels = tickValues.map(format)
+  const lastLabel = estimateTextWidth(labels.at(-1) ?? '', fontSize)
+  const right = input.margin?.right ?? Math.ceil(Math.max(gap * 2, lastLabel / 2 + gap))
+  const plot = {
+    x: left,
+    y: top,
+    width: Math.max(0, input.width - left - right),
+    height: plotHeight,
+  }
+  const x = linearScale([d0, d1], [plot.x, plot.x + plot.width])
+  const band: BandScale<number> = bandScale(
+    input.data.map((_, i) => i),
+    [plot.y, plot.y + plot.height],
+    { paddingInner: 0.2, paddingOuter: 0.1 },
+  )
+  const centers = input.data.map((_, i) => (band(i) as number) + band.bandwidth / 2)
+  const zero = Math.min(Math.max(0, d0), d1)
+  const groups = input.stacked ? 1 : Math.max(1, values.length)
+  const thickness = band.bandwidth / groups
+  const marks: Mark[] = []
+  for (const [series, column] of bands(values, input.stacked ?? false, zero).entries())
+    for (const [datum, span] of column.entries()) {
+      if (!span) continue
+      const [a, b] = [x(span[0]), x(span[1])]
+      marks.push({
+        kind: 'bar',
+        series,
+        datum,
+        x: Math.min(a, b),
+        y: (band(datum) as number) + (input.stacked ? 0 : series * thickness),
+        width: Math.abs(b - a),
+        height: thickness,
+      })
+    }
+  // Every n-th category, so that labels a line apart do not overlap.
+  const every = band.step > 0 ? Math.max(1, Math.ceil((fontSize * 1.2) / band.step)) : 1
+  const yTicks: Tick[] = []
+  for (let i = 0; i < categories.length; i += every)
+    yTicks.push({ position: centers[i] as number, label: categories[i] as string })
+  return {
+    width: input.width,
+    height: input.height,
+    plot,
+    categories,
+    values,
+    marks,
+    xTicks: tickValues.map((value, i) => ({ position: x(value), label: labels[i] as string })),
+    yTicks,
+    centers,
+    datumAt: (px, py) => nearest(centers)(py ?? px),
+    horizontal: true,
   }
 }
 

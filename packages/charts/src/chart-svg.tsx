@@ -88,21 +88,25 @@ const Drawing = memo(function Drawing({
   ink: string
   colors?: readonly string[]
 }) {
-  const { plot, radial } = model
+  const { plot, radial, horizontal } = model
   const bottom = plot.y + plot.height
+  // Gridlines run across the value axis: horizontal for upright charts,
+  // vertical when the bars lie down. The category axis has none.
   return (
     <>
       <G>
         {model.yTicks.map((tick) => (
           <G key={`y${tick.label}`}>
-            <Line
-              x1={plot.x}
-              x2={plot.x + plot.width}
-              y1={tick.position}
-              y2={tick.position}
-              stroke={ink}
-              strokeOpacity={0.15}
-            />
+            {horizontal ? null : (
+              <Line
+                x1={plot.x}
+                x2={plot.x + plot.width}
+                y1={tick.position}
+                y2={tick.position}
+                stroke={ink}
+                strokeOpacity={0.15}
+              />
+            )}
             <SvgText
               x={plot.x - fontSize / 2}
               y={tick.position}
@@ -116,18 +120,31 @@ const Drawing = memo(function Drawing({
           </G>
         ))}
         {model.xTicks.map((tick) => (
-          <SvgText
-            key={`x${tick.position}`}
-            x={tick.position}
-            y={bottom + fontSize * 1.25}
-            fill={ink}
-            fontSize={fontSize}
-            textAnchor="middle"
-          >
-            {tick.label}
-          </SvgText>
+          <G key={`x${tick.position}`}>
+            {horizontal ? (
+              <Line
+                x1={tick.position}
+                x2={tick.position}
+                y1={plot.y}
+                y2={bottom}
+                stroke={ink}
+                strokeOpacity={0.15}
+              />
+            ) : null}
+            <SvgText
+              x={tick.position}
+              y={bottom + fontSize * 1.25}
+              fill={ink}
+              fontSize={fontSize}
+              textAnchor="middle"
+            >
+              {tick.label}
+            </SvgText>
+          </G>
         ))}
-        {radial ? null : (
+        {radial ? null : horizontal ? (
+          <Line x1={plot.x} x2={plot.x} y1={plot.y} y2={bottom} stroke={ink} strokeOpacity={0.4} />
+        ) : (
           <Line
             x1={plot.x}
             x2={plot.x + plot.width}
@@ -281,6 +298,15 @@ function Tooltip({
             <Path key="active" d={mark.path} fill="none" stroke={ink} strokeWidth={2} />
           ) : null,
         )
+      ) : model.horizontal ? (
+        <Rect
+          x={model.plot.x}
+          y={center - band / 2}
+          width={model.plot.width}
+          height={band}
+          fill={ink}
+          fillOpacity={0.08}
+        />
       ) : (
         <Rect
           x={center - band / 2}
