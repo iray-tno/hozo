@@ -1,0 +1,50 @@
+heading, Revenue against target, level 2
+chart, Revenue by channel against the monthly target, 6 categories, Jan to Jun. Online: lowest $90 at Mar, highest $210 at May. In store: lowest $60 at Mar, highest $130 at Jun, 1 without a value. Target: lowest $180 at Jan, highest $240 at Jun.
+table, Revenue by channel against the monthly target
+rowgroup
+row, Month Online In store Target
+columnheader, Month
+columnheader, Online
+columnheader, In store
+columnheader, Target
+end of row, Month Online In store Target
+end of rowgroup
+rowgroup
+row, Jan $120 $80 $180
+rowheader, Jan
+cell, $120
+cell, $80
+cell, $180
+end of row, Jan $120 $80 $180
+row, Feb $200 No value $190
+rowheader, Feb
+cell, $200
+cell, No value
+cell, $190
+end of row, Feb $200 No value $190
+row, Mar $90 $60 $200
+rowheader, Mar
+cell, $90
+cell, $60
+cell, $200
+end of row, Mar $90 $60 $200
+row, Apr $160 $110 $210
+rowheader, Apr
+cell, $160
+cell, $110
+cell, $210
+end of row, Apr $160 $110 $210
+row, May $210 $95 $230
+rowheader, May
+cell, $210
+cell, $95
+cell, $230
+end of row, May $210 $95 $230
+row, Jun $180 $130 $240
+rowheader, Jun
+cell, $180
+cell, $130
+cell, $240
+end of row, Jun $180 $130 $240
+end of rowgroup
+end of table, Revenue by channel against the monthly target

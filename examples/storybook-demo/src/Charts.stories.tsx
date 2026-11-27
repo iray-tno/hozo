@@ -6,6 +6,7 @@
 import {
   AreaChart,
   BarChart,
+  ComposedChart,
   DonutChart,
   LineChart,
   PieChart,
@@ -257,6 +258,29 @@ export const Scatter: StoryObj<typeof meta> = {
           { key: 'returns', label: 'Returns %' },
         ]}
         height={240}
+      />
+    </View>
+  ),
+}
+
+const plan = revenue.map((row, i) => ({ ...row, target: [180, 190, 200, 210, 230, 240][i] }))
+
+/**
+ * Bars and a line in one chart: the channels as bars, the target as a line
+ * over them. A reader hears every series at once, whatever its mark.
+ */
+export const BarsAndLine: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-2 p-6 text-slate-700">
+      <Heading level={2}>Revenue against target</Heading>
+      <ComposedChart
+        accessibilityLabel="Revenue by channel against the monthly target"
+        data={plan}
+        x={{ key: 'month', label: 'Month' }}
+        y={dollars}
+        series={[...series, { key: 'target', label: 'Target', type: 'line' }]}
+        height={240}
+        points
       />
     </View>
   ),

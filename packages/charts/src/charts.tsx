@@ -18,6 +18,8 @@ import {
   barChartModel,
   type ChartInput,
   type ChartModel,
+  type ComposedSeries,
+  composedChartModel,
   lineChartModel,
 } from './model.ts'
 import { type PieValue, pieChartModel, shareFormat } from './pie.ts'
@@ -52,6 +54,13 @@ export type ScatterChartProps = Omit<Common, 'x'> & {
   x: ScatterXAxis
   /** The field that names each point; otherwise a point is named by its x value. */
   name?: ScatterName
+}
+
+export type ComposedChartProps = Omit<Common, 'series'> & {
+  /** Each series as bars (the default) or, with `type: 'line'`, a line. */
+  series: readonly ComposedSeries[]
+  /** Draw a dot at each value of the line series. */
+  points?: boolean
 }
 
 export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin'> & {
@@ -214,6 +223,16 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     )
   }
 
+  function ComposedChart({ points, ...props }: ComposedChartProps) {
+    return (
+      <Chart
+        props={props}
+        points={points}
+        model={(width) => composedChartModel({ ...props, width })}
+      />
+    )
+  }
+
   // The table's first column is the point's name, or its x value when
   // there is none; the model adds an x column after a name.
   function ScatterChart({ x, name, ...props }: ScatterChartProps) {
@@ -246,5 +265,5 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     return <PieChart {...props} innerRadius={innerRadius} />
   }
 
-  return { BarChart, LineChart, AreaChart, ScatterChart, PieChart, DonutChart }
+  return { BarChart, LineChart, AreaChart, ComposedChart, ScatterChart, PieChart, DonutChart }
 }

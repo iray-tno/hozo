@@ -68,6 +68,15 @@ export interface BarChartInput extends ChartInput {
   horizontal?: boolean
 }
 
+/** A series of a composed chart, drawn as bars (the default) or as a line. */
+export interface ComposedSeries extends ChartSeries {
+  type?: 'bar' | 'line'
+}
+
+export interface ComposedChartInput extends ChartInput {
+  series: readonly ComposedSeries[]
+}
+
 export interface AreaChartInput extends ChartInput {
   /** Each series' band sits on the ones before it, so the top edge is the total. */
   stacked?: boolean
@@ -361,6 +370,63 @@ export function barChartModel(input: BarChartInput): ChartModel {
     }
   }
 
+  return {
+    width: input.width,
+    height: input.height,
+    plot,
+    categories,
+    values,
+    marks,
+    xTicks: xTicks(categories, centers, band.step, fontSize),
+    yTicks,
+    centers,
+    datumAt: nearest(centers),
+  }
+}
+
+/**
+ * Bars and lines over one category axis, as for revenue and its margin.
+ * The bar series share each band side by side; a line runs through the
+ * band centres. One y axis, so it includes zero for the bars. Bars are
+ * drawn first, so every line stays visible.
+ */
+export function composedChartModel(input: ComposedChartInput): ChartModel {
+  const categories = categoriesOf(input)
+  const values = input.series.map((series) => input.data.map((row) => rowValue(row, series.key)))
+  const fontSize = input.fontSize ?? 12
+  const { plot, y, yTicks } = frame(input, extent(values, true))
+  const band: BandScale<number> = bandScale(
+    input.data.map((_, i) => i),
+    [plot.x, plot.x + plot.width],
+    { paddingInner: 0.2, paddingOuter: 0.1 },
+  )
+  const centers = input.data.map((_, i) => (band(i) as number) + band.bandwidth / 2)
+  const zero = y(Math.min(Math.max(0, y.domain[0]), y.domain[1]))
+  const barSeries = input.series.flatMap((entry, i) => (entry.type === 'line' ? [] : [i]))
+  const width = band.bandwidth / Math.max(1, barSeries.length)
+  const marks: Mark[] = []
+  for (const [slot, series] of barSeries.entries())
+    for (const [datum, value] of (values[series] ?? []).entries()) {
+      if (value === undefined) continue
+      marks.push({
+        kind: 'bar',
+        series,
+        datum,
+        x: (band(datum) as number) + slot * width,
+        y: Math.min(zero, y(value)),
+        width,
+        height: Math.abs(y(value) - zero),
+      })
+    }
+  for (const [series, entry] of input.series.entries()) {
+    if (entry.type !== 'line') continue
+    const points = (values[series] ?? []).map((value, datum) =>
+      value === undefined ? undefined : ([centers[datum] as number, y(value)] as const),
+    )
+    marks.push({ kind: 'line', series, path: linePath(points) })
+    for (const [datum, point] of points.entries())
+      if (point) marks.push({ kind: 'point', series, datum, cx: point[0], cy: point[1] })
+  }
   return {
     width: input.width,
     height: input.height,

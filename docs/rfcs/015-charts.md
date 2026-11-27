@@ -200,7 +200,7 @@ What is then left is decided afresh, not continued by default.
   elements are about 100 ms of a 457 ms first draw and the accessible
   table 351 ms, and Line draws one element per series at any size. Large
   data needs a different accessible equivalent before a second renderer.
-- Pie and donut, area, sparklines, horizontal bars and scatter have since
+- Pie and donut, area, sparklines, horizontal bars, scatter and bars with lines have since
   been added (#2339). A scatter point has no category, so the rows are
   read in x order, each named and given its x value.
 - **Time scale, log scale, brushing and zoom, animation.**
