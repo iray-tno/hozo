@@ -169,6 +169,10 @@
       "types": "./dist/generated/pagination.d.ts",
       "default": "./dist/generated/pagination.js"
     },
+    "./generated/peer": {
+      "types": "./dist/generated/peer.d.ts",
+      "default": "./dist/generated/peer.js"
+    },
     "./generated/pressable": {
       "types": "./dist/generated/pressable.d.ts",
       "default": "./dist/generated/pressable.js"
@@ -208,6 +212,10 @@
     "./generated/stepper": {
       "types": "./dist/generated/stepper.d.ts",
       "default": "./dist/generated/stepper.js"
+    },
+    "./generated/subtree": {
+      "types": "./dist/generated/subtree.d.ts",
+      "default": "./dist/generated/subtree.js"
     },
     "./generated/table": {
       "types": "./dist/generated/table.d.ts",

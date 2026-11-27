@@ -12,9 +12,9 @@
 // - Nothing in React Native could be wired to answer it. That is a
 //   judgement, so it is made narrowly. Left out on purpose, although every
 //   one is refused today:
-//   - `peer-*`, `has-*`, `focus-within`: a sibling's or a descendant's
-//     state is visible to a compiler that sees the JSX, or to a context.
-//   - `data-*`: Hozo already answers declared owner facts and Presence.
+//   - `supports-[...]`: CSS feature queries have no RN equivalent today.
+//   - unwired `has-*` / `peer-*` / `group-*` states beyond modeled props and
+//     descendant/sibling interaction contexts.
 //   - `placeholder:`, `selection:`: TextInput has `placeholderTextColor`
 //     and `selectionColor`, and their colours lower to them; the rest of
 //     what the two variants can set has nowhere to go.

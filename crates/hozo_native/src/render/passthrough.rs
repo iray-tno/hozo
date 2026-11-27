@@ -10,6 +10,7 @@ pub(super) fn render_passthrough<'n>(
     descend: &[StyleDeclaration],
     child_interaction_context: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
+    subtree_report: SubtreeReport,
     cx: &mut NativeRenderContext<'_>,
 ) -> Vec<(&'n hozo_ir::PassthroughProp, Rendered)> {
     let source = cx.source;
@@ -50,6 +51,7 @@ pub(super) fn render_passthrough<'n>(
                         descend,
                         child_interaction_context,
                         group_ancestor,
+                        subtree_report,
                         cx,
                     );
                     cx.runtime.need_component("hozoButtonProps");
@@ -117,6 +119,7 @@ pub(super) fn render_passthrough<'n>(
                 descend,
                 child_interaction_context,
                 group_ancestor,
+                subtree_report,
                 cx,
             ),
         ));

@@ -12,10 +12,12 @@ use super::*;
 
 /// Writes each of the primitive's class slots as its style prop. True when
 /// a slot written by the author projects a gap, so the spread must too.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn class_slot_props<'n>(
     node: &'n Node,
     position: SiblingPosition,
     group_ancestor: Option<GroupAncestor<'_>>,
+    peers: &[PeerSibling<'_>],
     held: &mut crate::spread_style::HeldStyles<'n>,
     props_text: &mut String,
     cx: &mut NativeRenderContext<'_>,
@@ -127,6 +129,7 @@ pub(super) fn class_slot_props<'n>(
                 position,
                 interaction_context: false,
                 group_ancestor,
+                peers,
                 pattern_slot: Some(slot.class_prop),
                 composition: Default::default(),
             };

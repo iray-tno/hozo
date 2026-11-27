@@ -18,6 +18,7 @@ pub(crate) fn wrap_in_text(
     position: SiblingPosition,
     interaction_context: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
+    peers: &[PeerSibling<'_>],
     cx: &mut crate::NativeRenderContext<'_>,
 ) -> String {
     // A `Text` that no `Primitive::Text` asked for: the author wrote a bare
@@ -40,6 +41,7 @@ pub(crate) fn wrap_in_text(
         position,
         interaction_context,
         group_ancestor,
+        peers,
         pattern_slot: None,
         composition: Default::default(),
     };

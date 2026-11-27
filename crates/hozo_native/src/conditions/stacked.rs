@@ -35,14 +35,19 @@ pub(super) fn stacked_guard(
             Condition::Always
                 | Condition::Disabled
                 | Condition::Aria(_)
+                | Condition::DataAttribute(_)
                 | Condition::Enabled
                 | Condition::Group(_)
+                | Condition::Peer(_)
                 | Condition::Environment(_)
                 | Condition::Pressed
                 | Condition::Expr(_)
                 | Condition::Hover
                 | Condition::Focus
                 | Condition::FocusVisible
+                | Condition::FocusWithin
+                | Condition::Has(_)
+                | Condition::HasSelector(_)
                 | Condition::Responsive(_)
                 | Condition::Width { .. }
                 | Condition::Container { .. }
@@ -53,8 +58,7 @@ pub(super) fn stacked_guard(
                 | Condition::StartingStyle
                 | Condition::Not(_)
                 | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown)
-        ) || presence_closed(atom)
-            || (matches!(atom, Condition::DataAttribute(_)) && !target.owner_facts.is_empty())
+        )
     });
     if !supported {
         diagnostics.push(unwired_variant(
@@ -93,10 +97,14 @@ pub(super) fn stacked_guard(
             | Condition::Structural(_)
             | Condition::Not(_)
             | Condition::Group(_)
+            | Condition::Peer(_)
             | Condition::Pressed
             | Condition::Hover
             | Condition::Focus
             | Condition::FocusVisible
+            | Condition::FocusWithin
+            | Condition::Has(_)
+            | Condition::HasSelector(_)
             | Condition::Responsive(_)
             | Condition::Width { .. }
             | Condition::Dark
@@ -135,34 +143,34 @@ pub(super) fn stacked_guard(
             }
             Condition::StartingStyle => enters_from = true,
             Condition::DataAttribute(_)
-                if !presence_closed(atom) && !target.owner_facts.is_empty() =>
+                if presence_closed(atom) && !guards::has_authored_data_prop(node, atom) =>
             {
-                match guards::resolve(atom, target, source, runtime) {
-                    Ok(guards::Guard::InteractiveScoped {
-                        available,
-                        predicate,
-                    }) => {
-                        guards.push(format!("({available} && {predicate})"));
-                        uses_interactive_state = true;
-                    }
-                    Ok(guards::Guard::Known(true)) => {}
-                    Ok(guards::Guard::Known(false)) => applies = false,
-                    Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),
-                    Ok(guards::Guard::Interactive(guard)) => {
-                        guards.push(guard);
-                        uses_interactive_state = true;
-                    }
-                    Ok(guards::Guard::Scoped {
-                        available,
-                        predicate,
-                    }) => guards.push(format!("({available} && {predicate})")),
-                    Err(reason) => {
-                        diagnostics.push(unwired_variant(node, &reason, Severity::Error));
-                        applies = false;
-                    }
-                }
+                leaves_to = true;
             }
-            Condition::DataAttribute(_) => leaves_to = true,
+            Condition::DataAttribute(_) => match guards::resolve(atom, target, source, runtime) {
+                Ok(guards::Guard::InteractiveScoped {
+                    available,
+                    predicate,
+                }) => {
+                    guards.push(format!("({available} && {predicate})"));
+                    uses_interactive_state = true;
+                }
+                Ok(guards::Guard::Known(true)) => {}
+                Ok(guards::Guard::Known(false)) => applies = false,
+                Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),
+                Ok(guards::Guard::Interactive(guard)) => {
+                    guards.push(guard);
+                    uses_interactive_state = true;
+                }
+                Ok(guards::Guard::Scoped {
+                    available,
+                    predicate,
+                }) => guards.push(format!("({available} && {predicate})")),
+                Err(reason) => {
+                    diagnostics.push(unwired_variant(node, &reason, Severity::Error));
+                    applies = false;
+                }
+            },
             _ => unreachable!("unsupported atoms were rejected above"),
         }
     }

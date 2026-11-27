@@ -37,6 +37,7 @@ pub(crate) struct StyleTarget<'a> {
     pub position: SiblingPosition,
     pub interaction_context: bool,
     pub group_ancestor: Option<GroupAncestor<'a>>,
+    pub peers: &'a [PeerSibling<'a>],
     pub pattern_slot: Option<&'a str>,
     pub composition: hozo_ir::OwnerSlotComposition,
 }
@@ -241,6 +242,10 @@ pub(super) fn build_style_entries_with_measured(
             | Condition::Structural(_)
             | Condition::Not(_)
             | Condition::Group(_)
+            | Condition::Peer(_)
+            | Condition::FocusWithin
+            | Condition::Has(_)
+            | Condition::HasSelector(_)
             | Condition::Pressed
             | Condition::Hover
             | Condition::Focus
@@ -269,18 +274,19 @@ pub(super) fn build_style_entries_with_measured(
             // the entry is handed over as `hozoExit` rather than joining the
             // style array.
             Condition::DataAttribute(_)
-                if !presence_closed(&condition) && !target.owner_facts.is_empty() =>
+                if presence_closed(&condition)
+                    && !guards::has_authored_data_prop(node, &condition) =>
             {
-                lands::from_guard(
-                    guards::resolve(&condition, target, source, runtime),
-                    false,
+                lands::frame(
+                    lands::Lands::Exit(String::new()),
+                    frames.is_some(),
+                    EXIT_WITHOUT_TRANSITION,
                     node,
                 )
             }
-            Condition::DataAttribute(_) if presence_closed(&condition) => lands::frame(
-                lands::Lands::Exit(String::new()),
-                frames.is_some(),
-                EXIT_WITHOUT_TRANSITION,
+            Condition::DataAttribute(_) => lands::from_guard(
+                guards::resolve(&condition, target, source, runtime),
+                false,
                 node,
             ),
             // The first frame of an enter animation (decision 007).
@@ -416,6 +422,7 @@ fn is_element_state(condition: &Condition) -> bool {
         Condition::Disabled
         | Condition::Enabled
         | Condition::Aria(_)
+        | Condition::DataAttribute(_)
         | Condition::FirstChild
         | Condition::LastChild
         | Condition::Structural(_)
@@ -423,8 +430,13 @@ fn is_element_state(condition: &Condition) -> bool {
         | Condition::Hover
         | Condition::Focus
         | Condition::FocusVisible
+        | Condition::FocusWithin
+        | Condition::Has(_)
+        | Condition::HasSelector(_)
         | Condition::Pressed => true,
-        Condition::Group(inner) | Condition::Not(inner) => is_element_state(inner),
+        Condition::Group(inner) | Condition::Peer(inner) | Condition::Not(inner) => {
+            is_element_state(inner)
+        }
         Condition::All(conditions) => conditions.iter().any(is_element_state),
         _ => false,
     }

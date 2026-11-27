@@ -5,7 +5,10 @@ use hozo_ir::{Condition, Diagnostic, ExprRef, Node, Severity, StyleDeclaration};
 
 use super::conditions;
 use super::conditions::unwired_variant;
-use super::context::{AncestorContext, FromAncestor, GroupAncestor, NativeRenderContext};
+use super::context::{
+    AncestorContext, FromAncestor, GroupAncestor, NativeRenderContext, PeerContext, PeerSibling,
+    SubtreeReport,
+};
 use super::lower::{forwarded_text, forwards_interaction};
 use super::render::render_node;
 use super::source_evidence::Rendered;
@@ -80,6 +83,7 @@ pub(super) fn spaced_children(
     position: SiblingPosition,
     parent_measured: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
+    peers: &[PeerSibling<'_>],
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     if child_declarations.is_empty() {
@@ -98,6 +102,7 @@ pub(super) fn spaced_children(
         position,
         interaction_context: false,
         group_ancestor,
+        peers,
         pattern_slot: None,
         composition: Default::default(),
     };
@@ -177,12 +182,14 @@ pub(super) fn spaced_children(
 /// Position is `Unknown` for every one of them: the surrounding expression
 /// decides how many siblings it renders, so `first:` can't be resolved
 /// there (see `SiblingPosition`).
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_verbatim(
     expr_ref: ExprRef,
     nested: &[hozo_ir::NestedNode],
     inherited: &[StyleDeclaration],
     interaction_context: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
+    subtree_report: SubtreeReport,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     let mut out = Rendered::new(cx.source_evidence);
@@ -202,6 +209,7 @@ pub(super) fn render_verbatim(
                 inherited,
                 interaction_context,
                 group_ancestor,
+                subtree_report,
                 cx,
             )
             .text
@@ -214,6 +222,7 @@ pub(super) fn render_verbatim(
             inherited,
             interaction_context,
             group_ancestor,
+            subtree_report,
             cx,
         ));
         cursor = entry.span.end as usize;
@@ -229,6 +238,7 @@ pub(super) fn render_nested(
     inherited: &[StyleDeclaration],
     interaction_context: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
+    subtree_report: SubtreeReport,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     // After what the elements above hand down, so a component written
@@ -257,12 +267,14 @@ pub(super) fn render_nested(
         grid_rows: None,
         parent_measured: false,
         group_ancestor,
+        subtree_report,
     };
     render_node(
         &entry.node,
         SiblingPosition::UNKNOWN,
         interaction_context || forwards_interaction(&entry.forwarded),
         ancestor,
+        PeerContext::default(),
         cx,
     )
 }

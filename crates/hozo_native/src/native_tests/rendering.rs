@@ -894,6 +894,242 @@ fn group_ancestor_variants_refuse_without_group_or_undecidable_position() {
 }
 
 #[test]
+fn authored_data_attribute_variants_lower_on_self_and_group_ancestors() {
+    // Dynamic presence and equality props on the same element.
+    let dynamic = lower_element(
+        r#"<View data-open={open ? '' : undefined} data-state={state} className="data-open:p-4 data-[state=open]:m-2 not-data-[state=open]:opacity-50 dark:data-open:bg-blue-500" />"#,
+    );
+    assert!(dynamic.diagnostics.is_empty(), "{:?}", dynamic.diagnostics);
+    assert!(
+        dynamic
+            .jsx
+            .contains("((open ? '' : undefined) != null) && hozoStyles.hozo0_data_open")
+            && dynamic.jsx.contains(
+                "((state) != null && String(state) === 'open') && hozoStyles.hozo0_data_state_eq_open"
+            )
+            && dynamic.jsx.contains(
+                "!(((state) != null && String(state) === 'open')) && hozoStyles.hozo0_notdata_state_eq_open"
+            )
+            && dynamic.jsx.contains(
+                "__hozoDark && ((open ? '' : undefined) != null) && hozoStyles.hozo0_dark_data_open"
+            ),
+        "{}",
+        dynamic.jsx
+    );
+
+    // Static literal data attributes fold at compile time with zero runtime guards.
+    let literal = lower_element(
+        r#"<View data-open data-state="open" className="data-open:p-4 data-[state=open]:m-2 data-[state=closed]:opacity-50" />"#,
+    );
+    assert!(literal.diagnostics.is_empty(), "{:?}", literal.diagnostics);
+    assert!(
+        literal.jsx.contains("hozoStyles.hozo0_data_open")
+            && literal.jsx.contains("hozoStyles.hozo0_data_state_eq_open")
+            && !literal.jsx.contains("hozo0_data_state_eq_closed")
+            && !literal.jsx.contains("&&"),
+        "{}",
+        literal.jsx
+    );
+
+    // `group-data-*` reads the enclosing `.group` ancestor's data prop.
+    let group_data = lower_element(
+        r#"<View className="group" data-state={state}><Text className="group-data-[state=open]:p-4">x</Text></View>"#,
+    );
+    assert!(
+        group_data.diagnostics.is_empty(),
+        "{:?}",
+        group_data.diagnostics
+    );
+    assert!(
+        group_data.jsx.contains(
+            "((state) != null && String(state) === 'open') && hozoStyles.hozo1_groupdata_state_eq_open"
+        ),
+        "{}",
+        group_data.jsx
+    );
+
+    // Missing data prop stays refused with the written variant name.
+    for element in [
+        r#"<View className="data-open:p-4" />"#,
+        r#"<View className="data-[state=open]:p-4" />"#,
+        r#"<View data-other="x" className="data-[state=open]:p-4" />"#,
+        r#"<View className="group"><Text className="group-data-[state=open]:p-4">x</Text></View>"#,
+    ] {
+        let output = lower_element(element);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{element}: {:?}",
+            output.diagnostics
+        );
+    }
+}
+
+#[test]
+fn peer_sibling_props_and_interactive_states_lower_in_same_parent() {
+    // Prop-driven `peer-aria-expanded:` / `peer-disabled:` / `peer-data-*:` / `peer-first:`
+    // add zero peer runtime scope or wrappers.
+    let prop_peer = lower_element(
+        r#"<View><Pressable className="peer" accessibilityState={{ expanded: open }} disabled={off} data-state={state}>p</Pressable><Text className="peer-aria-expanded:p-4 peer-disabled:opacity-50 peer-data-[state=open]:m-2 peer-first:bg-blue-500">x</Text></View>"#,
+    );
+    assert!(
+        prop_peer.diagnostics.is_empty(),
+        "{:?}",
+        prop_peer.diagnostics
+    );
+    assert!(
+        !prop_peer.jsx.contains("HozoPeerScope") && !prop_peer.jsx.contains("HozoPeerQuery"),
+        "{}",
+        prop_peer.jsx
+    );
+    assert!(
+        prop_peer
+            .jsx
+            .contains("({ expanded: open })?.expanded === true")
+            && prop_peer
+                .jsx
+                .contains("(off) && hozoStyles.hozo2_peerdisabled")
+            && prop_peer
+                .jsx
+                .contains("((state) != null && String(state) === 'open')")
+            && prop_peer.jsx.contains("hozoStyles.hozo2_peerfirst"),
+        "{}",
+        prop_peer.jsx
+    );
+
+    // Interactive `peer-hover:` / `peer-focus-visible:` / `not-peer-hover:` emit
+    // `HozoPeerScope` + `hozoPeerId={0}` + `HozoPeerQuery peerIds={[0]}`.
+    let interactive_peer = lower_element(
+        r#"<View><Pressable className="peer">p</Pressable><Text className="peer-hover:p-4 peer-focus-visible:m-2 not-peer-hover:opacity-50 dark:peer-hover:bg-blue-500">x</Text></View>"#,
+    );
+    assert!(
+        interactive_peer.diagnostics.is_empty(),
+        "{:?}",
+        interactive_peer.diagnostics
+    );
+    assert!(
+        interactive_peer.jsx.contains("<HozoPeerScope>")
+            && interactive_peer
+                .jsx
+                .contains("<HozoPressable hozoFocusVisible hozoPeerId={0}>")
+            && interactive_peer
+                .jsx
+                .contains("<HozoPeerQuery peerIds={[0]}>{(__hozoPeer) => (")
+            && interactive_peer.jsx.contains("__hozoPeer[0].hovered &&")
+            && interactive_peer
+                .jsx
+                .contains("__hozoPeer[0].focusVisible &&")
+            && interactive_peer.jsx.contains("!(__hozoPeer[0].hovered) &&")
+            && interactive_peer
+                .jsx
+                .contains("__hozoDark && __hozoPeer[0].hovered &&"),
+        "{}",
+        interactive_peer.jsx
+    );
+    assert!(interactive_peer.runtime_imports.contains(&"HozoPeerScope"));
+    assert!(interactive_peer.runtime_imports.contains(&"HozoPeerQuery"));
+
+    // Refuses when no preceding `.peer` sibling exists or peer lacks the driver.
+    for element in [
+        r#"<View className="peer-hover:p-4" />"#,
+        r#"<View><Text className="peer-hover:p-4">x</Text><Pressable className="peer">p</Pressable></View>"#,
+        r#"<View><View className="peer" /><Text className="peer-hover:p-4">x</Text></View>"#,
+        r#"<View><Pressable className="peer">p</Pressable><Text className="peer-aria-expanded:p-4">x</Text></View>"#,
+        r#"<View><Pressable className="peer">p</Pressable><Text className="peer-first-of-type:p-4">x</Text></View>"#,
+    ] {
+        let output = lower_element(element);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{element}: {:?}",
+            output.diagnostics
+        );
+    }
+}
+
+#[test]
+fn focus_within_and_has_descendant_interaction_variants_lower_with_subtree_scope() {
+    // Container wrapping a Pressable lowers `focus-within:`, `has-[:focus]:`,
+    // `has-hover:`, and their negations/stacks via HozoSubtreeScope + HozoSubtreeBoundary.
+    let out = lower_element(
+        r#"<View className="focus-within:p-4 has-[:focus]:m-2 has-hover:bg-blue-500 not-has-hover:opacity-50 dark:focus-within:border"><Pressable>x</Pressable></View>"#,
+    );
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(
+        out.jsx
+            .starts_with("<HozoSubtreeScope>{(__hozoSubtree) => (<View ")
+            && out
+                .jsx
+                .contains("<HozoSubtreeBoundary scope={__hozoSubtree}><HozoPressable>")
+            && out
+                .jsx
+                .contains("__hozoSubtree.focused && hozoStyles.hozo0_focuswithin")
+            && out
+                .jsx
+                .contains("__hozoSubtree.focused && hozoStyles.hozo0_has_focus")
+            && out
+                .jsx
+                .contains("__hozoSubtree.hovered && hozoStyles.hozo0_hashover")
+            && out
+                .jsx
+                .contains("!(__hozoSubtree.hovered) && hozoStyles.hozo0_nothashover")
+            && out.jsx.contains(
+                "__hozoDark && __hozoSubtree.focused && hozoStyles.hozo0_dark_focuswithin"
+            ),
+        "{}",
+        out.jsx
+    );
+    assert!(out.runtime_imports.contains(&"HozoSubtreeScope"));
+    assert!(out.runtime_imports.contains(&"HozoSubtreeBoundary"));
+    assert!(out.runtime_imports.contains(&"HozoPressable"));
+
+    // TextInput inside a `focus-within:` container upgrades to `HozoTextInput hozoReportSubtree`.
+    let input_source = r#"import { View, TextInput } from '@hozo/core'
+const el = <View className="focus-within:p-4"><TextInput accessibilityLabel="Email" /></View>"#;
+    let parsed = hozo_parser::parse_tsx(input_source);
+    let input_out = lower(&parsed.roots[0].node, input_source, &Theme::default());
+    assert!(
+        input_out.diagnostics.is_empty(),
+        "{:?}",
+        input_out.diagnostics
+    );
+    assert!(
+        input_out.jsx.contains("<HozoTextInput hozoReportSubtree ")
+            && input_out.jsx.contains("<HozoSubtreeScope>")
+            && input_out
+                .jsx
+                .contains("<HozoSubtreeBoundary scope={__hozoSubtree}>"),
+        "{}",
+        input_out.jsx
+    );
+
+    // Opaque child expression (`{children}`) is allowed so custom components can report focus.
+    let opaque = lower_element(r#"<View className="focus-within:p-4">{children}</View>"#);
+    assert!(opaque.diagnostics.is_empty(), "{:?}", opaque.diagnostics);
+    assert!(opaque.jsx.contains("<HozoSubtreeScope>"), "{}", opaque.jsx);
+
+    // Leaf elements with no focusable/hoverable descendant stay refused honestly.
+    for element in [
+        r#"<View className="focus-within:p-4" />"#,
+        r#"<View className="focus-within:p-4">x</View>"#,
+        r#"<View className="has-[:focus]:p-4" />"#,
+        r#"<View className="has-hover:p-4" />"#,
+        r#"<View className="has-hover:p-4"><View>x</View></View>"#,
+    ] {
+        let output = lower_element(element);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{element}: {:?}",
+            output.diagnostics
+        );
+    }
+}
+
+#[test]
 fn a_refusal_names_the_variant_the_way_it_was_written() {
     // The names used to be the style-entry suffix: `group-ariachecked:`,
     // `hashover:`, and `data:` for every data attribute.
@@ -913,9 +1149,10 @@ fn a_refusal_names_the_variant_the_way_it_was_written() {
             "`focus-visible:`",
         ),
         (
-            r#"<View className="hover:peer-hover:p-4" />"#,
-            "`hover:peer-hover`",
+            r#"<View className="hover:in-hover:p-4" />"#,
+            "`hover:in-hover`",
         ),
+        (r#"<View className="peer-hover:p-4" />"#, "`peer-hover:`"),
         (
             r#"<View className="not-focus-visible:p-4" />"#,
             "`not-focus-visible:`",

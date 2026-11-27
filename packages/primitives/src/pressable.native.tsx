@@ -34,6 +34,8 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { nativeDisabledProps } from './native-disabled.ts'
+import { HozoPeerContext } from './peer-context.native.ts'
+import { useReportSubtreeInteraction } from './subtree-context.native.ts'
 import { easingFor, useHozoTextColorTransition } from './text-color-transition.native.ts'
 
 export interface HozoTransition {
@@ -56,6 +58,8 @@ export interface HozoPressableProps extends Omit<PressableProps, 'style'> {
   hozoTransition?: HozoTransition
   /** Enables per-element pointer/keyboard modality inference. */
   hozoFocusVisible?: boolean
+  /** Channel ID inside an enclosing `HozoPeerScope` when a following sibling uses interactive `peer-*`. */
+  hozoPeerId?: number
   /**
    * The text styles this element's class list carries for its label, by
    * state -- what a `<button>` passes to its text on the Web (#876). The
@@ -250,6 +254,7 @@ export function HozoPressable({
   onKeyDown,
   hozoTransition,
   hozoFocusVisible = false,
+  hozoPeerId,
   hozoTextStyle,
   children,
   ...props
@@ -263,6 +268,17 @@ export function HozoPressable({
     focusVisible: hozoFocusVisible,
     onChange: hozoTransition ? animate : undefined,
   })
+  const peerStore = useContext(HozoPeerContext)
+  useLayoutEffect(() => {
+    if (peerStore && hozoPeerId !== undefined) {
+      peerStore.publish(hozoPeerId, interaction)
+    }
+  }, [peerStore, hozoPeerId, interaction])
+  useLayoutEffect(() => {
+    if (!peerStore || hozoPeerId === undefined) return
+    return () => peerStore.clear(hozoPeerId)
+  }, [peerStore, hozoPeerId])
+  useReportSubtreeInteraction(interaction)
   const context = useMemo(
     () => ({ ...interaction, transition: hozoTransition }),
     [hozoTransition, interaction],

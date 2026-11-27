@@ -113,6 +113,35 @@ pub(crate) struct GroupAncestor<'a> {
     pub position: SiblingPosition,
 }
 
+/// One preceding `.peer` sibling in the same parent element.
+#[derive(Clone, Copy)]
+pub(crate) struct PeerSibling<'a> {
+    pub node: &'a Node,
+    pub position: SiblingPosition,
+    /// Runtime channel ID assigned only when a following sibling queries
+    /// interactive state (`peer-hover:`, `peer-focus:`, `peer-focus-visible:`,
+    /// `peer-pressed:`) on this peer.
+    pub interactive_id: Option<usize>,
+}
+
+/// Sibling-scoped `.peer` metadata for the element currently being rendered.
+/// Never inherited by descendants: a child's peers are its own preceding siblings.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct PeerContext<'a> {
+    pub preceding: &'a [PeerSibling<'a>],
+    pub publish_id: Option<usize>,
+    pub publish_focus_visible: bool,
+}
+
+/// Which descendant interaction channels an enclosing `HozoSubtreeBoundary`
+/// observes (`focus-within:`, `has-[:focus]:`, `has-hover:`, etc.).
+#[derive(Clone, Copy, Default)]
+pub(crate) struct SubtreeReport {
+    pub focus: bool,
+    pub hover: bool,
+    pub focus_visible: bool,
+}
+
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
 #[derive(Clone, Copy)]
 pub(crate) struct AncestorContext<'a> {
@@ -127,6 +156,7 @@ pub(crate) struct AncestorContext<'a> {
     /// layout box via `HozoMeasuredParent` and provides `HozoParentSizeContext`.
     pub parent_measured: bool,
     pub group_ancestor: Option<GroupAncestor<'a>>,
+    pub subtree_report: SubtreeReport,
 }
 
 /// Declarations an ancestor handed down through `*:` or `**:`.

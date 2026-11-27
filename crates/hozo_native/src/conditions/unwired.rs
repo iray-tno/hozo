@@ -13,24 +13,12 @@ pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnost
         // does not model. `has-…:` and `supports-…:` are a descendant
         // selector and a CSS feature query, neither of which exists
         // here at all.
-        Condition::DataAttribute(_)
-        | Condition::Supports(_)
-        | Condition::Has(_)
-        | Condition::HasSelector(_) => unwired_variant(
+        Condition::Supports(_) => unwired_variant(
             node,
             &format!(
                 "`{}:` has no React Native equivalent -- it selects on an attribute, a descendant or a CSS feature, and there are no selectors here. On Web the same class works.",
                 variant_spelling(condition).unwrap_or_default()
             ),
-            Severity::Error,
-        ),
-        // Focus on a *descendant*, which is a relation, and relations
-        // on Native are the one thing this backend keeps having to
-        // refuse -- see `peer-` below. `focus:` works because an
-        // element knows its own focus; nothing here knows a subtree's.
-        Condition::FocusWithin => unwired_variant(
-            node,
-            "`focus-within:` asks whether anything *inside* this element has focus, and React Native gives an element no way to know that. `focus:` on the element that actually takes focus is the version that works on both platforms.",
             Severity::Error,
         ),
         // Not a gap in this backend so much as a question the platform
@@ -95,13 +83,6 @@ pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnost
             "`*:`/`**:` is handed to this element's children at build time, and this one is wrapped in a variant that cannot be. On Web the same class works from the selector.",
             Severity::Error,
         ),
-        Condition::Peer(_) => unwired_variant(
-            node,
-            "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
-             and there are none here -- a parent can hand its state down through context, and \
-             a sibling has nowhere to hand it. On Web the same class works.",
-            Severity::Error,
-        ),
         Condition::In(_) => unwired_variant(
             node,
             "`in-…:` asks whether any ancestor is in a state, through a selector. React \
@@ -158,11 +139,13 @@ pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnost
         Condition::Always
         | Condition::All(_)
         | Condition::Group(_)
+        | Condition::Peer(_)
         | Condition::StartingStyle
         | Condition::Expr(_)
         | Condition::Disabled
         | Condition::Enabled
         | Condition::Aria(_)
+        | Condition::DataAttribute(_)
         | Condition::Environment(_)
         | Condition::FirstChild
         | Condition::LastChild
@@ -172,6 +155,9 @@ pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnost
         | Condition::Hover
         | Condition::Focus
         | Condition::FocusVisible
+        | Condition::FocusWithin
+        | Condition::Has(_)
+        | Condition::HasSelector(_)
         | Condition::Responsive(_)
         | Condition::Width { .. }
         | Condition::Dark

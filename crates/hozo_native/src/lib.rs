@@ -88,7 +88,10 @@ mod variants;
 
 // Moved out of this file; the older modules still read them from the root.
 use children::{render_verbatim, spaced_children, subtree_for_children};
-use context::{AncestorContext, FromAncestor, GroupAncestor, NativeRenderContext, RuntimeNeeds};
+use context::{
+    AncestorContext, FromAncestor, GroupAncestor, NativeRenderContext, PeerContext, PeerSibling,
+    RuntimeNeeds, SubtreeReport,
+};
 use environment::{
     environment_name, environment_unwired_message, native_environment, uses_container_width,
     width_threshold_px,
@@ -104,8 +107,8 @@ pub use lower::{
 use lower::{lower_forwarded_capturing, RenderOptions, STYLE_OBJECT};
 use states::{
     animation_name, aria_state_guard, condition_contains, focus_state, group_interaction_state,
-    group_state, group_unwired_message, read_only_guard, runtime_class_state, uses_hover,
-    uses_pressed,
+    group_state, group_unwired_message, peer_interaction_state, read_only_guard,
+    runtime_class_state, uses_hover, uses_pressed,
 };
 use structural::{structural_holds, SiblingPosition};
 use variants::{condition_suffix, variant_spelling};

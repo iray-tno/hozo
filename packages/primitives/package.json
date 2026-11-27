@@ -88,6 +88,10 @@
       "types": "./dist/generated/native-disabled.d.ts",
       "default": "./dist/generated/native-disabled.js"
     },
+    "./generated/peer": {
+      "types": "./dist/generated/peer.d.ts",
+      "default": "./dist/generated/peer.js"
+    },
     "./generated/pressable": {
       "react-native": {
         "types": "./dist/generated/pressable.native.d.ts",
@@ -115,6 +119,10 @@
     "./generated/spaced": {
       "types": "./dist/generated/spaced.d.ts",
       "default": "./dist/generated/spaced.js"
+    },
+    "./generated/subtree": {
+      "types": "./dist/generated/subtree.d.ts",
+      "default": "./dist/generated/subtree.js"
     },
     "./generated/text": {
       "types": "./dist/generated/text.d.ts",

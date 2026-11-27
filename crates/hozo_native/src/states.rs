@@ -102,6 +102,16 @@ fn group_interaction_inner(inner: &Condition) -> Option<&'static str> {
     }
 }
 
+/// Interaction state carried by a `peer-*:` or negated `not-peer-*:` / `peer-not-*:`
+/// condition, used to assign runtime peer channels only when a following sibling needs one.
+pub(super) fn peer_interaction_state(condition: &Condition) -> Option<&'static str> {
+    match condition {
+        Condition::Peer(inner) => group_interaction_inner(inner),
+        Condition::Not(inner) => peer_interaction_state(inner),
+        _ => None,
+    }
+}
+
 /// Why a `group-…:` could not be wired, in the terms the author can act on.
 pub(super) fn group_unwired_message(inner: &Condition, interaction_context: bool) -> String {
     let name = variant_spelling(inner).unwrap_or_else(|| "…".to_string());
