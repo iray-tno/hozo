@@ -448,7 +448,10 @@ printf '%s\n' "$walk" | grep -qi 'Button' || fail 'TalkBack did not announce Can
 # this headless image, but this still crosses the platform accessibility
 # action boundary rather than calling the React handler directly.
 focused=
-for _ in $(seq 1 12); do
+# The walk above ends inside ChartsBench, whose charts, tables and sparkline
+# add dozens of stops before focus wraps back to the Canvas; the loop stops
+# as soon as it lands, so the bound only has to exceed one full lap.
+for _ in $(seq 1 80); do
   count="$(spoken | wc -l)"
   adb shell input keyevent KEYCODE_TAB
   sleep 1
