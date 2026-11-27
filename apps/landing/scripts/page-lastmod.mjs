@@ -9,6 +9,7 @@
 // One `git log` over every path, read newest first, rather than one process
 // per page: the first date a path appears with is its latest.
 import { execFileSync } from 'node:child_process'
+import { posix } from 'node:path'
 
 /**
  * Parse `git log --format=%x00%cI --name-only` output into the latest commit
@@ -32,7 +33,9 @@ export function parseGitLog(log) {
 
 /**
  * The last commit date (ISO 8601) of each of `files`, keyed by the path as
- * given, relative to `cwd`. Files git has no history for are left out.
+ * given, relative to `cwd`. A path may climb out of `cwd`
+ * (`../../packages/x`), because a page's data can live in another package.
+ * Files git has no history for are left out.
  *
  * @param {string[]} files
  * @param {{ cwd?: string, git?: (args: string[]) => string }} [options]
@@ -54,7 +57,7 @@ export function lastModified(files, options = {}) {
       git(['log', '--format=%x00%cI', '--name-only', '--no-renames', '--', ...files]),
     )
     for (const file of files) {
-      const date = log.get(`${prefix}${file.replace(/\\/g, '/').replace(/^\.\//, '')}`)
+      const date = log.get(posix.normalize(`${prefix}${file.replace(/\\/g, '/')}`))
       if (date) dates.set(file, date)
     }
   } catch {
