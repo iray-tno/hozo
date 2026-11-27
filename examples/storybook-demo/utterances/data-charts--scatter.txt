@@ -1,0 +1,56 @@
+heading, Price against rating and returns, level 2
+chart, Rating and return rate by price, 7 points, Price from $12 to $120. Rating: lowest 3.4 at Fern planter, highest 4.7 at Dune rug. Returns %: lowest 0.8 at Dune rug, highest 4.6 at Fern planter, 1 without a value.
+table, Rating and return rate by price
+rowgroup
+row, Product Price Rating Returns %
+columnheader, Product
+columnheader, Price
+columnheader, Rating
+columnheader, Returns %
+end of row, Product Price Rating Returns %
+end of rowgroup
+rowgroup
+row, Ember mug $12 4.2 No value
+rowheader, Ember mug
+cell, $12
+cell, 4.2
+cell, No value
+end of row, Ember mug $12 4.2 No value
+row, Amber kettle $24 3.9 2.1
+rowheader, Amber kettle
+cell, $24
+cell, 3.9
+cell, 2.1
+end of row, Amber kettle $24 3.9 2.1
+row, Fern planter $35 3.4 4.6
+rowheader, Fern planter
+cell, $35
+cell, 3.4
+cell, 4.6
+end of row, Fern planter $35 3.4 4.6
+row, Birch stool $48 4.4 1.2
+rowheader, Birch stool
+cell, $48
+cell, 4.4
+cell, 1.2
+end of row, Birch stool $48 4.4 1.2
+row, Cobalt lamp $65 4.1 3.4
+rowheader, Cobalt lamp
+cell, $65
+cell, 4.1
+cell, 3.4
+end of row, Cobalt lamp $65 4.1 3.4
+row, Gale fan $89 3.8 2.9
+rowheader, Gale fan
+cell, $89
+cell, 3.8
+cell, 2.9
+end of row, Gale fan $89 3.8 2.9
+row, Dune rug $120 4.7 0.8
+rowheader, Dune rug
+cell, $120
+cell, 4.7
+cell, 0.8
+end of row, Dune rug $120 4.7 0.8
+end of rowgroup
+end of table, Rating and return rate by price

@@ -21,6 +21,7 @@ import {
   lineChartModel,
 } from './model.ts'
 import { type PieValue, pieChartModel, shareFormat } from './pie.ts'
+import { type ScatterName, type ScatterXAxis, scatterChartModel } from './scatter.ts'
 import { chartSummary, includesTable } from './summary.ts'
 
 type Common = Omit<ChartInput, 'width'> & {
@@ -45,6 +46,13 @@ export type LineChartProps = Common & {
 }
 
 export type AreaChartProps = LineChartProps & Pick<AreaChartInput, 'stacked'>
+
+export type ScatterChartProps = Omit<Common, 'x'> & {
+  /** The numeric field along x; the rows are read in its order. */
+  x: ScatterXAxis
+  /** The field that names each point; otherwise a point is named by its x value. */
+  name?: ScatterName
+}
 
 export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin'> & {
   /** The field each slice's size comes from, and what to call it when read. */
@@ -206,6 +214,21 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     )
   }
 
+  // The table's first column is the point's name, or its x value when
+  // there is none; the model adds an x column after a name.
+  function ScatterChart({ x, name, ...props }: ScatterChartProps) {
+    return (
+      <Chart
+        props={{
+          ...props,
+          x: { key: name?.key ?? x.key, label: name ? (name.label ?? 'Name') : x.label },
+        }}
+        points
+        model={(width) => scatterChartModel({ ...props, x, name, width })}
+      />
+    )
+  }
+
   // A pie is one series whose values are also read as shares of the
   // whole, so the table, the summary and the sentence say "$120 (40%)".
   function PieChart({ value, colors, innerRadius, ...props }: PieChartProps) {
@@ -223,5 +246,5 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     return <PieChart {...props} innerRadius={innerRadius} />
   }
 
-  return { BarChart, LineChart, AreaChart, PieChart, DonutChart }
+  return { BarChart, LineChart, AreaChart, ScatterChart, PieChart, DonutChart }
 }

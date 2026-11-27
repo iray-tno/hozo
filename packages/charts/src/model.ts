@@ -134,6 +134,12 @@ export interface ChartModel {
    * and `yTicks` the categories.
    */
   horizontal?: boolean
+  /**
+   * A scatter plot's x values, read with each point: `values` formatted in
+   * datum order, and how many rows had no x and were left out.
+   * `inTable` is false when the x value is already the row's name.
+   */
+  xColumn?: { label: string; values: string[]; missing: number; inTable: boolean }
 }
 
 /** A row's value: finite, or a gap. A string or null is a gap, not zero. */
@@ -142,7 +148,7 @@ export function rowValue(row: Record<string, unknown>, key: string): number | un
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
-const defaultFormat = (value: number) => {
+export const defaultFormat = (value: number) => {
   // Ticks come from `ticks()`, which already avoids binary noise; this only
   // keeps a long fraction from widening the axis.
   return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(6)))
@@ -165,7 +171,7 @@ export function estimateTextWidth(text: string, fontSize: number): number {
   return ems * fontSize
 }
 
-interface Frame {
+export interface Frame {
   margin: Margin
   plot: ChartModel['plot']
   y: LinearScale
@@ -173,7 +179,7 @@ interface Frame {
 }
 
 /** Margins and the y scale, which depend on each other through the tick labels. */
-function frame(input: ChartInput, domain: [number, number]): Frame {
+export function frame(input: ChartInput, domain: [number, number]): Frame {
   const fontSize = input.fontSize ?? 12
   const format = input.y?.format ?? defaultFormat
   const gap = fontSize / 2
@@ -208,7 +214,7 @@ function xTicks(categories: string[], centers: number[], step: number, fontSize:
   return out
 }
 
-function nearest(centers: number[]) {
+export function nearest(centers: number[]) {
   return (x: number) => {
     let best = -1
     let distance = Number.POSITIVE_INFINITY
@@ -223,7 +229,7 @@ function nearest(centers: number[]) {
   }
 }
 
-function extent(values: (number | undefined)[][], includeZero: boolean): [number, number] {
+export function extent(values: (number | undefined)[][], includeZero: boolean): [number, number] {
   let lo = includeZero ? 0 : Number.POSITIVE_INFINITY
   let hi = includeZero ? 0 : Number.NEGATIVE_INFINITY
   for (const series of values)

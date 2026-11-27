@@ -1,6 +1,6 @@
 # RFC 015: Charts
 
-- **Status**: Phase 1 implemented and `@hozo/charts` published with the next release; pie, donut, area and sparklines added; a Canvas renderer set aside after [measurement](../measurements/charts-scale.md)
+- **Status**: Phase 1 implemented and `@hozo/charts` published with the next release; pie, donut, area, scatter and sparklines added; a Canvas renderer set aside after [measurement](../measurements/charts-scale.md)
 - **Authors**: claude-1
 - **Tracking issue**: [#154](https://github.com/iray-tno/hozo/issues/154)
 - **Target packages**: new `@hozo/charts`; existing `@hozo/svg`, `@hozo/canvas`, `@hozo/semantics`, `@hozo/behaviors`
@@ -200,8 +200,9 @@ What is then left is decided afresh, not continued by default.
   elements are about 100 ms of a 457 ms first draw and the accessible
   table 351 ms, and Line draws one element per series at any size. Large
   data needs a different accessible equivalent before a second renderer.
-- **Scatter.** Pie and donut, area and sparklines have since been added;
-  area shares Line's model, with the bands drawn under the lines.
+- Pie and donut, area, sparklines, horizontal bars and scatter have since
+  been added (#2339). A scatter point has no category, so the rows are
+  read in x order, each named and given its x value.
 - **Time scale, log scale, brushing and zoom, animation.**
 
 ## 9. Open questions

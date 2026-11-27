@@ -1,9 +1,17 @@
-// Charts (RFC 015): Bar, Line, Area, Pie and Donut from @hozo/charts. Each is one tab stop;
-// the arrow keys, Home and End move along the data and a live region reads
+// Charts (RFC 015): Bar, Line, Area, Scatter, Pie and Donut from @hozo/charts. Each is one
+// tab stop; the arrow keys, Home and End move along the data and a live region reads
 // every series there, the pointer does the same with a tooltip, and a
 // screen reader also has the table of the data, out of sight unless shown.
 
-import { AreaChart, BarChart, DonutChart, LineChart, PieChart, Sparkline } from '@hozo/charts'
+import {
+  AreaChart,
+  BarChart,
+  DonutChart,
+  LineChart,
+  PieChart,
+  ScatterChart,
+  Sparkline,
+} from '@hozo/charts'
 import { Text, View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
@@ -216,6 +224,39 @@ export const HorizontalBars: StoryObj<typeof meta> = {
         ]}
         height={220}
         horizontal
+      />
+    </View>
+  ),
+}
+
+const catalogue = [
+  { product: 'Amber kettle', price: 24, rating: 3.9, returns: 2.1 },
+  { product: 'Birch stool', price: 48, rating: 4.4, returns: 1.2 },
+  { product: 'Cobalt lamp', price: 65, rating: 4.1, returns: 3.4 },
+  { product: 'Dune rug', price: 120, rating: 4.7, returns: 0.8 },
+  { product: 'Ember mug', price: 12, rating: 4.2, returns: null },
+  { product: 'Fern planter', price: 35, rating: 3.4, returns: 4.6 },
+  { product: 'Gale fan', price: 89, rating: 3.8, returns: 2.9 },
+]
+
+/**
+ * A scatter plot: the points are read in price order, each by its name and
+ * price, and Ember mug's missing return rate is a gap in the table.
+ */
+export const Scatter: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-2 p-6 text-slate-700">
+      <Heading level={2}>Price against rating and returns</Heading>
+      <ScatterChart
+        accessibilityLabel="Rating and return rate by price"
+        data={catalogue}
+        x={{ key: 'price', label: 'Price', format: (value: number) => `$${value}` }}
+        name={{ key: 'product', label: 'Product' }}
+        series={[
+          { key: 'rating', label: 'Rating' },
+          { key: 'returns', label: 'Returns %' },
+        ]}
+        height={240}
       />
     </View>
   ),

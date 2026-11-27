@@ -6,7 +6,7 @@
 
 import { Circle, G, Line, Path, Rect, Svg, SvgText } from '@hozo/svg'
 import { memo } from 'react'
-import { datumRows, tooltipBox } from './active.ts'
+import { datumRows, datumTitle, tooltipBox } from './active.ts'
 import type { ChartModel, ChartSeries } from './model.ts'
 import { seriesColor } from './palette.ts'
 
@@ -280,7 +280,7 @@ function Tooltip({
   points: boolean
   colors?: readonly string[]
 }) {
-  const title = model.categories[datum] ?? ''
+  const title = datumTitle(model, datum)
   const rows = datumRows(model, series, datum, format).map((row) =>
     model.radial ? { ...row, color: sliceColor(model, datum, colors) ?? row.color } : row,
   )
@@ -298,7 +298,7 @@ function Tooltip({
             <Path key="active" d={mark.path} fill="none" stroke={ink} strokeWidth={2} />
           ) : null,
         )
-      ) : model.horizontal ? (
+      ) : model.xColumn ? null : model.horizontal ? (
         <Rect
           x={model.plot.x}
           y={center - band / 2}

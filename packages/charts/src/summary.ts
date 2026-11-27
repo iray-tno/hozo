@@ -31,9 +31,19 @@ export function chartSummary(
   const { categories } = model
   const count = categories.length
   if (count === 0) return 'No data.'
-  const noun = count === 1 ? 'category' : 'categories'
-  const range = count === 1 ? `${categories[0]}` : `${categories[0]} to ${categories[count - 1]}`
-  const parts = [`${count.toLocaleString('en-US')} ${noun}, ${range}.`]
+  const x = model.xColumn
+  const parts: string[] = []
+  if (x) {
+    // Rows are in x order, so the first and last give the x range.
+    const first = x.values[0] ?? ''
+    const last = x.values[count - 1] ?? ''
+    const range = count === 1 ? `${x.label} ${first}` : `${x.label} from ${first} to ${last}`
+    parts.push(`${count.toLocaleString('en-US')} ${count === 1 ? 'point' : 'points'}, ${range}.`)
+  } else {
+    const noun = count === 1 ? 'category' : 'categories'
+    const range = count === 1 ? `${categories[0]}` : `${categories[0]} to ${categories[count - 1]}`
+    parts.push(`${count.toLocaleString('en-US')} ${noun}, ${range}.`)
+  }
   series.forEach((entry, index) => {
     const values = model.values[index] ?? []
     let low = -1
@@ -56,6 +66,10 @@ export function chartSummary(
             `highest ${format(values[high] as number)} at ${categories[high]}${missing}.`,
     )
   })
+  if (x && x.missing > 0)
+    parts.push(
+      `${x.missing.toLocaleString('en-US')} ${x.missing === 1 ? 'row' : 'rows'} without ${x.label} left out.`,
+    )
   if (tableOmitted) parts.push('Too many to list as a table; step through them on the chart.')
   return parts.join(' ')
 }
