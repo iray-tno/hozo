@@ -5,7 +5,6 @@ use hozo_ir::{Breakpoint, Condition};
 
 use super::environment::environment_name;
 use super::expr::expr_key;
-use super::owner_style::OwnerFact;
 
 /// `None` for `Always` (uses the node's base style name directly);
 /// otherwise a name-safe suffix identifying the condition.
@@ -36,19 +35,16 @@ pub(super) fn condition_suffix(condition: &Condition) -> Option<String> {
         Condition::LastChild => Some("last".to_string()),
         Condition::Disabled => Some("disabled".to_string()),
         Condition::Enabled => Some("enabled".to_string()),
-        // Declared owner data-attribute predicates reach StyleSheet keys and need
-        // distinct JS identifiers so sibling data conditions do not overwrite
-        // each other. Other data attributes are refused (except Presence's
-        // closed state) and keep the generic `"data"` suffix.
+        // Data-attribute predicates reach StyleSheet keys and need distinct JS
+        // identifiers so sibling data conditions (`data-open:` and
+        // `data-[state=open]:`) do not overwrite each other.
         Condition::DataAttribute(selector) => {
             if let Some(key) = crate::candidate::data_fact_key(selector) {
-                if key.starts_with("data-hozo-") || OwnerFact::from_data_key(&key).is_some() {
-                    return Some(
-                        key.replace('_', "__")
-                            .replace('-', "_")
-                            .replace('=', "_eq_"),
-                    );
-                }
+                return Some(
+                    key.replace('_', "__")
+                        .replace('-', "_")
+                        .replace('=', "_eq_"),
+                );
             }
             Some("data".to_string())
         }

@@ -241,6 +241,7 @@ pub(super) fn resolve(
                 "`aria-{state}:` needs {} on the same element to drive it on Native, and this one has none. On Web the same class works from the attribute alone.",
                 if state == "invalid" { "an `aria-invalid` prop" } else { "an `accessibilityState`" }
             )),
+        Condition::DataAttribute(selector) => data_attribute_guard(node, source, selector, None),
         Condition::Environment(query) => {
             let query = native_environment(*query).ok_or_else(|| environment_unwired_message(*query))?;
             let hook = RuntimeHook::Environment(query);
@@ -345,6 +346,18 @@ fn resolve_group(
                         "`group-aria-{state}:` needs {driver} on the enclosing `group` ancestor to drive it on Native, and this one has none. On Web the same class works from the selector."
                     )
                 })
+        }
+        Condition::DataAttribute(selector) => {
+            let written = variant_spelling(&Condition::Group(Box::new(Condition::DataAttribute(
+                selector.clone(),
+            ))))
+            .unwrap_or_else(|| "group-data-…".to_string());
+            let Some(group) = target.group_ancestor else {
+                return Err(format!(
+                    "`{written}:` needs an enclosing `group` ancestor in the same component with the matching `data-*` prop to drive it on Native, and none was found. On Web the same class works from the selector."
+                ));
+            };
+            data_attribute_guard(group.node, source, selector, Some(&written))
         }
         Condition::Disabled => {
             let Some(group) = target.group_ancestor else {
@@ -468,6 +481,246 @@ fn resolve_group(
             })
         }
         _ => Err(group_unwired_message(inner, interaction_context)),
+    }
+}
+
+enum DataAttrOp<'a> {
+    Present,
+    Equals(&'a str),
+    IncludesWord(&'a str),
+    DashMatch(&'a str),
+    Prefix(&'a str),
+    Suffix(&'a str),
+    Substring(&'a str),
+}
+
+struct ParsedDataSelector<'a> {
+    attr_name: &'a str,
+    op: DataAttrOp<'a>,
+    case_insensitive: bool,
+}
+
+fn parse_data_selector(selector: &str) -> Option<ParsedDataSelector<'_>> {
+    let body = selector.strip_prefix('[')?.strip_suffix(']')?.trim();
+    if !body.starts_with("data-") {
+        return None;
+    }
+    let name_end = body
+        .find(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_')
+        .unwrap_or(body.len());
+    let attr_name = &body[..name_end];
+    if attr_name == "data-"
+        || attr_name.starts_with("data-hozo-")
+        || !attr_name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
+    {
+        return None;
+    }
+    let rest = body[name_end..].trim();
+    if rest.is_empty() {
+        return Some(ParsedDataSelector {
+            attr_name,
+            op: DataAttrOp::Present,
+            case_insensitive: false,
+        });
+    }
+    let (op_kind, after_op) = if let Some(v) = rest.strip_prefix("~=") {
+        ("~=", v)
+    } else if let Some(v) = rest.strip_prefix("|=") {
+        ("|=", v)
+    } else if let Some(v) = rest.strip_prefix("^=") {
+        ("^=", v)
+    } else if let Some(v) = rest.strip_prefix("$=") {
+        ("$=", v)
+    } else if let Some(v) = rest.strip_prefix("*=") {
+        ("*=", v)
+    } else {
+        let v = rest.strip_prefix('=')?;
+        ("=", v)
+    };
+    let after_op = after_op.trim();
+    let (value, trailing) =
+        if let Some(quote) = after_op.chars().next().filter(|c| *c == '"' || *c == '\'') {
+            let rest = &after_op[1..];
+            let close = rest.find(quote)?;
+            let val = &rest[..close];
+            if val.contains('\\') {
+                return None;
+            }
+            (val, rest[close + 1..].trim())
+        } else {
+            let mut parts = after_op.split_whitespace();
+            let val = parts.next()?;
+            if val.is_empty() || val.contains(['\\', '"', '\'', '[', ']']) {
+                return None;
+            }
+            let remainder = after_op[val.len()..].trim();
+            (val, remainder)
+        };
+    let case_insensitive = match trailing {
+        "" | "s" | "S" => false,
+        "i" | "I" => true,
+        _ => return None,
+    };
+    let op = match op_kind {
+        "=" => DataAttrOp::Equals(value),
+        "~=" => DataAttrOp::IncludesWord(value),
+        "|=" => DataAttrOp::DashMatch(value),
+        "^=" => DataAttrOp::Prefix(value),
+        "$=" => DataAttrOp::Suffix(value),
+        "*=" => DataAttrOp::Substring(value),
+        _ => unreachable!(),
+    };
+    Some(ParsedDataSelector {
+        attr_name,
+        op,
+        case_insensitive,
+    })
+}
+
+pub(super) fn has_authored_data_prop(node: &Node, condition: &Condition) -> bool {
+    let Condition::DataAttribute(selector) = condition else {
+        return false;
+    };
+    let Some(parsed) = parse_data_selector(selector) else {
+        return false;
+    };
+    node.props
+        .passthrough
+        .iter()
+        .any(|prop| prop.name.as_deref() == Some(parsed.attr_name))
+}
+
+fn js_single_quoted(value: &str) -> String {
+    let mut out = String::with_capacity(value.len() + 2);
+    out.push('\'');
+    for ch in value.chars() {
+        match ch {
+            '\\' => out.push_str("\\\\"),
+            '\'' => out.push_str("\\'"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            _ => out.push(ch),
+        }
+    }
+    out.push('\'');
+    out
+}
+
+fn static_data_matches(actual: &str, op: &DataAttrOp<'_>, case_insensitive: bool) -> bool {
+    let cmp = |s: &str| {
+        if case_insensitive {
+            s.to_ascii_lowercase()
+        } else {
+            s.to_string()
+        }
+    };
+    let a = cmp(actual);
+    match op {
+        DataAttrOp::Present => true,
+        DataAttrOp::Equals(expected) => a == cmp(expected),
+        DataAttrOp::IncludesWord(expected) => {
+            !expected.is_empty() && a.split_whitespace().any(|w| w == cmp(expected))
+        }
+        DataAttrOp::DashMatch(expected) => {
+            let e = cmp(expected);
+            a == e || a.strip_prefix(&e).is_some_and(|rest| rest.starts_with('-'))
+        }
+        DataAttrOp::Prefix(expected) => !expected.is_empty() && a.starts_with(&cmp(expected)),
+        DataAttrOp::Suffix(expected) => !expected.is_empty() && a.ends_with(&cmp(expected)),
+        DataAttrOp::Substring(expected) => !expected.is_empty() && a.contains(&cmp(expected)),
+    }
+}
+
+fn data_attribute_guard(
+    node: &Node,
+    source: &str,
+    selector: &str,
+    written_override: Option<&str>,
+) -> Result<Guard, String> {
+    let written = written_override.map(str::to_string).unwrap_or_else(|| {
+        variant_spelling(&Condition::DataAttribute(selector.to_string()))
+            .unwrap_or_else(|| "data-…".to_string())
+    });
+    let Some(parsed) = parse_data_selector(selector) else {
+        return Err(format!(
+            "`{written}:` has no React Native equivalent -- its attribute selector syntax cannot be evaluated against an authored prop here. On Web the same class works."
+        ));
+    };
+    let location = if written_override.is_some() {
+        "on the enclosing `group` ancestor"
+    } else {
+        "on the same element"
+    };
+    let Some(prop) = authored(node, source, parsed.attr_name) else {
+        return Err(format!(
+            "`{written}:` needs a `{}` prop {location} to drive it on Native, and this one has none. On Web the same class works from the attribute.",
+            parsed.attr_name
+        ));
+    };
+    match (prop, &parsed.op) {
+        (Authored::Literal(_), DataAttrOp::Present) => Ok(Guard::Known(true)),
+        (Authored::Expr(expr), DataAttrOp::Present) if expr == "true" => Ok(Guard::Known(true)),
+        (Authored::Expr(expr), DataAttrOp::Present) if expr == "undefined" || expr == "null" => {
+            Ok(Guard::Known(false))
+        }
+        (Authored::Expr(expr), DataAttrOp::Present) => {
+            Ok(Guard::Dynamic(format!("(({expr}) != null)")))
+        }
+        (Authored::Literal(actual), op) => Ok(Guard::Known(static_data_matches(
+            &actual,
+            op,
+            parsed.case_insensitive,
+        ))),
+        (Authored::Expr(expr), op) => {
+            let norm = if parsed.case_insensitive {
+                format!("String({expr}).toLowerCase()")
+            } else {
+                format!("String({expr})")
+            };
+            let target_str = |expected: &str| {
+                if parsed.case_insensitive {
+                    js_single_quoted(&expected.to_ascii_lowercase())
+                } else {
+                    js_single_quoted(expected)
+                }
+            };
+            let check = match op {
+                DataAttrOp::Present => unreachable!(),
+                DataAttrOp::Equals(expected) => format!("{norm} === {}", target_str(expected)),
+                DataAttrOp::IncludesWord(expected) => {
+                    if expected.is_empty() {
+                        return Ok(Guard::Known(false));
+                    }
+                    format!("{norm}.split(/\\s+/).includes({})", target_str(expected))
+                }
+                DataAttrOp::DashMatch(expected) => {
+                    let t = target_str(expected);
+                    let prefix = target_str(&format!("{expected}-"));
+                    format!("({norm} === {t} || {norm}.startsWith({prefix}))")
+                }
+                DataAttrOp::Prefix(expected) => {
+                    if expected.is_empty() {
+                        return Ok(Guard::Known(false));
+                    }
+                    format!("{norm}.startsWith({})", target_str(expected))
+                }
+                DataAttrOp::Suffix(expected) => {
+                    if expected.is_empty() {
+                        return Ok(Guard::Known(false));
+                    }
+                    format!("{norm}.endsWith({})", target_str(expected))
+                }
+                DataAttrOp::Substring(expected) => {
+                    if expected.is_empty() {
+                        return Ok(Guard::Known(false));
+                    }
+                    format!("{norm}.includes({})", target_str(expected))
+                }
+            };
+            Ok(Guard::Dynamic(format!("(({expr}) != null && {check})")))
+        }
     }
 }
 

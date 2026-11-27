@@ -13,8 +13,7 @@ pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnost
         // does not model. `has-…:` and `supports-…:` are a descendant
         // selector and a CSS feature query, neither of which exists
         // here at all.
-        Condition::DataAttribute(_)
-        | Condition::Supports(_)
+        Condition::Supports(_)
         | Condition::Has(_)
         | Condition::HasSelector(_) => unwired_variant(
             node,
@@ -163,6 +162,7 @@ pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnost
         | Condition::Disabled
         | Condition::Enabled
         | Condition::Aria(_)
+        | Condition::DataAttribute(_)
         | Condition::Environment(_)
         | Condition::FirstChild
         | Condition::LastChild

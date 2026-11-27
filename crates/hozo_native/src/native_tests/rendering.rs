@@ -894,6 +894,79 @@ fn group_ancestor_variants_refuse_without_group_or_undecidable_position() {
 }
 
 #[test]
+fn authored_data_attribute_variants_lower_on_self_and_group_ancestors() {
+    // Dynamic presence and equality props on the same element.
+    let dynamic = lower_element(
+        r#"<View data-open={open ? '' : undefined} data-state={state} className="data-open:p-4 data-[state=open]:m-2 not-data-[state=open]:opacity-50 dark:data-open:bg-blue-500" />"#,
+    );
+    assert!(dynamic.diagnostics.is_empty(), "{:?}", dynamic.diagnostics);
+    assert!(
+        dynamic
+            .jsx
+            .contains("((open ? '' : undefined) != null) && hozoStyles.hozo0_data_open")
+            && dynamic.jsx.contains(
+                "((state) != null && String(state) === 'open') && hozoStyles.hozo0_data_state_eq_open"
+            )
+            && dynamic.jsx.contains(
+                "!(((state) != null && String(state) === 'open')) && hozoStyles.hozo0_notdata_state_eq_open"
+            )
+            && dynamic.jsx.contains(
+                "__hozoDark && ((open ? '' : undefined) != null) && hozoStyles.hozo0_dark_data_open"
+            ),
+        "{}",
+        dynamic.jsx
+    );
+
+    // Static literal data attributes fold at compile time with zero runtime guards.
+    let literal = lower_element(
+        r#"<View data-open data-state="open" className="data-open:p-4 data-[state=open]:m-2 data-[state=closed]:opacity-50" />"#,
+    );
+    assert!(literal.diagnostics.is_empty(), "{:?}", literal.diagnostics);
+    assert!(
+        literal.jsx.contains("hozoStyles.hozo0_data_open")
+            && literal.jsx.contains("hozoStyles.hozo0_data_state_eq_open")
+            && !literal.jsx.contains("hozo0_data_state_eq_closed")
+            && !literal.jsx.contains("&&"),
+        "{}",
+        literal.jsx
+    );
+
+    // `group-data-*` reads the enclosing `.group` ancestor's data prop.
+    let group_data = lower_element(
+        r#"<View className="group" data-state={state}><Text className="group-data-[state=open]:p-4">x</Text></View>"#,
+    );
+    assert!(
+        group_data.diagnostics.is_empty(),
+        "{:?}",
+        group_data.diagnostics
+    );
+    assert!(
+        group_data.jsx.contains(
+            "((state) != null && String(state) === 'open') && hozoStyles.hozo1_groupdata_state_eq_open"
+        ),
+        "{}",
+        group_data.jsx
+    );
+
+    // Missing data prop stays refused with the written variant name.
+    for element in [
+        r#"<View className="data-open:p-4" />"#,
+        r#"<View className="data-[state=open]:p-4" />"#,
+        r#"<View data-other="x" className="data-[state=open]:p-4" />"#,
+        r#"<View className="group"><Text className="group-data-[state=open]:p-4">x</Text></View>"#,
+    ] {
+        let output = lower_element(element);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{element}: {:?}",
+            output.diagnostics
+        );
+    }
+}
+
+#[test]
 fn a_refusal_names_the_variant_the_way_it_was_written() {
     // The names used to be the style-entry suffix: `group-ariachecked:`,
     // `hashover:`, and `data:` for every data attribute.

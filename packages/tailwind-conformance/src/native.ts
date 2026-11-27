@@ -214,6 +214,16 @@ const PROBE_CONTEXTS = [
       `  return <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} className="${candidate}">x</Pressable>\n}\n`,
   },
   {
+    // `data-open:` and `data-[state=open]:` read authored `data-*` props on
+    // the element on Native, so they have a driver only where the element
+    // carries those props.
+    name: 'View with data attributes',
+    render: (candidate: string) =>
+      `import { View } from '@hozo/core'\n` +
+      `export function C({ open, state }) {\n` +
+      `  return <View data-open={open ? '' : undefined} data-state={state} className="${candidate}">x</View>\n}\n`,
+  },
+  {
     // `group-*:` styles an element by the state of a `group` ancestor, so
     // it needs one. Wrapped in a View so the group itself has a known sibling
     // position for `group-first:` (matching the `first child` probe below). A
