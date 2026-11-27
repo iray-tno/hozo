@@ -1,0 +1,33 @@
+heading, Tickets by team, level 2
+chart, Open and closed tickets by team, 4 categories, Customer support to Mobile apps. Open: lowest 12 at Billing and invoices, highest 42 at Customer support. Closed: lowest 18 at Platform, highest 30 at Customer support, 1 without a value.
+table, Open and closed tickets by team
+rowgroup
+row, Team Open Closed
+columnheader, Team
+columnheader, Open
+columnheader, Closed
+end of row, Team Open Closed
+end of rowgroup
+rowgroup
+row, Customer support 42 30
+rowheader, Customer support
+cell, 42
+cell, 30
+end of row, Customer support 42 30
+row, Billing and invoices 12 No value
+rowheader, Billing and invoices
+cell, 12
+cell, No value
+end of row, Billing and invoices 12 No value
+row, Platform 27 18
+rowheader, Platform
+cell, 27
+cell, 18
+end of row, Platform 27 18
+row, Mobile apps 19 22
+rowheader, Mobile apps
+cell, 19
+cell, 22
+end of row, Mobile apps 19 22
+end of rowgroup
+end of table, Open and closed tickets by team
