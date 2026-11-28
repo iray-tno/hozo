@@ -15,6 +15,7 @@ pub(super) fn place_children(
     node: &Node,
     position: SiblingPosition,
     parent_measured: bool,
+    group_interaction_query: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
     peers: &[PeerSibling<'_>],
     cx: &mut NativeRenderContext<'_>,
@@ -61,6 +62,7 @@ pub(super) fn place_children(
             node,
             position,
             parent_measured,
+            group_interaction_query,
             group_ancestor,
             peers,
             cx,
@@ -77,6 +79,7 @@ pub(super) fn inherited_scope(
     node: &Node,
     position: SiblingPosition,
     interaction_context: bool,
+    group_interaction_query: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
     peers: &[PeerSibling<'_>],
     cx: &mut NativeRenderContext<'_>,
@@ -92,6 +95,7 @@ pub(super) fn inherited_scope(
             node,
             position,
             interaction_context,
+            group_interaction_query,
             group_ancestor,
             peers,
             pattern_slot: None,
@@ -217,6 +221,27 @@ pub(super) fn subtree_scope(
             rendered.text
         );
         let mut rendered = rendered.wrap(text, ")}</HozoSubtreeScope>".len());
+        rendered.forget_scope();
+        rendered
+    } else {
+        rendered
+    }
+}
+
+/// Supplies interactive state from the enclosing `.group` `HozoPressable`
+/// (`__hozoGroup`) without replacing the child host. Renders no native View.
+pub(super) fn interaction_query(
+    rendered: Rendered,
+    uses_group_interaction_query: bool,
+    cx: &mut NativeRenderContext<'_>,
+) -> Rendered {
+    if uses_group_interaction_query {
+        cx.runtime.need_component("HozoInteractionQuery");
+        let text = format!(
+            "<HozoInteractionQuery>{{(__hozoGroup) => ({})}}</HozoInteractionQuery>",
+            rendered.text
+        );
+        let mut rendered = rendered.wrap(text, ")}</HozoInteractionQuery>".len());
         rendered.forget_scope();
         rendered
     } else {

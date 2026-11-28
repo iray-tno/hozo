@@ -562,6 +562,35 @@ test('a View inside a group Pressable follows its hover and press', () => {
   )
 })
 
+test('an Image inside a group Pressable follows the group hover and press via HozoInteractionQuery', () => {
+  const snapshots = renderNativeWithEvents(
+    `import { Pressable, Image } from '@hozo/core'
+     export function Card() {
+       return (
+         <Pressable className="group" accessibilityRole="button">
+           <Image
+             src="https://example.com/cover.png"
+             alt="Cover"
+             className="opacity-100 group-hover:opacity-75 group-pressed:opacity-50"
+           />
+         </Pressable>
+       )
+     }`,
+    'Card',
+    ['onHoverIn', 'onPressIn', 'onPressOut', 'onHoverOut'],
+  )
+  const flatten = require('react-native').StyleSheet.flatten as (style: unknown) => {
+    opacity?: number
+  }
+  assert.deepEqual(
+    snapshots.map((tree) => {
+      const style = children(tree)[0].props.style
+      return flatten(Array.isArray(style) ? style.flat(Infinity) : style).opacity
+    }),
+    [1, 0.75, 0.5, 0.75, 1],
+  )
+})
+
 test('child Text focus-visible follows its owner through keyboard, pointer and blur events', () => {
   for (const parent of ['', 'focus:opacity-50']) {
     const snapshots = renderNativeWithEvents(

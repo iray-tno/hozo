@@ -192,11 +192,20 @@ pub(super) fn interaction_needs(
 ) -> InteractionNeeds {
     // The owner collects events for both inherited styles and child-authored
     // styles. A Text reads context; putting modality handlers on it does not
-    // update the state its callback consumes.
+    // update the state its callback consumes. On a nested control, `group-*:`
+    // reads the enclosing group's context via `HozoInteractionQuery`, not this
+    // control's own modality tracker.
+    let own_focus_visible = |condition: &Condition| {
+        if interaction::owns_events(node) {
+            condition_contains(condition, |c| focus_state(c) == Some("focusVisible"))
+        } else {
+            interaction::uses_focus_visible(condition)
+        }
+    };
     let needs_focus_visible = own_declarations
         .iter()
         .chain(text_declarations.iter())
-        .any(|declaration| interaction::uses_focus_visible(&declaration.condition))
+        .any(|declaration| own_focus_visible(&declaration.condition))
         || (interaction::owns_events(node)
             && interaction::descendant_uses(node, interaction::uses_focus_visible))
         || publish_peer_focus_visible

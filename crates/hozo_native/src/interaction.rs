@@ -39,19 +39,33 @@ pub(super) fn uses_group_state(condition: &Condition) -> bool {
 }
 
 /// Scan only when choosing an interaction owner. Nested owners stop the
-/// search: their Text consumes a different context. Opaque JSX has no modeled
-/// declarations to invent a requirement from, but modeled expression/prop
-/// children use the same context as ordinary JSX children.
+/// search: their children consume a different context, though the nested
+/// owner itself may read an enclosing `.group` owner's context via
+/// `HozoInteractionQuery`. Opaque JSX has no modeled declarations to invent a
+/// requirement from, but modeled expression/prop children use the same context
+/// as ordinary JSX children.
 pub(super) fn descendant_uses(node: &Node, predicate: fn(&Condition) -> bool) -> bool {
-    fn visit(node: &Node, predicate: fn(&Condition) -> bool) -> bool {
-        if owns_events(node) {
-            return false;
-        }
+    let owner_is_group = node.carried_classes.iter().any(|class| class == "group");
+    fn visit(node: &Node, predicate: fn(&Condition) -> bool, in_owner_group: bool) -> bool {
         let has_child_target = node
             .children
             .iter()
             .any(|c| matches!(c, Child::Node(_) | Child::Verbatim { .. }));
-        node.style.iter().any(|declaration| {
+        let own_uses_group = in_owner_group
+            && (node.style.iter().any(|declaration| {
+                if declaration.condition.split_subtree().is_some() && !has_child_target {
+                    return false;
+                }
+                uses_group_state(&declaration.condition) && predicate(&declaration.condition)
+            }) || node.props.class_slots.iter().any(|slot| {
+                slot.style.iter().any(|declaration| {
+                    uses_group_state(&declaration.condition) && predicate(&declaration.condition)
+                })
+            }));
+        if owns_events(node) {
+            return own_uses_group;
+        }
+        let own_uses_direct = node.style.iter().any(|declaration| {
             if declaration.condition.split_subtree().is_some() && !has_child_target {
                 return false;
             }
@@ -59,18 +73,34 @@ pub(super) fn descendant_uses(node: &Node, predicate: fn(&Condition) -> bool) ->
                 || text::is_text_property(&declaration.property)
                 || (node.primitive == Primitive::View && uses_group_state(&declaration.condition)))
                 && predicate(&declaration.condition)
-        }) || descendant_uses(node, predicate)
+        });
+        if own_uses_group || own_uses_direct {
+            return true;
+        }
+        let child_in_owner_group =
+            in_owner_group && !node.carried_classes.iter().any(|class| class == "group");
+        visit_children(node, predicate, child_in_owner_group)
     }
 
-    node.children.iter().any(|child| match child {
-        Child::Node(child) => visit(child, predicate),
-        Child::Verbatim { nested, .. } => nested.iter().any(|child| visit(&child.node, predicate)),
-        Child::Text(_) => false,
-    }) || node.props.passthrough.iter().any(|prop| {
-        prop.nested
-            .iter()
-            .any(|child| visit(&child.node, predicate))
-    })
+    fn visit_children(
+        node: &Node,
+        predicate: fn(&Condition) -> bool,
+        in_owner_group: bool,
+    ) -> bool {
+        node.children.iter().any(|child| match child {
+            Child::Node(child) => visit(child, predicate, in_owner_group),
+            Child::Verbatim { nested, .. } => nested
+                .iter()
+                .any(|child| visit(&child.node, predicate, in_owner_group)),
+            Child::Text(_) => false,
+        }) || node.props.passthrough.iter().any(|prop| {
+            prop.nested
+                .iter()
+                .any(|child| visit(&child.node, predicate, in_owner_group))
+        })
+    }
+
+    visit_children(node, predicate, owner_is_group)
 }
 
 /// Whether `node` contains a focusable descendant (`Pressable`, `Button`, `Link`,

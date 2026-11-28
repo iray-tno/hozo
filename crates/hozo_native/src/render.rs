@@ -185,12 +185,20 @@ pub(super) fn render_node(
     // Same shape as truncation: a CSS concept React Native keeps on a prop,
     // absorbed before the refusal check so the thing that *does* express it
     // isn't reported as impossible.
+    let has_group_interaction_owner = interaction_context
+        && (group_ancestor.is_some_and(|group| interaction::owns_events(group.node))
+            || from_ancestor
+                .direct
+                .iter()
+                .chain(from_ancestor.all.iter())
+                .any(|d| interaction::uses_group_state(&d.condition)));
     let field_target = crate::conditions::StyleTarget {
         owner_facts: cx.owner_inputs.facts,
         owner_events: cx.owner_inputs.events,
         node,
         position,
         interaction_context: false,
+        group_interaction_query: has_group_interaction_owner,
         group_ancestor,
         peers: peer.preceding,
         pattern_slot: None,
@@ -343,21 +351,24 @@ pub(super) fn render_node(
     let pattern_style_prop = crate::pattern::interaction_style_prop(node.primitive, "className")
         .or_else(|| (node.primitive == Primitive::TextInput).then_some("hozoStyle"));
     let own_entry_start = cx.style_entries.len();
+    // A View joins its owner's context directly (`HozoInteractionView`) only
+    // for a `group-*:`. Any other host inside an interactive `.group` reads
+    // the enclosing group's state through `HozoInteractionQuery` (`__hozoGroup`)
+    // so it keeps its own host and interaction callback.
+    let target_interaction_context = interaction_context
+        && (renders_text(component)
+            || (component == "View"
+                && own_declarations
+                    .iter()
+                    .any(|declaration| interaction::uses_group_state(&declaration.condition))))
+        && pattern_style_prop.is_none();
     let target = crate::conditions::StyleTarget {
         owner_facts: cx.owner_inputs.facts,
         owner_events: cx.owner_inputs.events,
         node,
         position,
-        // A View joins its owner's context only for a `group-*:`. Once it
-        // has, a plain `hover:` beside it reads that owner too, as on Text;
-        // without one it stays refused rather than borrowing a state.
-        interaction_context: interaction_context
-            && (renders_text(component)
-                || (component == "View"
-                    && own_declarations
-                        .iter()
-                        .any(|declaration| interaction::uses_group_state(&declaration.condition))))
-            && pattern_style_prop.is_none(),
+        interaction_context: target_interaction_context,
+        group_interaction_query: has_group_interaction_owner && !target_interaction_context,
         group_ancestor,
         peers: peer.preceding,
         pattern_slot: Some("className"),
@@ -423,6 +434,7 @@ pub(super) fn render_node(
         &base_name,
         node,
         position,
+        has_group_interaction_owner,
         group_ancestor,
         peer.preceding,
         cx,
@@ -746,6 +758,7 @@ pub(super) fn render_node(
     project_spread_gap |= class_slots::class_slot_props(
         node,
         position,
+        has_group_interaction_owner,
         group_ancestor,
         peer.preceding,
         &mut held,
@@ -852,11 +865,13 @@ pub(super) fn render_node(
         group_ancestor: child_group_ancestor,
         subtree_report: child_subtree_report,
     };
+    let raw_text_group_query = has_group_interaction_owner && interaction::owns_events(node);
     let (inner, needs_peer_scope) = child_list::render_child_list(
         node,
         component,
         for_children,
         child_interaction_context,
+        raw_text_group_query,
         &base_name,
         position,
         group_ancestor,
@@ -876,6 +891,7 @@ pub(super) fn render_node(
         node,
         position,
         measures_parent,
+        has_group_interaction_owner,
         group_ancestor,
         peer.preceding,
         cx,
@@ -891,6 +907,7 @@ pub(super) fn render_node(
         node,
         position,
         interaction_context,
+        has_group_interaction_owner,
         group_ancestor,
         peer.preceding,
         cx,
@@ -907,6 +924,52 @@ pub(super) fn render_node(
         &mut props_text,
         cx,
     );
+    let raw_text_reads_group = raw_text_group_query
+        && node
+            .children
+            .iter()
+            .any(|child| matches!(child, hozo_ir::Child::Text(_)))
+        && descend
+            .iter()
+            .any(|declaration| interaction::uses_group_state(&declaration.condition));
+    let child_decls_read_group = has_group_interaction_owner
+        && child_declarations
+            .iter()
+            .any(|declaration| interaction::uses_group_state(&declaration.condition));
+    let unified_scope_reads_group = has_group_interaction_owner
+        && unified_scope
+            .iter()
+            .any(|declaration| interaction::uses_group_state(&declaration.condition));
+    let forwarded_reads_group = has_group_interaction_owner
+        && to_children
+            .iter()
+            .chain(descendants.iter())
+            .any(|declaration| {
+                condition_contains(&declaration.condition, |c| {
+                    matches!(c, Condition::Expr(ConditionExpr::RawJs(expr)) if expr.contains("__hozoGroup."))
+                })
+            });
+    let own_reads_group = has_group_interaction_owner
+        && (own_declarations
+            .iter()
+            .chain(text_declarations.iter())
+            .chain(layout.backdrop.iter())
+            .chain(
+                node.style
+                    .iter()
+                    .filter(|d| d.condition.split_subtree().is_none()),
+            )
+            .any(|declaration| interaction::uses_group_state(&declaration.condition))
+            || node.props.class_slots.iter().any(|slot| {
+                slot.style
+                    .iter()
+                    .any(|declaration| interaction::uses_group_state(&declaration.condition))
+            }));
+    let uses_group_interaction_query = raw_text_reads_group
+        || child_decls_read_group
+        || unified_scope_reads_group
+        || forwarded_reads_group
+        || (own_reads_group && props_text.contains("__hozoGroup."));
     let raw_text_reads_peer = node
         .children
         .iter()
@@ -987,6 +1050,7 @@ pub(super) fn render_node(
     }
     let uses_container_query = uses_container_query || props_text.contains("__hozoCq[");
     let rendered = wrappers::subtree_scope(rendered, uses_subtree_scope, cx);
+    let rendered = wrappers::interaction_query(rendered, uses_group_interaction_query, cx);
     let rendered = wrappers::peer_query(rendered, &queried_peer_ids, cx);
     let rendered = wrappers::parent_size_query(rendered, uses_parent_size_query, cx);
     let rendered = wrappers::container_query(rendered, uses_container_query, cx);

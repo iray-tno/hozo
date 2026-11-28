@@ -129,12 +129,15 @@ pub(super) fn subtree_for_children(
         .iter()
         .any(|c| matches!(c, hozo_ir::Child::Node(_) | hozo_ir::Child::Verbatim { .. }));
 
+    let parent_group_interaction_query = parent_interaction_context
+        && group_ancestor.is_some_and(|group| interaction::owns_events(group.node));
     let parent_target = conditions::StyleTarget {
         owner_facts: cx.owner_inputs.facts,
         owner_events: cx.owner_inputs.events,
         node,
         position,
         interaction_context: false,
+        group_interaction_query: parent_group_interaction_query,
         group_ancestor,
         peers,
         pattern_slot: None,
@@ -186,6 +189,38 @@ pub(super) fn subtree_for_children(
                     && !node.carried_classes.iter().any(|c| c == "group")
                 {
                     kept.push(cond);
+                } else if parent_group_interaction_query {
+                    // This element owns events or opens a nested `.group`, so
+                    // its children cannot read the outer `.group` context
+                    // directly; evaluate via `HozoInteractionQuery` outside it.
+                    match resolve_condition_guard(
+                        &cond,
+                        &parent_target,
+                        cx.source,
+                        &mut scratch_runtime,
+                        false,
+                    ) {
+                        Ok(ResolvedCondition::Always) => {}
+                        Ok(ResolvedCondition::Never) => {
+                            decl_applies = false;
+                            break;
+                        }
+                        Ok(ResolvedCondition::Guarded { expr, .. }) => {
+                            kept.push(Condition::Expr(ConditionExpr::RawJs(expr)));
+                        }
+                        Err(reason) => {
+                            if !reported_errors.contains(&reason) {
+                                cx.diagnostics.push(unwired_variant(
+                                    node,
+                                    &reason,
+                                    Severity::Error,
+                                ));
+                                reported_errors.push(reason);
+                            }
+                            decl_applies = false;
+                            break;
+                        }
+                    }
                 } else {
                     let inner = unwrap_group_inner(&cond).unwrap_or(&cond);
                     let msg = group_unwired_message(inner, false);
@@ -304,6 +339,7 @@ pub(super) fn spaced_children(
     node: &Node,
     position: SiblingPosition,
     parent_measured: bool,
+    group_interaction_query: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
     peers: &[PeerSibling<'_>],
     cx: &mut NativeRenderContext<'_>,
@@ -323,6 +359,7 @@ pub(super) fn spaced_children(
         node,
         position,
         interaction_context: false,
+        group_interaction_query,
         group_ancestor,
         peers,
         pattern_slot: None,

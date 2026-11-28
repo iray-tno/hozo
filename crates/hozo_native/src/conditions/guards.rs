@@ -328,9 +328,13 @@ fn resolve_group(
                 )
             }),
         Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Pressed => {
-            group_state(inner, interaction_context)
-                .map(|state| Guard::Interactive(state.to_string()))
-                .ok_or_else(|| group_unwired_message(inner, interaction_context))
+            if let Some(state) = group_state(inner, target.group_interaction_query) {
+                Ok(Guard::Dynamic(format!("__hozoGroup.{state}")))
+            } else if let Some(state) = group_state(inner, interaction_context) {
+                Ok(Guard::Interactive(state.to_string()))
+            } else {
+                Err(group_unwired_message(inner, interaction_context))
+            }
         }
         Condition::Aria(state) => {
             let driver = if state == "invalid" {

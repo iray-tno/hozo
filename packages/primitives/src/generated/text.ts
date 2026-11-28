@@ -2,9 +2,12 @@
 // for this. One implementation under every condition rather than a Web file
 // that could only lie about what it is.
 //
-// HozoInteractionView lives here too: it is the same reader of a Pressable's
-// interaction context, for a View rather than a Text.
+// HozoInteractionView and HozoInteractionQuery live here too: they are the
+// same readers of a Pressable's interaction context, for a View or any
+// descendant host rather than a Text.
 export {
+  HozoInteractionQuery,
+  type HozoInteractionQueryProps,
   HozoInteractionView,
   type HozoInteractionViewProps,
   HozoText,

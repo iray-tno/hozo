@@ -874,6 +874,153 @@ fn a_view_without_a_group_variant_does_not_borrow_its_owners_state() {
 }
 
 #[test]
+fn non_view_descendants_inside_a_group_pressable_read_its_state_via_interaction_query() {
+    // Nested interactive control keeps its own hover callback while reading
+    // the enclosing `.group` owner through `HozoInteractionQuery`.
+    let nested_pressable = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><Pressable className="hover:p-2 group-hover:p-4 hover:group-hover:m-2 group-focus-visible:opacity-50" accessibilityRole="button">x</Pressable></Pressable>"#,
+    );
+    assert!(
+        nested_pressable.diagnostics.is_empty(),
+        "{:?}",
+        nested_pressable.diagnostics
+    );
+    assert!(
+        nested_pressable.jsx.starts_with("<HozoPressable"),
+        "{}",
+        nested_pressable.jsx
+    );
+    assert_eq!(
+        nested_pressable.jsx.matches("hozoFocusVisible").count(),
+        1,
+        "only the outer group owner tracks focus-visible: {}",
+        nested_pressable.jsx
+    );
+    assert!(
+        nested_pressable
+            .jsx
+            .contains("<HozoInteractionQuery>{(__hozoGroup) => (<HozoPressable"),
+        "{}",
+        nested_pressable.jsx
+    );
+    assert!(
+        nested_pressable
+            .jsx
+            .contains("__hozoGroup.hovered && hozoStyles.hozo1_grouphover")
+            && nested_pressable
+                .jsx
+                .contains("hovered && __hozoGroup.hovered && hozoStyles.hozo1_hover_grouphover")
+            && nested_pressable
+                .jsx
+                .contains("__hozoGroup.focusVisible && hozoStyles.hozo1_groupfocusvisible"),
+        "{}",
+        nested_pressable.jsx
+    );
+    assert!(nested_pressable
+        .runtime_imports
+        .contains(&"HozoInteractionQuery"));
+
+    // TextInput inside a `.group` owner lowers `group-hover:` styles,
+    // `placeholder:`, and stacked `focus:group-focus-visible:caret-*`.
+    let input = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><TextInput accessibilityLabel="Email" className="focus:border-blue-500 group-hover:bg-gray-100 group-hover:placeholder:text-red-500 focus:group-focus-visible:caret-blue-500" /></Pressable>"#,
+    );
+    assert!(input.diagnostics.is_empty(), "{:?}", input.diagnostics);
+    assert!(
+        input
+            .jsx
+            .contains("<HozoInteractionQuery>{(__hozoGroup) => (<HozoTextInput"),
+        "{}",
+        input.jsx
+    );
+    assert!(
+        input.jsx.contains("placeholderTextColor={__hozoGroup.hovered ?")
+            && input
+                .jsx
+                .contains("hozoFieldColors={({ focused }) => ({ cursorColor: focused && __hozoGroup.focusVisible ?"),
+        "{}",
+        input.jsx
+    );
+
+    // Dialog backdrop styles and backdrop blur read `__hozoGroup`.
+    let dialog = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><Dialog open={open} onClose={close} accessibilityLabel="Details" className="group-hover:backdrop:bg-black/50 group-hover:backdrop:backdrop-blur-md">x</Dialog></Pressable>"#,
+    );
+    assert!(dialog.diagnostics.is_empty(), "{:?}", dialog.diagnostics);
+    assert!(
+        dialog
+            .jsx
+            .contains("<HozoInteractionQuery>{(__hozoGroup) => (<HozoDialog")
+            && dialog
+                .jsx
+                .contains("hozoBackdropStyle={[__hozoGroup.hovered && hozoStyles.")
+            && dialog
+                .jsx
+                .contains("hozoBackdropBlur={__hozoGroup.hovered ? 12 : undefined}"),
+        "{}",
+        dialog.jsx
+    );
+
+    // Animated View (`HozoAnimated`) inside a `.group` owner reads `__hozoGroup`.
+    let animated = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><View className="transition opacity-100 starting:opacity-0 group-hover:bg-blue-500" /></Pressable>"#,
+    );
+    assert!(
+        animated.diagnostics.is_empty(),
+        "{:?}",
+        animated.diagnostics
+    );
+    assert!(
+        animated
+            .jsx
+            .contains("<HozoInteractionQuery>{(__hozoGroup) => (<HozoAnimated")
+            && animated.jsx.contains("__hozoGroup.hovered && hozoStyles."),
+        "{}",
+        animated.jsx
+    );
+
+    // `group-hover:*:` on a nested control evaluates through `HozoInteractionQuery`
+    // outside the nested control so its children read the outer group's state.
+    let nested_subtree = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><Pressable className="group-hover:*:p-4" accessibilityRole="button"><View /></Pressable></Pressable>"#,
+    );
+    assert!(
+        nested_subtree.diagnostics.is_empty(),
+        "{:?}",
+        nested_subtree.diagnostics
+    );
+    assert!(
+        nested_subtree
+            .jsx
+            .contains("<HozoInteractionQuery>{(__hozoGroup) => (<Pressable")
+            && nested_subtree
+                .jsx
+                .contains("(__hozoGroup.hovered) && hozoStyles."),
+        "{}",
+        nested_subtree.jsx
+    );
+
+    // A closer non-interactive `.group` shadows the outer interactive `.group`,
+    // so `group-hover:` on its child stays honestly refused.
+    let shadowed = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><View className="group"><Pressable className="group-hover:p-4" accessibilityRole="button" /></View></Pressable>"#,
+    );
+    assert!(
+        shadowed
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error),
+        "{:?}",
+        shadowed.diagnostics
+    );
+    assert!(
+        !shadowed.jsx.contains("HozoInteractionQuery"),
+        "{}",
+        shadowed.jsx
+    );
+}
+
+#[test]
 fn a_group_state_the_context_does_not_carry_says_so_under_a_pressable() {
     // It used to say nothing above the element was a Pressable, with the
     // Pressable right there.

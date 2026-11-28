@@ -289,12 +289,22 @@ pub(crate) fn resolve_field_colours(
     }
 
     let interactive_callback = (!interactive_fields.is_empty()).then(|| {
+        let uses_bare_ident = |expr: &str, ident: &str| {
+            expr.match_indices(ident).any(|(start, _)| {
+                let before = expr[..start].chars().next_back();
+                let after = expr[start + ident.len()..].chars().next();
+                !matches!(
+                    before,
+                    Some('a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '$' | '.')
+                ) && !matches!(after, Some('a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '$'))
+            })
+        };
         let uses_focus_visible = interactive_fields
             .iter()
-            .any(|(_, expr)| expr.contains("focusVisible"));
+            .any(|(_, expr)| uses_bare_ident(expr, "focusVisible"));
         let uses_focused = interactive_fields
             .iter()
-            .any(|(_, expr)| expr.contains("focused"));
+            .any(|(_, expr)| uses_bare_ident(expr, "focused"));
         let mut params = Vec::new();
         if uses_focused {
             params.push("focused");
