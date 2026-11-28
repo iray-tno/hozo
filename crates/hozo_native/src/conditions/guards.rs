@@ -143,6 +143,20 @@ pub(super) fn resolve(
         // cases; a missing driver remains unknown, never false by default.
         Condition::FormState(FormState::ReadOnly) => read_only(node, source),
         Condition::FormState(FormState::PlaceholderShown) => placeholder_shown(node, source),
+        Condition::FormState(FormState::Required) => required_state(node, source, "required"),
+        Condition::FormState(FormState::Optional) => {
+            required_state(node, source, "optional").map(Guard::negate)
+        }
+        Condition::FormState(FormState::Invalid) => invalid_state(node, source, "invalid"),
+        Condition::FormState(FormState::Valid) => {
+            invalid_state(node, source, "valid").map(Guard::negate)
+        }
+        Condition::FormState(FormState::UserInvalid) => {
+            user_validation_state(node, source, "user-invalid", true)
+        }
+        Condition::FormState(FormState::UserValid) => {
+            user_validation_state(node, source, "user-valid", false)
+        }
         Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => {
             if pattern_slot.is_some_and(|slot| crate::pattern::events_unavailable(node.primitive, slot)) {
                 return Err(format!(
@@ -488,6 +502,29 @@ fn resolve_group(
                 format!("`group-placeholder-shown:` on the enclosing `group` ancestor: {reason}")
             })
         }
+        Condition::FormState(
+            state @ (FormState::Required
+            | FormState::Optional
+            | FormState::Invalid
+            | FormState::Valid),
+        ) => {
+            let name = state.variant_name();
+            let Some(group) = target.group_ancestor else {
+                return Err(format!(
+                    "`group-{name}:` needs an enclosing `group` TextInput ancestor in the same component, and none was found. On Web the same class works from the selector."
+                ));
+            };
+            let result = match state {
+                FormState::Required => required_state(group.node, source, name),
+                FormState::Optional => required_state(group.node, source, name).map(Guard::negate),
+                FormState::Invalid => invalid_state(group.node, source, name),
+                FormState::Valid => invalid_state(group.node, source, name).map(Guard::negate),
+                _ => unreachable!(),
+            };
+            result.map_err(|reason| {
+                format!("`group-{name}:` on the enclosing `group` ancestor: {reason}")
+            })
+        }
         _ => Err(group_unwired_message(inner, interaction_context)),
     }
 }
@@ -676,6 +713,22 @@ fn resolve_single_peer(
             .map_err(|reason| format!("`{written}:` on the preceding `peer` sibling: {reason}")),
         Condition::FormState(FormState::PlaceholderShown) => placeholder_shown(peer.node, source)
             .map_err(|reason| format!("`{written}:` on the preceding `peer` sibling: {reason}")),
+        Condition::FormState(
+            state @ (FormState::Required
+            | FormState::Optional
+            | FormState::Invalid
+            | FormState::Valid),
+        ) => {
+            let name = state.variant_name();
+            let result = match state {
+                FormState::Required => required_state(peer.node, source, name),
+                FormState::Optional => required_state(peer.node, source, name).map(Guard::negate),
+                FormState::Invalid => invalid_state(peer.node, source, name),
+                FormState::Valid => invalid_state(peer.node, source, name).map(Guard::negate),
+                _ => unreachable!(),
+            };
+            result.map_err(|reason| format!("`{written}:` on the preceding `peer` sibling: {reason}"))
+        }
         _ => Err(format!(
             "`{written}:` reads a state React Native does not carry for a preceding `peer` sibling. On Web the same class works from the selector."
         )),
@@ -1114,4 +1167,72 @@ fn read_only(node: &Node, source: &str) -> Result<Guard, String> {
     crate::read_only_guard(node, source)
         .map(|guard| Guard::Dynamic(format!("({guard})")))
         .ok_or_else(|| "`read-only:` needs a `readOnly` or `editable` prop on the same TextInput to drive it, and this one has neither.".into())
+}
+
+/// `required:` / `optional:` driven by an authored `required` or `aria-required`
+/// prop on `TextInput`. Missing drivers stay refused rather than guessing false.
+fn required_state(node: &Node, source: &str, name: &str) -> Result<Guard, String> {
+    if node.primitive != Primitive::TextInput {
+        return Err(format!(
+            "`{name}:` asks whether a TextInput is required, and this element is not a TextInput. On Web the same class works."
+        ));
+    }
+    if let Some(required) = node.props.text_input.required.as_ref() {
+        return Ok(match required {
+            ConditionExpr::Static(value) => Guard::Known(*value),
+            expr => Guard::Dynamic(format!("Boolean({})", render_condition_expr(source, expr))),
+        });
+    }
+    if let Some(aria_req) = authored(node, source, "aria-required") {
+        return Ok(match aria_req {
+            Authored::Literal(text) => Guard::Known(text == "true"),
+            Authored::Expr(expr) => Guard::Dynamic(format!("(String(({expr})) === 'true')")),
+        });
+    }
+    Err(format!(
+        "`{name}:` needs a `required` or `aria-required` prop on the same TextInput to drive it on Native, and this one has neither. On Web the same class works."
+    ))
+}
+
+/// `invalid:` / `valid:` driven by an authored `aria-invalid` prop on `TextInput`.
+fn invalid_state(node: &Node, source: &str, name: &str) -> Result<Guard, String> {
+    if node.primitive != Primitive::TextInput {
+        return Err(format!(
+            "`{name}:` asks whether a TextInput is invalid, and this element is not a TextInput. On Web the same class works."
+        ));
+    }
+    aria_state_guard(node, source, "invalid")
+        .map(|guard| Guard::Dynamic(format!("({guard})")))
+        .ok_or_else(|| {
+            format!(
+                "`{name}:` needs an `aria-invalid` prop on the same TextInput to drive it on Native, and this one has none. On Web the same class works."
+            )
+        })
+}
+
+/// `user-invalid:` / `user-valid:`: like `invalid:`/`valid:`, gated on
+/// `HozoTextInput`'s `touched` state (set on blur or text change) so errors do
+/// not highlight before the user interacts with the field.
+fn user_validation_state(
+    node: &Node,
+    source: &str,
+    name: &str,
+    want_invalid: bool,
+) -> Result<Guard, String> {
+    if node.primitive != Primitive::TextInput {
+        return Err(format!(
+            "`{name}:` asks whether a TextInput failed validation after user interaction, and this element is not a TextInput. On Web the same class works."
+        ));
+    }
+    let Some(guard) = aria_state_guard(node, source, "invalid") else {
+        return Err(format!(
+            "`{name}:` needs an `aria-invalid` prop on the same TextInput to drive it on Native, and this one has none. On Web the same class works."
+        ));
+    };
+    let expr = if want_invalid {
+        format!("(touched && ({guard}))")
+    } else {
+        format!("(touched && !({guard}))")
+    };
+    Ok(Guard::Interactive(expr))
 }

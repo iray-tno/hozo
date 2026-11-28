@@ -306,12 +306,18 @@ pub(crate) fn resolve_field_colours(
         let uses_focused = interactive_fields
             .iter()
             .any(|(_, expr)| uses_bare_ident(expr, "focused"));
+        let uses_touched = interactive_fields
+            .iter()
+            .any(|(_, expr)| uses_bare_ident(expr, "touched"));
         let mut params = Vec::new();
         if uses_focused {
             params.push("focused");
         }
         if uses_focus_visible {
             params.push("focusVisible");
+        }
+        if uses_touched {
+            params.push("touched");
         }
         let entries = interactive_fields
             .into_iter()

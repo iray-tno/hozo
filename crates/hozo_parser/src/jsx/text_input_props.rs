@@ -15,6 +15,7 @@ pub(super) fn reads(primitive: Primitive, name: &str) -> bool {
             "onChangeText"
                 | "editable"
                 | "readOnly"
+                | "required"
                 | "autoCorrect"
                 | "multiline"
                 | "secureTextEntry"
@@ -52,6 +53,14 @@ pub(super) fn capture(
         "readOnly" => capture_flag(
             attr,
             &mut props.text_input.read_only,
+            &mut props.passthrough,
+            scope,
+            diagnostics,
+            consumed,
+        ),
+        "required" => capture_flag(
+            attr,
+            &mut props.text_input.required,
             &mut props.passthrough,
             scope,
             diagnostics,

@@ -1092,3 +1092,55 @@ test('marker: on List and ListItem renders styled hidden Text markers beside ite
   assert.equal(thirdKids.length, 1)
   assert.deepEqual(thirdKids[0].children, ['Gamma'])
 })
+
+test('required:, invalid:, and user-invalid: drive TextInput styles on Native', () => {
+  const { StyleSheet } = require('react-native') as {
+    StyleSheet: { flatten: (style: unknown) => Record<string, unknown> }
+  }
+  const react = require('react')
+  const renderer = require('react-test-renderer')
+  const { Field } = loadNativeModule(`
+    import { TextInput } from '@hozo/core'
+    export function Field({ err }: { err: boolean }) {
+      return (
+        <TextInput
+          required
+          aria-invalid={err}
+          accessibilityLabel="Email"
+          className="required:p-4 invalid:bg-red-500 user-invalid:border-red-500 user-valid:border-green-500"
+        />
+      )
+    }
+  `)
+  let root: { toJSON: () => Tree; update: (el: unknown) => void; unmount: () => void } | undefined
+  try {
+    renderer.act(() => {
+      root = renderer.create(react.createElement(Field, { err: true }))
+    })
+    const before = root!.toJSON()
+    assert.equal(before.type, 'TextInput')
+    assert.equal(before.props.required, undefined)
+    const beforeStyle = StyleSheet.flatten(before.props.style)
+    assert.equal(beforeStyle.paddingTop, 16)
+    assert.equal(beforeStyle.backgroundColor, '#fb2c36')
+    // Before user interaction, user-invalid: is NOT applied.
+    assert.equal(beforeStyle.borderColor, undefined)
+
+    // Blur marks the input touched -> user-invalid: activates.
+    renderer.act(() => {
+      ;(before.props.onBlur as (e: unknown) => void)?.({})
+    })
+    const afterBlur = StyleSheet.flatten(root!.toJSON().props.style)
+    assert.equal(afterBlur.borderColor, '#fb2c36')
+
+    // Becoming valid while touched switches to user-valid:.
+    renderer.act(() => {
+      root!.update(react.createElement(Field, { err: false }))
+    })
+    const afterFix = StyleSheet.flatten(root!.toJSON().props.style)
+    assert.equal(afterFix.backgroundColor, undefined)
+    assert.equal(afterFix.borderColor, '#00c950')
+  } finally {
+    renderer.act(() => root?.unmount())
+  }
+})

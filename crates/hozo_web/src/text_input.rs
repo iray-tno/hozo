@@ -39,6 +39,9 @@ pub(crate) fn text_input_attrs(node: &Node, source: &str, attrs: &mut String) {
         if let Some(read_only) = text_input.read_only.as_ref() {
             attrs.push_str(&boolean_attribute("readOnly", read_only, source));
         }
+        if let Some(required) = text_input.required.as_ref() {
+            attrs.push_str(&boolean_attribute("required", required, source));
+        }
         if let Some(auto_correct) = text_input.auto_correct.as_ref() {
             attrs.push_str(&match auto_correct {
                 hozo_ir::ConditionExpr::Static(true) => " autoCorrect=\"on\"".to_string(),
