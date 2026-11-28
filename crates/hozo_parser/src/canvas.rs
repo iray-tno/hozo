@@ -21,25 +21,219 @@ use oxc_span::{GetSpan, SourceType};
 use crate::tailwind;
 
 const CANVAS_MODULE: &str = "@hozo/canvas";
-const PAINTED_SHAPES: &[&str] = &["Rect", "RoundedRect", "Circle", "Ellipse", "Line", "Path"];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CanvasShapeKind {
+    Rect,
+    RoundedRect,
+    Circle,
+    Ellipse,
+    Line,
+    Path,
+    Text,
+    Group,
+}
+
+impl CanvasShapeKind {
+    fn from_member(name: &str) -> Option<Self> {
+        Some(match name {
+            "Rect" => Self::Rect,
+            "RoundedRect" => Self::RoundedRect,
+            "Circle" => Self::Circle,
+            "Ellipse" => Self::Ellipse,
+            "Line" => Self::Line,
+            "Path" => Self::Path,
+            "Text" => Self::Text,
+            "Group" => Self::Group,
+            _ => return None,
+        })
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CanvasClassPaint {
     /// The complete `className=...` attribute, ready to replace in source.
     pub span: SourceSpan,
+    /// Which `@hozo/canvas` member element carried the `className`.
+    pub shape: CanvasShapeKind,
     /// `None` means the value is dynamic and cannot be compiled safely.
     pub static_classes: Option<Vec<String>>,
     pub paint: Vec<StyleProperty>,
-    /// Static classes that do not map to a Canvas paint prop.
+    /// Static classes that do not map to a Canvas prop on this shape.
     pub remaining: Vec<String>,
 }
 
-struct CanvasCollector {
+fn supports_canvas_color(color: &hozo_ir::Color, theme: &hozo_ir::Theme) -> bool {
+    hozo_ir::resolve_canvas_color(color, theme, false).is_some()
+        && hozo_ir::resolve_canvas_color(color, theme, true).is_some()
+}
+
+fn accept_shape_properties(
+    shape: CanvasShapeKind,
+    properties: Vec<StyleProperty>,
+    theme: &hozo_ir::Theme,
+    text_has_font_size: bool,
+) -> Option<Vec<StyleProperty>> {
+    if properties.is_empty() {
+        return None;
+    }
+    match shape {
+        CanvasShapeKind::Group => {
+            // Reject 3D scale utilities (`scale-z-*`, `scale-3d`), while keeping
+            // uniform `scale-*` (`[ScaleX, ScaleY, ScaleZ]` without `Scale3d`)
+            // as its 2D `scaleX`/`scaleY` pair.
+            if properties
+                .iter()
+                .any(|property| matches!(property, StyleProperty::Scale3d))
+            {
+                return None;
+            }
+            if let [StyleProperty::ScaleX(sx), StyleProperty::ScaleY(sy), StyleProperty::ScaleZ(_)] =
+                properties.as_slice()
+            {
+                return (sx.ratio().is_some() && sy.ratio().is_some()).then(|| {
+                    vec![
+                        StyleProperty::ScaleX(sx.clone()),
+                        StyleProperty::ScaleY(sy.clone()),
+                    ]
+                });
+            }
+            let supported = properties.iter().all(|property| match property {
+                StyleProperty::Opacity(_) => true,
+                StyleProperty::TranslateX(dim) | StyleProperty::TranslateY(dim) => {
+                    hozo_ir::resolve_canvas_dimension_px(dim, theme).is_some()
+                }
+                StyleProperty::Translate(values) => {
+                    matches!(values.len(), 1 | 2)
+                        && values
+                            .iter()
+                            .all(|dim| hozo_ir::resolve_canvas_dimension_px(dim, theme).is_some())
+                }
+                StyleProperty::ScaleX(scale) | StyleProperty::ScaleY(scale) => {
+                    scale.ratio().is_some()
+                }
+                StyleProperty::Scale(values) => {
+                    matches!(values.len(), 1 | 2)
+                        && values.iter().all(|scale| scale.ratio().is_some())
+                }
+                StyleProperty::Rotate(angle) => angle.degrees().is_some(),
+                StyleProperty::TranslateNone
+                | StyleProperty::ScaleNone
+                | StyleProperty::RotateNone
+                | StyleProperty::TransformNone => true,
+                _ => false,
+            });
+            supported.then_some(properties)
+        }
+        CanvasShapeKind::Text => {
+            let mut normalized = Vec::with_capacity(properties.len());
+            for property in properties {
+                match property {
+                    StyleProperty::Fill(color) | StyleProperty::TextColor(color)
+                        if supports_canvas_color(&color, theme) =>
+                    {
+                        normalized.push(StyleProperty::Fill(color));
+                    }
+                    StyleProperty::Stroke(color) if supports_canvas_color(&color, theme) => {
+                        normalized.push(StyleProperty::Stroke(color));
+                    }
+                    StyleProperty::Opacity(value) => {
+                        normalized.push(StyleProperty::Opacity(value));
+                    }
+                    StyleProperty::StrokeWidth(width) if width.px(theme).is_some() => {
+                        normalized.push(StyleProperty::StrokeWidth(width));
+                    }
+                    StyleProperty::FontSize(length)
+                        if hozo_ir::resolve_canvas_length_px(&length, theme)
+                            .is_some_and(|px| px > 0.0) =>
+                    {
+                        normalized.push(StyleProperty::FontSize(length));
+                    }
+                    StyleProperty::FontFamily(family)
+                        if hozo_ir::resolve_canvas_font_family(&family, theme, false).is_some()
+                            && hozo_ir::resolve_canvas_font_family(&family, theme, true)
+                                .is_some() =>
+                    {
+                        normalized.push(StyleProperty::FontFamily(family));
+                    }
+                    StyleProperty::FontWeight(weight) if weight.native(theme).is_some() => {
+                        normalized.push(StyleProperty::FontWeight(weight));
+                    }
+                    StyleProperty::Arbitrary(ref name, ref value) if name == "font-weight" => {
+                        let weight = hozo_ir::resolve_canvas_font_weight_literal(value)?;
+                        normalized.push(StyleProperty::FontWeight(hozo_ir::FontWeight::Absolute(
+                            weight,
+                        )));
+                    }
+                    StyleProperty::Keyword("font-style", value @ ("italic" | "normal")) => {
+                        normalized.push(StyleProperty::Keyword("font-style", value));
+                    }
+                    StyleProperty::TextAlign(
+                        align @ (hozo_ir::TextAlign::Left
+                        | hozo_ir::TextAlign::Center
+                        | hozo_ir::TextAlign::Right),
+                    ) => {
+                        normalized.push(StyleProperty::TextAlign(align));
+                    }
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio))
+                        if ratio.is_finite() && ratio > 0.0 =>
+                    {
+                        normalized
+                            .push(StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)));
+                    }
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(length))
+                        if text_has_font_size
+                            && hozo_ir::resolve_canvas_length_px(&length, theme)
+                                .is_some_and(|px| px > 0.0) =>
+                    {
+                        normalized.push(StyleProperty::LineHeight(
+                            hozo_ir::LineHeight::FontDefault(length),
+                        ));
+                    }
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(length))
+                        if text_has_font_size
+                            && hozo_ir::resolve_canvas_length_px(&length, theme)
+                                .is_some_and(|px| px > 0.0) =>
+                    {
+                        normalized.push(StyleProperty::LineHeight(hozo_ir::LineHeight::Length(
+                            length,
+                        )));
+                    }
+                    StyleProperty::MaxWidth(dim)
+                        if hozo_ir::resolve_canvas_dimension_px(&dim, theme)
+                            .is_some_and(|px| px >= 0.0) =>
+                    {
+                        normalized.push(StyleProperty::MaxWidth(dim));
+                    }
+                    _ => return None,
+                }
+            }
+            Some(normalized)
+        }
+        _ => {
+            let supported = properties.iter().all(|property| match property {
+                StyleProperty::Fill(color) | StyleProperty::Stroke(color) => {
+                    supports_canvas_color(color, theme)
+                }
+                StyleProperty::Opacity(_) => true,
+                StyleProperty::StrokeWidth(width) => width.px(theme).is_some(),
+                StyleProperty::BorderRadius(radius) if shape == CanvasShapeKind::RoundedRect => {
+                    hozo_ir::resolve_canvas_radius_px(radius, theme).is_some()
+                }
+                _ => false,
+            });
+            supported.then_some(properties)
+        }
+    }
+}
+
+struct CanvasCollector<'t> {
     namespaces: HashSet<String>,
+    theme: &'t hozo_ir::Theme,
     paints: Vec<CanvasClassPaint>,
 }
 
-impl<'a> Visit<'a> for CanvasCollector {
+impl<'a> Visit<'a> for CanvasCollector<'_> {
     fn visit_jsx_element(&mut self, element: &JSXElement<'a>) {
         let JSXElementName::MemberExpression(member) = &element.opening_element.name else {
             walk_jsx_element(self, element);
@@ -49,12 +243,15 @@ impl<'a> Visit<'a> for CanvasCollector {
             walk_jsx_element(self, element);
             return;
         };
-        if !self.namespaces.contains(object.name.as_str())
-            || !PAINTED_SHAPES.contains(&member.property.name.as_str())
-        {
+        let Some(shape) = self
+            .namespaces
+            .contains(object.name.as_str())
+            .then(|| CanvasShapeKind::from_member(member.property.name.as_str()))
+            .flatten()
+        else {
             walk_jsx_element(self, element);
             return;
-        }
+        };
 
         for item in &element.opening_element.attributes {
             let JSXAttributeItem::Attribute(attribute) = item else {
@@ -83,6 +280,7 @@ impl<'a> Visit<'a> for CanvasCollector {
                         start: attribute.span().start,
                         end: attribute.span().end,
                     },
+                    shape,
                     static_classes: None,
                     paint: Vec::new(),
                     remaining: Vec::new(),
@@ -91,36 +289,54 @@ impl<'a> Visit<'a> for CanvasCollector {
             };
 
             let classes: Vec<String> = value.split_ascii_whitespace().map(str::to_string).collect();
+            let expanded: Vec<(Condition, Vec<StyleProperty>)> = classes
+                .iter()
+                .map(|token| tailwind::expand_utility(token))
+                .collect();
+            // `Canvas.Text.lineHeight` is a multiple of `fontSize`, so pixel
+            // line heights (`leading-6`, `text-lg`'s default, `text-lg/7`) can
+            // only be converted when this `className` also resolves `fontSize`.
+            let text_has_font_size = shape == CanvasShapeKind::Text
+                && expanded.iter().any(|(condition, properties)| {
+                    *condition == Condition::Always
+                        && properties.iter().any(|property| {
+                            matches!(
+                                property,
+                                StyleProperty::FontSize(length)
+                                    if hozo_ir::resolve_canvas_length_px(length, self.theme)
+                                        .is_some_and(|px| px > 0.0)
+                            )
+                        })
+                });
             let mut paint = Vec::new();
             let mut remaining = Vec::new();
-            for token in &classes {
-                let (condition, properties) = tailwind::expand_utility(token);
-                let is_paint = condition == Condition::Always
-                    && !properties.is_empty()
-                    && properties.iter().all(|property| match property {
-                        StyleProperty::Fill(color) | StyleProperty::Stroke(color) => match color {
-                            hozo_ir::Color::Css(text) => hozo_ir::native_color_literal_valid(text),
-                            _ => true,
-                        },
-                        StyleProperty::Opacity(_) => true,
-                        StyleProperty::StrokeWidth(width) => {
-                            width.px(&hozo_ir::Theme::default()).is_some()
-                        }
-                        _ => false,
-                    });
-                if is_paint {
-                    paint.extend(properties);
-                } else {
-                    remaining.push(token.clone());
+            for (token, (condition, properties)) in classes.iter().zip(expanded) {
+                if condition == Condition::Always {
+                    if let Some(accepted) =
+                        accept_shape_properties(shape, properties, self.theme, text_has_font_size)
+                    {
+                        paint.extend(accepted);
+                        continue;
+                    }
                 }
+                remaining.push(token.clone());
             }
+            // Group transforms fold authored resets (`rotate-45 rotate-none`,
+            // `scale-110 scale-none`) in source order rather than deduping by
+            // enum variant.
+            let paint = if shape == CanvasShapeKind::Group {
+                paint
+            } else {
+                dedupe_last_wins(paint)
+            };
             self.paints.push(CanvasClassPaint {
                 span: SourceSpan {
                     start: attribute.span().start,
                     end: attribute.span().end,
                 },
+                shape,
                 static_classes: Some(classes),
-                paint: dedupe_last_wins(paint),
+                paint,
                 remaining,
             });
         }
@@ -132,8 +348,18 @@ impl<'a> Visit<'a> for CanvasCollector {
     }
 }
 
-/// Finds paint-bearing shape attributes from a trusted `@hozo/canvas` import.
+/// Finds paint-bearing shape attributes from a trusted `@hozo/canvas` import,
+/// validating tokens against Tailwind's default theme.
 pub fn parse_canvas_paints(source_text: &str) -> Vec<CanvasClassPaint> {
+    parse_canvas_paints_with_theme(source_text, &hozo_ir::Theme::default())
+}
+
+/// Finds paint-bearing shape attributes from a trusted `@hozo/canvas` import,
+/// validating theme colour tokens and spacing-backed lengths against `theme`.
+pub fn parse_canvas_paints_with_theme(
+    source_text: &str,
+    theme: &hozo_ir::Theme,
+) -> Vec<CanvasClassPaint> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_extension("tsx").expect("tsx is a known extension");
     let parsed = Parser::new(&allocator, source_text, source_type).parse();
@@ -150,6 +376,7 @@ pub fn parse_canvas_paints(source_text: &str) -> Vec<CanvasClassPaint> {
 
     let mut collector = CanvasCollector {
         namespaces,
+        theme,
         paints: Vec::new(),
     };
     collector.visit_program(&parsed.program);

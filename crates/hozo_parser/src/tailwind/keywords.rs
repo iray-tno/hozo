@@ -61,7 +61,7 @@ pub(super) fn parse_screen_reader_only(token: &str) -> Option<Vec<StyleProperty>
             },
         ),
         StyleProperty::WhiteSpace(if visually_hidden {
-            WhiteSpace::NoWrap
+            WhiteSpace::SrOnlyNoWrap
         } else {
             WhiteSpace::Normal
         }),

@@ -49,22 +49,7 @@ pub(crate) fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
 /// The three channels of a `#rrggbb`, which is the shape both the palette
 /// and `@hozo/tailwind`'s theme extraction produce.
 pub(super) fn rgb_channels(hex: &str) -> Option<(u8, u8, u8)> {
-    let digits = hex.strip_prefix('#')?;
-    // Both lengths, because the palette uses both: Tailwind writes `#000`
-    // and `#fff` short and everything else long, and reading only the long
-    // form turned `bg-black/25` into the unresolved marker while
-    // `bg-blue-500/50` worked.
-    let pair = |at: usize| -> Option<u8> {
-        match digits.len() {
-            3 => {
-                let digit = digits.get(at..at + 1)?;
-                u8::from_str_radix(&format!("{digit}{digit}"), 16).ok()
-            }
-            6 => u8::from_str_radix(digits.get(at * 2..at * 2 + 2)?, 16).ok(),
-            _ => None,
-        }
-    };
-    Some((pair(0)?, pair(1)?, pair(2)?))
+    hozo_ir::hex_rgb_channels(hex)
 }
 
 /// A placeholder colour as `placeholderTextColor` wants it -- the same

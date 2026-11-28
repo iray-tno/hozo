@@ -107,10 +107,10 @@
     "inOrder": 22705
   },
   "refusalAudit": {
-    "refusals": 10337,
-    "checkable": 10003,
+    "refusals": 10335,
+    "checkable": 10001,
     "confirmed": 10000,
-    "partial": 2,
+    "partial": 0,
     "suspect": 1,
     "uncheckable": 334
   },
@@ -159,29 +159,29 @@
   },
   "canvas": {
     "candidates": 23286,
-    "covered": 609,
-    "refused": 22677,
+    "covered": 1286,
+    "refused": 22000,
     "silent": 0,
     "unresolvable": 0
   },
   "canvasArbitrary": {
     "candidates": 2845,
-    "covered": 9,
-    "refused": 2836,
+    "covered": 31,
+    "refused": 2814,
     "silent": 0,
     "unresolvable": 0
   },
   "canvasNative": {
     "candidates": 23286,
-    "covered": 609,
-    "refused": 22677,
+    "covered": 1286,
+    "refused": 22000,
     "silent": 0,
     "unresolvable": 0
   },
   "canvasArbitraryNative": {
     "candidates": 2845,
-    "covered": 9,
-    "refused": 2836,
+    "covered": 31,
+    "refused": 2814,
     "silent": 0,
     "unresolvable": 0
   },

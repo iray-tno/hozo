@@ -363,7 +363,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
             "white-space",
             match w {
                 WhiteSpace::Normal => "normal",
-                WhiteSpace::NoWrap => "nowrap",
+                WhiteSpace::NoWrap | WhiteSpace::SrOnlyNoWrap => "nowrap",
                 WhiteSpace::Css(v) => v,
             }
             .to_string(),

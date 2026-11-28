@@ -159,6 +159,202 @@ pub fn split_color_alpha(token: &str) -> (&str, Option<f64>) {
     }
 }
 
+/// The three sRGB channels of a `#rgb` or `#rrggbb` hex colour, which is the
+/// shape both Tailwind's default palette and `@hozo/tailwind`'s theme
+/// extraction produce.
+pub fn hex_rgb_channels(hex: &str) -> Option<(u8, u8, u8)> {
+    let digits = hex.strip_prefix('#')?;
+    let pair = |at: usize| -> Option<u8> {
+        match digits.len() {
+            3 => {
+                let digit = digits.get(at..at + 1)?;
+                u8::from_str_radix(&format!("{digit}{digit}"), 16).ok()
+            }
+            6 => u8::from_str_radix(digits.get(at * 2..at * 2 + 2)?, 16).ok(),
+            _ => None,
+        }
+    };
+    Some((pair(0)?, pair(1)?, pair(2)?))
+}
+
+/// Resolves a colour for Canvas paint props (`fill` / `stroke`), or returns
+/// `None` when neither Canvas 2D nor Skia can paint the value directly.
+///
+/// Canvas shapes sit outside the DOM cascade: CSS custom properties
+/// (`var(--hozo-color-*)`), `currentcolor`, and `inherit` have no painting
+/// target on Canvas 2D or Skia, and unresolved markers must never reach a
+/// drawing prop silently. Opacity modifiers (`blue-500/50`, `black/25`) are
+/// folded into a concrete CSS Color 4 / `rgba()` literal.
+pub fn resolve_canvas_color(color: &Color, theme: &Theme, native: bool) -> Option<String> {
+    match color {
+        Color::Keyword(keyword) => {
+            matches!(*keyword, "none" | "transparent").then(|| (*keyword).to_string())
+        }
+        Color::Css(value) => native_color_literal_valid(value).then(|| value.clone()),
+        Color::Token(token) => {
+            let (base, alpha) = split_color_alpha(token);
+            if matches!(base, "current" | "inherit") {
+                return None;
+            }
+            if base == "transparent" {
+                return Some("transparent".to_string());
+            }
+            let resolved = theme.color(base)?;
+            match alpha {
+                None => {
+                    if native {
+                        native_color_literal_valid(&resolved.hex).then_some(resolved.hex)
+                    } else if native_color_literal_valid(&resolved.oklch) {
+                        Some(resolved.oklch)
+                    } else {
+                        native_color_literal_valid(&resolved.hex).then_some(resolved.hex)
+                    }
+                }
+                Some(alpha) => {
+                    if native {
+                        hex_rgb_channels(&resolved.hex)
+                            .map(|(r, g, b)| format!("rgba({r}, {g}, {b}, {alpha})"))
+                    } else if let Some(inner) = resolved
+                        .oklch
+                        .strip_prefix("oklch(")
+                        .and_then(|rest| rest.strip_suffix(')'))
+                        .filter(|inner| {
+                            !inner.contains('/') && native_color_literal_valid(&resolved.oklch)
+                        })
+                    {
+                        Some(format!("oklch({inner} / {alpha})"))
+                    } else {
+                        hex_rgb_channels(&resolved.oklch)
+                            .or_else(|| hex_rgb_channels(&resolved.hex))
+                            .map(|(r, g, b)| format!("rgba({r}, {g}, {b}, {alpha})"))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Resolves a statically known pixel length for Canvas props, returning `None`
+/// for viewport/font-relative units or CSS `calc()`/`var()` expressions.
+pub fn resolve_canvas_length_px(length: &Length, theme: &Theme) -> Option<f64> {
+    if length.unresolved_unit().is_some() || length.css_expression().is_some() {
+        return None;
+    }
+    let px = length.px(theme);
+    px.is_finite().then_some(px)
+}
+
+/// Resolves a statically known pixel dimension for Canvas props (`translate`,
+/// `maxWidth`), rejecting percentages, `auto`, viewport units, and CSS text.
+pub fn resolve_canvas_dimension_px(dimension: &Dimension, theme: &Theme) -> Option<f64> {
+    match dimension {
+        Dimension::Length(length) => resolve_canvas_length_px(length, theme),
+        Dimension::Percent(_)
+        | Dimension::Auto
+        | Dimension::ViewportWidth(_)
+        | Dimension::ViewportHeight(_)
+        | Dimension::Css(_) => None,
+    }
+}
+
+/// Resolves a uniform corner radius in pixels for `Canvas.RoundedRect`.
+pub fn resolve_canvas_radius_px(radius: &Radius, theme: &Theme) -> Option<f64> {
+    match radius {
+        Radius::Length(length) => resolve_canvas_length_px(length, theme).filter(|px| *px >= 0.0),
+        Radius::Scale { name, fallback_px } => {
+            let px = theme.radius(name).unwrap_or(*fallback_px);
+            (px.is_finite() && px >= 0.0).then_some(px)
+        }
+        Radius::Theme(name) => theme.radius(name).filter(|px| px.is_finite() && *px >= 0.0),
+        // Matches React Native's pill sentinel; both Canvas2D `roundRect` and
+        // Skia's `RoundedRect` clamp the corner radius to half the short side.
+        Radius::Full => Some(9999.0),
+        Radius::Percent(_) => None,
+    }
+}
+
+/// Resolves a `FontFamily` for `Canvas.Text`: Web Canvas2D takes a resolved
+/// CSS font stack (without `var()`), while Native Skia's `matchFont` takes a
+/// single font family name (`sans-serif`, `serif`, `monospace`, or the first
+/// named family in a custom `@theme` stack).
+pub fn resolve_canvas_font_family(
+    family: &FontFamily,
+    theme: &Theme,
+    native: bool,
+) -> Option<String> {
+    fn first_family_name(stack: &str) -> Option<String> {
+        let first = stack.split(',').next()?.trim();
+        let unquoted = first
+            .strip_prefix('"')
+            .and_then(|s| s.strip_suffix('"'))
+            .or_else(|| first.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
+            .unwrap_or(first)
+            .trim();
+        (!unquoted.is_empty()).then(|| unquoted.to_string())
+    }
+
+    match family {
+        FontFamily::Theme { name, fallback } => {
+            if let Some((_, resolved_stack)) = theme.font_family(name) {
+                let stack = resolved_stack.trim();
+                if stack.is_empty() || contains_dynamic_css(stack) {
+                    return None;
+                }
+                return if native {
+                    first_family_name(stack)
+                } else {
+                    Some(stack.to_string())
+                };
+            }
+            if native {
+                Some(
+                    match *name {
+                        "serif" => "serif",
+                        "mono" => "monospace",
+                        _ => "sans-serif",
+                    }
+                    .to_string(),
+                )
+            } else {
+                Some((*fallback).to_string())
+            }
+        }
+        FontFamily::Literal(value) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty()
+                || contains_dynamic_css(trimmed)
+                || matches!(
+                    trimmed.to_ascii_lowercase().as_str(),
+                    "inherit" | "initial" | "unset" | "revert" | "revert-layer"
+                )
+            {
+                return None;
+            }
+            if native {
+                first_family_name(trimmed)
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+    }
+}
+
+/// Resolves a numeric/keyword `font-weight` literal into the closed union
+/// `Canvas.Text` accepts (`'100'`..`'900'`, `'normal'`, `'bold'`).
+pub fn resolve_canvas_font_weight_literal(value: &str) -> Option<u16> {
+    match value.trim() {
+        "normal" => Some(400),
+        "bold" => Some(700),
+        text => text
+            .parse::<f64>()
+            .ok()
+            .filter(|weight| {
+                weight.is_finite() && (100.0..=900.0).contains(weight) && weight % 100.0 == 0.0
+            })
+            .map(|weight| weight as u16),
+    }
+}
+
 /// The React Native style key and inset side an `env(safe-area-inset-*)`
 /// arbitrary value asks for, if it is one.
 ///
@@ -727,6 +923,14 @@ pub enum TextOverflow {
 pub enum WhiteSpace {
     Normal,
     NoWrap,
+    /// The `white-space: nowrap` companion emitted by `sr-only`.
+    ///
+    /// Web emits `white-space: nowrap` identically to `NoWrap`. Native keeps
+    /// it distinct from explicit `whitespace-nowrap` / `truncate` so `sr-only`
+    /// lowers to React Native's 1px clipped visually-hidden box on any host
+    /// without requiring `Text`'s `numberOfLines` prop (while explicit
+    /// `whitespace-nowrap` on a non-Text view stays refused).
+    SrOnlyNoWrap,
     /// `pre`, `pre-line`, `pre-wrap`, `break-spaces`. React Native's Text
     /// has no white-space control beyond wrapping, so these are refused.
     Css(&'static str),

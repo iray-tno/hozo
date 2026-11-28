@@ -537,6 +537,69 @@ const Chart = () => <Canvas decorative><Canvas.Rect className={active ? 'fill-bl
   assert.equal(lowered.diagnostics[0]?.code, 'CANVAS_CLASS_NOT_LOWERED')
 })
 
+test('Canvas paint resolves alpha modifiers and rejects unknown or inherited colour tokens', () => {
+  const source = `import { Canvas } from '@hozo/canvas'
+export function Chart() {
+  return (
+    <Canvas decorative width={20} height={20}>
+      <Canvas.Rect className="fill-blue-500/50 stroke-black/25" width={10} height={10} />
+      <Canvas.Rect className="fill-unknown-999 fill-current stroke-inherit" width={10} height={10} />
+    </Canvas>
+  )
+}
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)!
+  assert.match(
+    lowered.code,
+    /<Canvas\.Rect fill="oklch\(62\.3% 0\.214 259\.815 \/ 0\.5\)" stroke="rgba\(0, 0, 0, 0\.25\)"/,
+  )
+  assert.doesNotMatch(lowered.code, /var\(--hozo-color-|hozo-unresolved:/)
+  assert.equal(lowered.diagnostics.length, 1)
+  assert.equal(lowered.diagnostics[0]?.code, 'CANVAS_CLASS_NOT_LOWERED')
+})
+
+test('Canvas lowers RoundedRect radius and Group opacity/2D transform classes', () => {
+  const source = `import { Canvas } from '@hozo/canvas'
+export function Chart() {
+  return (
+    <Canvas decorative width={100} height={100}>
+      <Canvas.Group className="opacity-75 translate-x-4 rotate-45 scale-110">
+        <Canvas.RoundedRect className="fill-blue-500 rounded-lg" width={20} height={10} />
+      </Canvas.Group>
+    </Canvas>
+  )
+}
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)!
+  assert.equal(lowered.diagnostics.length, 0)
+  assert.match(
+    lowered.code,
+    /<Canvas\.Group opacity=\{0\.75\} transform=\{\{ translateX: 16, scaleX: 1\.1, scaleY: 1\.1, rotate: 45 \}\}>/,
+  )
+  assert.match(
+    lowered.code,
+    /<Canvas\.RoundedRect fill="oklch\(62\.3% 0\.214 259\.815\)" radius=\{8\}/,
+  )
+})
+
+test('Canvas lowers Text typography, colour, alignment, and maxWidth classes', () => {
+  const source = `import { Canvas } from '@hozo/canvas'
+export function Label() {
+  return (
+    <Canvas decorative width={200} height={40}>
+      <Canvas.Text className="text-blue-500 text-lg font-bold italic text-center max-w-xs" text="Total" x={100} y={20} />
+    </Canvas>
+  )
+}
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)!
+  assert.equal(lowered.diagnostics.length, 0)
+  assert.match(
+    lowered.code,
+    /<Canvas\.Text fill="oklch\(62\.3% 0\.214 259\.815\)" fontSize=\{18\} lineHeight=\{1\.555556\} fontWeight="700" fontStyle="italic" textAlign="center" maxWidth=\{320\}/,
+  )
+})
+
 test('two modules never answer to the same class name', () => {
   // The assertion that was missing, and it would have failed from the day
   // the second example was written. Class names were namespaced per root

@@ -166,7 +166,7 @@ const NAMED_COLORS: &[&str] = &[
     "yellowgreen",
 ];
 
-fn contains_dynamic_css(text: &str) -> bool {
+pub(crate) fn contains_dynamic_css(text: &str) -> bool {
     let lower = text.to_ascii_lowercase();
     lower.contains("var(")
         || lower.contains("calc(")
