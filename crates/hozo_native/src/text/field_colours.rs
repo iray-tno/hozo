@@ -209,12 +209,13 @@ pub(crate) struct FieldColours {
 
 pub(crate) fn resolve_field_colours(
     node: &Node,
+    declarations: &[StyleDeclaration],
     target: &StyleTarget<'_>,
     source: &str,
     theme: &Theme,
     runtime: &mut RuntimeNeeds,
 ) -> FieldColours {
-    let mut consumed = vec![false; node.style.len()];
+    let mut consumed = vec![false; declarations.len()];
     if node.primitive != Primitive::TextInput {
         return FieldColours {
             placeholder: None,
@@ -237,7 +238,7 @@ pub(crate) fn resolve_field_colours(
     let mut interactive_fields: Vec<(&'static str, String)> = Vec::new();
 
     if let Some(channel) = resolve_channel(
-        &node.style,
+        declarations,
         target,
         source,
         theme,
@@ -254,7 +255,7 @@ pub(crate) fn resolve_field_colours(
         }
     }
     if let Some(channel) = resolve_channel(
-        &node.style,
+        declarations,
         target,
         source,
         theme,
@@ -271,7 +272,7 @@ pub(crate) fn resolve_field_colours(
         }
     }
     if let Some(channel) = resolve_channel(
-        &node.style,
+        declarations,
         target,
         source,
         theme,

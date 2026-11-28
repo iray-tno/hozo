@@ -23,6 +23,7 @@ pub(super) fn inherit(
     interaction_context: bool,
     peers: &[PeerSibling<'_>],
     style: Vec<StyleDeclaration>,
+    subtree: &[StyleDeclaration],
     ancestor: AncestorContext<'_>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Inheritance {
@@ -83,21 +84,6 @@ pub(super) fn inherit(
         semantic_defaults.into_iter().chain(style).collect()
     };
 
-    // What an ancestor's `*:`/`**:` wrote for this element, before its
-    // own, so the element's own win -- `dedupe_last_wins` keeps the last
-    // of a property, which is where CSS specificity would land too.
-    let style: Vec<StyleDeclaration> = from_ancestor
-        .direct
-        .iter()
-        .cloned()
-        .chain(from_ancestor.all.iter().cloned())
-        .chain(style)
-        .collect();
-    // And what this element writes for its own subtree, taken out before
-    // anything tries to apply it here.
-    let (subtree, style): (Vec<_>, Vec<_>) = style
-        .into_iter()
-        .partition(|d| d.condition.split_subtree().is_some());
     let crate::children::SubtreeChildren {
         direct: to_children,
         all: to_descendants,
@@ -105,7 +91,7 @@ pub(super) fn inherit(
         needs_focus_visible: subtree_needs_focus_visible,
         subtree_report: subtree_child_report,
     } = subtree_for_children(
-        &subtree,
+        subtree,
         node,
         position,
         interaction_context,

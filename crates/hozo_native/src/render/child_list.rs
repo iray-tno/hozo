@@ -3,7 +3,7 @@
 
 use super::*;
 
-fn node_peer_interaction_needs(node: &Node) -> (bool, bool, bool) {
+fn node_peer_interaction_needs(node: &Node, from_ancestor: FromAncestor<'_>) -> (bool, bool, bool) {
     let mut pointer = false;
     let mut focus = false;
     let mut focus_visible = false;
@@ -28,7 +28,12 @@ fn node_peer_interaction_needs(node: &Node) -> (bool, bool, bool) {
         .children
         .iter()
         .any(|c| matches!(c, hozo_ir::Child::Node(_) | hozo_ir::Child::Verbatim { .. }));
-    for decl in &node.style {
+    for decl in from_ancestor
+        .direct
+        .iter()
+        .chain(from_ancestor.all.iter())
+        .chain(node.style.iter())
+    {
         if decl.condition.split_subtree().is_some() && !has_child_target {
             continue;
         }
@@ -92,6 +97,16 @@ pub(super) fn render_child_list(
                 if child_node.carried_classes.iter().any(|cls| cls == "peer")
         )
     });
+    let has_peer_with_follower = has_any_peer
+        && node.children.iter().enumerate().any(|(i, child)| {
+            matches!(
+                child,
+                hozo_ir::Child::Node(child_node)
+                    if child_node.carried_classes.iter().any(|cls| cls == "peer")
+            ) && node.children[i + 1..]
+                .iter()
+                .any(|later| matches!(later, hozo_ir::Child::Node(_)))
+        });
     let mut publish_ids: Vec<Option<usize>> = Vec::new();
     let mut publish_focus_visible: Vec<bool> = Vec::new();
     let mut needs_peer_scope = false;
@@ -100,7 +115,9 @@ pub(super) fn render_child_list(
             .children
             .iter()
             .map(|child| match child {
-                hozo_ir::Child::Node(child_node) => node_peer_interaction_needs(child_node),
+                hozo_ir::Child::Node(child_node) => {
+                    node_peer_interaction_needs(child_node, for_children.from_ancestor)
+                }
                 _ => (false, false, false),
             })
             .collect();
@@ -142,6 +159,7 @@ pub(super) fn render_child_list(
                         preceding: &preceding_peers,
                         publish_id: publish_ids[index],
                         publish_focus_visible: publish_focus_visible[index],
+                        parent_has_later_peer_target: has_peer_with_follower,
                     }
                 } else {
                     PeerContext::default()
