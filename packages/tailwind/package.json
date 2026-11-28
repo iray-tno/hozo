@@ -1,6 +1,6 @@
 {
   "name": "@hozo/tailwind",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Tailwind integration for Hozo's Style IR.",
   "keywords": [
     "tailwindcss",

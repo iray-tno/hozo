@@ -1,5 +1,87 @@
 # @hozo/compiler
 
+## 0.6.0
+
+### Minor Changes
+
+- [#2379](https://github.com/iray-tno/hozo/pull/2379) [`00431b3`](https://github.com/iray-tno/hozo/commit/00431b39d9295cfe8f70b0f9fc2bb84e901c6f29) Thanks [@iray-tno](https://github.com/iray-tno)! - Support trailing opacity modifiers (`/50`, `/[0.35]`, `/[50%]`) on arbitrary colour utilities (`bg-[#ff0000]/50`, `bg-[#ff0000]/[0.35]`, `bg-[rgb(0_0_0)]/50`, `fill-[#ff0000]/50`, `stroke-[#00ff00]/25`, etc.) across Web, Native, and Canvas, fixing bracket-splitting corruption on `prefix-[...]/[...]` and supporting arbitrary font-size line-height modifiers (`text-[14px]/6`, `text-[14px]/tight`).
+
+- [#2372](https://github.com/iray-tno/hozo/pull/2372) [`ce6f865`](https://github.com/iray-tno/hozo/commit/ce6f8657f923303f2cc584208b60f41245ee8300) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower uniform `rounded-*` utilities to `radius` on `Canvas.RoundedRect` and lower `opacity-*` plus 2D `translate-*`, `scale-*`, and `rotate-*` utilities to `opacity` and `transform` props on `Canvas.Group` (with optional `className` typing on `GroupProps`).
+
+- [#2372](https://github.com/iray-tno/hozo/pull/2372) [`8924822`](https://github.com/iray-tno/hozo/commit/8924822c632e433b4a71f3418657dbf415ee9109) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower `Canvas.Text` colour (`text-*`/`fill-*`), typography (`text-*` sizes, `font-sans`/`serif`/`mono`, `font-*` weights, `italic`/`not-italic`), alignment (`text-left`/`center`/`right`), `leading-*` line-height ratios, and pixel `max-w-*` utilities to portable `Canvas.Text` props on Web and Native.
+
+- [#2312](https://github.com/iray-tno/hozo/pull/2312) [`ffba3d5`](https://github.com/iray-tno/hozo/commit/ffba3d5f258b839d78a704f53d608063f799d913) Thanks [@iray-tno](https://github.com/iray-tno)! - Evaluate parent-relative `%`-mixed `calc()`, `min()`, `max()`, and `clamp()` on React Native when the parent lives in the same component (`w`, `h`, `size`, `min/max-*`, `basis`, `m*`, `p*`, `top/right/bottom/left/inset*`, and `space-x`/`space-y`) via opt-in `HozoMeasuredParent` and `HozoParentSizeQuery`, subtracting resolved border and padding insets with zero wrapper Views and zero runtime cost when unused.
+
+- [#2357](https://github.com/iray-tno/hozo/pull/2357) [`dd5e2b0`](https://github.com/iray-tno/hozo/commit/dd5e2b07654c656ec278c16cf7290e65df06471e) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower conditional `placeholder:text-*`, `placeholder-*`, `selection:bg-*`, and `caret-*` colour variants on React Native `TextInput` across breakpoints, environment queries, props, structural/container/peer guards, and focus states (`HozoTextInput` `hozoFieldColors`).
+
+- [#2357](https://github.com/iray-tno/hozo/pull/2357) [`674e6ba`](https://github.com/iray-tno/hozo/commit/674e6bab550255a3dc1510f1fa189a82165ae22b) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower conditional and arbitrary-length `backdrop:backdrop-blur-*` / `backdrop:backdrop-blur-none` on React Native `Dialog` into guarded `hozoBackdropBlur` expressions.
+
+- [#2325](https://github.com/iray-tno/hozo/pull/2325) [`fd7887b`](https://github.com/iray-tno/hozo/commit/fd7887b070636fac563258b1fb551123b81de6a8) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower Tailwind `flex-<n>/<d>` fractions (`flex-1/2`, `flex-2/3`, etc.) and single-value arbitrary `<length-percentage>` `flex-[...]` shorthands (`flex-[10px]`, `flex-[2rem]`, `flex-[50%]`) on React Native to `{ flexGrow: 1, flexShrink: 1, flexBasis }` per CSS Flexbox Level 1 §7.1.1, with zero runtime cost.
+
+- [#2325](https://github.com/iray-tno/hozo/pull/2325) [`9aa5245`](https://github.com/iray-tno/hozo/commit/9aa52454f4332e93409bb6c4a9a7f658398cfad6) Thanks [@iray-tno](https://github.com/iray-tno)! - Support `%` and `%`-mixed `calc()` / `min()` / `max()` / `clamp()` grid row tracks on React Native when the grid container has a definite height (`h-*`, `h-screen`, `h-full`, `size-*`, `block-*`) by measuring its content-box height via `HozoMeasuredParent` and passing `containerHeight` into `HozoGrid`, while keeping auto-height `%` row tracks refused with an actionable diagnostic. Also supports plain `%` column tracks (`grid-cols-[30%_70%]`).
+
+- [#2379](https://github.com/iray-tno/hozo/pull/2379) [`9fabdd4`](https://github.com/iray-tno/hozo/commit/9fabdd4c0c2b03e7612d26a5ea41890918dd4450) Thanks [@iray-tno](https://github.com/iray-tno)! - Add `HozoInteractionQuery` and lower `group-hover:`, `group-focus:`, `group-active:`, and `group-focus-visible:` (including stacked variants, `backdrop:`, `placeholder:`/`caret-*`, class slots, and `group-*:*:`) on any descendant inside an interactive `.group` ancestor on React Native (`Pressable`, `Button`, `Link`, `TextInput`, `Dialog`, `Image`, `ScrollView`, animated views, and pattern hosts).
+
+- [#2357](https://github.com/iray-tno/hozo/pull/2357) [`def750b`](https://github.com/iray-tno/hozo/commit/def750bb0b8f351e31a738d0a3acb2640b1b60f3) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower parent elemental variants placed before `*:` and `**:` on React Native (`hover:*:`, `focus:*:`, `disabled:*:`, `data-*:*:`, `aria-*:*:`, `rtl:*:`, `first:*:`, `peer-*:*:`, `group-*:*:`, `focus-within:*:`, `has-[:focus]:*:`, `has-hover:*:`, and `**:` equivalents), while continuing to refuse unsupported combinations such as `hover:*:` on non-interactive views.
+
+- [#2372](https://github.com/iray-tno/hozo/pull/2372) [`17122e1`](https://github.com/iray-tno/hozo/commit/17122e1b1a42b3f17086da60fc6af8cc433712f3) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower `sr-only` and `not-sr-only` on React Native to a 1px clipped visually-hidden box (`position: 'absolute'`, `width: 1`, `height: 1`, `overflow: 'hidden'`, `margin: -1`, zero padding/border) without rejecting their Web-only `clip-path` and `white-space: nowrap` companions, matching Hozo's cross-platform accessibility contract.
+
+- [#2379](https://github.com/iray-tno/hozo/pull/2379) [`8731c27`](https://github.com/iray-tno/hozo/commit/8731c27c6d5a0df296658181680f53118b7122db) Thanks [@iray-tno](https://github.com/iray-tno)! - Merge ancestor `*:` and `**:` forwarded declarations before running Native prop, backdrop, transition, and refusal adapters so `*:backdrop:*`, `*:placeholder:text-*`, `*:selection:bg-*`, `*:caret-*`, `*:starting:*`, `*:truncate`, and `*:peer-*:` lower cleanly on matching children while preserving leaf and missing-peer refusals.
+
+- [#2357](https://github.com/iray-tno/hozo/pull/2357) [`0af65ed`](https://github.com/iray-tno/hozo/commit/0af65edbefc3a0bbbaf447a9f5ebbc7bd38d85e6) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower viewport length units (`vw`, `vh`, `vmin`, `vmax`, and viewport-only `calc()`/`min()`/`max()`/`clamp()`) across all numeric React Native length properties using the existing `useHozoViewport()` hook, including `basis-*`, `rounded-*`, `border-*`, `outline-*`, `text-*`/`leading-*`/`tracking-*`, `translate-*`, `space-*`/`divide-*`, `ring-*`/`inset-ring-*`/`ring-offset-*`, `backdrop-blur-*`, and `grid-cols-*`/`grid-rows-*`.
+
+### Patch Changes
+
+- [#2372](https://github.com/iray-tno/hozo/pull/2372) [`990a76e`](https://github.com/iray-tno/hozo/commit/990a76e7d8f4315788a7c3e7c3ef530b2687cae7) Thanks [@iray-tno](https://github.com/iray-tno)! - Resolve palette alpha modifiers (`fill-blue-500/50`, `stroke-black/25`, and custom `@theme` colours with alpha) in Canvas paint lowering on Web and Native, and diagnose unknown or CSS-inherited colour tokens (`fill-current`, `stroke-inherit`) instead of emitting unresolved `var(--hozo-color-...)` or `hozo-unresolved:...` values.
+
+- [#2325](https://github.com/iray-tno/hozo/pull/2325) [`7394cfb`](https://github.com/iray-tno/hozo/commit/7394cfb7a556493c0d8ba92192f730a1b2ce3f4e) Thanks [@iray-tno](https://github.com/iray-tno)! - Refuse unresolvable and invalid arbitrary `fill-[...]` and `stroke-[...]` color strings (`var(...)`, `calc(...)`, lengths, keywords like `auto`, or invalid tokens) on `@hozo/canvas` shapes with `CANVAS_CLASS_NOT_LOWERED` instead of emitting inert paint attributes.
+
+- [#2278](https://github.com/iray-tno/hozo/pull/2278) [`44a8f8c`](https://github.com/iray-tno/hozo/commit/44a8f8c100cf5bcc5eb2ebd46573891eca4264e9) Thanks [@iray-tno](https://github.com/iray-tno)! - Preserve relative leading and tracking in scanned dynamic Native Text classes when
+  the Text supplies a local font size.
+
+- [#2278](https://github.com/iray-tno/hozo/pull/2278) [`aad7af9`](https://github.com/iray-tno/hozo/commit/aad7af98a3d56c9ad006c3cb86aae80b26735f8f) Thanks [@iray-tno](https://github.com/iray-tno)! - Preserve Tailwind's outline-hidden focus fallback in Web forced-colors mode.
+
+- [#2278](https://github.com/iray-tno/hozo/pull/2278) [`9f592fb`](https://github.com/iray-tno/hozo/commit/9f592fb66866f65d11bfa8025d97b5eb6a31f6e2) Thanks [@iray-tno](https://github.com/iray-tno)! - Use a known Native Text font size to resolve explicit em line height and letter
+  spacing, without changing the em values emitted on Web.
+
+- [#2292](https://github.com/iray-tno/hozo/pull/2292) [`8c96bac`](https://github.com/iray-tno/hozo/commit/8c96bacc12107c3893e9c70da3eed0c44f4b729f) Thanks [@iray-tno](https://github.com/iray-tno)! - Read only the `.gitignore` files that can apply to a package when inheriting its repository's ignores, instead of every `.gitignore` in the repository. In a monorepo, project discovery no longer walks every other package and build directory, which made the example Vite build about 40% faster. The discovered files are unchanged.
+
+- [#2278](https://github.com/iray-tno/hozo/pull/2278) [`234cd8c`](https://github.com/iray-tno/hozo/commit/234cd8cb5ecf6806f8cd7a8e4633b2f9785f4aee) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower Tailwind percentage line heights such as leading-[150%] against a known
+  Native Text font size, while preserving their CSS percentage semantics on Web.
+
+- [#2278](https://github.com/iray-tno/hozo/pull/2278) [`9842f2d`](https://github.com/iray-tno/hozo/commit/9842f2db98ae6d4c53d1117200fac7f70b0bb6dd) Thanks [@iray-tno](https://github.com/iray-tno)! - Recompute Native em tracking when a responsive font size changes, like CSS.
+
+- [#2278](https://github.com/iray-tno/hozo/pull/2278) [`e8bf1fe`](https://github.com/iray-tno/hozo/commit/e8bf1fefd2fe141fba69b98c0a1b599753bd2282) Thanks [@iray-tno](https://github.com/iray-tno)! - Resolve Native relative leading and tracking against known absolute font-size
+  units, such as rem, rather than requiring the font-size utility to use pixels.
+
+- [#2305](https://github.com/iray-tno/hozo/pull/2305) [`aa64196`](https://github.com/iray-tno/hozo/commit/aa6419664aed89313c2b80cc2b6ec33a5671bc67) Thanks [@iray-tno](https://github.com/iray-tno)! - Support arbitrary `scale-[...]`, `scale-x-[...]`, `scale-y-[...]` ratios/percentages and two-axis `translate-[...]` lengths/percentages on React Native.
+
+- [#2305](https://github.com/iray-tno/hozo/pull/2305) [`b4f244c`](https://github.com/iray-tno/hozo/commit/b4f244cbdfc7eb4254802e197548ac648b1d5427) Thanks [@iray-tno](https://github.com/iray-tno)! - Support the remaining zero-cost React Native arbitrary values: `aspect-[1.5]`, `flex-[1.5|auto]`, `opacity-[50%]`, `align-[auto]`, `cursor-[auto]`, `backdrop-blur-[2rem]`, `ring-offset-[...]`, `grid-cols/rows-[2rem]`, `stroke-[10px|2rem]`, and `[color:red]`.
+
+- [#2312](https://github.com/iray-tno/hozo/pull/2312) [`20699c7`](https://github.com/iray-tno/hozo/commit/20699c71baad624bba7489e79159b389e01ebaec) Thanks [@iray-tno](https://github.com/iray-tno)! - Emit actionable Native diagnostics when a parent-relative `%`-mixed `calc()` expression cannot measure its parent from the same component (component root, custom component boundary, `ScrollView`/`FlatList`, `HozoGrid` cell, or `display: contents`), pointing to `@container` (`cqw`/`cqh`), same-component parent layout, or flex/viewport sizing per Decision 015.
+
+- [#2312](https://github.com/iray-tno/hozo/pull/2312) [`bace67a`](https://github.com/iray-tno/hozo/commit/bace67ab73e78d35dce0bf2e0a856f79e807d620) Thanks [@iray-tno](https://github.com/iray-tno)! - Support CSS math expressions (`calc()`, `min()`, `max()`, `clamp()`) for viewport units (`vw`/`vh`/`vmin`/`vmax`), `@container` units (`cqw`/`cqh`/`cqi`/`cqb`/`cqmin`/`cqmax`), and self-measured React Native boxes (`translate*`, `rounded*`, `gap*`, and `HozoGrid` column tracks) via opt-in `onLayout` without wrapper Views.
+
+- [#2332](https://github.com/iray-tno/hozo/pull/2332) [`24ad3bc`](https://github.com/iray-tno/hozo/commit/24ad3bc5f94588a79a8a2291935fadf8f5d98a5f) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower authored `data-*` attribute variants (`data-open:`, `data-[state=open]:`, `not-data-*:`, and `group-data-*:`) on React Native directly from matching `data-*` props written on the element or enclosing `.group` ancestor.
+
+- [#2332](https://github.com/iray-tno/hozo/pull/2332) [`4d7cd69`](https://github.com/iray-tno/hozo/commit/4d7cd69db6a3cd7aca172c6abfb57aa5272298d9) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower `focus-within:`, `has-[:focus]:`, `has-[:focus-visible]:`, `has-[:hover]:`, `has-[:active]:`, `has-hover:`, `has-focus:`, `has-focus-visible:`, and `has-pressed:` (and their negations) on React Native via zero-host-View opt-in `HozoSubtreeScope` and `HozoSubtreeBoundary`.
+
+- [#2325](https://github.com/iray-tno/hozo/pull/2325) [`30f8da8`](https://github.com/iray-tno/hozo/commit/30f8da855f0f4bb91500f02d099cc311791b02f9) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower same-component `group-aria-*`, `group-disabled`/`group-enabled`, `group-rtl`/`group-ltr`, `group-first`/`last`/`odd`/`even`/`only`/`nth-*`, `group-read-only`/`group-placeholder-shown`, and negated `not-group-*` / `group-not-*` variants on React Native from the nearest enclosing `.group` ancestor's props and compile-time sibling position.
+
+- [#2332](https://github.com/iray-tno/hozo/pull/2332) [`09f13ad`](https://github.com/iray-tno/hozo/commit/09f13ad2eddfbd1d76a79533f67057df6cff5569) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower same-component `peer-*` sibling variants (`peer-aria-*`, `peer-disabled`/`peer-enabled`, `peer-data-*`, `peer-rtl`/`peer-ltr`, `peer-first`/`last`/`odd`/`even`/`only`/`nth-*`, `peer-read-only`/`peer-placeholder-shown`, interactive `peer-hover`/`peer-focus`/`peer-focus-visible`/`peer-pressed`, and negated `not-peer-*`/`peer-not-*`) on React Native via zero-host-View opt-in `HozoPeerScope` and `HozoPeerQuery`.
+
+- [#2305](https://github.com/iray-tno/hozo/pull/2305) [`3249ea8`](https://github.com/iray-tno/hozo/commit/3249ea8d0af9987320b0da7eefbea2394d85c9fb) Thanks [@iray-tno](https://github.com/iray-tno)! - Support percentage arbitrary values for `rounded*-[...]`, `p*-[...]`, and `gap*-[...]` on React Native (`borderRadius`, `padding*`, `gap`/`rowGap`/`columnGap`), matching React Native 0.87+ StyleSheet support with zero runtime cost.
+
+- [#2305](https://github.com/iray-tno/hozo/pull/2305) [`223c71f`](https://github.com/iray-tno/hozo/commit/223c71f37a92a006afac34d5fe7b6972fc611153) Thanks [@iray-tno](https://github.com/iray-tno)! - Reject unresolvable or invalid CSS arbitrary values on Native (`var()`, `calc()`, `nonsense`, non-colour literals, malformed filter/shadow/gradient strings, and invalid `auto`/`%` divider/transform/max-size values) at build time instead of emitting inert strings, and fold statically known `rem`/physical lengths inside `blur-[...]` and `origin-[...]` to `px`.
+
+- [#2379](https://github.com/iray-tno/hozo/pull/2379) [`6940506`](https://github.com/iray-tno/hozo/commit/6940506a8a9383a6a0c06a21117fd5815e70abc8) Thanks [@iray-tno](https://github.com/iray-tno)! - Skip emitting unused `HozoPeerScope`, `hozoPeerId`, and `HozoPressable` interaction wrappers on React Native when a structural condition (`first:`, `last:`, `only:`, `odd:`, `even:`, `empty:`, `nth-*:`) already folds the declaration statically to `false`.
+
+- [#2288](https://github.com/iray-tno/hozo/pull/2288) [`24690b8`](https://github.com/iray-tno/hozo/commit/24690b859edd23df585e27f65791d1ac036811a1) Thanks [@iray-tno](https://github.com/iray-tno)! - Compile viewport-relative Tailwind gaps on Native. Flex layouts and the Native Grid solver now use the same window-relative values for both gap axes.
+
+- [#2287](https://github.com/iray-tno/hozo/pull/2287) [`522c60d`](https://github.com/iray-tno/hozo/commit/522c60de1eac7b8257feab64979b9da3bab328a2) Thanks [@iray-tno](https://github.com/iray-tno)! - Resolve Native Tailwind viewport lengths in margin, padding, insets, and logical size utilities against the current app window. Web keeps using CSS for the same utilities.
+
+- [#2379](https://github.com/iray-tno/hozo/pull/2379) [`4628a97`](https://github.com/iray-tno/hozo/commit/4628a9719a364155990f5a27063c0ab2fe76fd77) Thanks [@iray-tno](https://github.com/iray-tno)! - Support arbitrary opacity modifiers (`/[0.5]`, `/[.25]`, `/[50%]`) on palette colour utilities across Web, Native, and Canvas, and fix arbitrary line-height modifiers on font-size utilities (`text-lg/[3rem]`, `text-lg/[1.5]`).
+
 ## 0.5.1
 
 ## 0.5.0

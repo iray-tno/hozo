@@ -1,5 +1,12 @@
 # @hozo/storybook
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @hozo/vite@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes

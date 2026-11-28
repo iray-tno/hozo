@@ -1,6 +1,6 @@
 {
   "name": "@hozo/charts",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Accessible Bar and Line charts for Hozo on Web and Native: one tab stop, a live region, and a table of the data.",
   "keywords": [
     "react-native",

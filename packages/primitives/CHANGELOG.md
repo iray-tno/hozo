@@ -1,5 +1,30 @@
 # @hozo/primitives
 
+## 0.6.0
+
+### Minor Changes
+
+- [#2312](https://github.com/iray-tno/hozo/pull/2312) [`ffba3d5`](https://github.com/iray-tno/hozo/commit/ffba3d5f258b839d78a704f53d608063f799d913) Thanks [@iray-tno](https://github.com/iray-tno)! - Evaluate parent-relative `%`-mixed `calc()`, `min()`, `max()`, and `clamp()` on React Native when the parent lives in the same component (`w`, `h`, `size`, `min/max-*`, `basis`, `m*`, `p*`, `top/right/bottom/left/inset*`, and `space-x`/`space-y`) via opt-in `HozoMeasuredParent` and `HozoParentSizeQuery`, subtracting resolved border and padding insets with zero wrapper Views and zero runtime cost when unused.
+
+- [#2357](https://github.com/iray-tno/hozo/pull/2357) [`dd5e2b0`](https://github.com/iray-tno/hozo/commit/dd5e2b07654c656ec278c16cf7290e65df06471e) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower conditional `placeholder:text-*`, `placeholder-*`, `selection:bg-*`, and `caret-*` colour variants on React Native `TextInput` across breakpoints, environment queries, props, structural/container/peer guards, and focus states (`HozoTextInput` `hozoFieldColors`).
+
+- [#2325](https://github.com/iray-tno/hozo/pull/2325) [`9aa5245`](https://github.com/iray-tno/hozo/commit/9aa52454f4332e93409bb6c4a9a7f658398cfad6) Thanks [@iray-tno](https://github.com/iray-tno)! - Support `%` and `%`-mixed `calc()` / `min()` / `max()` / `clamp()` grid row tracks on React Native when the grid container has a definite height (`h-*`, `h-screen`, `h-full`, `size-*`, `block-*`) by measuring its content-box height via `HozoMeasuredParent` and passing `containerHeight` into `HozoGrid`, while keeping auto-height `%` row tracks refused with an actionable diagnostic. Also supports plain `%` column tracks (`grid-cols-[30%_70%]`).
+
+- [#2379](https://github.com/iray-tno/hozo/pull/2379) [`9fabdd4`](https://github.com/iray-tno/hozo/commit/9fabdd4c0c2b03e7612d26a5ea41890918dd4450) Thanks [@iray-tno](https://github.com/iray-tno)! - Add `HozoInteractionQuery` and lower `group-hover:`, `group-focus:`, `group-active:`, and `group-focus-visible:` (including stacked variants, `backdrop:`, `placeholder:`/`caret-*`, class slots, and `group-*:*:`) on any descendant inside an interactive `.group` ancestor on React Native (`Pressable`, `Button`, `Link`, `TextInput`, `Dialog`, `Image`, `ScrollView`, animated views, and pattern hosts).
+
+### Patch Changes
+
+- [#2312](https://github.com/iray-tno/hozo/pull/2312) [`bace67a`](https://github.com/iray-tno/hozo/commit/bace67ab73e78d35dce0bf2e0a856f79e807d620) Thanks [@iray-tno](https://github.com/iray-tno)! - Support CSS math expressions (`calc()`, `min()`, `max()`, `clamp()`) for viewport units (`vw`/`vh`/`vmin`/`vmax`), `@container` units (`cqw`/`cqh`/`cqi`/`cqb`/`cqmin`/`cqmax`), and self-measured React Native boxes (`translate*`, `rounded*`, `gap*`, and `HozoGrid` column tracks) via opt-in `onLayout` without wrapper Views.
+
+- [#2332](https://github.com/iray-tno/hozo/pull/2332) [`4d7cd69`](https://github.com/iray-tno/hozo/commit/4d7cd69db6a3cd7aca172c6abfb57aa5272298d9) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower `focus-within:`, `has-[:focus]:`, `has-[:focus-visible]:`, `has-[:hover]:`, `has-[:active]:`, `has-hover:`, `has-focus:`, `has-focus-visible:`, and `has-pressed:` (and their negations) on React Native via zero-host-View opt-in `HozoSubtreeScope` and `HozoSubtreeBoundary`.
+
+- [#2332](https://github.com/iray-tno/hozo/pull/2332) [`09f13ad`](https://github.com/iray-tno/hozo/commit/09f13ad2eddfbd1d76a79533f67057df6cff5569) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower same-component `peer-*` sibling variants (`peer-aria-*`, `peer-disabled`/`peer-enabled`, `peer-data-*`, `peer-rtl`/`peer-ltr`, `peer-first`/`last`/`odd`/`even`/`only`/`nth-*`, `peer-read-only`/`peer-placeholder-shown`, interactive `peer-hover`/`peer-focus`/`peer-focus-visible`/`peer-pressed`, and negated `not-peer-*`/`peer-not-*`) on React Native via zero-host-View opt-in `HozoPeerScope` and `HozoPeerQuery`.
+
+- [#2284](https://github.com/iray-tno/hozo/pull/2284) [`ec0aa3f`](https://github.com/iray-tno/hozo/commit/ec0aa3f460ce508b34d8dfb5429ebe1b0a2c17de) Thanks [@iray-tno](https://github.com/iray-tno)! - Fix React Native `HozoPressable` transitions (`TransitionPressable`) leaving `backgroundColor`, `opacity`, and `transform` stuck at their initial mount values when a prop or theme change (such as toggling `disabled` or switching colour scheme) updates the resolved style without a pointer or focus event.
+- Updated dependencies [[`44a8f8c`](https://github.com/iray-tno/hozo/commit/44a8f8c100cf5bcc5eb2ebd46573891eca4264e9)]:
+  - @hozo/engine@0.6.0
+  - @hozo/behaviors@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes

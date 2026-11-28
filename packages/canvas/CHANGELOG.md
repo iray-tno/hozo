@@ -1,5 +1,16 @@
 # @hozo/canvas
 
+## 0.6.0
+
+### Minor Changes
+
+- [#2372](https://github.com/iray-tno/hozo/pull/2372) [`ce6f865`](https://github.com/iray-tno/hozo/commit/ce6f8657f923303f2cc584208b60f41245ee8300) Thanks [@iray-tno](https://github.com/iray-tno)! - Lower uniform `rounded-*` utilities to `radius` on `Canvas.RoundedRect` and lower `opacity-*` plus 2D `translate-*`, `scale-*`, and `rotate-*` utilities to `opacity` and `transform` props on `Canvas.Group` (with optional `className` typing on `GroupProps`).
+
+### Patch Changes
+
+- Updated dependencies [[`44a8f8c`](https://github.com/iray-tno/hozo/commit/44a8f8c100cf5bcc5eb2ebd46573891eca4264e9)]:
+  - @hozo/engine@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @hozo/engine
 
+## 0.6.0
+
+### Patch Changes
+
+- [#2278](https://github.com/iray-tno/hozo/pull/2278) [`44a8f8c`](https://github.com/iray-tno/hozo/commit/44a8f8c100cf5bcc5eb2ebd46573891eca4264e9) Thanks [@iray-tno](https://github.com/iray-tno)! - Preserve relative leading and tracking in scanned dynamic Native Text classes when
+  the Text supplies a local font size.
+
 ## 0.5.1
 
 ## 0.5.0
