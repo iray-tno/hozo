@@ -23,6 +23,14 @@ const VISUALLY_HIDDEN: ViewStyle = {
   overflow: 'hidden',
 }
 
+/** Each accessibility action as the key it stands for. */
+const NATIVE_KEYS: Record<string, string> = {
+  increment: 'ArrowRight',
+  decrement: 'ArrowLeft',
+  activate: 'Enter',
+  escape: 'Escape',
+}
+
 export function ChartBox({
   width,
   height,
@@ -43,11 +51,14 @@ export function ChartBox({
         accessibilityValue={
           interaction.announcement ? { text: interaction.announcement } : undefined
         }
-        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        accessibilityActions={[
+          { name: 'increment' },
+          { name: 'decrement' },
+          // Into and out of a level, as Enter and Escape do on Web.
+          ...(interaction.levels ? [{ name: 'activate' }, { name: 'escape' }] : []),
+        ]}
         onAccessibilityAction={(event) => {
-          interaction.onKey(
-            event.nativeEvent.actionName === 'increment' ? 'ArrowRight' : 'ArrowLeft',
-          )
+          interaction.onKey(NATIVE_KEYS[event.nativeEvent.actionName] ?? '')
         }}
         onStartShouldSetResponder={() => true}
         onResponderGrant={(event) => {

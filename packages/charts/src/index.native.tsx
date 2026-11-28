@@ -14,6 +14,7 @@ export const {
   PieChart,
   DonutChart,
   FunnelChart,
+  TreemapChart,
 } = createCharts(ChartBox, useSystemScheme, useReducedMotion, BrushBox)
 // react-native-svg takes the name as a view prop; the view must also be one element.
 export const Sparkline = createSparkline(
@@ -41,6 +42,7 @@ export type {
   LineChartProps,
   PieChartProps,
   ScatterChartProps,
+  TreemapChartProps,
 } from './charts.tsx'
 export {
   type Funnel,
@@ -130,3 +132,16 @@ export {
   resolveTheme,
 } from './theme.tsx'
 export type { TimeZone } from './time.ts'
+export {
+  labelInk,
+  type Rect,
+  SHARE_LABEL,
+  squarify,
+  type Tree,
+  type TreeLabel,
+  type TreemapChartInput,
+  type TreemapModel,
+  type TreemapValue,
+  treemapChartModel,
+  treeStep,
+} from './treemap.ts'

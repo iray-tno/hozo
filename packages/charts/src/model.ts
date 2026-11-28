@@ -15,6 +15,7 @@ import {
   type ValueScale,
 } from './scale.ts'
 import { type TimeZone, timeDomain, timeFormatter, timeTicks, timeValue } from './time.ts'
+import type { Tree } from './treemap.ts'
 
 export interface ChartSeries {
   /** The field of each row that holds this series' value. */
@@ -199,6 +200,17 @@ export type Mark =
     }
   /** A funnel stage: a trapezoid from its value's width to the next stage's. */
   | { kind: 'stage'; series: number; datum: number; path: string }
+  /** A treemap leaf: its rectangle, and `tone` its top-level group's palette index. */
+  | {
+      kind: 'cell'
+      series: number
+      datum: number
+      tone: number
+      x: number
+      y: number
+      width: number
+      height: number
+    }
 
 export interface Tick {
   position: number
@@ -232,6 +244,8 @@ export interface ChartModel {
   radial?: Radial
   /** A funnel's drop between stages and its labels; absent on other charts. */
   funnel?: Funnel
+  /** A treemap's levels, rectangles and labels; absent on other charts. */
+  tree?: Tree
   /** The series key above the plot; absent or empty for one series and for a pie. */
   legend?: LegendKey[]
   /**

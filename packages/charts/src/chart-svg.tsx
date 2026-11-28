@@ -174,7 +174,7 @@ const Drawing = memo(function Drawing({
             </SvgText>
           </G>
         ))}
-        {radial || model.funnel ? null : horizontal ? (
+        {radial || model.funnel || model.tree ? null : horizontal ? (
           <Line
             x1={plot.x}
             x2={plot.x}
@@ -216,6 +216,18 @@ const Drawing = memo(function Drawing({
               return <Path key={`s${mark.datum}`} d={mark.path} fill={color} />
             case 'stage':
               return <Path key={`t${mark.datum}`} d={mark.path} fill={color} />
+            case 'cell':
+              return (
+                <Rect
+                  key={`c${mark.datum}`}
+                  x={mark.x}
+                  y={mark.y}
+                  width={mark.width}
+                  height={mark.height}
+                  rx={2}
+                  fill={color}
+                />
+              )
             case 'bar':
               return mark.end ? (
                 <Path
@@ -300,6 +312,42 @@ const Drawing = memo(function Drawing({
             >
               {label.text}
             </SvgText>
+          ))}
+        </G>
+      ) : null}
+      {model.tree ? (
+        <G>
+          {model.tree.labels.map((label) => (
+            <SvgText
+              key={`n${label.datum}-${label.y}`}
+              x={label.x}
+              y={label.y}
+              fill={label.fill}
+              fontSize={fontSize}
+            >
+              {label.text}
+            </SvgText>
+          ))}
+          {model.tree.legend.map((key) => (
+            <G key={`k${key.series}`}>
+              <Rect
+                x={key.x + fontSize * 0.125}
+                y={key.y + fontSize * 0.8 - fontSize * 0.375}
+                width={fontSize * 0.75}
+                height={fontSize * 0.75}
+                rx={2}
+                fill={seriesColor(key.series, colors?.[key.series], look.palette)}
+              />
+              <SvgText
+                x={key.x + fontSize * 1.5}
+                y={key.y + fontSize * 0.8}
+                dy={fontSize * 0.35}
+                fill={ink}
+                fontSize={fontSize}
+              >
+                {key.label}
+              </SvgText>
+            </G>
           ))}
         </G>
       ) : null}
@@ -482,16 +530,19 @@ function sliceColor(
   return mark?.kind === 'arc' ? seriesColor(mark.tone, colors?.[datum], palette) : undefined
 }
 
-/** A slice takes its datum's colour; a bar, line or dot its series'. */
+/**
+ * A slice takes its datum's colour, a treemap cell its top-level group's;
+ * a bar, line or dot its series'.
+ */
 function markColor(
   mark: ChartModel['marks'][number],
   series: readonly ChartSeries[],
   colors: readonly string[] | undefined,
   palette: readonly string[],
 ): string {
-  return mark.kind === 'arc'
-    ? seriesColor(mark.tone, colors?.[mark.datum], palette)
-    : seriesColor(mark.series, series[mark.series]?.color, palette)
+  if (mark.kind === 'arc') return seriesColor(mark.tone, colors?.[mark.datum], palette)
+  if (mark.kind === 'cell') return seriesColor(mark.tone, colors?.[mark.tone], palette)
+  return seriesColor(mark.series, series[mark.series]?.color, palette)
 }
 
 /**
@@ -522,11 +573,15 @@ function Tooltip({
   colors?: readonly string[]
 }) {
   const title = datumTitle(model, datum)
+  const tone = model.tree?.tone[datum]
   const rows = datumRows(model, series, datum, format, look.palette).map((row) =>
     model.radial
       ? { ...row, color: sliceColor(model, datum, colors, look.palette) ?? row.color }
-      : row,
+      : tone !== undefined
+        ? { ...row, color: seriesColor(tone, colors?.[tone], look.palette) }
+        : row,
   )
+  const outline = model.tree?.rects[datum]
   const box = tooltipBox(model, title, rows, fontSize, datum)
   const center = model.centers[datum] as number
   const band =
@@ -535,7 +590,20 @@ function Tooltip({
       : model.plot.width
   return (
     <G>
-      {model.radial ? (
+      {model.tree ? (
+        outline ? (
+          <Rect
+            x={outline.x - 1}
+            y={outline.y - 1}
+            width={outline.width + 2}
+            height={outline.height + 2}
+            rx={3}
+            fill="none"
+            stroke={ink}
+            strokeWidth={2}
+          />
+        ) : null
+      ) : model.radial ? (
         model.marks.map((mark) =>
           mark.kind === 'arc' && mark.datum === datum ? (
             <Path key="active" d={mark.path} fill="none" stroke={ink} strokeWidth={2} />
@@ -595,8 +663,8 @@ function Tooltip({
         const baseline = box.y + box.padding + box.lineHeight * (i + 1.75)
         return (
           <G key={row.label}>
-            {/* A funnel's share has no mark of its own, so no colour to match. */}
-            {model.funnel && i > 0 ? null : (
+            {/* A funnel's or a treemap's share has no mark of its own, so no colour to match. */}
+            {(model.funnel || model.tree) && i > 0 ? null : (
               <Rect
                 x={box.x + box.padding}
                 y={baseline - fontSize * 0.75}

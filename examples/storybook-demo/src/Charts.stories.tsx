@@ -1,4 +1,4 @@
-// Charts (RFC 015): Bar, Line, Area, Scatter, Pie, Donut and Funnel from @hozo/charts. Each is one
+// Charts (RFC 015): Bar, Line, Area, Scatter, Pie, Donut, Funnel and Treemap from @hozo/charts. Each is one
 // tab stop; the arrow keys, Home and End move along the data and a live region reads
 // every series there, the pointer does the same with a tooltip, and a
 // screen reader also has the table of the data, out of sight unless shown.
@@ -15,6 +15,7 @@ import {
   PieChart,
   ScatterChart,
   Sparkline,
+  TreemapChart,
 } from '@hozo/charts'
 import { Button, Text, View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
@@ -178,6 +179,56 @@ export const Funnel: StoryObj<typeof meta> = {
           format: (value) => value.toLocaleString('en-US'),
         }}
         height={220}
+      />
+    </View>
+  ),
+}
+
+const budget = [
+  {
+    team: 'Hardware',
+    children: [
+      { team: 'Phones', budget: 420000 },
+      { team: 'Laptops', budget: 310000 },
+      { team: 'Tablets', budget: 120000 },
+      { team: 'Watches', budget: 60000 },
+    ],
+  },
+  {
+    team: 'Software',
+    children: [
+      { team: 'Apps', budget: 380000 },
+      { team: 'Cloud', budget: 260000 },
+      { team: 'Security', budget: 90000 },
+    ],
+  },
+  {
+    team: 'Services',
+    children: [
+      { team: 'Support', budget: 180000 },
+      { team: 'Training', budget: 70000 },
+    ],
+  },
+]
+
+/**
+ * A treemap of a budget by group and team. Each rectangle is read with its
+ * groups and its share of its group; the arrows move among neighbours,
+ * Enter goes into a group and Escape comes back out.
+ */
+export const Treemap: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-2 p-6 text-slate-700">
+      <TreemapChart
+        accessibilityLabel="Budget by team"
+        data={budget}
+        x={{ key: 'team', label: 'Team' }}
+        value={{
+          key: 'budget',
+          label: 'Budget',
+          format: (value) => `$${value.toLocaleString('en-US')}`,
+        }}
+        height={300}
       />
     </View>
   ),

@@ -67,6 +67,8 @@ export function datumRows(
  * its name and x value ("Acme, Price: $12"), or its x value alone.
  */
 export function datumTitle(model: ChartModel, datum: number): string {
+  // A treemap's node is read with its groups, so "Phones" is not taken for the whole.
+  if (model.tree) return model.tree.path[datum] ?? ''
   const category = model.categories[datum] ?? ''
   const x = model.xColumn
   if (!x) return category

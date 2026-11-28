@@ -1,0 +1,85 @@
+chart, Budget by team, 3 groups, 9 items in all, totalling $1,890,000. Hardware $910,000 (48.1%), largest Phones $420,000; Software $730,000 (38.6%), largest Apps $380,000; Services $250,000 (13.2%), largest Support $180,000.
+table, Budget by team
+rowgroup
+row, Team Group Budget Share of its group
+columnheader, Team
+columnheader, Group
+columnheader, Budget
+columnheader, Share of its group
+end of row, Team Group Budget Share of its group
+end of rowgroup
+rowgroup
+row, Hardware All $910,000 48.1%
+rowheader, Hardware
+cell, All
+cell, $910,000
+cell, 48.1%
+end of row, Hardware All $910,000 48.1%
+row, Phones Hardware $420,000 46.2%
+rowheader, Phones
+cell, Hardware
+cell, $420,000
+cell, 46.2%
+end of row, Phones Hardware $420,000 46.2%
+row, Laptops Hardware $310,000 34.1%
+rowheader, Laptops
+cell, Hardware
+cell, $310,000
+cell, 34.1%
+end of row, Laptops Hardware $310,000 34.1%
+row, Tablets Hardware $120,000 13.2%
+rowheader, Tablets
+cell, Hardware
+cell, $120,000
+cell, 13.2%
+end of row, Tablets Hardware $120,000 13.2%
+row, Watches Hardware $60,000 6.6%
+rowheader, Watches
+cell, Hardware
+cell, $60,000
+cell, 6.6%
+end of row, Watches Hardware $60,000 6.6%
+row, Software All $730,000 38.6%
+rowheader, Software
+cell, All
+cell, $730,000
+cell, 38.6%
+end of row, Software All $730,000 38.6%
+row, Apps Software $380,000 52.1%
+rowheader, Apps
+cell, Software
+cell, $380,000
+cell, 52.1%
+end of row, Apps Software $380,000 52.1%
+row, Cloud Software $260,000 35.6%
+rowheader, Cloud
+cell, Software
+cell, $260,000
+cell, 35.6%
+end of row, Cloud Software $260,000 35.6%
+row, Security Software $90,000 12.3%
+rowheader, Security
+cell, Software
+cell, $90,000
+cell, 12.3%
+end of row, Security Software $90,000 12.3%
+row, Services All $250,000 13.2%
+rowheader, Services
+cell, All
+cell, $250,000
+cell, 13.2%
+end of row, Services All $250,000 13.2%
+row, Support Services $180,000 72%
+rowheader, Support
+cell, Services
+cell, $180,000
+cell, 72%
+end of row, Support Services $180,000 72%
+row, Training Services $70,000 28%
+rowheader, Training
+cell, Services
+cell, $70,000
+cell, 28%
+end of row, Training Services $70,000 28%
+end of rowgroup
+end of table, Budget by team
