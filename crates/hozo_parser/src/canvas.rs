@@ -30,6 +30,7 @@ pub enum CanvasShapeKind {
     Ellipse,
     Line,
     Path,
+    Text,
     Group,
 }
 
@@ -42,6 +43,7 @@ impl CanvasShapeKind {
             "Ellipse" => Self::Ellipse,
             "Line" => Self::Line,
             "Path" => Self::Path,
+            "Text" => Self::Text,
             "Group" => Self::Group,
             _ => return None,
         })
@@ -70,6 +72,7 @@ fn accept_shape_properties(
     shape: CanvasShapeKind,
     properties: Vec<StyleProperty>,
     theme: &hozo_ir::Theme,
+    text_has_font_size: bool,
 ) -> Option<Vec<StyleProperty>> {
     if properties.is_empty() {
         return None;
@@ -121,6 +124,91 @@ fn accept_shape_properties(
                 _ => false,
             });
             supported.then_some(properties)
+        }
+        CanvasShapeKind::Text => {
+            let mut normalized = Vec::with_capacity(properties.len());
+            for property in properties {
+                match property {
+                    StyleProperty::Fill(color) | StyleProperty::TextColor(color)
+                        if supports_canvas_color(&color, theme) =>
+                    {
+                        normalized.push(StyleProperty::Fill(color));
+                    }
+                    StyleProperty::Stroke(color) if supports_canvas_color(&color, theme) => {
+                        normalized.push(StyleProperty::Stroke(color));
+                    }
+                    StyleProperty::Opacity(value) => {
+                        normalized.push(StyleProperty::Opacity(value));
+                    }
+                    StyleProperty::StrokeWidth(width) if width.px(theme).is_some() => {
+                        normalized.push(StyleProperty::StrokeWidth(width));
+                    }
+                    StyleProperty::FontSize(length)
+                        if hozo_ir::resolve_canvas_length_px(&length, theme)
+                            .is_some_and(|px| px > 0.0) =>
+                    {
+                        normalized.push(StyleProperty::FontSize(length));
+                    }
+                    StyleProperty::FontFamily(family)
+                        if hozo_ir::resolve_canvas_font_family(&family, theme, false).is_some()
+                            && hozo_ir::resolve_canvas_font_family(&family, theme, true)
+                                .is_some() =>
+                    {
+                        normalized.push(StyleProperty::FontFamily(family));
+                    }
+                    StyleProperty::FontWeight(weight) if weight.native(theme).is_some() => {
+                        normalized.push(StyleProperty::FontWeight(weight));
+                    }
+                    StyleProperty::Arbitrary(ref name, ref value) if name == "font-weight" => {
+                        let weight = hozo_ir::resolve_canvas_font_weight_literal(value)?;
+                        normalized.push(StyleProperty::FontWeight(hozo_ir::FontWeight::Absolute(
+                            weight,
+                        )));
+                    }
+                    StyleProperty::Keyword("font-style", value @ ("italic" | "normal")) => {
+                        normalized.push(StyleProperty::Keyword("font-style", value));
+                    }
+                    StyleProperty::TextAlign(
+                        align @ (hozo_ir::TextAlign::Left
+                        | hozo_ir::TextAlign::Center
+                        | hozo_ir::TextAlign::Right),
+                    ) => {
+                        normalized.push(StyleProperty::TextAlign(align));
+                    }
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio))
+                        if ratio.is_finite() && ratio > 0.0 =>
+                    {
+                        normalized
+                            .push(StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)));
+                    }
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(length))
+                        if text_has_font_size
+                            && hozo_ir::resolve_canvas_length_px(&length, theme)
+                                .is_some_and(|px| px > 0.0) =>
+                    {
+                        normalized.push(StyleProperty::LineHeight(
+                            hozo_ir::LineHeight::FontDefault(length),
+                        ));
+                    }
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(length))
+                        if text_has_font_size
+                            && hozo_ir::resolve_canvas_length_px(&length, theme)
+                                .is_some_and(|px| px > 0.0) =>
+                    {
+                        normalized.push(StyleProperty::LineHeight(hozo_ir::LineHeight::Length(
+                            length,
+                        )));
+                    }
+                    StyleProperty::MaxWidth(dim)
+                        if hozo_ir::resolve_canvas_dimension_px(&dim, theme)
+                            .is_some_and(|px| px >= 0.0) =>
+                    {
+                        normalized.push(StyleProperty::MaxWidth(dim));
+                    }
+                    _ => return None,
+                }
+            }
+            Some(normalized)
         }
         _ => {
             let supported = properties.iter().all(|property| match property {
@@ -201,12 +289,32 @@ impl<'a> Visit<'a> for CanvasCollector<'_> {
             };
 
             let classes: Vec<String> = value.split_ascii_whitespace().map(str::to_string).collect();
+            let expanded: Vec<(Condition, Vec<StyleProperty>)> = classes
+                .iter()
+                .map(|token| tailwind::expand_utility(token))
+                .collect();
+            // `Canvas.Text.lineHeight` is a multiple of `fontSize`, so pixel
+            // line heights (`leading-6`, `text-lg`'s default, `text-lg/7`) can
+            // only be converted when this `className` also resolves `fontSize`.
+            let text_has_font_size = shape == CanvasShapeKind::Text
+                && expanded.iter().any(|(condition, properties)| {
+                    *condition == Condition::Always
+                        && properties.iter().any(|property| {
+                            matches!(
+                                property,
+                                StyleProperty::FontSize(length)
+                                    if hozo_ir::resolve_canvas_length_px(length, self.theme)
+                                        .is_some_and(|px| px > 0.0)
+                            )
+                        })
+                });
             let mut paint = Vec::new();
             let mut remaining = Vec::new();
-            for token in &classes {
-                let (condition, properties) = tailwind::expand_utility(token);
+            for (token, (condition, properties)) in classes.iter().zip(expanded) {
                 if condition == Condition::Always {
-                    if let Some(accepted) = accept_shape_properties(shape, properties, self.theme) {
+                    if let Some(accepted) =
+                        accept_shape_properties(shape, properties, self.theme, text_has_font_size)
+                    {
                         paint.extend(accepted);
                         continue;
                     }

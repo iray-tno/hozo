@@ -38,6 +38,9 @@ fn shape_dynamic_message(shape: CanvasShapeKind) -> &'static str {
         CanvasShapeKind::RoundedRect => {
             "A dynamic Canvas.RoundedRect `className` cannot be converted to shape props. Use dynamic `fill`, `stroke`, `strokeWidth`, `opacity` or `radius` props instead."
         }
+        CanvasShapeKind::Text => {
+            "A dynamic Canvas.Text `className` cannot be converted to text props. Use dynamic `fill`, `stroke`, `strokeWidth`, `opacity`, `fontSize`, `fontFamily`, `fontStyle`, `fontWeight`, `textAlign`, `lineHeight` or `maxWidth` props instead."
+        }
         CanvasShapeKind::Group => {
             "A dynamic Canvas.Group `className` cannot be converted to group props. Use dynamic `opacity` or `transform` props instead."
         }
@@ -51,6 +54,10 @@ fn shape_remaining_message(shape: CanvasShapeKind, remaining: &[String]) -> Stri
     match shape {
         CanvasShapeKind::RoundedRect => format!(
             "These Canvas.RoundedRect classes do not map to shape props and have no pixel target: {}. Canvas.RoundedRect accepts fill, stroke, stroke width, opacity and uniform border-radius utilities.",
+            remaining.join(", ")
+        ),
+        CanvasShapeKind::Text => format!(
+            "These Canvas.Text classes do not map to text props and have no pixel target: {}. Canvas.Text accepts fill/text colour, stroke, stroke width, opacity, font size/family/style/weight, left/center/right text alignment, line-height ratio and pixel max-width utilities.",
             remaining.join(", ")
         ),
         CanvasShapeKind::Group => format!(
@@ -233,6 +240,14 @@ pub(super) fn lower_canvas_paints(
                                 attributes.push(transform_prop);
                             }
                         } else {
+                            let text_font_size_px = paint.paint.iter().find_map(|property| {
+                                if let StyleProperty::FontSize(length) = property {
+                                    hozo_ir::resolve_canvas_length_px(length, theme)
+                                        .filter(|px| *px > 0.0)
+                                } else {
+                                    None
+                                }
+                            });
                             for property in paint.paint {
                                 match property {
                                     StyleProperty::Fill(color) => {
@@ -262,6 +277,76 @@ pub(super) fn lower_canvas_paints(
                                             hozo_ir::resolve_canvas_radius_px(&radius, theme)
                                         {
                                             attributes.push(format!("radius={{{px}}}"))
+                                        }
+                                    }
+                                    StyleProperty::FontSize(length) => {
+                                        if let Some(px) =
+                                            hozo_ir::resolve_canvas_length_px(&length, theme)
+                                        {
+                                            attributes.push(format!("fontSize={{{px}}}"))
+                                        }
+                                    }
+                                    StyleProperty::FontFamily(family) => {
+                                        if let Some(resolved) = hozo_ir::resolve_canvas_font_family(
+                                            &family, theme, native,
+                                        ) {
+                                            attributes.push(format!(
+                                                "fontFamily={}",
+                                                js_string(&resolved)
+                                            ));
+                                        }
+                                    }
+                                    StyleProperty::FontWeight(weight) => {
+                                        if let Some(weight) = weight.native(theme) {
+                                            attributes.push(format!(
+                                                "fontWeight={}",
+                                                js_string(&weight.to_string())
+                                            ));
+                                        }
+                                    }
+                                    StyleProperty::Keyword(
+                                        "font-style",
+                                        value @ ("italic" | "normal"),
+                                    ) => {
+                                        attributes.push(format!("fontStyle={}", js_string(value)));
+                                    }
+                                    StyleProperty::TextAlign(align) => {
+                                        let value = match align {
+                                            hozo_ir::TextAlign::Left => Some("left"),
+                                            hozo_ir::TextAlign::Center => Some("center"),
+                                            hozo_ir::TextAlign::Right => Some("right"),
+                                            hozo_ir::TextAlign::Css(_) => None,
+                                        };
+                                        if let Some(value) = value {
+                                            attributes
+                                                .push(format!("textAlign={}", js_string(value)));
+                                        }
+                                    }
+                                    StyleProperty::LineHeight(line_height) => {
+                                        let ratio = match line_height {
+                                            hozo_ir::LineHeight::Ratio(ratio) => Some(ratio),
+                                            hozo_ir::LineHeight::FontDefault(length)
+                                            | hozo_ir::LineHeight::Length(length) => {
+                                                let px = hozo_ir::resolve_canvas_length_px(
+                                                    &length, theme,
+                                                );
+                                                match (px, text_font_size_px) {
+                                                    (Some(lh), Some(fs)) if fs > 0.0 => {
+                                                        Some(((lh / fs) * 1e6).round() / 1e6)
+                                                    }
+                                                    _ => None,
+                                                }
+                                            }
+                                        };
+                                        if let Some(ratio) = ratio {
+                                            attributes.push(format!("lineHeight={{{ratio}}}"))
+                                        }
+                                    }
+                                    StyleProperty::MaxWidth(dim) => {
+                                        if let Some(px) =
+                                            hozo_ir::resolve_canvas_dimension_px(&dim, theme)
+                                        {
+                                            attributes.push(format!("maxWidth={{{px}}}"))
                                         }
                                     }
                                     _ => {}
@@ -399,5 +484,39 @@ mod tests {
         );
         assert_eq!(edits[2].diagnostics.len(), 1);
         assert_eq!(edits[2].diagnostics[0].code, "CANVAS_CLASS_NOT_LOWERED");
+    }
+
+    #[test]
+    fn lowers_typography_and_colour_classes_on_canvas_text() {
+        let source = r#"
+            import { Canvas } from '@hozo/canvas'
+            const a = <Canvas.Text className="text-blue-500 text-lg font-mono font-bold italic text-center max-w-xs" text="Hi" x={0} y={0} />
+            const b = <Canvas.Text className="leading-tight text-lg text-red-500 fill-green-500" text="Hi" x={0} y={0} />
+            const c = <Canvas.Text className="text-base leading-6 font-[600]" text="Hi" x={0} y={0} />
+            const d = <Canvas.Text className="leading-6 text-justify font-[650] max-w-full" text="Hi" x={0} y={0} />
+        "#;
+        let native = lower_canvas_paints(source, &Theme::default(), true);
+        assert_eq!(native.len(), 4);
+        assert!(native[0].diagnostics.is_empty());
+        assert_eq!(
+            native[0].replacement,
+            r##"fill="#2b7fff" fontSize={18} lineHeight={1.555556} fontFamily="monospace" fontWeight="700" fontStyle="italic" textAlign="center" maxWidth={320}"##
+        );
+        assert!(native[1].diagnostics.is_empty());
+        assert_eq!(
+            native[1].replacement,
+            r##"lineHeight={1.25} fontSize={18} fill="#00c950""##
+        );
+        assert!(native[2].diagnostics.is_empty());
+        assert_eq!(
+            native[2].replacement,
+            r#"fontSize={16} lineHeight={1.5} fontWeight="600""#
+        );
+        assert_eq!(native[3].diagnostics.len(), 1);
+        assert_eq!(native[3].diagnostics[0].code, "CANVAS_CLASS_NOT_LOWERED");
+
+        let web = lower_canvas_paints(source, &Theme::default(), false);
+        assert!(web[0].diagnostics.is_empty());
+        assert!(web[0].replacement.contains("fontFamily=\"ui-monospace,"));
     }
 }

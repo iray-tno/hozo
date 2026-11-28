@@ -582,6 +582,24 @@ export function Chart() {
   )
 })
 
+test('Canvas lowers Text typography, colour, alignment, and maxWidth classes', () => {
+  const source = `import { Canvas } from '@hozo/canvas'
+export function Label() {
+  return (
+    <Canvas decorative width={200} height={40}>
+      <Canvas.Text className="text-blue-500 text-lg font-bold italic text-center max-w-xs" text="Total" x={100} y={20} />
+    </Canvas>
+  )
+}
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)!
+  assert.equal(lowered.diagnostics.length, 0)
+  assert.match(
+    lowered.code,
+    /<Canvas\.Text fill="oklch\(62\.3% 0\.214 259\.815\)" fontSize=\{18\} lineHeight=\{1\.555556\} fontWeight="700" fontStyle="italic" textAlign="center" maxWidth=\{320\}/,
+  )
+})
+
 test('two modules never answer to the same class name', () => {
   // The assertion that was missing, and it would have failed from the day
   // the second example was written. Class names were namespaced per root

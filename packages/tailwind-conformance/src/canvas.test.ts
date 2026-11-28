@@ -28,3 +28,46 @@ test('Canvas paint refuses unknown tokens and CSS-inherited colour keywords', ()
     }
   }
 })
+
+test('Canvas conformance probes RoundedRect, Text, and Group shape-specific utilities', () => {
+  for (const [candidate, restrictedTo, expectedNative] of [
+    ['rounded-lg', 'Canvas.RoundedRect', 'radius={8}'],
+    ['text-blue-500', 'Canvas.Text', 'fill="#2b7fff"'],
+    ['text-lg', 'Canvas.Text', 'fontSize={18} lineHeight={1.555556}'],
+    ['font-mono', 'Canvas.Text', 'fontFamily="monospace"'],
+    ['font-bold', 'Canvas.Text', 'fontWeight="700"'],
+    ['italic', 'Canvas.Text', 'fontStyle="italic"'],
+    ['text-center', 'Canvas.Text', 'textAlign="center"'],
+    ['leading-tight', 'Canvas.Text', 'lineHeight={1.25}'],
+    ['max-w-xs', 'Canvas.Text', 'maxWidth={320}'],
+    ['translate-x-4', 'Canvas.Group', 'transform={{ translateX: 16 }}'],
+    ['scale-110', 'Canvas.Group', 'transform={{ scaleX: 1.1, scaleY: 1.1 }}'],
+    ['rotate-45', 'Canvas.Group', 'transform={{ rotate: 45 }}'],
+  ] as const) {
+    const native = compareCanvasCandidate(candidate, true)
+    assert.equal(native.verdict, 'COVERED', candidate)
+    assert.equal(native.restrictedTo, restrictedTo, candidate)
+    assert.equal(native.replacement, expectedNative, candidate)
+
+    const web = compareCanvasCandidate(candidate, false)
+    assert.equal(web.verdict, 'COVERED', candidate)
+    assert.equal(web.restrictedTo, restrictedTo, candidate)
+  }
+
+  for (const refused of [
+    'rounded-t-lg',
+    'rounded-[50%]',
+    'text-justify',
+    'leading-6',
+    'max-w-full',
+    'translate-x-1/2',
+    'skew-x-6',
+    'scale-z-50',
+    'rotate-x-45',
+  ]) {
+    for (const native of [false, true]) {
+      const result = compareCanvasCandidate(refused, native)
+      assert.equal(result.verdict, 'REFUSED', `${refused} (native=${native})`)
+    }
+  }
+})

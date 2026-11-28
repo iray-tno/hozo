@@ -273,6 +273,88 @@ pub fn resolve_canvas_radius_px(radius: &Radius, theme: &Theme) -> Option<f64> {
     }
 }
 
+/// Resolves a `FontFamily` for `Canvas.Text`: Web Canvas2D takes a resolved
+/// CSS font stack (without `var()`), while Native Skia's `matchFont` takes a
+/// single font family name (`sans-serif`, `serif`, `monospace`, or the first
+/// named family in a custom `@theme` stack).
+pub fn resolve_canvas_font_family(
+    family: &FontFamily,
+    theme: &Theme,
+    native: bool,
+) -> Option<String> {
+    fn first_family_name(stack: &str) -> Option<String> {
+        let first = stack.split(',').next()?.trim();
+        let unquoted = first
+            .strip_prefix('"')
+            .and_then(|s| s.strip_suffix('"'))
+            .or_else(|| first.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
+            .unwrap_or(first)
+            .trim();
+        (!unquoted.is_empty()).then(|| unquoted.to_string())
+    }
+
+    match family {
+        FontFamily::Theme { name, fallback } => {
+            if let Some((_, resolved_stack)) = theme.font_family(name) {
+                let stack = resolved_stack.trim();
+                if stack.is_empty() || contains_dynamic_css(stack) {
+                    return None;
+                }
+                return if native {
+                    first_family_name(stack)
+                } else {
+                    Some(stack.to_string())
+                };
+            }
+            if native {
+                Some(
+                    match *name {
+                        "serif" => "serif",
+                        "mono" => "monospace",
+                        _ => "sans-serif",
+                    }
+                    .to_string(),
+                )
+            } else {
+                Some((*fallback).to_string())
+            }
+        }
+        FontFamily::Literal(value) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty()
+                || contains_dynamic_css(trimmed)
+                || matches!(
+                    trimmed.to_ascii_lowercase().as_str(),
+                    "inherit" | "initial" | "unset" | "revert" | "revert-layer"
+                )
+            {
+                return None;
+            }
+            if native {
+                first_family_name(trimmed)
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+    }
+}
+
+/// Resolves a numeric/keyword `font-weight` literal into the closed union
+/// `Canvas.Text` accepts (`'100'`..`'900'`, `'normal'`, `'bold'`).
+pub fn resolve_canvas_font_weight_literal(value: &str) -> Option<u16> {
+    match value.trim() {
+        "normal" => Some(400),
+        "bold" => Some(700),
+        text => text
+            .parse::<f64>()
+            .ok()
+            .filter(|weight| {
+                weight.is_finite() && (100.0..=900.0).contains(weight) && weight % 100.0 == 0.0
+            })
+            .map(|weight| weight as u16),
+    }
+}
+
 /// The React Native style key and inset side an `env(safe-area-inset-*)`
 /// arbitrary value asks for, if it is one.
 ///

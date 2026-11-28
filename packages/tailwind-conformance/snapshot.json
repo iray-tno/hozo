@@ -159,29 +159,29 @@
   },
   "canvas": {
     "candidates": 23286,
-    "covered": 605,
-    "refused": 22681,
+    "covered": 1286,
+    "refused": 22000,
     "silent": 0,
     "unresolvable": 0
   },
   "canvasArbitrary": {
     "candidates": 2845,
-    "covered": 9,
-    "refused": 2836,
+    "covered": 31,
+    "refused": 2814,
     "silent": 0,
     "unresolvable": 0
   },
   "canvasNative": {
     "candidates": 23286,
-    "covered": 605,
-    "refused": 22681,
+    "covered": 1286,
+    "refused": 22000,
     "silent": 0,
     "unresolvable": 0
   },
   "canvasArbitraryNative": {
     "candidates": 2845,
-    "covered": 9,
-    "refused": 2836,
+    "covered": 31,
+    "refused": 2814,
     "silent": 0,
     "unresolvable": 0
   },
