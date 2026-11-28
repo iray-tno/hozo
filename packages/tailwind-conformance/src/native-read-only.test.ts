@@ -157,8 +157,11 @@ test('Native coverage has an explicit input driver and does not turn a refusal i
   const focused = compareNativeCandidate('read-only:focus:p-4')
   assert.equal(focused.verdict, 'COVERED', JSON.stringify(focused))
   assert.deepEqual(focused.restrictedTo, ['TextInput with readOnly'])
-  for (const candidate of ['not-invalid:p-4']) {
+  for (const candidate of ['not-autofill:p-4']) {
     const result = compareNativeCandidate(candidate)
     assert.equal(result.verdict, 'REFUSED', JSON.stringify(result))
   }
+  const notInvalid = compareNativeCandidate('not-invalid:p-4')
+  assert.equal(notInvalid.verdict, 'COVERED', JSON.stringify(notInvalid))
+  assert.deepEqual(notInvalid.restrictedTo, ['TextInput with required and aria-invalid'])
 })
