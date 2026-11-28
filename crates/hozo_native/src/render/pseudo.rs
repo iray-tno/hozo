@@ -793,3 +793,343 @@ impl FirstLetterStyle {
         )
     }
 }
+
+/// Container primitives that safely host synthesized `before:` / `after:`
+/// children on React Native (excludes void hosts like `TextInput`/`Image`,
+/// vector SVG elements, virtualized lists, modals, and compound runtime hosts
+/// that inspect their direct children by component type).
+pub(super) fn supports_box_pseudo_element(primitive: Primitive) -> bool {
+    matches!(
+        primitive,
+        Primitive::View
+            | Primitive::Pressable
+            | Primitive::Button
+            | Primitive::Link
+            | Primitive::TouchableOpacity
+            | Primitive::TouchableWithoutFeedback
+            | Primitive::ScrollView
+            | Primitive::Main
+            | Primitive::Header
+            | Primitive::Footer
+            | Primitive::Aside
+            | Primitive::Section
+            | Primitive::Article
+            | Primitive::Nav
+            | Primitive::List
+            | Primitive::ListItem
+            | Primitive::Figure
+            | Primitive::Address
+            | Primitive::Fieldset
+            | Primitive::Description
+            | Primitive::TermList
+            | Primitive::Search
+    )
+}
+
+/// Extracts `before:` or `after:` declarations on a compatible box container
+/// or text primitive, leaving unsupported dynamic `content` functions
+/// (`attr(...)`, `counter(...)`, `url(...)`) and incompatible hosts unstripped
+/// so normal diagnostics refuse them loudly.
+pub(super) fn extract_pseudo_box(
+    node: &Node,
+    want: PseudoElement,
+    effective_own: &mut Vec<StyleDeclaration>,
+) -> Vec<StyleDeclaration> {
+    if !supports_box_pseudo_element(node.primitive) && !is_text_primitive(node.primitive) {
+        return Vec::new();
+    }
+    let mut kept = Vec::with_capacity(effective_own.len());
+    let mut extracted = Vec::new();
+    for declaration in std::mem::take(effective_own) {
+        let Some(stripped) = strip_pseudo_element(&declaration.condition, want) else {
+            kept.push(declaration);
+            continue;
+        };
+        if matches!(
+            &declaration.property,
+            StyleProperty::Content(raw) if matches!(parse_content_value(raw), PseudoContent::Unsupported)
+        ) {
+            kept.push(declaration);
+            continue;
+        }
+        extracted.push(StyleDeclaration {
+            condition: stripped,
+            ..declaration
+        });
+    }
+    *effective_own = kept;
+    extracted
+}
+
+/// True when `before:` or `after:` declarations on an interactive host
+/// (`Pressable`, `Button`, `Link`) require that host to upgrade to
+/// `HozoPressable` so its synthesized pseudo child can read `InteractionContext`.
+pub(super) fn pseudo_box_needs_interaction_host(
+    node: &Node,
+    position: SiblingPosition,
+    before: &[StyleDeclaration],
+    after: &[StyleDeclaration],
+) -> (bool, bool) {
+    if !interaction::owns_events(node) {
+        return (false, false);
+    }
+    let mut needs_host = false;
+    let mut needs_fv = false;
+    for decl in before.iter().chain(after.iter()) {
+        if structural::condition_statically_false(&decl.condition, node, position) {
+            continue;
+        }
+        if condition_contains(&decl.condition, |c| {
+            uses_pressed(c) || uses_hover(c) || focus_state(c).is_some()
+        }) {
+            needs_host = true;
+        }
+        if condition_contains(&decl.condition, |c| focus_state(c) == Some("focusVisible")) {
+            needs_fv = true;
+        }
+    }
+    (needs_host, needs_fv)
+}
+
+pub(super) struct RenderedPseudoBox {
+    pub(super) jsx: String,
+    pub(super) uses_container_size: bool,
+}
+
+/// Lowers `before:` or `after:` declarations into a synthesized hidden child
+/// (`<View aria-hidden pointerEvents="none" />`, `<HozoInteractionView ... />`,
+/// `<Text aria-hidden>...</Text>`, or `<HozoText aria-hidden>...</HozoText>`).
+#[allow(clippy::too_many_arguments)]
+pub(super) fn render_pseudo_box(
+    declarations: &[StyleDeclaration],
+    suffix: &str,
+    ambient_text: &[StyleDeclaration],
+    base_name: &str,
+    node: &Node,
+    component: &str,
+    position: SiblingPosition,
+    interaction_context: bool,
+    has_group_interaction_owner: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
+    peers: &[PeerSibling<'_>],
+    cx: &mut NativeRenderContext<'_>,
+) -> Option<RenderedPseudoBox> {
+    if declarations.is_empty() {
+        return None;
+    }
+
+    let host_is_text = renders_text(component);
+    if !supports_box_pseudo_element(node.primitive) && !host_is_text {
+        cx.diagnostics.push(unwired_variant(
+            node,
+            &format!(
+                "`{suffix}:` on React Native requires a plain box or `Text` host and cannot synthesize a child inside `{component}`. On Web the same class works."
+            ),
+            Severity::Error,
+        ));
+        return None;
+    }
+
+    let mut content_decls = Vec::new();
+    let mut style_decls = Vec::new();
+    let mut reported_non_inline = false;
+    for decl in declarations {
+        if matches!(decl.property, StyleProperty::Content(_)) {
+            content_decls.push(decl.clone());
+        } else if host_is_text && !is_inline_first_letter_property(&decl.property) {
+            if !reported_non_inline {
+                reported_non_inline = true;
+                cx.diagnostics.push(Diagnostic {
+                    code: DiagnosticCode::WebOnlyPropertyOnNative,
+                    severity: Severity::Error,
+                    message: format!(
+                        "`{suffix}:` inside a `Text` on React Native lowers to an inline nested `<Text>`, which supports only typography, colour, background, decoration, and opacity -- put box/layout `{suffix}:` utilities on a `View` or `Pressable` instead."
+                    ),
+                    span: node.span,
+                });
+            }
+        } else {
+            style_decls.push(decl.clone());
+        }
+    }
+
+    let folded_styles = fold_font_relative(&style_decls, ambient_text, cx.theme);
+    non_content_refusal_check(&folded_styles, ambient_text, node, cx);
+
+    let target_interaction =
+        interaction::owns_events(node) || (host_is_text && interaction_context);
+    let target_group_query = has_group_interaction_owner
+        && !(host_is_text && interaction_context && !interaction::owns_events(node));
+    let pseudo_target = crate::conditions::StyleTarget {
+        owner_facts: &[],
+        owner_events: &[],
+        node,
+        position,
+        interaction_context: target_interaction,
+        group_interaction_query: target_group_query,
+        group_ancestor,
+        peers,
+        pattern_slot: None,
+        composition: Default::default(),
+    };
+
+    // Match Tailwind v4: `before:` / `after:` defaults to empty string `""`
+    // unless `content-none` explicitly suppresses it.
+    let mut base_content: Option<String> = Some(String::new());
+    let mut conditional_contents: Vec<(String, Option<String>)> = Vec::new();
+    let mut has_live_non_empty_content = false;
+
+    for decl in &content_decls {
+        let StyleProperty::Content(raw) = &decl.property else {
+            continue;
+        };
+        let value = match parse_content_value(raw) {
+            PseudoContent::None => None,
+            PseudoContent::Literal(text) => Some(text),
+            PseudoContent::Unsupported => continue,
+        };
+        match resolve_condition_guard(
+            &decl.condition,
+            &pseudo_target,
+            cx.source,
+            cx.runtime,
+            false,
+        ) {
+            Ok(ResolvedCondition::Always) => {
+                has_live_non_empty_content = value.as_ref().is_some_and(|s| !s.is_empty());
+                base_content = value;
+                conditional_contents.clear();
+            }
+            Ok(ResolvedCondition::Never) => {}
+            Ok(ResolvedCondition::Guarded { expr, .. }) => {
+                if value.as_ref().is_some_and(|s| !s.is_empty()) {
+                    has_live_non_empty_content = true;
+                }
+                conditional_contents.push((expr, value));
+            }
+            Err(message) => {
+                cx.diagnostics
+                    .push(unwired_variant(node, &message, Severity::Error));
+            }
+        }
+    }
+
+    if base_content.is_none() && conditional_contents.is_empty() {
+        return None;
+    }
+
+    let mut parts = Vec::new();
+    let mut pressed = Vec::new();
+    if !folded_styles.is_empty() {
+        build_style_entries(
+            &folded_styles,
+            &format!("{base_name}_{suffix}"),
+            &pseudo_target,
+            &mut parts,
+            &mut pressed,
+            None,
+            cx,
+        );
+    }
+
+    let uses_interactive_callback = target_interaction && !pressed.is_empty();
+    if uses_interactive_callback {
+        parts.extend(pressed);
+    } else if !pressed.is_empty() {
+        cx.diagnostics.push(unwired_variant(
+            node,
+            &format!(
+                "`pressed:` on `{suffix}:` needs an interactive host (`Pressable`, `Button`, or `Link`) on React Native."
+            ),
+            Severity::Error,
+        ));
+    }
+
+    if parts.is_empty() && !has_live_non_empty_content {
+        return None;
+    }
+
+    let has_text_content = base_content.as_ref().is_some_and(|s| !s.is_empty())
+        || conditional_contents
+            .iter()
+            .any(|(_, val)| val.as_ref().is_some_and(|s| !s.is_empty()));
+    let has_text_style = folded_styles.iter().any(|d| is_text_property(&d.property));
+    let render_as_text = host_is_text || has_text_content || has_text_style;
+
+    let style_prop = if uses_interactive_callback {
+        let needs_fv = folded_styles
+            .iter()
+            .any(|d| interaction::uses_focus_visible(&d.condition));
+        let state = if needs_fv {
+            "{ pressed, hovered, focused, focusVisible }"
+        } else {
+            "{ pressed, hovered, focused }"
+        };
+        format!(" style={{({state}) => [{}]}}", parts.join(", "))
+    } else {
+        format_style_prop(&parts)
+    };
+
+    let (tag, extra) = if render_as_text {
+        if uses_interactive_callback {
+            cx.runtime.need_component("HozoText");
+            ("HozoText", "")
+        } else {
+            cx.runtime.need_native("Text");
+            ("Text", "")
+        }
+    } else if uses_interactive_callback {
+        cx.runtime.need_component("HozoInteractionView");
+        ("HozoInteractionView", " pointerEvents=\"none\"")
+    } else {
+        cx.runtime.need_native("View");
+        ("View", " pointerEvents=\"none\"")
+    };
+
+    let uses_container_size = folded_styles
+        .iter()
+        .any(|d| crate::measured::uses_container_size(&d.property));
+
+    let has_none_branch =
+        base_content.is_none() || conditional_contents.iter().any(|(_, val)| val.is_none());
+    let jsx = if conditional_contents.is_empty() {
+        let text = base_content.expect("checked above");
+        if render_as_text && !text.is_empty() {
+            format!(
+                "<{tag} aria-hidden{extra}{style_prop}>{{{}}}</{tag}>",
+                js_string(&text)
+            )
+        } else {
+            format!("<{tag} aria-hidden{extra}{style_prop} />")
+        }
+    } else if !has_none_branch && render_as_text {
+        let mut expr = js_string(&base_content.expect("checked above"));
+        for (cond, val) in conditional_contents {
+            let text = val.expect("checked above");
+            expr = format!("(({cond}) ? {} : {expr})", js_string(&text));
+        }
+        format!("<{tag} aria-hidden{extra}{style_prop}>{{{expr}}}</{tag}>")
+    } else {
+        let render_branch = |val: Option<String>| match val {
+            Some(text) if render_as_text && !text.is_empty() => {
+                format!(
+                    "<{tag} aria-hidden{extra}{style_prop}>{{{}}}</{tag}>",
+                    js_string(&text)
+                )
+            }
+            Some(_) => format!("<{tag} aria-hidden{extra}{style_prop} />"),
+            None => "null".to_string(),
+        };
+        let mut expr = render_branch(base_content);
+        for (cond, val) in conditional_contents {
+            let branch = render_branch(val);
+            expr = format!("(({cond}) ? {branch} : {expr})");
+        }
+        format!("{{{expr}}}")
+    };
+
+    Some(RenderedPseudoBox {
+        jsx,
+        uses_container_size,
+    })
+}

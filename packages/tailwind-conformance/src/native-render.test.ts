@@ -1179,3 +1179,50 @@ test('first-letter: styles static and dynamic Text drop caps on Native', () => {
   assert.equal(StyleSheet.flatten(dynamicCap.props.style).color, '#fb2c36')
   assert.equal(dynamicText.children?.[1], 'orld')
 })
+
+test('before: and after: synthesize hidden View/Text/HozoInteractionView children on Native', () => {
+  const { StyleSheet } = require('react-native') as {
+    StyleSheet: { flatten: (style: unknown) => Record<string, unknown> }
+  }
+  const react = require('react')
+  const renderer = require('react-test-renderer')
+  const { Card } = loadNativeModule(`
+    import { Pressable, View } from '@hozo/core'
+    export function Card() {
+      return (
+        <View>
+          <View className="before:w-2 before:bg-blue-500 after:content-['*'] after:text-red-500">Body</View>
+          <Pressable accessibilityRole="button" className="hover:before:bg-blue-500">Go</Pressable>
+        </View>
+      )
+    }
+  `)
+  let root: { toJSON: () => Tree; unmount: () => void } | undefined
+  try {
+    renderer.act(() => {
+      root = renderer.create(react.createElement(Card))
+    })
+    const [box, btn] = children(root!.toJSON())
+    const [beforeBox, bodyText, afterText] = children(box)
+    assert.equal(beforeBox.type, 'View')
+    assert.equal(beforeBox.props['aria-hidden'], true)
+    assert.equal(beforeBox.props.pointerEvents, 'none')
+    assert.equal(StyleSheet.flatten(beforeBox.props.style).backgroundColor, '#2b7fff')
+    assert.deepEqual(bodyText.children, ['Body'])
+    assert.equal(afterText.type, 'Text')
+    assert.equal(afterText.props['aria-hidden'], true)
+    assert.deepEqual(afterText.children, ['*'])
+    assert.equal(StyleSheet.flatten(afterText.props.style).color, '#fb2c36')
+
+    const [btnBefore] = children(btn)
+    assert.equal(StyleSheet.flatten(btnBefore.props.style).backgroundColor, undefined)
+    renderer.act(() => {
+      ;(btn.props.onHoverIn as (() => void) | undefined)?.()
+    })
+    const [, btnHovered] = children(root!.toJSON())
+    const [btnBeforeHovered] = children(btnHovered)
+    assert.equal(StyleSheet.flatten(btnBeforeHovered.props.style).backgroundColor, '#2b7fff')
+  } finally {
+    renderer.act(() => root?.unmount())
+  }
+})
