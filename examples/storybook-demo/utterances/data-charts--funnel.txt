@@ -1,0 +1,32 @@
+chart, Sign-up funnel, 4 categories, Visited to Paid. People: lowest 310 at Paid, highest 12,400 at Visited. Kept from the stage before: Signed up 25%, Started a trial 40%, Paid 25%. Paid is 2.5% of Visited.
+table, Sign-up funnel
+rowgroup
+row, Stage People Kept from the stage before
+columnheader, Stage
+columnheader, People
+columnheader, Kept from the stage before
+end of row, Stage People Kept from the stage before
+end of rowgroup
+rowgroup
+row, Visited 12,400 No value
+rowheader, Visited
+cell, 12,400
+cell, No value
+end of row, Visited 12,400 No value
+row, Signed up 3,100 25%
+rowheader, Signed up
+cell, 3,100
+cell, 25%
+end of row, Signed up 3,100 25%
+row, Started a trial 1,240 40%
+rowheader, Started a trial
+cell, 1,240
+cell, 40%
+end of row, Started a trial 1,240 40%
+row, Paid 310 25%
+rowheader, Paid
+cell, 310
+cell, 25%
+end of row, Paid 310 25%
+end of rowgroup
+end of table, Sign-up funnel

@@ -56,7 +56,7 @@ export function datumRows(
     const value = model.values[index]?.[datum]
     return {
       label: entry.label,
-      value: value === undefined ? NO_VALUE : format(value),
+      value: value === undefined ? NO_VALUE : (entry.format ?? format)(value),
       color: seriesColor(index, entry.color, palette),
     }
   })

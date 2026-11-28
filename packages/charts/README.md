@@ -80,6 +80,27 @@ last slice that would repeat the first colour beside it takes the next colour in
 sets them by row. The legend sits beside the circle when there is room and under it otherwise. The
 pointer finds a slice by its angle, or a legend row by its line.
 
+## Funnel
+
+```tsx
+<FunnelChart
+  accessibilityLabel="Sign-up funnel"
+  data={stages}
+  x={{ key: 'stage' }}
+  value={{ key: 'people', label: 'People' }}
+  height={220}
+/>
+```
+
+One trapezoid per stage, top to bottom in data order. Its top edge is as wide as its value and its
+bottom edge narrows to the next stage's, so the drop is the slope between them. The stage names
+are on the left and the values on the right, each with what it kept of the stage before:
+"3,100 (25%)". The table has that share as a second column, "Kept from the stage before", each
+stage reads it, for example "Signed up. People: 3,100. Kept from the stage before: 25%.", and the
+summary lists it for every stage and ends with the last stage against the first. The arrow keys
+step down and up the stages. A stage with no value or a value of zero or less is not drawn, and
+the table still lists it.
+
 ## Sparklines
 
 ```tsx
@@ -147,12 +168,14 @@ every chart and announced by none, because the reader did not move there.
 | `width` | A fixed width. Otherwise the chart fills its container and lays out again when that resizes. |
 | `textColor` | Axis text and lines. On the Web it otherwise inherits the surrounding colour. |
 | `showTable` | Show the table under the chart. |
+| `animate` | `false` stops the marks moving to new data; they move over 300 ms by default, when `data` changes (a resize or a new theme redraws at once). Never when the reader asks for reduced motion (`prefers-reduced-motion` on Web, the system setting on Native). Pie and donut slices change at once. The table, summary and announcement describe the new data from the first frame. |
 | `references` | Every chart but Pie and Donut: `{ value, label }[]` draws a dashed line, for example a target, and `{ value, to, label }` shades a range. The axis widens to show them, and the summary reads each one after the series ("Target: $150."). |
 | `series[].type` | `ComposedChart`: `'line'` draws that series as a line over the bars; the rest are bars, side by side. |
 | `name` | `ScatterChart`: `{ key, label? }`, the field that names each point. Without it, a point is named by its x value. In `ScatterChart`, `x` is numeric (`{ key, label?, format?, domain? }`) and the rows are read in its order. |
 | `horizontal` | `BarChart`: bars run left to right, with the categories down the left side, for long labels and rankings. `y` still describes the values. Down and Up also step through the rows. |
 | `stacked` | `BarChart` and `AreaChart`: stack the series instead of grouping or overlapping them. A stacked area's top edge is the total; the table still reads each series' own value. |
 | `points` | `LineChart` and `AreaChart`: draw a dot at each value. |
+| `brush` | `BarChart`, `LineChart`, `AreaChart` and `ComposedChart`: a strip under the chart, drawing the whole of the first series, that picks which run of rows the chart shows. `true` starts with every row; `{ defaultRange, range, onRangeChange, height }` sets where it starts, or controls it. Each end is a slider (one tab stop, read as its row's name) moved a row by the arrow keys, a tenth of the rows by Page Up and Page Down, and to the limit by Home and End; on Native each is an adjustable element. A press on the strip drags the nearer end, or the whole range when inside it. The summary then begins "Showing 30 of 120 categories." and the table is named with the run it lists. Rows are taken in the order given. |
 | `curve` | `LineChart`, `AreaChart` and the lines of `ComposedChart`: `'linear'` (the default) or `'monotone'`, a curve through each value that never overshoots it, so it shows no peak or dip that is not in the data. A gap still breaks it. |
 
 `color` is a runtime string rather than a `className`, because a class list is compile-time

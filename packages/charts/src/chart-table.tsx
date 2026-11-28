@@ -59,7 +59,7 @@ export function ChartTable({
               const value = model.values[index]?.[datum]
               return (
                 <HozoTableCell key={entry.key}>
-                  {value === undefined ? NO_VALUE : format(value)}
+                  {value === undefined ? NO_VALUE : (entry.format ?? format)(value)}
                 </HozoTableCell>
               )
             })}

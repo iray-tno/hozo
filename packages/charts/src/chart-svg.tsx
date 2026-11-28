@@ -174,7 +174,7 @@ const Drawing = memo(function Drawing({
             </SvgText>
           </G>
         ))}
-        {radial ? null : horizontal ? (
+        {radial || model.funnel ? null : horizontal ? (
           <Line
             x1={plot.x}
             x2={plot.x}
@@ -214,6 +214,8 @@ const Drawing = memo(function Drawing({
           switch (mark.kind) {
             case 'arc':
               return <Path key={`s${mark.datum}`} d={mark.path} fill={color} />
+            case 'stage':
+              return <Path key={`t${mark.datum}`} d={mark.path} fill={color} />
             case 'bar':
               return mark.end ? (
                 <Path
@@ -283,6 +285,23 @@ const Drawing = memo(function Drawing({
       </G>
       {model.legend?.length ? (
         <SeriesLegend model={model} series={series} fontSize={fontSize} ink={ink} look={look} />
+      ) : null}
+      {model.funnel ? (
+        <G>
+          {model.funnel.labels.map((label) => (
+            <SvgText
+              key={`n${label.datum}${label.anchor}`}
+              x={label.x}
+              y={label.y}
+              fill={ink}
+              fillOpacity={label.anchor === 'start' ? MUTED : 1}
+              fontSize={fontSize}
+              textAnchor={label.anchor}
+            >
+              {label.text}
+            </SvgText>
+          ))}
+        </G>
       ) : null}
       {radial ? (
         <G>
@@ -576,13 +595,16 @@ function Tooltip({
         const baseline = box.y + box.padding + box.lineHeight * (i + 1.75)
         return (
           <G key={row.label}>
-            <Rect
-              x={box.x + box.padding}
-              y={baseline - fontSize * 0.75}
-              width={fontSize * 0.7}
-              height={fontSize * 0.7}
-              fill={row.color}
-            />
+            {/* A funnel's share has no mark of its own, so no colour to match. */}
+            {model.funnel && i > 0 ? null : (
+              <Rect
+                x={box.x + box.padding}
+                y={baseline - fontSize * 0.75}
+                width={fontSize * 0.7}
+                height={fontSize * 0.7}
+                fill={row.color}
+              />
+            )}
             <SvgText
               x={box.x + box.padding + fontSize}
               y={baseline}

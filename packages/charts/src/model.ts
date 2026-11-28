@@ -2,6 +2,7 @@
 // out (RFC 015 §4). Pure: no React, no platform, so the SVG renderer, a
 // later Canvas renderer and the accessible table all read one answer.
 
+import type { Funnel } from './funnel.ts'
 import type { Radial } from './pie.ts'
 import {
   type BandScale,
@@ -26,6 +27,11 @@ export interface ChartSeries {
    * compile-time input; the default palette applies when absent.
    */
   color?: string
+  /**
+   * How this series' values read, over the chart's `y.format`: a funnel's
+   * counts and the percentage each stage kept are two series in one table.
+   */
+  format?: (value: number) => string
 }
 
 export interface ChartXAxis {
@@ -191,6 +197,8 @@ export type Mark =
       cx: number
       cy: number
     }
+  /** A funnel stage: a trapezoid from its value's width to the next stage's. */
+  | { kind: 'stage'; series: number; datum: number; path: string }
 
 export interface Tick {
   position: number
@@ -222,6 +230,8 @@ export interface ChartModel {
   datumAt(x: number, y?: number): number
   /** A pie's geometry; absent on Bar and Line. */
   radial?: Radial
+  /** A funnel's drop between stages and its labels; absent on other charts. */
+  funnel?: Funnel
   /** The series key above the plot; absent or empty for one series and for a pie. */
   legend?: LegendKey[]
   /**
@@ -253,7 +263,7 @@ export const defaultFormat = (value: number) => {
   return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(6)))
 }
 
-function categoriesOf(input: ChartInput): string[] {
+export function categoriesOf(input: ChartInput): string[] {
   const { format, key } = input.x
   if (format) return input.data.map((row) => format(row[key]))
   if (input.x.type === 'time') {

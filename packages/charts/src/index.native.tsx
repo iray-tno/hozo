@@ -1,24 +1,57 @@
+import { BrushBox } from './brush-box.native.tsx'
 import { ChartBox } from './chart-box.native.tsx'
 import { createCharts } from './charts.tsx'
 import { useSystemScheme } from './color-scheme.native.ts'
+import { useReducedMotion } from './reduced-motion.native.ts'
 import { createSparkline } from './sparkline.tsx'
 
-export const { BarChart, LineChart, AreaChart, ComposedChart, ScatterChart, PieChart, DonutChart } =
-  createCharts(ChartBox, useSystemScheme)
+export const {
+  BarChart,
+  LineChart,
+  AreaChart,
+  ComposedChart,
+  ScatterChart,
+  PieChart,
+  DonutChart,
+  FunnelChart,
+} = createCharts(ChartBox, useSystemScheme, useReducedMotion, BrushBox)
 // react-native-svg takes the name as a view prop; the view must also be one element.
 export const Sparkline = createSparkline(
   { accessible: true, accessibilityRole: 'image' },
   useSystemScheme,
 )
 export { datumSentence, datumTitle, nextDatum } from './active.ts'
+export {
+  type BrushModel,
+  type BrushRange,
+  brushModel,
+  clampRange,
+  dragTo,
+  grabAt,
+  moveEnd,
+  rangeNote,
+} from './brush.ts'
 export type {
   AreaChartProps,
   BarChartProps,
+  BrushBoxComponentProps,
+  BrushOptions,
   ComposedChartProps,
+  FunnelChartProps,
   LineChartProps,
   PieChartProps,
   ScatterChartProps,
 } from './charts.tsx'
+export {
+  type Funnel,
+  type FunnelChartInput,
+  type FunnelLabel,
+  type FunnelModel,
+  type FunnelValue,
+  funnelChartModel,
+  KEPT_LABEL,
+  keptFractions,
+} from './funnel.ts'
 export {
   type AreaChartInput,
   areaChartModel,
