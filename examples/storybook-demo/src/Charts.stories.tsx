@@ -511,7 +511,7 @@ function MovingCharts() {
   return (
     <View className="w-full max-w-2xl gap-6 p-6 text-slate-700">
       <Button
-        className="self-start rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white"
+        className="self-start rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         onPress={() => setHalf(half === 'H1' ? 'H2' : 'H1')}
       >
         <Text>{half === 'H1' ? 'Show July to December' : 'Show January to June'}</Text>
