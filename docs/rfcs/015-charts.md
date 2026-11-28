@@ -251,7 +251,11 @@ What is then left is decided afresh, not continued by default.
   and a quieter frame have since been added; how much of that a user can
   change is the theme in §3.1.
 - Monotone curves, a time axis and a log value axis have since been added.
-- **Brushing and zoom, animation.**
+- Animation has since been added: when `data` changes the marks move to
+  their new place over 300 ms, interpolated in JavaScript so Web and Native
+  move the same way, and not at all under reduced motion. The axes and
+  everything read aloud change at once.
+- **Brushing and zoom.**
 
 ## 9. Open questions
 

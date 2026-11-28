@@ -15,7 +15,7 @@ import {
   ScatterChart,
   Sparkline,
 } from '@hozo/charts'
-import { Text, View } from '@hozo/primitives'
+import { Button, Text, View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
@@ -492,3 +492,53 @@ function SyncedCharts() {
 // screen reader hears one sentence, not one per chart. The month is also
 // controlled here, to name it above the charts.
 export const Synced: StoryObj<typeof meta> = { render: () => <SyncedCharts /> }
+
+const quarters = {
+  H1: revenue,
+  H2: [
+    { month: 'Jul', online: 220, store: 120 },
+    { month: 'Aug', online: 150, store: 140 },
+    { month: 'Sep', online: 240, store: 90 },
+    { month: 'Oct', online: 190, store: 160 },
+    { month: 'Nov', online: 260, store: 150 },
+    { month: 'Dec', online: 300, store: 210 },
+  ],
+}
+
+function MovingCharts() {
+  const [half, setHalf] = useState<keyof typeof quarters>('H1')
+  const data = quarters[half]
+  return (
+    <View className="w-full max-w-2xl gap-6 p-6 text-slate-700">
+      <Button
+        className="self-start rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white"
+        onPress={() => setHalf(half === 'H1' ? 'H2' : 'H1')}
+      >
+        <Text>{half === 'H1' ? 'Show July to December' : 'Show January to June'}</Text>
+      </Button>
+      <BarChart
+        accessibilityLabel={`Revenue by month and channel, ${half}`}
+        data={data}
+        x={{ key: 'month', label: 'Month' }}
+        y={{ ...dollars, domain: [0, 320] }}
+        series={series}
+        height={200}
+      />
+      <LineChart
+        accessibilityLabel={`Revenue by month and channel as lines, ${half}`}
+        data={data}
+        x={{ key: 'month', label: 'Month' }}
+        y={{ ...dollars, domain: [0, 320] }}
+        series={series}
+        height={200}
+        points
+      />
+    </View>
+  )
+}
+
+// New data moves the marks rather than replacing them, over 300 ms, so the
+// eye can follow which bar rose and which fell. Nothing moves for a reader
+// who asked for reduced motion, and the table and summary describe the new
+// data from the first frame either way.
+export const Animation: StoryObj<typeof meta> = { render: () => <MovingCharts /> }

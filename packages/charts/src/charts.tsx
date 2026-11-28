@@ -9,7 +9,7 @@
 
 import { type ComponentType, type ReactNode, useId, useMemo } from 'react'
 import { datumSentence, nextDatum } from './active.ts'
-import { ChartSvg } from './chart-svg.tsx'
+import { ChartSvg, type ChartSvgProps } from './chart-svg.tsx'
 import { ChartTable } from './chart-table.tsx'
 import {
   type AreaChartInput,
@@ -23,6 +23,7 @@ import {
   composedChartModel,
   lineChartModel,
 } from './model.ts'
+import { useAnimatedModel } from './motion.ts'
 import { seriesColor } from './palette.ts'
 import { type PieValue, pieChartModel, shareFormat } from './pie.ts'
 import { type ScatterName, type ScatterXAxis, scatterChartModel } from './scatter.ts'
@@ -49,6 +50,11 @@ type Common = Omit<ChartInput, 'width'> & {
   theme?: ChartTheme
   /** Show the table of the data under the chart, not only to a screen reader. */
   showTable?: boolean
+  /**
+   * Move the marks to new data rather than jump; true by default. Never
+   * when the reader asks for reduced motion, whatever this says.
+   */
+  animate?: boolean
 }
 
 export type BarChartProps = Common & Pick<BarChartInput, 'stacked' | 'horizontal'>
@@ -127,10 +133,26 @@ function lastWidth(model: (width: number) => ChartModel): (width: number) => Cha
 
 /** Light when the platform gives no way to ask, as in a test. */
 const noScheme = (): ColorScheme => 'light'
+/** Still when the platform gives no way to ask. */
+const noMotion = () => true
+
+/**
+ * The drawing, moving to a new model when `version` changes. It is the
+ * data, so a resize or a new theme redraws at once and only new data moves.
+ */
+function MovingSvg({
+  version,
+  enabled,
+  model,
+  ...props
+}: ChartSvgProps & { version: unknown; enabled: boolean }) {
+  return <ChartSvg {...props} model={useAnimatedModel(model, version, enabled)} />
+}
 
 export function createCharts(
   ChartBox: ComponentType<ChartBoxComponentProps>,
   useSystemScheme: () => ColorScheme = noScheme,
+  useReducedMotion: () => boolean = noMotion,
 ) {
   function Chart({
     props,
@@ -151,6 +173,8 @@ export function createCharts(
     // it, so `model` keeps its identity across those steps and the layout,
     // the table and the marks are reused rather than rebuilt per key press.
     const theme = useChartTheme(props.theme, useSystemScheme)
+    const reduced = useReducedMotion()
+    const moves = (props.animate ?? true) && !reduced
     // Each series with its colour from the theme's palette, so the table,
     // the tooltip and the marks agree on it.
     const series = useMemo(
@@ -219,7 +243,9 @@ export function createCharts(
         interaction={interaction}
       >
         {(drawnWidth) => (
-          <ChartSvg
+          <MovingSvg
+            version={props.data}
+            enabled={moves}
             model={drawn(drawnWidth)}
             active={active}
             format={y?.format}

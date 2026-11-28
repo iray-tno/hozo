@@ -1,10 +1,11 @@
 import { ChartBox } from './chart-box.native.tsx'
 import { createCharts } from './charts.tsx'
 import { useSystemScheme } from './color-scheme.native.ts'
+import { useReducedMotion } from './reduced-motion.native.ts'
 import { createSparkline } from './sparkline.tsx'
 
 export const { BarChart, LineChart, AreaChart, ComposedChart, ScatterChart, PieChart, DonutChart } =
-  createCharts(ChartBox, useSystemScheme)
+  createCharts(ChartBox, useSystemScheme, useReducedMotion)
 // react-native-svg takes the name as a view prop; the view must also be one element.
 export const Sparkline = createSparkline(
   { accessible: true, accessibilityRole: 'image' },

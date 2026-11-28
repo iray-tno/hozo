@@ -1,10 +1,11 @@
 import { ChartBox } from './chart-box.tsx'
 import { createCharts } from './charts.tsx'
 import { useSystemScheme } from './color-scheme.ts'
+import { useReducedMotion } from './reduced-motion.ts'
 import { createSparkline } from './sparkline.tsx'
 
 export const { BarChart, LineChart, AreaChart, ComposedChart, ScatterChart, PieChart, DonutChart } =
-  createCharts(ChartBox, useSystemScheme)
+  createCharts(ChartBox, useSystemScheme, useReducedMotion)
 // The root's own name makes it one image on Web.
 export const Sparkline = createSparkline({}, useSystemScheme)
 export { datumSentence, datumTitle, nextDatum } from './active.ts'

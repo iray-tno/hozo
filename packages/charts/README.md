@@ -147,6 +147,7 @@ every chart and announced by none, because the reader did not move there.
 | `width` | A fixed width. Otherwise the chart fills its container and lays out again when that resizes. |
 | `textColor` | Axis text and lines. On the Web it otherwise inherits the surrounding colour. |
 | `showTable` | Show the table under the chart. |
+| `animate` | `false` stops the marks moving to new data; they move over 300 ms by default, when `data` changes (a resize or a new theme redraws at once). Never when the reader asks for reduced motion (`prefers-reduced-motion` on Web, the system setting on Native). Pie and donut slices change at once. The table, summary and announcement describe the new data from the first frame. |
 | `references` | Every chart but Pie and Donut: `{ value, label }[]` draws a dashed line, for example a target, and `{ value, to, label }` shades a range. The axis widens to show them, and the summary reads each one after the series ("Target: $150."). |
 | `series[].type` | `ComposedChart`: `'line'` draws that series as a line over the bars; the rest are bars, side by side. |
 | `name` | `ScatterChart`: `{ key, label? }`, the field that names each point. Without it, a point is named by its x value. In `ScatterChart`, `x` is numeric (`{ key, label?, format?, domain? }`) and the rows are read in its order. |
