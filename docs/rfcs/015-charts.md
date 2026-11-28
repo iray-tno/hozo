@@ -251,6 +251,10 @@ What is then left is decided afresh, not continued by default.
   and a quieter frame have since been added; how much of that a user can
   change is the theme in §3.1.
 - Monotone curves, a time axis and a log value axis have since been added.
+- A funnel has since been added. What each stage kept of the one before
+  is a second series with its own format, so the table, the tooltip and
+  the sentence read it with no new path, and the summary lists it stage by
+  stage. A series may now carry a `format` of its own for this.
 - Animation has since been added: when `data` changes the marks move to
   their new place over 300 ms, interpolated in JavaScript so Web and Native
   move the same way, and not at all under reduced motion. The axes and

@@ -11,6 +11,7 @@ import { type ComponentType, type ReactNode, useId, useMemo } from 'react'
 import { datumSentence, nextDatum } from './active.ts'
 import { ChartSvg, type ChartSvgProps } from './chart-svg.tsx'
 import { ChartTable } from './chart-table.tsx'
+import { type FunnelValue, funnelChartModel, funnelSeries } from './funnel.ts'
 import {
   type AreaChartInput,
   areaChartModel,
@@ -91,6 +92,11 @@ export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin' | 'references
   colors?: readonly string[]
   /** The hole as a fraction of the radius; 0 by default, `DonutChart` 0.6. */
   innerRadius?: number
+}
+
+export type FunnelChartProps = Omit<Common, 'series' | 'y' | 'margin' | 'references' | 'legend'> & {
+  /** The field each stage's count comes from, and what to call it when read. */
+  value: FunnelValue
 }
 
 /** What the box wires to the platform's focus, keys, pointer and touch. */
@@ -330,5 +336,25 @@ export function createCharts(
     return <PieChart {...props} innerRadius={innerRadius} />
   }
 
-  return { BarChart, LineChart, AreaChart, ComposedChart, ScatterChart, PieChart, DonutChart }
+  // A funnel is the stage counts and, as a second series in the same table,
+  // what each stage kept of the one before, each read in its own format.
+  function FunnelChart({ value, ...props }: FunnelChartProps) {
+    return (
+      <Chart
+        props={{ ...props, series: funnelSeries(value) }}
+        model={(width) => funnelChartModel({ ...props, value, width })}
+      />
+    )
+  }
+
+  return {
+    BarChart,
+    LineChart,
+    AreaChart,
+    ComposedChart,
+    ScatterChart,
+    PieChart,
+    DonutChart,
+    FunnelChart,
+  }
 }

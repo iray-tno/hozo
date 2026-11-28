@@ -4,8 +4,16 @@ import { useSystemScheme } from './color-scheme.native.ts'
 import { useReducedMotion } from './reduced-motion.native.ts'
 import { createSparkline } from './sparkline.tsx'
 
-export const { BarChart, LineChart, AreaChart, ComposedChart, ScatterChart, PieChart, DonutChart } =
-  createCharts(ChartBox, useSystemScheme, useReducedMotion)
+export const {
+  BarChart,
+  LineChart,
+  AreaChart,
+  ComposedChart,
+  ScatterChart,
+  PieChart,
+  DonutChart,
+  FunnelChart,
+} = createCharts(ChartBox, useSystemScheme, useReducedMotion)
 // react-native-svg takes the name as a view prop; the view must also be one element.
 export const Sparkline = createSparkline(
   { accessible: true, accessibilityRole: 'image' },
@@ -16,10 +24,21 @@ export type {
   AreaChartProps,
   BarChartProps,
   ComposedChartProps,
+  FunnelChartProps,
   LineChartProps,
   PieChartProps,
   ScatterChartProps,
 } from './charts.tsx'
+export {
+  type Funnel,
+  type FunnelChartInput,
+  type FunnelLabel,
+  type FunnelModel,
+  type FunnelValue,
+  funnelChartModel,
+  KEPT_LABEL,
+  keptFractions,
+} from './funnel.ts'
 export {
   type AreaChartInput,
   areaChartModel,

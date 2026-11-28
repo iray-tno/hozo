@@ -1,4 +1,4 @@
-// Charts (RFC 015): Bar, Line, Area, Scatter, Pie and Donut from @hozo/charts. Each is one
+// Charts (RFC 015): Bar, Line, Area, Scatter, Pie, Donut and Funnel from @hozo/charts. Each is one
 // tab stop; the arrow keys, Home and End move along the data and a live region reads
 // every series there, the pointer does the same with a tooltip, and a
 // screen reader also has the table of the data, out of sight unless shown.
@@ -10,6 +10,7 @@ import {
   ChartThemeProvider,
   ComposedChart,
   DonutChart,
+  FunnelChart,
   LineChart,
   PieChart,
   ScatterChart,
@@ -149,6 +150,35 @@ export const PieAndDonut: StoryObj<typeof meta> = {
           height={220}
         />
       </Section>
+    </View>
+  ),
+}
+
+const funnelStages = [
+  { stage: 'Visited', people: 12400 },
+  { stage: 'Signed up', people: 3100 },
+  { stage: 'Started a trial', people: 1240 },
+  { stage: 'Paid', people: 310 },
+]
+
+/**
+ * A funnel of four stages. Each value is read with what it kept of the
+ * stage before, and the summary ends with the last stage against the first.
+ */
+export const Funnel: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-2 p-6 text-slate-700">
+      <FunnelChart
+        accessibilityLabel="Sign-up funnel"
+        data={funnelStages}
+        x={{ key: 'stage', label: 'Stage' }}
+        value={{
+          key: 'people',
+          label: 'People',
+          format: (value) => value.toLocaleString('en-US'),
+        }}
+        height={220}
+      />
     </View>
   ),
 }

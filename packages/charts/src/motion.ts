@@ -76,6 +76,7 @@ function between(from: Mark | undefined, to: Mark, t: number): Mark {
         : to
     case 'line':
     case 'area':
+    case 'stage':
       return from?.kind === to.kind ? { ...to, path: lerpPath(from.path, to.path, t) } : to
     // A slice's outline holds arc flags that do not blend; slices change at once.
     case 'arc':

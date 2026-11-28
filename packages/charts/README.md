@@ -80,6 +80,27 @@ last slice that would repeat the first colour beside it takes the next colour in
 sets them by row. The legend sits beside the circle when there is room and under it otherwise. The
 pointer finds a slice by its angle, or a legend row by its line.
 
+## Funnel
+
+```tsx
+<FunnelChart
+  accessibilityLabel="Sign-up funnel"
+  data={stages}
+  x={{ key: 'stage' }}
+  value={{ key: 'people', label: 'People' }}
+  height={220}
+/>
+```
+
+One trapezoid per stage, top to bottom in data order. Its top edge is as wide as its value and its
+bottom edge narrows to the next stage's, so the drop is the slope between them. The stage names
+are on the left and the values on the right, each with what it kept of the stage before:
+"3,100 (25%)". The table has that share as a second column, "Kept from the stage before", each
+stage reads it, for example "Signed up. People: 3,100. Kept from the stage before: 25%.", and the
+summary lists it for every stage and ends with the last stage against the first. The arrow keys
+step down and up the stages. A stage with no value or a value of zero or less is not drawn, and
+the table still lists it.
+
 ## Sparklines
 
 ```tsx
