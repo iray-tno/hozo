@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
   barChartModel,
+  EDGE_PAD,
+  edgeLabels,
   estimateTextWidth,
   lineChartModel,
   linePath,
@@ -110,4 +112,73 @@ test('crowded category labels are thinned, not overlapped', () => {
   const model = barChartModel({ ...base, data })
   assert.ok(model.xTicks.length < 60)
   assert.equal(model.xTicks[0]?.label, 'Month 0')
+})
+
+test('an edge label stays inside the chart, and a neighbour it would touch is left out', () => {
+  const data = Array.from({ length: 30 }, (_, i) => ({ day: `2026-11-${i + 1}`, v: i }))
+  const model = lineChartModel({
+    data,
+    x: { key: 'day' },
+    series: [{ key: 'v', label: 'Visits' }],
+    width: 400,
+    height: 200,
+  })
+  const last = model.xTicks.at(-1)
+  assert.ok(last)
+  const half = estimateTextWidth(last.label, 12) / 2
+  assert.ok(last.position + half > 400, 'centred, it would run past the right edge')
+  assert.equal(last.anchor, 'end')
+  for (const [i, tick] of model.xTicks.entries()) {
+    const width = estimateTextWidth(tick.label, 12)
+    const [from, to] =
+      tick.anchor === 'end'
+        ? [400 - EDGE_PAD - width, 400 - EDGE_PAD]
+        : [tick.position - width / 2, tick.position + width / 2]
+    assert.ok(from >= 0 && to <= 400, `${tick.label} inside`)
+    const next = model.xTicks[i + 1]
+    if (next?.anchor === 'end')
+      assert.ok(to < 400 - EDGE_PAD - estimateTextWidth(next.label, 12), 'no overlap at the edge')
+  }
+  const left = edgeLabels(
+    [
+      { position: 10, label: 'Long first' },
+      { position: 200, label: 'b' },
+    ],
+    12,
+    400,
+  )
+  assert.equal(left[0]?.anchor, 'start')
+  const fits = edgeLabels(
+    [
+      { position: 100, label: 'a' },
+      { position: 300, label: 'b' },
+    ],
+    12,
+    400,
+  )
+  assert.deepEqual(
+    fits.map((tick) => tick.anchor),
+    [undefined, undefined],
+    'nothing moves when it fits',
+  )
+})
+
+test('an anchored label is drawn against the edge', async () => {
+  const { renderToStaticMarkup } = await import('react-dom/server')
+  const { createElement } = await import('react')
+  const { LineChart } = await import('./index.tsx')
+  const html = renderToStaticMarkup(
+    createElement(LineChart, {
+      accessibilityLabel: 'Visits',
+      data: Array.from({ length: 30 }, (_, i) => ({ day: `2026-11-${i + 1}`, v: i })),
+      x: { key: 'day' },
+      series: [{ key: 'v', label: 'Visits' }],
+      width: 400,
+      height: 200,
+    }),
+  )
+  assert.match(
+    html,
+    new RegExp(`<text x="${400 - EDGE_PAD}"[^>]*text-anchor="end"[^>]*>2026-11-29<`),
+  )
 })

@@ -7,7 +7,13 @@
 import { Circle, G, Line, Path, Rect, Svg, SvgText } from '@hozo/svg'
 import { memo } from 'react'
 import { datumRows, datumTitle, tooltipBox } from './active.ts'
-import { barPath, type ChartModel, type ChartSeries, type PlacedReference } from './model.ts'
+import {
+  barPath,
+  type ChartModel,
+  type ChartSeries,
+  EDGE_PAD,
+  type PlacedReference,
+} from './model.ts'
 import { seriesColor } from './palette.ts'
 import { DEFAULT_THEME, type ResolvedChartTheme } from './theme.tsx'
 
@@ -151,12 +157,18 @@ const Drawing = memo(function Drawing({
               />
             ) : null}
             <SvgText
-              x={tick.position}
+              x={
+                tick.anchor === 'end'
+                  ? model.width - EDGE_PAD
+                  : tick.anchor === 'start'
+                    ? EDGE_PAD
+                    : tick.position
+              }
               y={bottom + fontSize * 1.25}
               fill={ink}
               fillOpacity={horizontal || model.xColumn ? MUTED : 1}
               fontSize={fontSize}
-              textAnchor="middle"
+              textAnchor={tick.anchor ?? 'middle'}
             >
               {tick.label}
             </SvgText>

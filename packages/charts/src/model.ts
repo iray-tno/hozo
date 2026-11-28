@@ -163,6 +163,11 @@ export type Mark =
 export interface Tick {
   position: number
   label: string
+  /**
+   * The label is drawn against this edge of the chart rather than centred
+   * on `position`, which would put part of it outside.
+   */
+  anchor?: 'start' | 'end'
 }
 
 export interface ChartModel {
@@ -336,13 +341,53 @@ export function frame(input: ChartInput, domain: [number, number]): Frame {
   }
 }
 
-/** Every n-th category label, so that estimated labels do not overlap. */
-function xTicks(categories: string[], centers: number[], step: number, fontSize: number): Tick[] {
+/**
+ * Every n-th category label, so that estimated labels do not overlap. A
+ * first or last label centred on its tick would run past the chart's edge
+ * where the margin is narrower than half of it, so it is pushed against the
+ * edge instead; a neighbour it would then touch is left out.
+ */
+function xTicks(
+  categories: string[],
+  centers: number[],
+  step: number,
+  fontSize: number,
+  width: number,
+): Tick[] {
   const widest = Math.max(0, ...categories.map((label) => estimateTextWidth(label, fontSize)))
   const every = step > 0 ? Math.max(1, Math.ceil((widest + fontSize) / step)) : 1
   const out: Tick[] = []
   for (let i = 0; i < categories.length; i += every)
     out.push({ position: centers[i] as number, label: categories[i] as string })
+  return edgeLabels(out, fontSize, width)
+}
+
+/** The edge a tick's label is drawn against, inside the chart. */
+export const EDGE_PAD = 2
+
+/**
+ * Pushes the outermost labels inside `[0, width]`, marking each moved one
+ * with the edge it now ends at.
+ */
+export function edgeLabels(ticks: Tick[], fontSize: number, width: number): Tick[] {
+  const half = (tick: Tick) => estimateTextWidth(tick.label, fontSize) / 2
+  const clear = fontSize / 2
+  const out = ticks.map((tick) => ({ ...tick }))
+  const last = out.at(-1)
+  if (last && last.position + half(last) > width - EDGE_PAD) {
+    last.anchor = 'end'
+    const before = out.at(-2)
+    const start = width - EDGE_PAD - half(last) * 2
+    if (before && before.position + half(before) + clear > start) out.splice(-2, 1)
+  }
+  const first = out[0]
+  if (first && first !== out.at(-1) && first.position - half(first) < EDGE_PAD) {
+    first.anchor = 'start'
+    const after = out[1]
+    const end = EDGE_PAD + half(first) * 2
+    if (after && after !== out.at(-1) && after.position - half(after) - clear < end)
+      out.splice(1, 1)
+  }
   return out
 }
 
@@ -642,7 +687,7 @@ export function barChartModel(input: BarChartInput): ChartModel {
     categories,
     values,
     marks: finishBars(marks, values, false, input.stacked ?? false, input.bar),
-    xTicks: xTicks(categories, centers, band.step, fontSize),
+    xTicks: xTicks(categories, centers, band.step, fontSize, input.width),
     yTicks,
     references,
     legend,
@@ -707,7 +752,7 @@ export function composedChartModel(input: ComposedChartInput): ChartModel {
     categories,
     values,
     marks,
-    xTicks: xTicks(categories, centers, band.step, fontSize),
+    xTicks: xTicks(categories, centers, band.step, fontSize, input.width),
     yTicks,
     references,
     legend,
@@ -883,7 +928,7 @@ function pointChart(input: ChartInput, area: boolean | undefined): ChartModel {
     categories,
     values,
     marks,
-    xTicks: xTicks(categories, centers, x.step, fontSize),
+    xTicks: xTicks(categories, centers, x.step, fontSize, input.width),
     yTicks,
     references,
     legend,
