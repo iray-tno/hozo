@@ -272,6 +272,7 @@ pub(super) fn resolve(
         // inside a potentially conditional JSX expression.
         Condition::Responsive(bp) => Ok(ambient(RuntimeHook::Breakpoint(*bp), runtime)),
         Condition::Dark => Ok(ambient(RuntimeHook::Dark, runtime)),
+        Condition::Supports(query) => super::supports::evaluate(query).map(Guard::Known),
         Condition::Width { at_least, value } => {
             // max- is the same threshold read from the other side, so its
             // negation shares the min- hook too, including at the boundary.

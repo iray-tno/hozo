@@ -273,11 +273,20 @@ pub(super) fn report_refused(
         }
         // Refused rather than dropped: silently ignoring a `block`/`grid`
         // would leave a layout that looks right on Web and is wrong on
-        // device with nothing pointing at the cause.
+        // device with nothing pointing at the cause. When guarded by a
+        // `supports-[...]:` query that statically evaluates to false on
+        // Native (e.g. `supports-[display:grid]:grid`), downgrade to a
+        // warning so cross-platform progressive enhancement builds cleanly.
         if let Some(reason) = declaration.property.unsupported_on_native_with_theme(theme) {
+            let severity = if crate::conditions::supports::statically_false(&declaration.condition)
+            {
+                Severity::Warning
+            } else {
+                Severity::Error
+            };
             diagnostics.push(Diagnostic {
                 code: DiagnosticCode::WebOnlyPropertyOnNative,
-                severity: Severity::Error,
+                severity,
                 message: format!("{reason} -- this utility is Web-only."),
                 span: node.span,
             });

@@ -7,20 +7,6 @@ use super::*;
 /// The diagnostic for a condition `build_style_entries` does not route.
 pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnostic {
     match condition {
-        // `data-…:` selects on an attribute, and React Native views
-        // have none: what the DOM keeps in an attribute a React Native
-        // component keeps in a prop, and Hozo cannot read a prop it
-        // does not model. `has-…:` and `supports-…:` are a descendant
-        // selector and a CSS feature query, neither of which exists
-        // here at all.
-        Condition::Supports(_) => unwired_variant(
-            node,
-            &format!(
-                "`{}:` has no React Native equivalent -- it selects on an attribute, a descendant or a CSS feature, and there are no selectors here. On Web the same class works.",
-                variant_spelling(condition).unwrap_or_default()
-            ),
-            Severity::Error,
-        ),
         // Not a gap in this backend so much as a question the platform
         // cannot be asked: a link the user has been to needs links and
         // a history to have been in them, and neither is a thing React
@@ -161,6 +147,7 @@ pub(super) fn unwired_diagnostic(condition: &Condition, node: &Node) -> Diagnost
         | Condition::Responsive(_)
         | Condition::Width { .. }
         | Condition::Dark
-        | Condition::Container { .. } => unreachable!("routed by build_style_entries"),
+        | Condition::Container { .. }
+        | Condition::Supports(_) => unreachable!("routed by build_style_entries"),
     }
 }
