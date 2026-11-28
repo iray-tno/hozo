@@ -282,6 +282,65 @@ const PROBE_CONTEXTS = [
       `      <View className="${candidate}">x</View>\n    </View>\n  )\n}\n`,
   },
   {
+    // Parent elemental variants in front of `*:` / `**:` (`hover:*:`, `disabled:*:`,
+    // `aria-expanded:*:`, `data-open:*:`, `group-hover:*:`, `peer-hover:*:`,
+    // `first:*:`, `even:*:`, `nth-3:*:`, `only:*:`) need a parent that both carries
+    // the driver and owns element children for `*:` / `**:` to style. Gated to
+    // subtree candidates so unrelated utilities keep their existing probe set.
+    name: 'Pressable parent of elements',
+    appliesTo: (candidate: string) =>
+      candidate.split(':').includes('*') || candidate.split(':').includes('**'),
+    render: (candidate: string) =>
+      `import { Pressable, View } from '@hozo/core'\n` +
+      `export function C({ off, on }) {\n  return (\n` +
+      `    <Pressable accessibilityRole="checkbox" disabled={off} accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} className="${candidate}">\n` +
+      `      <View>x</View>\n      <View><View>y</View></View>\n      <View />\n    </Pressable>\n  )\n}\n`,
+  },
+  {
+    name: 'grouped View parent of elements',
+    appliesTo: (candidate: string) =>
+      candidate.split(':').includes('*') || candidate.split(':').includes('**'),
+    render: (candidate: string) =>
+      `import { Pressable, View } from '@hozo/core'\n` +
+      `export function C({ on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View data-open={open ? '' : undefined} data-state={state} className="${candidate}">\n` +
+      `          <View>x</View>\n          <View><View>y</View></View>\n          <View />\n        </View>\n` +
+      `        <View>c</View>\n      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'only-child View parent',
+    appliesTo: (candidate: string) =>
+      candidate.split(':').includes('*') || candidate.split(':').includes('**'),
+    render: (candidate: string) =>
+      `import { View } from '@hozo/core'\n` +
+      `export function C() {\n  return (\n    <View>\n` +
+      `      <View className="${candidate}">\n        <View><View>y</View></View>\n      </View>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'third-child View parent',
+    appliesTo: (candidate: string) =>
+      candidate.split(':').includes('*') || candidate.split(':').includes('**'),
+    render: (candidate: string) =>
+      `import { View } from '@hozo/core'\n` +
+      `export function C() {\n  return (\n    <View>\n      <View>a</View>\n      <View>b</View>\n` +
+      `      <View className="${candidate}">\n        <View>x</View>\n        <View><View>y</View></View>\n        <View />\n      </View>\n    </View>\n  )\n}\n`,
+  },
+  {
+    // `backdrop:` styles a Dialog's modal scrim (`hozoBackdropStyle`) on
+    // Native, so it has a driver only on a Dialog. Gated to candidates that
+    // use `backdrop:` so unrelated utilities are not measured against Dialog's
+    // modal host restrictions, matching `View with a transition` above.
+    name: 'Dialog',
+    appliesTo: (candidate: string) => candidate.split(':').includes('backdrop'),
+    render: (candidate: string) =>
+      `import { Dialog } from '@hozo/core'\n` +
+      `export function C({ open, onClose }) {\n` +
+      `  return <Dialog open={open} onClose={onClose} accessibilityLabel="Dialog" className="${candidate}" />\n` +
+      `}\n`,
+  },
+  {
     // `starting:` is the frame an enter transition starts from, so it has a
     // driver only beside a `transition-*` class on the same element. With
     // no context carrying one, all of its cases were refused, each for want

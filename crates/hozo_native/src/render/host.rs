@@ -14,6 +14,7 @@ pub(super) struct HostChoice {
     pub(super) relative_at_runtime: bool,
     pub(super) publishes_size: bool,
     pub(super) publishes_peer_state: bool,
+    pub(super) has_field_colors_callback: bool,
 }
 
 /// Choose the actual host before adding measurement. Replacing it with a
@@ -34,6 +35,7 @@ pub(super) fn rendered_component(
         relative_at_runtime,
         publishes_size,
         publishes_peer_state,
+        has_field_colors_callback,
     } = choice;
     if renders_backdrop_filter {
         cx.runtime.need_component("HozoBackdropFilter");
@@ -42,6 +44,7 @@ pub(super) fn rendered_component(
         && (has_pressed_parts
             || runtime_states
             || publishes_peer_state
+            || has_field_colors_callback
             || node.props.effective_disabled().is_some()
             || node.props.aria_invalid.is_some())
     {

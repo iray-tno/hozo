@@ -334,6 +334,10 @@ pub enum ConditionExpr {
     /// True when a runtime class string contains a token conflicting with a
     /// compiled `tailwind-merge` conflict group (#1676).
     ClassConflict(Box<ClassConflictGuard>),
+    /// Compiler-synthesized Native boolean guard expression forwarded from a
+    /// parent's `*:`/`**:` condition (for example `__hozoSubtree.focused` or
+    /// `(__hozoPeer[0].hovered)`). Never emitted on Web.
+    RawJs(String),
     Not(Box<ConditionExpr>),
     And(Box<ConditionExpr>, Box<ConditionExpr>),
     Or(Box<ConditionExpr>, Box<ConditionExpr>),

@@ -184,6 +184,7 @@ pub(super) fn native_grid(
 enum NativeTrack {
     Fr(f64),
     Points(f64),
+    ViewportPoints(String),
     Minmax { min: f64, fr: f64 },
     Calc(String),
 }
@@ -221,6 +222,9 @@ fn tracks_js(tracks: &NativeTracks, param_name: &str) -> String {
             .map(|track| match track {
                 NativeTrack::Fr(value) => format!("{{ kind: 'fr', value: {value} }}"),
                 NativeTrack::Points(value) => format!("{{ kind: 'points', value: {value} }}"),
+                NativeTrack::ViewportPoints(expr) => {
+                    format!("{{ kind: 'points', value: {expr} }}")
+                }
                 NativeTrack::Minmax { min, fr } => {
                     format!("{{ kind: 'minmax', min: {min}, value: {fr} }}")
                 }
@@ -275,6 +279,9 @@ where
     let base = base?;
     let mut counts = vec![base.len()];
     let mut has_calc = base.iter().any(|t| matches!(t, NativeTrack::Calc(_)));
+    let mut uses_viewport = base
+        .iter()
+        .any(|t| matches!(t, NativeTrack::ViewportPoints(_)));
     // Hooks are min-width predicates and therefore overlap. Wrap from the
     // smallest to the largest so the largest active breakpoint is outermost
     // and wins, matching Tailwind's media-query ordering.
@@ -284,11 +291,17 @@ where
         runtime.hooks.push(RuntimeHook::Breakpoint(*bp));
         counts.push(tracks.len());
         has_calc |= tracks.iter().any(|t| matches!(t, NativeTrack::Calc(_)));
+        uses_viewport |= tracks
+            .iter()
+            .any(|t| matches!(t, NativeTrack::ViewportPoints(_)));
         value = format!(
             "{} ? {} : ({value})",
             RuntimeHook::Breakpoint(*bp).binding(),
             tracks_js(tracks, param_name)
         );
+    }
+    if uses_viewport {
+        runtime.hooks.push(RuntimeHook::Viewport);
     }
     let count = counts
         .iter()
@@ -518,6 +531,9 @@ fn parse_native_grid_tracks(css: &str, percent_binding: Option<&str>) -> Option<
             }
             if let Some(value) = hozo_ir::resolve_native_length_px(token) {
                 return (value >= 0.0).then_some(NativeTrack::Points(value));
+            }
+            if let Some(expr) = crate::layout::viewport_length_str(token, true) {
+                return Some(NativeTrack::ViewportPoints(expr));
             }
             if let Some(binding) = percent_binding {
                 if let Some(pct) = token

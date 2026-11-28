@@ -1,6 +1,7 @@
 //! Placeholder, selection and caret colours, which are `TextInput` props
 //! rather than styles.
 
+use crate::conditions::{resolve_condition_guard, ResolvedCondition, StyleTarget};
 use crate::*;
 
 /// `placeholder-*` and `placeholder:text-*` as React Native carries them:
@@ -16,37 +17,7 @@ fn is_valid_field_colour(colour: &hozo_ir::Color) -> bool {
     )
 }
 
-pub(crate) fn placeholder_colour(
-    declaration: &StyleDeclaration,
-) -> Option<(&hozo_ir::Color, bool)> {
-    match (&declaration.property, &declaration.condition) {
-        (StyleProperty::PlaceholderColor(c), Condition::Always) if is_valid_field_colour(c) => {
-            Some((c, false))
-        }
-        (StyleProperty::PlaceholderColor(c), Condition::Dark) if is_valid_field_colour(c) => {
-            Some((c, true))
-        }
-        (
-            StyleProperty::TextColor(c),
-            Condition::PseudoElement(hozo_ir::PseudoElement::Placeholder),
-        ) if absolute_placeholder_colour(c) => Some((c, false)),
-        (StyleProperty::TextColor(c), Condition::All(conditions))
-            if absolute_placeholder_colour(c)
-                && conditions.len() == 2
-                && conditions.contains(&Condition::Dark)
-                && conditions.contains(&Condition::PseudoElement(
-                    hozo_ir::PseudoElement::Placeholder,
-                )) =>
-        {
-            Some((c, true))
-        }
-        // Colour is one RN prop, not arbitrary pseudo-element typography or
-        // an interaction callback. Unsupported stacks still diagnose.
-        _ => None,
-    }
-}
-
-// This new pseudo-element adapter is deliberately narrower than CSS. A
+// This pseudo-element adapter is deliberately narrower than CSS. A
 // current/inherited colour needs context, and arbitrary CSS colour functions
 // are not automatically RN ColorValues. Do not bless those just because a
 // colour-shaped prop was emitted; resolved tokens and hex need no CSS engine.
@@ -63,115 +34,316 @@ pub(super) fn absolute_placeholder_colour(colour: &hozo_ir::Color) -> bool {
     }
 }
 
-pub(crate) fn placeholder_props(
-    node: &Node,
-    theme: &Theme,
-    runtime: &mut RuntimeNeeds,
-) -> Option<Vec<(&'static str, String)>> {
-    if node.primitive != Primitive::TextInput
-        || !node.style.iter().any(|d| placeholder_colour(d).is_some())
-    {
-        return None;
-    }
-    placeholder_value(&node.style, theme, runtime)
-        .map(|value| vec![("placeholderTextColor", value)])
-}
-
-/// Pattern input slots use the same property adapter, but the prop travels to
-/// their real field rather than being assigned to the enclosing widget.
-pub(crate) fn placeholder_value(
-    declarations: &[StyleDeclaration],
-    theme: &Theme,
-    runtime: &mut RuntimeNeeds,
-) -> Option<String> {
-    scheme_colour_value(declarations, theme, runtime, placeholder_colour)
-}
-
-/// One colour prop per scheme: the last light colour, and the last dark one
-/// over it. A paired token follows the scheme the rest of the field does.
-pub(super) fn scheme_colour_value(
-    declarations: &[StyleDeclaration],
-    theme: &Theme,
-    runtime: &mut RuntimeNeeds,
-    pick: fn(&StyleDeclaration) -> Option<(&hozo_ir::Color, bool)>,
-) -> Option<String> {
-    let dark_theme = theme.dark();
-    let mut light = None;
-    let mut dark = None;
-    for declaration in declarations {
-        let Some((colour, dark_only)) = pick(declaration) else {
-            continue;
-        };
-        if dark_only {
-            dark = Some(style::placeholder_color(
-                colour,
-                dark_theme.as_ref().unwrap_or(theme),
-            ));
-        } else {
-            let value = style::placeholder_color(colour, theme);
-            if let Some(palette) = &dark_theme {
-                let shaded = style::placeholder_color(colour, palette);
-                if shaded != value {
-                    dark = Some(shaded);
+/// Removes one specific `Condition::PseudoElement(pseudo)` from a standalone
+/// or stacked condition, returning the remaining outer condition.
+fn strip_pseudo(condition: &Condition, pseudo: hozo_ir::PseudoElement) -> Option<Condition> {
+    match condition {
+        Condition::PseudoElement(found) if *found == pseudo => Some(Condition::Always),
+        Condition::All(conditions) => {
+            let mut rest = Vec::new();
+            let mut stripped = false;
+            let mut pending: Vec<&Condition> = conditions.iter().rev().collect();
+            while let Some(atom) = pending.pop() {
+                match atom {
+                    Condition::All(nested) => pending.extend(nested.iter().rev()),
+                    Condition::PseudoElement(found) if *found == pseudo && !stripped => {
+                        stripped = true;
+                    }
+                    other => rest.push(other.clone()),
                 }
             }
-            light = Some(value);
-        }
-    }
-    // A paired token must follow the same scheme as the rest of the field.
-    // No hook for a field with only an unpaired, unconditional colour.
-    let value = if let Some(dark) = dark {
-        runtime.hooks.push(RuntimeHook::Dark);
-        format!(
-            "__hozoDark ? {dark} : {}",
-            light.unwrap_or_else(|| "undefined".to_string())
-        )
-    } else {
-        light?
-    };
-    Some(value)
-}
-
-/// `selection:bg-*` as React Native carries it: `TextInput`'s
-/// `selectionColor` prop, the highlight behind selected text.
-///
-/// Only the background, because that is all the prop is: `selection:text-*`
-/// colours the selected glyphs on Web, and React Native has nothing to put
-/// that on, so it keeps its diagnostic. On iOS the same prop also tints the
-/// cursor and the selection handles; that is the platform's one control for
-/// all three, not something Hozo adds.
-pub(crate) fn selection_colour(declaration: &StyleDeclaration) -> Option<(&hozo_ir::Color, bool)> {
-    let selection = Condition::PseudoElement(hozo_ir::PseudoElement::Selection);
-    match (&declaration.property, &declaration.condition) {
-        (StyleProperty::BackgroundColor(c), condition)
-            if *condition == selection && absolute_placeholder_colour(c) =>
-        {
-            Some((c, false))
-        }
-        (StyleProperty::BackgroundColor(c), Condition::All(conditions))
-            if absolute_placeholder_colour(c)
-                && conditions.len() == 2
-                && conditions.contains(&Condition::Dark)
-                && conditions.contains(&selection) =>
-        {
-            Some((c, true))
+            stripped.then(|| Condition::all(rest))
         }
         _ => None,
     }
 }
 
-pub(crate) fn selection_props(
-    node: &Node,
+fn placeholder_colour_decl(declaration: &StyleDeclaration) -> Option<(&hozo_ir::Color, Condition)> {
+    match &declaration.property {
+        StyleProperty::PlaceholderColor(c) if is_valid_field_colour(c) => {
+            Some((c, declaration.condition.clone()))
+        }
+        StyleProperty::TextColor(c) if absolute_placeholder_colour(c) => {
+            strip_pseudo(&declaration.condition, hozo_ir::PseudoElement::Placeholder)
+                .map(|rem| (c, rem))
+        }
+        _ => None,
+    }
+}
+
+fn selection_colour_decl(declaration: &StyleDeclaration) -> Option<(&hozo_ir::Color, Condition)> {
+    match &declaration.property {
+        StyleProperty::BackgroundColor(c) if absolute_placeholder_colour(c) => {
+            strip_pseudo(&declaration.condition, hozo_ir::PseudoElement::Selection)
+                .map(|rem| (c, rem))
+        }
+        _ => None,
+    }
+}
+
+fn caret_colour_decl(declaration: &StyleDeclaration) -> Option<(&hozo_ir::Color, Condition)> {
+    match &declaration.property {
+        StyleProperty::CaretColor(c) if is_valid_field_colour(c) => {
+            Some((c, declaration.condition.clone()))
+        }
+        _ => None,
+    }
+}
+
+fn condition_selects_dark(condition: &Condition) -> bool {
+    match condition {
+        Condition::Dark => true,
+        Condition::All(list) => list.iter().any(condition_selects_dark),
+        _ => false,
+    }
+}
+
+struct ChannelValue {
+    expr: String,
+    uses_interactive: bool,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn resolve_channel(
+    declarations: &[StyleDeclaration],
+    target: &StyleTarget<'_>,
+    source: &str,
     theme: &Theme,
     runtime: &mut RuntimeNeeds,
-) -> Option<Vec<(&'static str, String)>> {
-    if node.primitive != Primitive::TextInput
-        || !node.style.iter().any(|d| selection_colour(d).is_some())
-    {
+    allow_interactive: bool,
+    suppress_emit: bool,
+    consumed: &mut [bool],
+    pick: fn(&StyleDeclaration) -> Option<(&hozo_ir::Color, Condition)>,
+) -> Option<ChannelValue> {
+    let dark_theme = theme.dark();
+    let mut base_light: Option<String> = None;
+    let mut base_dark: Option<String> = None;
+    let mut conditional: Vec<(String, String, bool)> = Vec::new();
+    let mut scratch_runtime = RuntimeNeeds::default();
+
+    for (index, declaration) in declarations.iter().enumerate() {
+        let Some((colour, remaining)) = pick(declaration) else {
+            continue;
+        };
+        let resolved = resolve_condition_guard(
+            &remaining,
+            target,
+            source,
+            &mut scratch_runtime,
+            allow_interactive,
+        );
+        let Ok(outcome) = resolved else {
+            continue;
+        };
+        consumed[index] = true;
+        if suppress_emit {
+            continue;
+        }
+        match outcome {
+            ResolvedCondition::Never => {}
+            ResolvedCondition::Always => {
+                let value = style::placeholder_color(colour, theme);
+                base_dark = dark_theme
+                    .as_ref()
+                    .map(|palette| style::placeholder_color(colour, palette))
+                    .filter(|shaded| *shaded != value);
+                base_light = Some(value);
+            }
+            ResolvedCondition::Guarded {
+                expr,
+                uses_interactive,
+            } => {
+                let value = if condition_selects_dark(&remaining) {
+                    style::placeholder_color(colour, dark_theme.as_ref().unwrap_or(theme))
+                } else {
+                    let light = style::placeholder_color(colour, theme);
+                    if let Some(shaded) = dark_theme
+                        .as_ref()
+                        .map(|palette| style::placeholder_color(colour, palette))
+                        .filter(|shaded| *shaded != light)
+                    {
+                        scratch_runtime.hooks.push(RuntimeHook::Dark);
+                        format!("(__hozoDark ? {shaded} : {light})")
+                    } else {
+                        light
+                    }
+                };
+                conditional.push((expr, value, uses_interactive));
+            }
+        }
+    }
+
+    if suppress_emit || (base_light.is_none() && base_dark.is_none() && conditional.is_empty()) {
         return None;
     }
-    scheme_colour_value(&node.style, theme, runtime, selection_colour)
-        .map(|value| vec![("selectionColor", value)])
+
+    runtime.hooks.extend(scratch_runtime.hooks);
+    let mut acc = if let Some(dark) = base_dark {
+        runtime.hooks.push(RuntimeHook::Dark);
+        format!(
+            "__hozoDark ? {dark} : {}",
+            base_light.unwrap_or_else(|| "undefined".to_string())
+        )
+    } else {
+        base_light.unwrap_or_else(|| "undefined".to_string())
+    };
+    let mut uses_interactive = false;
+    for (guard, value, interactive) in conditional {
+        uses_interactive |= interactive;
+        acc = format!("{guard} ? {value} : {acc}");
+    }
+    Some(ChannelValue {
+        expr: acc,
+        uses_interactive,
+    })
+}
+
+/// Lowered `TextInput` colour props (`placeholderTextColor`, `cursorColor`,
+/// `selectionColor`), optional focus callback (`hozoFieldColors`), and which
+/// declarations on `node.style` were consumed by them.
+pub(crate) struct FieldColours {
+    pub placeholder: Option<Vec<(&'static str, String)>>,
+    pub caret: Option<Vec<(&'static str, String)>>,
+    pub selection: Option<Vec<(&'static str, String)>>,
+    pub interactive_callback: Option<String>,
+    pub consumed: Vec<bool>,
+}
+
+pub(crate) fn resolve_field_colours(
+    node: &Node,
+    target: &StyleTarget<'_>,
+    source: &str,
+    theme: &Theme,
+    runtime: &mut RuntimeNeeds,
+) -> FieldColours {
+    let mut consumed = vec![false; node.style.len()];
+    if node.primitive != Primitive::TextInput {
+        return FieldColours {
+            placeholder: None,
+            caret: None,
+            selection: None,
+            interactive_callback: None,
+            consumed,
+        };
+    }
+    let authored: Vec<&str> = node
+        .props
+        .passthrough
+        .iter()
+        .filter_map(|prop| prop.name.as_deref())
+        .collect();
+
+    let mut placeholder = None;
+    let mut caret = None;
+    let mut selection = None;
+    let mut interactive_fields: Vec<(&'static str, String)> = Vec::new();
+
+    if let Some(channel) = resolve_channel(
+        &node.style,
+        target,
+        source,
+        theme,
+        runtime,
+        true,
+        authored.contains(&"placeholderTextColor"),
+        &mut consumed,
+        placeholder_colour_decl,
+    ) {
+        if channel.uses_interactive {
+            interactive_fields.push(("placeholderTextColor", channel.expr));
+        } else {
+            placeholder = Some(vec![("placeholderTextColor", channel.expr)]);
+        }
+    }
+    if let Some(channel) = resolve_channel(
+        &node.style,
+        target,
+        source,
+        theme,
+        runtime,
+        true,
+        authored.contains(&"cursorColor"),
+        &mut consumed,
+        caret_colour_decl,
+    ) {
+        if channel.uses_interactive {
+            interactive_fields.push(("cursorColor", channel.expr));
+        } else {
+            caret = Some(vec![("cursorColor", channel.expr)]);
+        }
+    }
+    if let Some(channel) = resolve_channel(
+        &node.style,
+        target,
+        source,
+        theme,
+        runtime,
+        true,
+        authored.contains(&"selectionColor"),
+        &mut consumed,
+        selection_colour_decl,
+    ) {
+        if channel.uses_interactive {
+            interactive_fields.push(("selectionColor", channel.expr));
+        } else {
+            selection = Some(vec![("selectionColor", channel.expr)]);
+        }
+    }
+
+    let interactive_callback = (!interactive_fields.is_empty()).then(|| {
+        let uses_focus_visible = interactive_fields
+            .iter()
+            .any(|(_, expr)| expr.contains("focusVisible"));
+        let uses_focused = interactive_fields
+            .iter()
+            .any(|(_, expr)| expr.contains("focused"));
+        let mut params = Vec::new();
+        if uses_focused {
+            params.push("focused");
+        }
+        if uses_focus_visible {
+            params.push("focusVisible");
+        }
+        let entries = interactive_fields
+            .into_iter()
+            .map(|(key, expr)| format!("{key}: {expr}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("({{ {} }}) => ({{ {entries} }})", params.join(", "))
+    });
+
+    FieldColours {
+        placeholder,
+        caret,
+        selection,
+        interactive_callback,
+        consumed,
+    }
+}
+
+/// Pattern input slots (`Combobox`, `CommandPalette` `inputClassName`) use the
+/// same placeholder colour adapter, without interactive callbacks.
+pub(crate) fn placeholder_value_for_slot(
+    declarations: &[StyleDeclaration],
+    target: &StyleTarget<'_>,
+    source: &str,
+    theme: &Theme,
+    runtime: &mut RuntimeNeeds,
+) -> (Option<String>, Vec<bool>) {
+    let mut consumed = vec![false; declarations.len()];
+    let value = resolve_channel(
+        declarations,
+        target,
+        source,
+        theme,
+        runtime,
+        false,
+        false,
+        &mut consumed,
+        placeholder_colour_decl,
+    )
+    .map(|channel| channel.expr);
+    (value, consumed)
 }
 
 pub(crate) fn placeholder_only_reason(property: &StyleProperty) -> Option<String> {
@@ -179,37 +351,6 @@ pub(crate) fn placeholder_only_reason(property: &StyleProperty) -> Option<String
         "`placeholder-*`: React Native carries this as `TextInput`'s `placeholderTextColor` prop, so it only means something on a TextInput"
             .to_string()
     })
-}
-
-/// `caret-*` as React Native carries it: `cursorColor` on TextInput.
-/// `caret-*` and `dark:caret-*`, as `cursorColor` carries them. Any other
-/// condition is not wired and is diagnosed, never applied unconditionally.
-pub(crate) fn caret_colour(declaration: &StyleDeclaration) -> Option<(&hozo_ir::Color, bool)> {
-    match (&declaration.property, &declaration.condition) {
-        (StyleProperty::CaretColor(c), Condition::Always) if is_valid_field_colour(c) => {
-            Some((c, false))
-        }
-        (StyleProperty::CaretColor(c), Condition::Dark) if is_valid_field_colour(c) => {
-            Some((c, true))
-        }
-        _ => None,
-    }
-}
-
-/// The last colour wins, as in CSS: the declarations are already in the
-/// order the cascade gives them.
-pub(crate) fn caret_props(
-    node: &Node,
-    theme: &Theme,
-    runtime: &mut RuntimeNeeds,
-) -> Option<Vec<(&'static str, String)>> {
-    if node.primitive != Primitive::TextInput
-        || !node.style.iter().any(|d| caret_colour(d).is_some())
-    {
-        return None;
-    }
-    scheme_colour_value(&node.style, theme, runtime, caret_colour)
-        .map(|value| vec![("cursorColor", value)])
 }
 
 pub(crate) fn caret_only_reason() -> String {

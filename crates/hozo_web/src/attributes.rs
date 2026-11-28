@@ -129,6 +129,7 @@ pub(super) fn render_condition_expr(source: &str, expr: &hozo_ir::ConditionExpr)
             };
             format!("/{}/.test({})", conflict.pattern, value)
         }
+        ConditionExpr::RawJs(expr) => expr.clone(),
         ConditionExpr::Not(inner) => format!("!({})", render_condition_expr(source, inner)),
         ConditionExpr::And(a, b) => {
             format!(

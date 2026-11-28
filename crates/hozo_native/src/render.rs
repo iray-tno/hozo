@@ -185,29 +185,38 @@ pub(super) fn render_node(
     // Same shape as truncation: a CSS concept React Native keeps on a prop,
     // absorbed before the refusal check so the thing that *does* express it
     // isn't reported as impossible.
-    let placeholder = placeholder_props(node, theme, cx.runtime);
-    // The caret colour is another TextInput prop rather than a style. Kept
-    // separate from placeholder because React Native names the two props
-    // independently and either utility may appear alone.
-    let caret = caret_props(node, theme, cx.runtime);
-    // The selection highlight is a third TextInput colour prop.
-    let selection = selection_props(node, theme, cx.runtime);
+    let field_target = crate::conditions::StyleTarget {
+        owner_facts: cx.owner_inputs.facts,
+        owner_events: cx.owner_inputs.events,
+        node,
+        position,
+        interaction_context: false,
+        group_ancestor,
+        peers: peer.preceding,
+        pattern_slot: None,
+        composition: Default::default(),
+    };
+    let FieldColours {
+        placeholder,
+        caret,
+        selection,
+        interactive_callback: field_colors_callback,
+        consumed: field_consumed,
+    } = resolve_field_colours(node, &field_target, source, theme, cx.runtime);
 
     // `leading-tight`/`tracking-wide` are relative to the font size, which
     // React Native's equivalents aren't. Resolved here, before the refusal
     // check, so only the ones that genuinely can't be resolved are refused.
-    // A placeholder colour travels as a prop, never as the field's own text
-    // colour or a pseudo-element StyleSheet entry. Consume only declarations
-    // the prop adapter actually handles, leaving every other pseudo/style
-    // stack visible to the usual diagnostics.
-    let field_style: Option<Vec<_>> = (placeholder.is_some() || selection.is_some()).then(|| {
+    // Field colours travel as props (or `hozoFieldColors` when focus-driven),
+    // never as StyleSheet entries. Consume only declarations the prop adapter
+    // actually lowered, leaving every other pseudo/style stack visible to the
+    // usual diagnostics.
+    let field_style: Option<Vec<_>> = field_consumed.iter().any(|&used| used).then(|| {
         node.style
             .iter()
-            .filter(|declaration| {
-                (placeholder.is_none() || placeholder_colour(declaration).is_none())
-                    && (selection.is_none() || selection_colour(declaration).is_none())
-            })
-            .cloned()
+            .enumerate()
+            .filter(|(index, _)| !field_consumed[*index])
+            .map(|(_, declaration)| declaration.clone())
             .collect()
     });
     let style = lower_inline_flex(fold_font_relative(
@@ -215,7 +224,13 @@ pub(super) fn render_node(
         inherited,
         theme,
     ));
-    let layout = crate::pattern_layout::adapt(node.primitive, "className", style);
+    let mut layout = crate::pattern_layout::adapt(node.primitive, "className", style);
+    let backdrop_blur = crate::pattern_layout::resolve_backdrop_blur(
+        &mut layout,
+        &field_target,
+        source,
+        cx.runtime,
+    );
     let style = layout.style;
     let style = prepare::motion_safe_skeleton(style, node, from_ancestor.in_skeleton);
     let can_measure_grid_height = !has_display_contents(&style)
@@ -250,13 +265,13 @@ pub(super) fn render_node(
             text_break: text_break.is_some(),
             ios_line_break: ios_line_break.is_some(),
             keyframes: has_keyframes,
-            caret: caret.is_some(),
             self_measured: can_self_measure,
             parent_measured,
             parent_measured_space: can_measure_space,
         },
         node,
         theme,
+        cx.runtime,
         cx.diagnostics,
     );
 
@@ -292,7 +307,19 @@ pub(super) fn render_node(
         style,
         to_children,
         descendants,
-    } = inheritance::inherit(node, component, style, ancestor, cx);
+        subtree_needs_interaction_host,
+        subtree_needs_focus_visible,
+        subtree_child_report,
+    } = inheritance::inherit(
+        node,
+        component,
+        position,
+        interaction_context,
+        peer.preceding,
+        style,
+        ancestor,
+        cx,
+    );
 
     let text_handoff::TextHandoff {
         text_declarations,
@@ -446,9 +473,10 @@ pub(super) fn render_node(
         &text_declarations,
         runtime_states,
         transition.is_some() || label_style.is_some(),
-        peer.publish_id.is_some() || reports_subtree_pressable,
+        peer.publish_id.is_some() || reports_subtree_pressable || subtree_needs_interaction_host,
         peer.publish_focus_visible
-            || (interaction::owns_events(node) && subtree_report.focus_visible),
+            || (interaction::owns_events(node) && subtree_report.focus_visible)
+            || subtree_needs_focus_visible,
         cx.runtime,
     );
     let host::ContainerUse {
@@ -478,6 +506,7 @@ pub(super) fn render_node(
             relative_at_runtime: relative_at_runtime.is_some(),
             publishes_size,
             publishes_peer_state: peer.publish_id.is_some() || reports_subtree_input,
+            has_field_colors_callback: field_colors_callback.is_some(),
         },
         node,
         cx,
@@ -563,7 +592,7 @@ pub(super) fn render_node(
         host_props::Leading {
             scroll_prop: layout.scroll_prop,
             backdrop_parts: &backdrop_parts,
-            backdrop_blur: layout.backdrop_blur.as_ref(),
+            backdrop_blur: backdrop_blur.as_ref(),
             backdrop_filter: backdrop_filter.as_ref(),
             link_interaction,
         },
@@ -693,6 +722,7 @@ pub(super) fn render_node(
             placeholder,
             caret,
             selection,
+            field_colors_callback,
             text_break,
             ios_line_break,
             truncation,
@@ -722,20 +752,43 @@ pub(super) fn render_node(
         &mut props_text,
         cx,
     );
+    let mut self_decl_subtree = SubtreeReport::default();
+    for declaration in own_declarations
+        .iter()
+        .chain(text_declarations.iter())
+        .chain(layout.backdrop.iter())
+        .chain(
+            node.style
+                .iter()
+                .filter(|d| d.condition.split_subtree().is_none()),
+        )
+    {
+        let report = condition_subtree_report(&declaration.condition);
+        self_decl_subtree.focus |= report.focus;
+        self_decl_subtree.hover |= report.hover;
+        self_decl_subtree.focus_visible |= report.focus_visible;
+    }
     let mut own_subtree = SubtreeReport {
-        focus: props_text.contains("__hozoSubtree.focused")
-            || self_style_parts
-                .iter()
-                .any(|part| part.contains("__hozoSubtree.focused")),
-        hover: props_text.contains("__hozoSubtree.hovered")
-            || props_text.contains("__hozoSubtree.pressed")
-            || self_style_parts.iter().any(|part| {
-                part.contains("__hozoSubtree.hovered") || part.contains("__hozoSubtree.pressed")
-            }),
-        focus_visible: props_text.contains("__hozoSubtree.focusVisible")
-            || self_style_parts
-                .iter()
-                .any(|part| part.contains("__hozoSubtree.focusVisible")),
+        focus: subtree_child_report.focus
+            || (self_decl_subtree.focus
+                && (props_text.contains("__hozoSubtree.focused")
+                    || self_style_parts
+                        .iter()
+                        .any(|part| part.contains("__hozoSubtree.focused")))),
+        hover: subtree_child_report.hover
+            || (self_decl_subtree.hover
+                && (props_text.contains("__hozoSubtree.hovered")
+                    || props_text.contains("__hozoSubtree.pressed")
+                    || self_style_parts.iter().any(|part| {
+                        part.contains("__hozoSubtree.hovered")
+                            || part.contains("__hozoSubtree.pressed")
+                    }))),
+        focus_visible: subtree_child_report.focus_visible
+            || (self_decl_subtree.focus_visible
+                && (props_text.contains("__hozoSubtree.focusVisible")
+                    || self_style_parts
+                        .iter()
+                        .any(|part| part.contains("__hozoSubtree.focusVisible")))),
     };
     let has_raw_text = node
         .children
@@ -868,14 +921,45 @@ pub(super) fn render_node(
             peer_interaction_state(c).is_some()
         })
     });
+    let own_reads_peer = own_declarations
+        .iter()
+        .chain(text_declarations.iter())
+        .chain(layout.backdrop.iter())
+        .chain(
+            node.style
+                .iter()
+                .filter(|d| d.condition.split_subtree().is_none()),
+        )
+        .any(|declaration| {
+            condition_contains(&declaration.condition, |c| {
+                peer_interaction_state(c).is_some()
+            })
+        })
+        || node.props.class_slots.iter().any(|slot| {
+            slot.style.iter().any(|declaration| {
+                condition_contains(&declaration.condition, |c| {
+                    peer_interaction_state(c).is_some()
+                })
+            })
+        });
     let queried_peer_ids: Vec<usize> = peer
         .preceding
         .iter()
         .filter_map(|p| p.interactive_id)
         .filter(|id| {
+            let needle = format!("__hozoPeer[{id}]");
+            let forwarded_reads_peer = to_children
+                .iter()
+                .chain(descendants.iter())
+                .any(|declaration| {
+                    condition_contains(&declaration.condition, |c| {
+                        matches!(c, Condition::Expr(ConditionExpr::RawJs(expr)) if expr.contains(&needle))
+                    })
+                });
             raw_text_reads_peer
                 || child_decls_read_peer
-                || props_text.contains(&format!("__hozoPeer[{id}]"))
+                || forwarded_reads_peer
+                || (own_reads_peer && props_text.contains(&needle))
         })
         .collect();
     let mut rendered = if component == "TextInput"
@@ -901,6 +985,7 @@ pub(super) fn render_node(
         }
         rendered.copies = Some(copies);
     }
+    let uses_container_query = uses_container_query || props_text.contains("__hozoCq[");
     let rendered = wrappers::subtree_scope(rendered, uses_subtree_scope, cx);
     let rendered = wrappers::peer_query(rendered, &queried_peer_ids, cx);
     let rendered = wrappers::parent_size_query(rendered, uses_parent_size_query, cx);

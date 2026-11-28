@@ -10,11 +10,18 @@ pub(super) struct Inheritance {
     pub(super) style: Vec<StyleDeclaration>,
     pub(super) to_children: Vec<StyleDeclaration>,
     pub(super) descendants: Vec<StyleDeclaration>,
+    pub(super) subtree_needs_interaction_host: bool,
+    pub(super) subtree_needs_focus_visible: bool,
+    pub(super) subtree_child_report: SubtreeReport,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn inherit(
     node: &Node,
     component: &str,
+    position: SiblingPosition,
+    interaction_context: bool,
+    peers: &[PeerSibling<'_>],
     style: Vec<StyleDeclaration>,
     ancestor: AncestorContext<'_>,
     cx: &mut NativeRenderContext<'_>,
@@ -24,6 +31,7 @@ pub(super) fn inherit(
         parent_font_size,
         parent_size_opaque,
         from_ancestor,
+        group_ancestor,
         ..
     } = ancestor;
     let theme = cx.theme;
@@ -90,7 +98,21 @@ pub(super) fn inherit(
     let (subtree, style): (Vec<_>, Vec<_>) = style
         .into_iter()
         .partition(|d| d.condition.split_subtree().is_some());
-    let (to_children, to_descendants) = subtree_for_children(&subtree, node, cx.diagnostics);
+    let crate::children::SubtreeChildren {
+        direct: to_children,
+        all: to_descendants,
+        needs_interaction_host: subtree_needs_interaction_host,
+        needs_focus_visible: subtree_needs_focus_visible,
+        subtree_report: subtree_child_report,
+    } = subtree_for_children(
+        &subtree,
+        node,
+        position,
+        interaction_context,
+        group_ancestor,
+        peers,
+        cx,
+    );
     // An ancestor's `**:` keeps going; a parent's `*:` stops here.
     let descendants: Vec<StyleDeclaration> = from_ancestor
         .all
@@ -116,5 +138,8 @@ pub(super) fn inherit(
         style,
         to_children,
         descendants,
+        subtree_needs_interaction_host,
+        subtree_needs_focus_visible,
+        subtree_child_report,
     }
 }

@@ -11,8 +11,8 @@ mod line_breaks;
 mod wrap;
 
 pub(crate) use field_colours::{
-    caret_colour, caret_only_reason, caret_props, placeholder_colour, placeholder_only_reason,
-    placeholder_props, placeholder_value, selection_colour, selection_props,
+    caret_only_reason, placeholder_only_reason, placeholder_value_for_slot, resolve_field_colours,
+    FieldColours,
 };
 pub(crate) use font_relative::{fold_font_relative, font_relative_reason, relative_metric};
 pub(crate) use line_breaks::{

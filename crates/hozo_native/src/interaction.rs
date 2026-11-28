@@ -47,7 +47,14 @@ pub(super) fn descendant_uses(node: &Node, predicate: fn(&Condition) -> bool) ->
         if owns_events(node) {
             return false;
         }
+        let has_child_target = node
+            .children
+            .iter()
+            .any(|c| matches!(c, Child::Node(_) | Child::Verbatim { .. }));
         node.style.iter().any(|declaration| {
+            if declaration.condition.split_subtree().is_some() && !has_child_target {
+                return false;
+            }
             (text::is_text_primitive(node.primitive)
                 || text::is_text_property(&declaration.property)
                 || (node.primitive == Primitive::View && uses_group_state(&declaration.condition)))

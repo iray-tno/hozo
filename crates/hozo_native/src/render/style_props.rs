@@ -13,6 +13,7 @@ pub(super) struct StyleProps {
     pub(super) placeholder: Option<Vec<(&'static str, String)>>,
     pub(super) caret: Option<Vec<(&'static str, String)>>,
     pub(super) selection: Option<Vec<(&'static str, String)>>,
+    pub(super) field_colors_callback: Option<String>,
     pub(super) text_break: Option<&'static str>,
     pub(super) ios_line_break: Option<&'static str>,
     pub(super) truncation: Option<Vec<(&'static str, String)>>,
@@ -31,6 +32,7 @@ pub(super) fn write_style_props(
         placeholder,
         caret,
         selection,
+        field_colors_callback,
         text_break,
         ios_line_break,
         truncation,
@@ -105,12 +107,17 @@ pub(super) fn write_style_props(
         }
     }
     for (key, value) in caret.into_iter().flatten() {
-        props_text.push_str(&format!(" {key}={{{value}}}"));
+        if !authored.contains(&key) {
+            props_text.push_str(&format!(" {key}={{{value}}}"));
+        }
     }
     for (key, value) in selection.into_iter().flatten() {
         if !authored.contains(&key) {
             props_text.push_str(&format!(" {key}={{{value}}}"));
         }
+    }
+    if let Some(callback) = field_colors_callback {
+        props_text.push_str(&format!(" hozoFieldColors={{{callback}}}"));
     }
     // Android only: iOS has no balanced strategy, and the prop is ignored
     // there rather than refused, which is the same answer as the Web giving

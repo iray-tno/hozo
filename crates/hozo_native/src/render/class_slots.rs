@@ -71,19 +71,37 @@ pub(super) fn class_slot_props<'n>(
             // sides, and `placeholder_value` registers runtime needs (the
             // dark-scheme hook), which a slot with no placeholder prop must
             // not import.
-            let placeholder = if let Some(prop) =
+            let (placeholder, placeholder_consumed) = if let Some(prop) =
                 crate::pattern::placeholder_color_prop(node.primitive, slot.class_prop)
             {
-                crate::text::placeholder_value(slot_style, cx.theme, cx.runtime)
-                    .map(|value| (prop, value))
+                let slot_target = crate::conditions::StyleTarget {
+                    owner_facts: cx.owner_inputs.facts,
+                    owner_events: cx.owner_inputs.events,
+                    node,
+                    position,
+                    interaction_context: false,
+                    group_ancestor,
+                    peers,
+                    pattern_slot: Some(slot.class_prop),
+                    composition: Default::default(),
+                };
+                let (value, consumed) = crate::text::placeholder_value_for_slot(
+                    slot_style,
+                    &slot_target,
+                    cx.source,
+                    cx.theme,
+                    cx.runtime,
+                );
+                (value.map(|value| (prop, value)), Some(consumed))
             } else {
-                None
+                (None, None)
             };
-            let field_style: Option<Vec<_>> = placeholder.as_ref().map(|_| {
+            let field_style: Option<Vec<_>> = placeholder_consumed.as_ref().map(|consumed| {
                 slot_style
                     .iter()
-                    .filter(|declaration| placeholder_colour(declaration).is_none())
-                    .cloned()
+                    .enumerate()
+                    .filter(|(index, _)| !consumed[*index])
+                    .map(|(_, declaration)| declaration.clone())
                     .collect()
             });
             for declaration in field_style.as_deref().unwrap_or(slot_style) {

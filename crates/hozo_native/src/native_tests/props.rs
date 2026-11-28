@@ -272,8 +272,8 @@ fn placeholder_pseudo_colour_and_dark_mode_are_props_not_value_styles() {
 fn unsupported_placeholder_styles_and_stacks_still_diagnose() {
     for classes in [
         "placeholder:font-bold",
-        "focus:placeholder:text-red-500",
-        "placeholder:text-red-500 md:placeholder:text-blue-500",
+        "hover:placeholder:text-red-500",
+        "visited:placeholder:text-red-500",
         "placeholder:text-current",
         "placeholder:text-inherit",
         "placeholder:text-[color(display-p3_1_0_0)]",
@@ -348,13 +348,13 @@ fn an_authored_selection_colour_wins() {
 #[test]
 fn selection_styles_the_prop_cannot_carry_still_diagnose() {
     // The prop is the highlight colour and nothing else: not the selected
-    // text's colour, not a stack it cannot follow, and not on an element
-    // that has no selection to highlight.
+    // text's colour, not a stack it cannot follow (TextInput has no hover),
+    // and not on an element that has no selection to highlight.
     for (primitive, classes) in [
         ("TextInput", "selection:text-red-500"),
         ("TextInput", "selection:p-4"),
-        ("TextInput", "focus:selection:bg-red-500"),
-        ("TextInput", "md:selection:bg-red-500"),
+        ("TextInput", "hover:selection:bg-red-500"),
+        ("TextInput", "visited:selection:bg-red-500"),
         ("TextInput", "selection:bg-current"),
         ("View", "selection:bg-red-500"),
     ] {
@@ -370,7 +370,119 @@ fn selection_styles_the_prop_cannot_carry_still_diagnose() {
             output.diagnostics
         );
         assert!(!output.jsx.contains("selectionColor"), "{}", output.jsx);
+        assert!(!output.jsx.contains("hozoFieldColors"), "{}", output.jsx);
     }
+}
+
+#[test]
+fn conditional_field_colours_lower_to_props_and_focus_callback() {
+    // Non-interactive stacks (breakpoints, env, props, container queries) stay on
+    // plain TextInput props with zero callback overhead.
+    let source = r#"
+        import { TextInput } from '@hozo/core'
+        export function C({ locked }) {
+            return <TextInput accessibilityLabel="Field" readOnly={locked} className="selection:bg-red-500 md:selection:bg-blue-500 read-only:placeholder:text-gray-400 rtl:caret-blue-500" />
+        }
+    "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output
+            .jsx
+            .contains("selectionColor={__hozoBp_md ? '#2b7fff' : '#fb2c36'}"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains("placeholderTextColor={(locked) ? '#99a1af' : undefined}"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains("cursorColor={__hozoEnv_rtl ? '#2b7fff' : undefined}"),
+        "{}",
+        output.jsx
+    );
+    assert!(output.jsx.starts_with("<TextInput "), "{}", output.jsx);
+
+    // Focus-driven stacks upgrade to HozoTextInput with `hozoFieldColors`.
+    let focused_source = r#"
+        import { TextInput } from '@hozo/core'
+        export function C() {
+            return <TextInput accessibilityLabel="Field" className="selection:bg-red-500 focus:selection:bg-blue-500 focus-visible:placeholder:text-gray-500 md:focus:caret-blue-500" />
+        }
+    "#;
+    let parsed = hozo_parser::parse_tsx(focused_source);
+    let output = lower(&parsed.roots[0].node, focused_source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoTextInput "), "{}", output.jsx);
+    assert!(output.jsx.contains("hozoFieldColors={"), "{}", output.jsx);
+    assert!(
+        output
+            .jsx
+            .contains("selectionColor: focused ? '#2b7fff' : '#fb2c36'"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains("placeholderTextColor: focusVisible ? '#6a7282' : undefined"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains("cursorColor: __hozoBp_md && focused ? '#2b7fff' : undefined"),
+        "{}",
+        output.jsx
+    );
+
+    // Container query on selection colour wraps TextInput in HozoContainerQuery.
+    let cq_source = r#"
+        import { TextInput } from '@hozo/core'
+        export function C() {
+            return <TextInput accessibilityLabel="Field" className="@sm:selection:bg-blue-500" />
+        }
+    "#;
+    let parsed = hozo_parser::parse_tsx(cq_source);
+    let output = lower(&parsed.roots[0].node, cq_source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output.jsx.contains("<HozoContainerQuery>"),
+        "{}",
+        output.jsx
+    );
+    assert!(output.jsx.contains("selectionColor={"), "{}", output.jsx);
+
+    // Failed stacked condition must not leak hooks into the prelude.
+    let bad_source = r#"
+        import { TextInput } from '@hozo/core'
+        export function C() {
+            return <TextInput accessibilityLabel="Field" className="md:hover:selection:bg-blue-500" />
+        }
+    "#;
+    let parsed = hozo_parser::parse_tsx(bad_source);
+    let output = lower(&parsed.roots[0].node, bad_source, &Theme::default());
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+        "{:?}",
+        output.diagnostics
+    );
+    assert!(
+        !output.prelude.iter().any(|p| p.contains("__hozoBp_md")),
+        "{:?}",
+        output.prelude
+    );
 }
 
 #[test]

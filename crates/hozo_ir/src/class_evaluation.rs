@@ -252,7 +252,8 @@ impl ClassEvaluation {
             }
             ConditionExpr::Static(_)
             | ConditionExpr::Captured(_)
-            | ConditionExpr::StateDisabled(_) => {}
+            | ConditionExpr::StateDisabled(_)
+            | ConditionExpr::RawJs(_) => {}
         }
     }
 

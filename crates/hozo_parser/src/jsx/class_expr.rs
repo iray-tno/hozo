@@ -75,7 +75,8 @@ pub(super) fn has_authored_guard_expr(expression: &ConditionExpr) -> bool {
         }
         ConditionExpr::Static(_)
         | ConditionExpr::StateDisabled(_)
-        | ConditionExpr::ClassConflict(_) => false,
+        | ConditionExpr::ClassConflict(_)
+        | ConditionExpr::RawJs(_) => false,
     }
 }
 

@@ -15,7 +15,6 @@ pub(super) struct Lowered {
     pub(super) text_break: bool,
     pub(super) ios_line_break: bool,
     pub(super) keyframes: bool,
-    pub(super) caret: bool,
     pub(super) self_measured: bool,
     pub(super) parent_measured: bool,
     pub(super) parent_measured_space: bool,
@@ -23,18 +22,22 @@ pub(super) struct Lowered {
 
 pub(super) fn native_backdrop_filter(
     declaration: &StyleDeclaration,
+    runtime: &mut RuntimeNeeds,
 ) -> Option<NativeBackdropFilter> {
     if declaration.condition != Condition::Always {
         return None;
     }
     match &declaration.property {
         StyleProperty::BackdropFilter(FilterFunction::None, _) => Some(NativeBackdropFilter::None),
-        StyleProperty::BackdropFilter(FilterFunction::Blur, value) => value
-            .strip_prefix("blur(")?
-            .strip_suffix(')')
-            .and_then(hozo_ir::resolve_native_length_px)
-            .filter(|px| *px >= 0.0)
-            .map(|radius| NativeBackdropFilter::Blur(radius.to_string())),
+        StyleProperty::BackdropFilter(FilterFunction::Blur, value) => {
+            let inner = value.strip_prefix("blur(")?.strip_suffix(')')?;
+            if let Some(px) = hozo_ir::resolve_native_length_px(inner).filter(|px| *px >= 0.0) {
+                return Some(NativeBackdropFilter::Blur(px.to_string()));
+            }
+            let expr = crate::layout::viewport_length_str(inner, true)?;
+            runtime.hooks.push(RuntimeHook::Viewport);
+            Some(NativeBackdropFilter::Blur(expr))
+        }
         _ => None,
     }
 }
@@ -46,6 +49,7 @@ pub(super) fn report_refused(
     elsewhere: Lowered,
     node: &Node,
     theme: &Theme,
+    runtime: &mut RuntimeNeeds,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<NativeBackdropFilter> {
     let mut backdrop_filter = None;
@@ -114,7 +118,7 @@ pub(super) fn report_refused(
             });
             continue;
         }
-        if let Some(filter) = native_backdrop_filter(declaration) {
+        if let Some(filter) = native_backdrop_filter(declaration, runtime) {
             backdrop_filter = Some(filter);
             continue;
         }
@@ -228,7 +232,7 @@ pub(super) fn report_refused(
             ) {
                 if let Some(reason) = placeholder_only_reason(&declaration.property) {
                     let reason = if node.primitive == Primitive::TextInput {
-                        "conditional placeholder colours beyond dark mode are not wired to TextInput's placeholderTextColor prop".to_string()
+                        "this condition cannot drive TextInput's placeholderTextColor prop on React Native".to_string()
                     } else {
                         reason
                     };
@@ -242,11 +246,9 @@ pub(super) fn report_refused(
                 color,
                 hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
             ) {
-                if elsewhere.caret && caret_colour(declaration).is_some() {
-                    continue;
-                }
                 let reason = if node.primitive == Primitive::TextInput {
-                    "conditional caret colours beyond dark mode are not wired to TextInput's cursorColor prop".to_string()
+                    "this condition cannot drive TextInput's cursorColor prop on React Native"
+                        .to_string()
                 } else {
                     caret_only_reason()
                 };

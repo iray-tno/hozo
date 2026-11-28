@@ -78,6 +78,7 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'grid-cols-[10px]',
     'grid-cols-[2rem]',
     'grid-cols-[50%]',
+    'grid-cols-[100vh]',
     'grid-cols-[calc(100%-2rem)]',
     'grid-rows-[50%]',
     'grid-rows-[calc(100%-2rem)]',
@@ -110,10 +111,14 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
     'w-[calc(100%-2rem)]',
     'p-[calc(100%-2rem)]',
     'space-x-[calc(100%-2rem)]',
+    // Viewport lengths across numeric RN length properties
+    'rounded-[100vh]',
+    'translate-y-[100vh]',
+    'backdrop-blur-[100vh]',
     // Dynamic CSS (out-of-scope runtime state)
     'w-[var(--x)]',
     'w-[1.5em]',
-    'rounded-[100vh]',
+    'from-[100vh]',
     'text-[50%]',
     'text-[calc(100%-2rem)]',
     // Web-only
@@ -155,6 +160,7 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('grid-cols-[10px]'), 'contextCovered')
   assert.equal(byCandidate.get('grid-cols-[2rem]'), 'contextCovered')
   assert.equal(byCandidate.get('grid-cols-[50%]'), 'contextCovered')
+  assert.equal(byCandidate.get('grid-cols-[100vh]'), 'contextCovered')
   assert.equal(byCandidate.get('grid-cols-[calc(100%-2rem)]'), 'contextCovered')
   assert.equal(byCandidate.get('grid-rows-[50%]'), 'contextCovered')
   assert.equal(byCandidate.get('grid-rows-[calc(100%-2rem)]'), 'contextCovered')
@@ -185,12 +191,15 @@ test('auditArbitraryNative partitions representative arbitrary candidates honest
   assert.equal(byCandidate.get('w-[calc(100%-2rem)]'), 'validCovered')
   assert.equal(byCandidate.get('p-[calc(100%-2rem)]'), 'validCovered')
   assert.equal(byCandidate.get('space-x-[calc(100%-2rem)]'), 'validCovered')
+  assert.equal(byCandidate.get('rounded-[100vh]'), 'validCovered')
+  assert.equal(byCandidate.get('translate-y-[100vh]'), 'validCovered')
+  assert.equal(byCandidate.get('backdrop-blur-[100vh]'), 'validCovered')
   assert.equal(summary.implementable, 0)
   assert.equal(summary.layoutMeasurable, 0)
 
   assert.equal(byCandidate.get('w-[var(--x)]'), 'dynamicCss')
   assert.equal(byCandidate.get('w-[1.5em]'), 'dynamicCss')
-  assert.equal(byCandidate.get('rounded-[100vh]'), 'dynamicCss')
+  assert.equal(byCandidate.get('from-[100vh]'), 'dynamicCss')
   assert.equal(byCandidate.get('text-[50%]'), 'dynamicCss')
   assert.equal(byCandidate.get('text-[calc(100%-2rem)]'), 'dynamicCss')
 
