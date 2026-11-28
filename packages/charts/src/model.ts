@@ -115,11 +115,24 @@ export interface ComposedSeries extends ChartSeries {
   type?: 'bar' | 'line'
 }
 
-export interface ComposedChartInput extends ChartInput {
-  series: readonly ComposedSeries[]
+/**
+ * How a line runs between values: straight, or a monotone curve that
+ * bends through each value without overshooting it, so a curve never shows
+ * a peak or a dip that is not in the data.
+ */
+export type Curve = 'linear' | 'monotone'
+
+export interface LineChartInput extends ChartInput {
+  curve?: Curve
 }
 
-export interface AreaChartInput extends ChartInput {
+export interface ComposedChartInput extends ChartInput {
+  series: readonly ComposedSeries[]
+  /** How the line series run between values. */
+  curve?: Curve
+}
+
+export interface AreaChartInput extends LineChartInput {
   /** Each series' band sits on the ones before it, so the top edge is the total. */
   stacked?: boolean
 }
@@ -611,17 +624,16 @@ function bands(
  */
 export function areaPath(
   points: readonly (readonly [x: number, top: number, bottom: number] | undefined)[],
+  curve: Curve = 'linear',
 ): string {
   let path = ''
   let run: (readonly [number, number, number])[] = []
   const close = () => {
     if (run.length > 1) {
-      path += run.map(([x, top], i) => `${i ? 'L' : 'M'}${round(x)},${round(top)}`).join('')
-      for (let i = run.length - 1; i >= 0; i--) {
-        const [x, , bottom] = run[i] as readonly [number, number, number]
-        path += `L${round(x)},${round(bottom)}`
-      }
-      path += 'Z'
+      const top = run.map(([x, y]) => [x, y] as const)
+      const bottom = run.map(([x, , y]) => [x, y] as const).reverse()
+      path += `M${round(top[0]?.[0] ?? 0)},${round(top[0]?.[1] ?? 0)}${segments(top, curve)}`
+      path += `L${round(bottom[0]?.[0] ?? 0)},${round(bottom[0]?.[1] ?? 0)}${segments(bottom, curve)}Z`
     }
     run = []
   }
@@ -741,7 +753,7 @@ export function composedChartModel(input: ComposedChartInput): ChartModel {
     const points = (values[series] ?? []).map((value, datum) =>
       value === undefined ? undefined : ([centers[datum] as number, y(value)] as const),
     )
-    marks.push({ kind: 'line', series, path: linePath(points) })
+    marks.push({ kind: 'line', series, path: linePath(points, input.curve) })
     for (const [datum, point] of points.entries())
       if (point) marks.push({ kind: 'point', series, datum, cx: point[0], cy: point[1] })
   }
@@ -854,23 +866,80 @@ function horizontalBars(
  * An SVG path through `points`, broken at each gap: a missing value must
  * not be drawn as a line across it, which would show a value nobody gave.
  */
-export function linePath(points: readonly (readonly [number, number] | undefined)[]): string {
+export function linePath(
+  points: readonly (readonly [number, number] | undefined)[],
+  curve: Curve = 'linear',
+): string {
   let path = ''
-  let drawing = false
+  let run: (readonly [number, number])[] = []
+  const close = () => {
+    const [first] = run
+    if (first) path += `M${round(first[0])},${round(first[1])}${segments(run, curve)}`
+    run = []
+  }
   for (const point of points) {
-    if (!point) {
-      drawing = false
-      continue
-    }
-    path += `${drawing ? 'L' : 'M'}${round(point[0])},${round(point[1])}`
-    drawing = true
+    if (point) run.push(point)
+    else close()
+  }
+  close()
+  return path
+}
+
+type Point = readonly [number, number]
+
+/** The path from `run[0]` on through the rest, straight or curved. */
+function segments(run: readonly Point[], curve: Curve): string {
+  if (curve === 'linear' || run.length < 3)
+    return run
+      .slice(1)
+      .map(([x, y]) => `L${round(x)},${round(y)}`)
+      .join('')
+  const slopes = monotoneSlopes(run)
+  let path = ''
+  for (let i = 1; i < run.length; i++) {
+    const [x0, y0] = run[i - 1] as Point
+    const [x1, y1] = run[i] as Point
+    const third = (x1 - x0) / 3
+    const c0 = [x0 + third, y0 + third * (slopes[i - 1] as number)]
+    const c1 = [x1 - third, y1 - third * (slopes[i] as number)]
+    path += `C${round(c0[0] as number)},${round(c0[1] as number)} ${round(c1[0] as number)},${round(c1[1] as number)} ${round(x1)},${round(y1)}`
   }
   return path
 }
 
+/**
+ * The tangent at each point of a monotone cubic (Fritsch and Carlson, as
+ * d3's `curveMonotoneX` chooses it): zero at a peak or a dip, and never
+ * steep enough to carry the curve past a neighbour's value. It works with x
+ * running either way, so an area's lower edge can be drawn back along it.
+ */
+export function monotoneSlopes(run: readonly Point[]): number[] {
+  const n = run.length
+  const h: number[] = []
+  const secant: number[] = []
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = run[i] as Point
+    const [x1, y1] = run[i + 1] as Point
+    h.push(x1 - x0)
+    secant.push(x1 === x0 ? 0 : (y1 - y0) / (x1 - x0))
+  }
+  const slopes = new Array<number>(n).fill(0)
+  for (let i = 1; i < n - 1; i++) {
+    const [s0, s1] = [secant[i - 1] as number, secant[i] as number]
+    const [h0, h1] = [h[i - 1] as number, h[i] as number]
+    const p = h0 + h1 === 0 ? 0 : (s0 * h1 + s1 * h0) / (h0 + h1)
+    slopes[i] =
+      (Math.sign(s0) + Math.sign(s1)) * Math.min(Math.abs(s0), Math.abs(s1), 0.5 * Math.abs(p)) || 0
+  }
+  // An end has one neighbour: the tangent a quadratic through it would take.
+  slopes[0] = (3 * (secant[0] as number) - (slopes[1] as number)) / 2
+  slopes[n - 1] = (3 * (secant[n - 2] as number) - (slopes[n - 2] as number)) / 2
+  return slopes
+}
+
 const round = (value: number) => Math.round(value * 100) / 100
 
-export function lineChartModel(input: ChartInput): ChartModel {
+export function lineChartModel(input: LineChartInput): ChartModel {
   return pointChart(input, undefined)
 }
 
@@ -884,7 +953,7 @@ export function areaChartModel(input: AreaChartInput): ChartModel {
 }
 
 /** Line and Area: one point per datum, a line through each series, and for Area its bands. */
-function pointChart(input: ChartInput, area: boolean | undefined): ChartModel {
+function pointChart(input: LineChartInput, area: boolean | undefined): ChartModel {
   const categories = categoriesOf(input)
   const values = input.series.map((series) => input.data.map((row) => rowValue(row, series.key)))
   const fontSize = input.fontSize ?? 12
@@ -910,6 +979,7 @@ function pointChart(input: ChartInput, area: boolean | undefined): ChartModel {
           column.map((span, datum) =>
             span ? [centers[datum] as number, y(span[1]), y(span[0])] : undefined,
           ),
+          input.curve,
         ),
         opacity: area ? 0.7 : 0.25,
       })
@@ -917,7 +987,7 @@ function pointChart(input: ChartInput, area: boolean | undefined): ChartModel {
     const points = column.map((span, datum) =>
       span === undefined ? undefined : ([centers[datum] as number, y(span[1])] as const),
     )
-    marks.push({ kind: 'line', series, path: linePath(points) })
+    marks.push({ kind: 'line', series, path: linePath(points, input.curve) })
     for (const [datum, point] of points.entries())
       if (point) marks.push({ kind: 'point', series, datum, cx: point[0], cy: point[1] })
   }

@@ -134,6 +134,7 @@ theme.
 | `horizontal` | `BarChart`: bars run left to right, with the categories down the left side, for long labels and rankings. `y` still describes the values. Down and Up also step through the rows. |
 | `stacked` | `BarChart` and `AreaChart`: stack the series instead of grouping or overlapping them. A stacked area's top edge is the total; the table still reads each series' own value. |
 | `points` | `LineChart` and `AreaChart`: draw a dot at each value. |
+| `curve` | `LineChart`, `AreaChart` and the lines of `ComposedChart`: `'linear'` (the default) or `'monotone'`, a curve through each value that never overshoots it, so it shows no peak or dip that is not in the data. A gap still breaks it. |
 
 `color` is a runtime string rather than a `className`, because a class list is compile-time
 input on Native.

@@ -19,6 +19,7 @@ import {
   type ChartInput,
   type ChartModel,
   type ComposedSeries,
+  type Curve,
   composedChartModel,
   lineChartModel,
 } from './model.ts'
@@ -54,6 +55,8 @@ export type BarChartProps = Common & Pick<BarChartInput, 'stacked' | 'horizontal
 export type LineChartProps = Common & {
   /** Draw a dot at each value. */
   points?: boolean
+  /** Straight between values (the default), or a monotone curve through them. */
+  curve?: Curve
 }
 
 export type AreaChartProps = LineChartProps & Pick<AreaChartInput, 'stacked'>
@@ -70,6 +73,8 @@ export type ComposedChartProps = Omit<Common, 'series'> & {
   series: readonly ComposedSeries[]
   /** Draw a dot at each value of the line series. */
   points?: boolean
+  /** How the line series run between values. */
+  curve?: Curve
 }
 
 export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin' | 'references' | 'legend'> & {

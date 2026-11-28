@@ -366,3 +366,39 @@ export const Theming: StoryObj<typeof meta> = {
     </View>
   ),
 }
+
+// A monotone curve bends through each value without passing it, so a peak
+// or a dip on the curve is one in the data. How the line runs is drawing
+// only: the table and the summary read the same values as a straight line.
+export const Curves: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-8 p-6 text-slate-700">
+      <Section className="gap-2">
+        <Heading level={2}>Curved lines</Heading>
+        <LineChart
+          accessibilityLabel="Revenue by month and channel, curved"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={series}
+          height={220}
+          curve="monotone"
+          points
+        />
+      </Section>
+      <Section className="gap-2">
+        <Heading level={2}>Curved stacked areas</Heading>
+        <AreaChart
+          accessibilityLabel="Revenue by month and channel, stacked and curved"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={series}
+          height={220}
+          curve="monotone"
+          stacked
+        />
+      </Section>
+    </View>
+  ),
+}

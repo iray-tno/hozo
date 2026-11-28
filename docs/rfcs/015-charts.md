@@ -91,7 +91,9 @@ import { BarChart, LineChart } from '@hozo/charts'
   keeping 3:1 against white and near-black. Theme-token colours are a
   later step, once a runtime token read exists on both platforms.
 - Bar has `grouped` (default) and `stacked`. Line has `points` (whether
-  each datum gets a dot); `curve: 'monotone'` is deferred to after phase 1.
+  each datum gets a dot) and `curve`: `'monotone'` bends through each value
+  without overshooting it (Fritsch–Carlson tangents, as d3's
+  `curveMonotoneX`), so the drawing never shows a peak the data lacks.
 
 ### 3.1 Theme
 
