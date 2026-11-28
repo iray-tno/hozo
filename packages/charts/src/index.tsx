@@ -1,3 +1,4 @@
+import { BrushBox } from './brush-box.tsx'
 import { ChartBox } from './chart-box.tsx'
 import { createCharts } from './charts.tsx'
 import { useSystemScheme } from './color-scheme.ts'
@@ -13,13 +14,25 @@ export const {
   PieChart,
   DonutChart,
   FunnelChart,
-} = createCharts(ChartBox, useSystemScheme, useReducedMotion)
+} = createCharts(ChartBox, useSystemScheme, useReducedMotion, BrushBox)
 // The root's own name makes it one image on Web.
 export const Sparkline = createSparkline({}, useSystemScheme)
 export { datumSentence, datumTitle, nextDatum } from './active.ts'
+export {
+  type BrushModel,
+  type BrushRange,
+  brushModel,
+  clampRange,
+  dragTo,
+  grabAt,
+  moveEnd,
+  rangeNote,
+} from './brush.ts'
 export type {
   AreaChartProps,
   BarChartProps,
+  BrushBoxComponentProps,
+  BrushOptions,
   ComposedChartProps,
   FunnelChartProps,
   LineChartProps,

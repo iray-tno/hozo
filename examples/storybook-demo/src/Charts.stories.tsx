@@ -183,6 +183,39 @@ export const Funnel: StoryObj<typeof meta> = {
   ),
 }
 
+// 120 days of visits: a weekly rhythm on a slow rise, with a launch spike.
+const visits = Array.from({ length: 120 }, (_, i) => {
+  const date = new Date(Date.UTC(2026, 0, 1 + i))
+  const weekday = date.getUTCDay()
+  const weekend = weekday === 0 || weekday === 6 ? 0.6 : 1
+  const launch = i >= 70 && i < 76 ? 2.2 - (i - 70) * 0.2 : 1
+  return {
+    day: date.toISOString().slice(0, 10),
+    visits: Math.round((800 + i * 6 + 90 * Math.sin(i / 9)) * weekend * launch),
+  }
+})
+
+/**
+ * A long series with a brush under it. The chart shows the last 30 days at
+ * first; each end of the strip is a slider, moved with the arrow keys or
+ * dragged, and the summary and the table say which days are shown.
+ */
+export const Brush: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-2 p-6 text-slate-700">
+      <LineChart
+        accessibilityLabel="Visits by day"
+        data={visits}
+        x={{ key: 'day', type: 'time', label: 'Date' }}
+        y={{ label: 'Visits', format: (value) => value.toLocaleString('en-US') }}
+        series={[{ key: 'visits', label: 'Visits' }]}
+        height={220}
+        brush={{ defaultRange: { start: 90, end: 119 } }}
+      />
+    </View>
+  ),
+}
+
 const metrics = [
   { name: 'Visits', week: [412, 380, 455, 71, 520, 730, 640] },
   { name: 'Sign-ups', week: [12, 15, null, 9, 14, 22, 19] },

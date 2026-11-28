@@ -1,0 +1,135 @@
+chart, Visits by day, Showing 30 of 120 categories. 30 categories, Apr 1, 2026 to Apr 30, 2026. Visits: lowest 772 at Apr 4, 2026, highest 1,569 at Apr 30, 2026.
+table, Visits by day, Apr 1, 2026 to Apr 30, 2026
+rowgroup
+row, Date Visits
+columnheader, Date
+columnheader, Visits
+end of row, Date Visits
+end of rowgroup
+rowgroup
+row, Apr 1, 2026 1,291
+rowheader, Apr 1, 2026
+cell, 1,291
+end of row, Apr 1, 2026 1,291
+row, Apr 2, 2026 1,289
+rowheader, Apr 2, 2026
+cell, 1,289
+end of row, Apr 2, 2026 1,289
+row, Apr 3, 2026 1,288
+rowheader, Apr 3, 2026
+cell, 1,288
+end of row, Apr 3, 2026 1,288
+row, Apr 4, 2026 772
+rowheader, Apr 4, 2026
+cell, 772
+end of row, Apr 4, 2026 772
+row, Apr 5, 2026 772
+rowheader, Apr 5, 2026
+cell, 772
+end of row, Apr 5, 2026 772
+row, Apr 6, 2026 1,289
+rowheader, Apr 6, 2026
+cell, 1,289
+end of row, Apr 6, 2026 1,289
+row, Apr 7, 2026 1,291
+rowheader, Apr 7, 2026
+cell, 1,291
+end of row, Apr 7, 2026 1,291
+row, Apr 8, 2026 1,294
+rowheader, Apr 8, 2026
+cell, 1,294
+end of row, Apr 8, 2026 1,294
+row, Apr 9, 2026 1,299
+rowheader, Apr 9, 2026
+cell, 1,299
+end of row, Apr 9, 2026 1,299
+row, Apr 10, 2026 1,304
+rowheader, Apr 10, 2026
+cell, 1,304
+end of row, Apr 10, 2026 1,304
+row, Apr 11, 2026 786
+rowheader, Apr 11, 2026
+cell, 786
+end of row, Apr 11, 2026 786
+row, Apr 12, 2026 791
+rowheader, Apr 12, 2026
+cell, 791
+end of row, Apr 12, 2026 791
+row, Apr 13, 2026 1,327
+rowheader, Apr 13, 2026
+cell, 1,327
+end of row, Apr 13, 2026 1,327
+row, Apr 14, 2026 1,337
+rowheader, Apr 14, 2026
+cell, 1,337
+end of row, Apr 14, 2026 1,337
+row, Apr 15, 2026 1,348
+rowheader, Apr 15, 2026
+cell, 1,348
+end of row, Apr 15, 2026 1,348
+row, Apr 16, 2026 1,360
+rowheader, Apr 16, 2026
+cell, 1,360
+end of row, Apr 16, 2026 1,360
+row, Apr 17, 2026 1,372
+rowheader, Apr 17, 2026
+cell, 1,372
+end of row, Apr 17, 2026 1,372
+row, Apr 18, 2026 831
+rowheader, Apr 18, 2026
+cell, 831
+end of row, Apr 18, 2026 831
+row, Apr 19, 2026 840
+rowheader, Apr 19, 2026
+cell, 840
+end of row, Apr 19, 2026 840
+row, Apr 20, 2026 1,414
+rowheader, Apr 20, 2026
+cell, 1,414
+end of row, Apr 20, 2026 1,414
+row, Apr 21, 2026 1,430
+rowheader, Apr 21, 2026
+cell, 1,430
+end of row, Apr 21, 2026 1,430
+row, Apr 22, 2026 1,445
+rowheader, Apr 22, 2026
+cell, 1,445
+end of row, Apr 22, 2026 1,445
+row, Apr 23, 2026 1,461
+rowheader, Apr 23, 2026
+cell, 1,461
+end of row, Apr 23, 2026 1,461
+row, Apr 24, 2026 1,477
+rowheader, Apr 24, 2026
+cell, 1,477
+end of row, Apr 24, 2026 1,477
+row, Apr 25, 2026 896
+rowheader, Apr 25, 2026
+cell, 896
+end of row, Apr 25, 2026 896
+row, Apr 26, 2026 905
+rowheader, Apr 26, 2026
+cell, 905
+end of row, Apr 26, 2026 905
+row, Apr 27, 2026 1,525
+rowheader, Apr 27, 2026
+cell, 1,525
+end of row, Apr 27, 2026 1,525
+row, Apr 28, 2026 1,540
+rowheader, Apr 28, 2026
+cell, 1,540
+end of row, Apr 28, 2026 1,540
+row, Apr 29, 2026 1,555
+rowheader, Apr 29, 2026
+cell, 1,555
+end of row, Apr 29, 2026 1,555
+row, Apr 30, 2026 1,569
+rowheader, Apr 30, 2026
+cell, 1,569
+end of row, Apr 30, 2026 1,569
+end of rowgroup
+end of table, Visits by day, Apr 1, 2026 to Apr 30, 2026
+group, Visits by day, range shown
+slider, First shown, orientated horizontally, max value 119, min value 0, current value Apr 1, 2026
+slider, Last shown, orientated horizontally, max value 119, min value 90, current value Apr 30, 2026
+end of group, Visits by day, range shown

@@ -263,7 +263,7 @@ export const defaultFormat = (value: number) => {
   return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(6)))
 }
 
-function categoriesOf(input: ChartInput): string[] {
+export function categoriesOf(input: ChartInput): string[] {
   const { format, key } = input.x
   if (format) return input.data.map((row) => format(row[key]))
   if (input.x.type === 'time') {
