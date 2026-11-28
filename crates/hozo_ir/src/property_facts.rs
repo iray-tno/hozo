@@ -799,6 +799,14 @@ impl StyleProperty {
             // its exact effect already; this does not sanction dropping a
             // request for a horizontal/vertical/both handle below.
             StyleProperty::Keyword("resize", "none") => None,
+            // The `clip-path` companion emitted by `sr-only` / `not-sr-only`.
+            // React Native visually hides screen-reader-only content via the
+            // 1px `overflow: 'hidden'` box the rest of `sr-only` already sets
+            // (and never via `opacity: 0`, which iOS VoiceOver hides); Web
+            // keeps `clip-path: inset(50%)` / `none` verbatim. Arbitrary
+            // `[clip-path:...]` and StyleX `clipPath` arrive via `Arbitrary` /
+            // `WebOnly` and remain refused on Native.
+            StyleProperty::Keyword("clip-path", "inset(50%)" | "none") => None,
             StyleProperty::Keyword(property, _)
                 if !matches!(*property,
                     "user-select"

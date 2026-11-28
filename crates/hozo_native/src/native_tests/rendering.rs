@@ -233,6 +233,64 @@ fn transform_gpu_and_reset_animation_frames_remain_explicitly_diagnostic() {
 }
 
 #[test]
+fn sr_only_and_not_sr_only_lower_to_visually_hidden_native_styles() {
+    let source = r#"
+        import { View, Text } from '@hozo/core'
+        function Skip() {
+            return (
+                <View className="sr-only sm:not-sr-only">
+                    <Text className="sr-only">Skip to content</Text>
+                </View>
+            )
+        }
+    "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for expected in [
+        "position: 'absolute'",
+        "width: 1",
+        "height: 1",
+        "marginTop: -1",
+        "overflow: 'hidden'",
+        "borderTopWidth: 0",
+        "position: 'static'",
+        "width: 'auto'",
+        "height: 'auto'",
+        "overflow: 'visible'",
+    ] {
+        assert!(
+            output.styles.contains(expected),
+            "missing `{expected}` in:\n{}",
+            output.styles
+        );
+    }
+    assert!(
+        !output.jsx.contains("numberOfLines"),
+        "sr-only should not clamp screen-reader Text with numberOfLines:\n{}",
+        output.jsx
+    );
+
+    // Explicit `whitespace-nowrap` on a View and arbitrary `clip-path` must
+    // remain refused on Native.
+    for refused in ["whitespace-nowrap", "[clip-path:inset(50%)]"] {
+        let src = format!(
+            "import {{ View }} from '@hozo/core'; function C() {{ return <View className=\"{refused}\" /> }}"
+        );
+        let parsed = hozo_parser::parse_tsx(&src);
+        let output = lower(&parsed.roots[0].node, &src, &Theme::default());
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|d| d.severity == Severity::Error),
+            "{refused} must stay refused: {:?}",
+            output.diagnostics
+        );
+    }
+}
+
+#[test]
 fn shadow_and_filter_carry_across_as_strings() {
     let source = r#"
             import { View } from '@hozo/core'

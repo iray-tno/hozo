@@ -923,6 +923,14 @@ pub enum TextOverflow {
 pub enum WhiteSpace {
     Normal,
     NoWrap,
+    /// The `white-space: nowrap` companion emitted by `sr-only`.
+    ///
+    /// Web emits `white-space: nowrap` identically to `NoWrap`. Native keeps
+    /// it distinct from explicit `whitespace-nowrap` / `truncate` so `sr-only`
+    /// lowers to React Native's 1px clipped visually-hidden box on any host
+    /// without requiring `Text`'s `numberOfLines` prop (while explicit
+    /// `whitespace-nowrap` on a non-Text view stays refused).
+    SrOnlyNoWrap,
     /// `pre`, `pre-line`, `pre-wrap`, `break-spaces`. React Native's Text
     /// has no white-space control beyond wrapping, so these are refused.
     Css(&'static str),
