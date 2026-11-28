@@ -56,6 +56,10 @@
       "types": "./dist/generated/container.d.ts",
       "default": "./dist/generated/container.js"
     },
+    "./generated/first-letter": {
+      "types": "./dist/generated/first-letter.d.ts",
+      "default": "./dist/generated/first-letter.js"
+    },
     "./generated/flat-list": {
       "react-native": {
         "types": "./dist/generated/flat-list.native.d.ts",

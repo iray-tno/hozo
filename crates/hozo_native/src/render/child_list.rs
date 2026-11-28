@@ -68,8 +68,9 @@ pub(super) fn render_child_list(
     position: SiblingPosition,
     parent_group_ancestor: Option<GroupAncestor<'_>>,
     parent_peers: &[PeerSibling<'_>],
+    first_letter: Option<&super::pseudo::FirstLetterStyle>,
     cx: &mut NativeRenderContext<'_>,
-) -> (Rendered, bool) {
+) -> (Rendered, bool, bool) {
     let mut inner = Rendered::new(cx.source_evidence);
     // Tracks whether any earlier sibling could occupy an element position.
     // A `Verbatim` may render nothing, one element, or a hundred
@@ -142,6 +143,7 @@ pub(super) fn render_child_list(
     }
 
     let mut preceding_peers: Vec<PeerSibling<'_>> = Vec::new();
+    let mut first_letter_applied = false;
     for (index, child) in node.children.iter().enumerate() {
         match child {
             hozo_ir::Child::Node(child_node) => {
@@ -178,6 +180,17 @@ pub(super) fn render_child_list(
                 } else {
                     text.clone()
                 };
+                if index == 0 && !first_letter_applied {
+                    if let Some(fl) = first_letter {
+                        if let Some((ws, head, tail)) = super::pseudo::split_first_letter(&text) {
+                            inner
+                                .text
+                                .push_str(&fl.render_static_split(ws, head, tail, cx));
+                            first_letter_applied = true;
+                            continue;
+                        }
+                    }
+                }
                 let escaped = escape_jsx_text(&text);
                 // `SvgText` holds a string itself, so wrapping one in React
                 // Native's `Text` puts a text node where an SVG element
@@ -220,5 +233,5 @@ pub(super) fn render_child_list(
             }
         }
     }
-    (inner, needs_peer_scope)
+    (inner, needs_peer_scope, first_letter_applied)
 }

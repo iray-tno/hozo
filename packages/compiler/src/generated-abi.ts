@@ -28,6 +28,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   hozoDomStyle: '@hozo/core/generated/dom-style',
   hozoEdgeSpreadStyles: '@hozo/core/generated/authored-edges',
   hozoFilterStyles: '@hozo/core/generated/filter-slots',
+  HozoFirstLetter: '@hozo/core/generated/first-letter',
   HozoFlatList: '@hozo/core/generated/flat-list',
   hozoGapSpreadStyles: '@hozo/core/generated/gap-styles',
   hozoGradientStyles: '@hozo/core/generated/gradient-slots',

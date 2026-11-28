@@ -2684,3 +2684,94 @@ fn form_validation_variants_refuse_without_driver_props_and_support_peer() {
         peer_out.styles
     );
 }
+
+#[test]
+fn first_letter_splits_static_text_into_nested_text_without_runtime_wrapper() {
+    let source = r#"
+            import { Text } from '@hozo/core'
+            export function DropCap() {
+              return <Text className="first-letter:text-3xl first-letter:font-bold first-letter:text-blue-500">Hello</Text>
+            }
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output
+            .jsx
+            .contains("<Text style={hozoStyles.hozo0_first_letter}>H</Text>ello"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        !output.runtime_imports.contains(&"HozoFirstLetter"),
+        "{:?}",
+        output.runtime_imports
+    );
+    assert!(output.styles.contains("fontSize: 30"), "{}", output.styles);
+    assert!(
+        output.styles.contains("fontWeight: '700'"),
+        "{}",
+        output.styles
+    );
+    assert!(
+        output.styles.contains("color: '#2b7fff'"),
+        "{}",
+        output.styles
+    );
+}
+
+#[test]
+fn first_letter_uses_hozo_first_letter_for_dynamic_text_and_refuses_box_layout() {
+    let dyn_src = r#"
+            import { Text } from '@hozo/core'
+            export function DynamicCap({ title }) {
+              return <Text className="first-letter:bg-blue-500">{title}</Text>
+            }
+            "#;
+    let dyn_parsed = hozo_parser::parse_tsx(dyn_src);
+    let dyn_out = lower(&dyn_parsed.roots[0].node, dyn_src, &Theme::default());
+    assert!(dyn_out.diagnostics.is_empty(), "{:?}", dyn_out.diagnostics);
+    assert!(
+        dyn_out.runtime_imports.contains(&"HozoFirstLetter"),
+        "{:?}",
+        dyn_out.runtime_imports
+    );
+    assert!(
+        dyn_out.jsx.contains(
+            "<HozoFirstLetter style={hozoStyles.hozo0_first_letter}>{title}</HozoFirstLetter>"
+        ),
+        "{}",
+        dyn_out.jsx
+    );
+
+    let box_src = r#"
+            import { Text } from '@hozo/core'
+            const el = <Text className="first-letter:flex first-letter:p-4">Hello</Text>
+            "#;
+    let box_parsed = hozo_parser::parse_tsx(box_src);
+    let box_out = lower(&box_parsed.roots[0].node, box_src, &Theme::default());
+    assert!(
+        box_out
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::WebOnlyPropertyOnNative),
+        "{:?}",
+        box_out.diagnostics
+    );
+
+    let view_src = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="first-letter:bg-blue-500">Hello</View>
+            "#;
+    let view_parsed = hozo_parser::parse_tsx(view_src);
+    let view_out = lower(&view_parsed.roots[0].node, view_src, &Theme::default());
+    assert!(
+        view_out
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+        "{:?}",
+        view_out.diagnostics
+    );
+}
