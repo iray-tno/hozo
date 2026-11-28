@@ -519,4 +519,36 @@ mod tests {
         assert!(web[0].diagnostics.is_empty());
         assert!(web[0].replacement.contains("fontFamily=\"ui-monospace,"));
     }
+
+    #[test]
+    fn resolves_arbitrary_alpha_modifiers_on_palette_canvas_colors() {
+        let source = r#"
+            import { Canvas } from '@hozo/canvas'
+            const a = <Canvas.Rect className="fill-blue-500/[0.5] stroke-black/[25%]" width={10} height={10} />
+            const b = <Canvas.Text className="text-red-500/[.25] text-lg/[1.5]" text="Hi" x={0} y={0} />
+        "#;
+        let web = lower_canvas_paints(source, &Theme::default(), false);
+        assert!(web[0].diagnostics.is_empty());
+        assert_eq!(
+            web[0].replacement,
+            r#"fill="oklch(62.3% 0.214 259.815 / 0.5)" stroke="rgba(0, 0, 0, 0.25)""#
+        );
+        assert!(web[1].diagnostics.is_empty());
+        assert_eq!(
+            web[1].replacement,
+            r#"fill="oklch(63.7% 0.237 25.331 / 0.25)" fontSize={18} lineHeight={1.5}"#
+        );
+
+        let native = lower_canvas_paints(source, &Theme::default(), true);
+        assert!(native[0].diagnostics.is_empty());
+        assert_eq!(
+            native[0].replacement,
+            r#"fill="rgba(43, 127, 255, 0.5)" stroke="rgba(0, 0, 0, 0.25)""#
+        );
+        assert!(native[1].diagnostics.is_empty());
+        assert_eq!(
+            native[1].replacement,
+            r#"fill="rgba(251, 44, 54, 0.25)" fontSize={18} lineHeight={1.5}"#
+        );
+    }
 }

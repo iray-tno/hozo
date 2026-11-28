@@ -127,35 +127,57 @@ impl Display {
     }
 }
 
-/// A colour token split from its opacity modifier: `blue-500/50` is
-/// `("blue-500", Some(0.5))`.
+/// Parses Tailwind's trailing colour opacity modifier after `/`:
+/// - numeric percentage scale: `50` -> `0.5`, `12.5` -> `0.125` (`0..=100`)
+/// - arbitrary percentage: `[50%]`, `[35.5%]` -> `0.5`, `0.355` (`0..=100`)
+/// - arbitrary ratio: `[0.5]`, `[.25]`, `[1]` -> `0.5`, `0.25`, `1.0` (`0..=1`)
 ///
-/// Tailwind writes the modifier after a slash, and until now the slash
-/// travelled with the token into the palette lookup, where nothing matched
-/// it. The Web backend then emitted its unresolved-colour marker --
-/// `var(--hozo-color-blue-500/50)`, which is not a valid custom property
-/// name, so every browser drops the declaration and the element has no
-/// colour. The Native backend emitted `hozo-unresolved:blue-500/50` into a
-/// style object, which React Native cannot parse either.
+/// Dynamic expressions (`[var(--a)]`, `[calc(...)]`) and out-of-range values
+/// return `None` rather than being guessed at.
+pub fn parse_color_alpha_modifier(modifier: &str) -> Option<f64> {
+    let alpha = if let Some(inner) = modifier.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        let trimmed = inner.trim();
+        if let Some(percent) = trimmed.strip_suffix('%') {
+            let value = percent.trim().parse::<f64>().ok()?;
+            if !(0.0..=100.0).contains(&value) || !value.is_finite() {
+                return None;
+            }
+            value / 100.0
+        } else {
+            let value = trimmed.parse::<f64>().ok()?;
+            if !(0.0..=1.0).contains(&value) || !value.is_finite() {
+                return None;
+            }
+            value
+        }
+    } else {
+        let percent = modifier.parse::<f64>().ok()?;
+        if !(0.0..=100.0).contains(&percent) || !percent.is_finite() {
+            return None;
+        }
+        percent / 100.0
+    };
+    Some(round(alpha))
+}
+
+/// Formats a normalized alpha (`0.0..=1.0`) as a CSS percentage number
+/// without binary floating-point noise (e.g. `0.29` -> `"29"`, `0.125` -> `"12.5"`).
+pub fn format_alpha_percent(alpha: f64) -> String {
+    round(alpha * 100.0).to_string()
+}
+
+/// A colour token split from its opacity modifier: `blue-500/50` and
+/// `blue-500/[0.5]` and `blue-500/[50%]` are all `("blue-500", Some(0.5))`.
 ///
-/// Both were silent. The conformance suite did not catch it because its
-/// candidate list contains no class with a modifier at all: the denominator
-/// never asked.
-///
-/// Only the plain numeric form. Tailwind also accepts `/[0.5]` and
-/// `/(--var)`, and those stay unresolved rather than guessed at -- an
-/// arbitrary alpha is a value this has no way to evaluate, and the marker
-/// they fall back to is at least honest about that.
+/// Dynamic modifiers like `/(--var)` or `/[var(--a)]` stay unsplit rather
+/// than guessed at.
 pub fn split_color_alpha(token: &str) -> (&str, Option<f64>) {
     let Some((base, modifier)) = token.rsplit_once('/') else {
         return (token, None);
     };
-    match modifier.parse::<f64>() {
-        // Tailwind's modifier is a percentage, and the scale it documents
-        // is 0-100. Anything outside that is not a modifier it would have
-        // produced, so it goes through unsplit and stays unresolved.
-        Ok(percent) if (0.0..=100.0).contains(&percent) => (base, Some(percent / 100.0)),
-        _ => (token, None),
+    match parse_color_alpha_modifier(modifier) {
+        Some(alpha) => (base, Some(alpha)),
+        None => (token, None),
     }
 }
 

@@ -40,7 +40,7 @@ pub(super) fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
         // color to the theme's build-time fallback.
         Some(alpha) => format!(
             "color-mix(in oklab, {resolved} {}%, transparent)",
-            alpha * 100.0
+            hozo_ir::format_alpha_percent(alpha)
         ),
     }
 }

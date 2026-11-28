@@ -291,6 +291,52 @@ fn sr_only_and_not_sr_only_lower_to_visually_hidden_native_styles() {
 }
 
 #[test]
+fn palette_arbitrary_alpha_modifiers_and_text_arbitrary_leading_lower_on_native() {
+    let source = r#"
+        import { View, Text } from '@hozo/core'
+        function C() {
+            return (
+                <View className="bg-blue-500/[0.5] border-black/[25%]">
+                    <Text className="text-red-500/[.25] text-lg/[3rem]">Hi</Text>
+                </View>
+            )
+        }
+    "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for expected in [
+        "backgroundColor: 'rgba(43, 127, 255, 0.5)'",
+        "borderColor: 'rgba(0, 0, 0, 0.25)'",
+        "color: 'rgba(251, 44, 54, 0.25)'",
+        "fontSize: 18",
+        "lineHeight: 48",
+    ] {
+        assert!(
+            output.styles.contains(expected),
+            "missing `{expected}` in:\n{}",
+            output.styles
+        );
+    }
+
+    // Non-colour or dynamic arbitrary modifiers still raise UNREADABLE_ARBITRARY_VALUE.
+    for bad in ["w-1/[0.5]", "bg-blue-500/[var(--a)]", "bg-blue-500/[1.5]"] {
+        let src = format!(
+            "import {{ View }} from '@hozo/core'; function C() {{ return <View className=\"{bad}\" /> }}"
+        );
+        let parsed = hozo_parser::parse_tsx(&src);
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::UnreadableArbitraryValue),
+            "{bad} must diagnose UNREADABLE_ARBITRARY_VALUE: {:?}",
+            parsed.diagnostics
+        );
+    }
+}
+
+#[test]
 fn shadow_and_filter_carry_across_as_strings() {
     let source = r#"
             import { View } from '@hozo/core'
