@@ -6,6 +6,7 @@
 import {
   AreaChart,
   BarChart,
+  ChartSync,
   ChartThemeProvider,
   ComposedChart,
   DonutChart,
@@ -18,6 +19,7 @@ import { Text, View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { useState } from 'react'
 
 const revenue = [
   { month: 'Jan', online: 120, store: 80 },
@@ -447,3 +449,46 @@ export const TimeAndLog: StoryObj<typeof meta> = {
     </View>
   ),
 }
+
+function SyncedCharts() {
+  const [month, setMonth] = useState<string | null>(null)
+  return (
+    <View className="w-full max-w-2xl gap-8 p-6 text-slate-700">
+      <Paragraph>{month ? `Showing ${month} in both charts.` : 'Point at a month.'}</Paragraph>
+      <ChartSync category={month} onCategoryChange={setMonth}>
+        <Section className="gap-2">
+          <Heading level={2}>Revenue</Heading>
+          <BarChart
+            accessibilityLabel="Revenue by month and channel"
+            data={revenue}
+            x={{ key: 'month', label: 'Month' }}
+            y={dollars}
+            series={series}
+            height={200}
+          />
+        </Section>
+        <Section className="gap-2">
+          <Heading level={2}>Against target</Heading>
+          <LineChart
+            accessibilityLabel="Online revenue against the target"
+            data={plan}
+            x={{ key: 'month', label: 'Month' }}
+            y={dollars}
+            series={[
+              { key: 'online', label: 'Online' },
+              { key: 'target', label: 'Target' },
+            ]}
+            height={200}
+            points
+          />
+        </Section>
+      </ChartSync>
+    </View>
+  )
+}
+
+// Charts in one ChartSync share the active month: pointing at or stepping
+// to March in one shows March in both. Only the chart in use announces, so a
+// screen reader hears one sentence, not one per chart. The month is also
+// controlled here, to name it above the charts.
+export const Synced: StoryObj<typeof meta> = { render: () => <SyncedCharts /> }

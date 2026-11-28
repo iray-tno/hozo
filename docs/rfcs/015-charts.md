@@ -207,6 +207,10 @@ from bars and points is worse than one built from the series.
   listing every series there.
 - **Colour.** Series are never told apart by colour alone in the tooltip
   and the table; both carry the series label.
+- **Several charts at once.** Charts inside one `ChartSync` share the
+  active category, matched by label. Only the chart the reader moved in
+  announces; the others show the tooltip. A category set from outside
+  through `category` is shown by all and announced by none.
 
 ## 6. Native
 

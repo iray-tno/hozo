@@ -1,0 +1,89 @@
+paragraph
+Point at a month.
+end of paragraph
+heading, Revenue, level 2
+chart, Revenue by month and channel, 6 categories, Jan to Jun. Online: lowest $90 at Mar, highest $210 at May. In store: lowest $60 at Mar, highest $130 at Jun, 1 without a value.
+table, Revenue by month and channel
+rowgroup
+row, Month Online In store
+columnheader, Month
+columnheader, Online
+columnheader, In store
+end of row, Month Online In store
+end of rowgroup
+rowgroup
+row, Jan $120 $80
+rowheader, Jan
+cell, $120
+cell, $80
+end of row, Jan $120 $80
+row, Feb $200 No value
+rowheader, Feb
+cell, $200
+cell, No value
+end of row, Feb $200 No value
+row, Mar $90 $60
+rowheader, Mar
+cell, $90
+cell, $60
+end of row, Mar $90 $60
+row, Apr $160 $110
+rowheader, Apr
+cell, $160
+cell, $110
+end of row, Apr $160 $110
+row, May $210 $95
+rowheader, May
+cell, $210
+cell, $95
+end of row, May $210 $95
+row, Jun $180 $130
+rowheader, Jun
+cell, $180
+cell, $130
+end of row, Jun $180 $130
+end of rowgroup
+end of table, Revenue by month and channel
+heading, Against target, level 2
+chart, Online revenue against the target, 6 categories, Jan to Jun. Online: lowest $90 at Mar, highest $210 at May. Target: lowest $180 at Jan, highest $240 at Jun.
+table, Online revenue against the target
+rowgroup
+row, Month Online Target
+columnheader, Month
+columnheader, Online
+columnheader, Target
+end of row, Month Online Target
+end of rowgroup
+rowgroup
+row, Jan $120 $180
+rowheader, Jan
+cell, $120
+cell, $180
+end of row, Jan $120 $180
+row, Feb $200 $190
+rowheader, Feb
+cell, $200
+cell, $190
+end of row, Feb $200 $190
+row, Mar $90 $200
+rowheader, Mar
+cell, $90
+cell, $200
+end of row, Mar $90 $200
+row, Apr $160 $210
+rowheader, Apr
+cell, $160
+cell, $210
+end of row, Apr $160 $210
+row, May $210 $230
+rowheader, May
+cell, $210
+cell, $230
+end of row, May $210 $230
+row, Jun $180 $240
+rowheader, Jun
+cell, $180
+cell, $240
+end of row, Jun $180 $240
+end of rowgroup
+end of table, Online revenue against the target

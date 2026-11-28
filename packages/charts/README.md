@@ -113,6 +113,25 @@ another changes only what it names, a chart's `theme` prop goes on top, and a se
 over both. The key, the tick label contrast and the default palette's checks are not part of a
 theme.
 
+## Synchronised charts
+
+Charts inside one `ChartSync` share the active category: pointing at or
+stepping to March in one shows March in all of them. They match by category
+label, so charts whose rows differ still meet on the ones they share. Only
+the chart the reader is using announces, so a screen reader hears one
+sentence, not one per chart.
+
+```tsx
+<ChartSync>
+  <BarChart accessibilityLabel="Revenue" data={revenue} x={{ key: 'month' }} series={channels} height={200} />
+  <LineChart accessibilityLabel="Against target" data={plan} x={{ key: 'month' }} series={lines} height={200} />
+</ChartSync>
+```
+
+`category` and `onCategoryChange` control it from outside, for example to
+name the month elsewhere on the page. A category set that way is shown in
+every chart and announced by none, because the reader did not move there.
+
 ## Props
 
 | Prop | |

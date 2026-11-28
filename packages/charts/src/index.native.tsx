@@ -84,6 +84,7 @@ export {
   sparklineSummary,
 } from './sparkline.tsx'
 export { chartSummary, TABLE_ROW_LIMIT } from './summary.ts'
+export { ChartSync, type ChartSyncProps } from './sync.tsx'
 export {
   type ChartPalette,
   type ChartTheme,
