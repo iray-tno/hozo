@@ -6,6 +6,7 @@
 import {
   AreaChart,
   BarChart,
+  ChartThemeProvider,
   ComposedChart,
   DonutChart,
   LineChart,
@@ -319,6 +320,49 @@ export const ReferenceLines: StoryObj<typeof meta> = {
           references={[{ value: 80, to: 140, label: 'Usual range' }]}
         />
       </Section>
+    </View>
+  ),
+}
+
+// A theme changes how a chart looks, not what it says: the table, the summary
+// and the key stay the same. `palette` takes one set for light and dark pages
+// or a `{ light, dark }` pair; a provider themes every chart inside it, and a
+// chart's own `theme` goes on top.
+export const Theming: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-8 p-6 text-slate-700">
+      <Section className="gap-2">
+        <Heading level={2}>Square, wider bars</Heading>
+        <BarChart
+          accessibilityLabel="Revenue by month and channel, square bars"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={series}
+          height={220}
+          theme={{ bar: { radius: 0, maxWidth: 40, gap: 0 } }}
+        />
+      </Section>
+      <ChartThemeProvider
+        theme={{
+          // Both sets pass the same colour-vision and contrast checks as the default.
+          palette: { light: ['#0d9488', '#c2410c'], dark: ['#0d9488', '#ea580c'] },
+          line: { width: 3 },
+        }}
+      >
+        <Section className="gap-2">
+          <Heading level={2}>A palette for each scheme</Heading>
+          <LineChart
+            accessibilityLabel="Revenue by month and channel, themed palette"
+            data={revenue}
+            x={{ key: 'month', label: 'Month' }}
+            y={dollars}
+            series={series}
+            height={220}
+            points
+          />
+        </Section>
+      </ChartThemeProvider>
     </View>
   ),
 }

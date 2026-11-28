@@ -22,9 +22,16 @@ import {
   composedChartModel,
   lineChartModel,
 } from './model.ts'
+import { seriesColor } from './palette.ts'
 import { type PieValue, pieChartModel, shareFormat } from './pie.ts'
 import { type ScatterName, type ScatterXAxis, scatterChartModel } from './scatter.ts'
 import { chartSummary, includesTable } from './summary.ts'
+import {
+  type ChartTheme,
+  type ColorScheme,
+  type ResolvedChartTheme,
+  useChartTheme,
+} from './theme.tsx'
 
 type Common = Omit<ChartInput, 'width'> & {
   /**
@@ -36,6 +43,8 @@ type Common = Omit<ChartInput, 'width'> & {
   width?: number
   /** Axis text and lines; inherits the surrounding text colour on Web when absent. */
   textColor?: string
+  /** Palette, bar shape, line weight and frame, over any `ChartThemeProvider` above. */
+  theme?: ChartTheme
   /** Show the table of the data under the chart, not only to a screen reader. */
   showTable?: boolean
 }
@@ -63,7 +72,7 @@ export type ComposedChartProps = Omit<Common, 'series'> & {
   points?: boolean
 }
 
-export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin' | 'references'> & {
+export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin' | 'references' | 'legend'> & {
   /** The field each slice's size comes from, and what to call it when read. */
   value: PieValue
   /** Slice colours by row; the default palette fills the rest. */
@@ -110,7 +119,13 @@ function lastWidth(model: (width: number) => ChartModel): (width: number) => Cha
   }
 }
 
-export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
+/** Light when the platform gives no way to ask, as in a test. */
+const noScheme = (): ColorScheme => 'light'
+
+export function createCharts(
+  ChartBox: ComponentType<ChartBoxComponentProps>,
+  useSystemScheme: () => ColorScheme = noScheme,
+) {
   function Chart({
     props,
     model,
@@ -118,12 +133,11 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     colors,
   }: {
     props: Common
-    model: (width: number) => ChartModel
+    model: (width: number, theme: ResolvedChartTheme) => ChartModel
     points?: boolean
     colors?: readonly string[]
   }) {
-    const { accessibilityLabel, width, textColor, showTable, height, series, fontSize, x, y } =
-      props
+    const { accessibilityLabel, width, textColor, showTable, height, fontSize, x, y } = props
     // The table does not depend on the width, so it is built once from a
     // model at any width rather than waiting for the box to be measured: a
     // screen reader and server rendering both get it on the first pass.
@@ -131,10 +145,21 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     // Moving the active datum re-renders this component and nothing above
     // it, so `model` keeps its identity across those steps and the layout,
     // the table and the marks are reused rather than rebuilt per key press.
-    const drawn = useMemo(() => lastWidth(model), [model])
+    const theme = useChartTheme(props.theme, useSystemScheme)
+    // Each series with its colour from the theme's palette, so the table,
+    // the tooltip and the marks agree on it.
+    const series = useMemo(
+      () =>
+        props.series.map((entry, index) => ({
+          ...entry,
+          color: seriesColor(index, entry.color, theme.palette),
+        })),
+      [props.series, theme.palette],
+    )
+    const drawn = useMemo(() => lastWidth((next) => model(next, theme)), [model, theme])
     const data = useMemo(
-      () => (width === undefined ? model(1) : drawn(width)),
-      [model, drawn, width],
+      () => (width === undefined ? model(1, theme) : drawn(width)),
+      [model, drawn, width, theme],
     )
     const count = data.categories.length
     const interaction = {
@@ -192,6 +217,7 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
             fontSize={fontSize}
             textColor={textColor}
             colors={colors}
+            look={theme}
           />
         )}
       </ChartBox>
@@ -202,7 +228,9 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
     return (
       <Chart
         props={props}
-        model={(width) => barChartModel({ ...props, stacked, horizontal, width })}
+        model={(width, theme) =>
+          barChartModel({ ...props, stacked, horizontal, width, bar: theme.bar })
+        }
       />
     )
   }
@@ -228,7 +256,7 @@ export function createCharts(ChartBox: ComponentType<ChartBoxComponentProps>) {
       <Chart
         props={props}
         points={points}
-        model={(width) => composedChartModel({ ...props, width })}
+        model={(width, theme) => composedChartModel({ ...props, width, bar: theme.bar })}
       />
     )
   }

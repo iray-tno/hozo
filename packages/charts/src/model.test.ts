@@ -54,9 +54,11 @@ test('grouped bars stand on zero, up for positives and down for negatives', () =
   const [online, store] = bars(model.marks)
   assert.ok(online && store && online.kind === 'bar' && store.kind === 'bar')
   assert.ok(
-    Math.abs(online.x + online.width - store.x) < 1e-9,
-    'series sit side by side in a group',
+    Math.abs(online.x + online.width + 2 - store.x) < 1e-9,
+    'series sit side by side in a group, 2px apart',
   )
+  assert.ok(online.width <= 24, 'no bar is thicker than 24px')
+  assert.equal(online.end, 'top', 'a positive bar rounds its top')
 })
 
 test('stacked bars stack positives up and negatives down, and the domain is the largest sum', () => {
@@ -66,9 +68,11 @@ test('stacked bars stack positives up and negatives down, and the domain is the 
   const [first, second] = jan
   assert.ok(first?.kind === 'bar' && second?.kind === 'bar')
   assert.ok(
-    Math.abs(first.y - (second.y + second.height)) < 1e-9,
-    'the second series sits on the first',
+    Math.abs(first.y - (second.y + second.height) - 2) < 1e-9,
+    'the second series sits on the first, 2px above it',
   )
+  assert.equal(first.end, undefined, 'a covered segment has no rounded end')
+  assert.equal(second.end, 'top', 'the top of the stack does')
   assert.ok(Number(model.yTicks.at(-1)?.label) >= 200, 'the axis reaches the largest stack (200)')
 })
 

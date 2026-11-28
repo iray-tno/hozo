@@ -50,13 +50,14 @@ export function datumRows(
   series: readonly ChartSeries[],
   datum: number,
   format: (value: number) => string = String,
+  palette?: readonly string[],
 ): DatumRow[] {
   return series.map((entry, index) => {
     const value = model.values[index]?.[datum]
     return {
       label: entry.label,
       value: value === undefined ? NO_VALUE : format(value),
-      color: seriesColor(index, entry.color),
+      color: seriesColor(index, entry.color, palette),
     }
   })
 }

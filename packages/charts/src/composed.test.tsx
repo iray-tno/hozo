@@ -28,7 +28,7 @@ test('bar series share each band and a line series runs through the centres', ()
     'the target is not a bar',
   )
   const [online, store] = [bars[0], bars.find((bar) => bar.series === 1)]
-  assert.ok(online && store && Math.abs(store.x - (online.x + online.width)) < 0.01)
+  assert.ok(online && store && Math.abs(store.x - (online.x + online.width) - 2) < 0.01)
   const line = kind(model.marks, 'line')
   assert.equal(line.length, 1)
   assert.equal(line[0]?.series, 2, 'the line keeps its own series index, so its colour')
@@ -50,7 +50,11 @@ test('the sentence and table read every series alike, whatever its mark', () => 
     'Feb. Online: 200. In store: No value. Target: 190.',
   )
   const html = renderToStaticMarkup(<ComposedChart accessibilityLabel="Revenue" {...base} />)
-  assert.equal([...html.matchAll(/<rect [^>]*fill="#/g)].length, 5)
+  assert.equal(
+    [...html.matchAll(/<path d="M[^"]*A[^"]*" fill="#/g)].length,
+    5,
+    'one rounded bar per value',
+  )
   assert.match(html, new RegExp(`<path [^>]*stroke="${DEFAULT_PALETTE[2]}"`))
   const headers = [...html.matchAll(/<th[^>]*scope="col"[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])
   assert.deepEqual(headers, ['Category', 'Online', 'In store', 'Target'])

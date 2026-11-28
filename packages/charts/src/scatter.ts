@@ -81,7 +81,7 @@ export function scatterChartModel(input: ScatterChartInput): ChartModel {
   const right =
     input.margin?.right ??
     Math.ceil(Math.max(gap * 2, last / 2 + gap, referenceRoom(input.references, fontSize)))
-  const { plot, y, yTicks, references } = frame(
+  const { plot, y, yTicks, references, legend } = frame(
     { ...input, x: { key: input.x.key, label: input.x.label }, margin: { ...input.margin, right } },
     extent(values, false),
   )
@@ -107,6 +107,7 @@ export function scatterChartModel(input: ScatterChartInput): ChartModel {
     xTicks,
     yTicks,
     references,
+    legend,
     centers,
     // The dot nearest the pointer in both directions; by x alone when there
     // is no y, as for a touch that only reports a column.

@@ -1,11 +1,15 @@
 import { ChartBox } from './chart-box.native.tsx'
 import { createCharts } from './charts.tsx'
+import { useSystemScheme } from './color-scheme.native.ts'
 import { createSparkline } from './sparkline.tsx'
 
 export const { BarChart, LineChart, AreaChart, ComposedChart, ScatterChart, PieChart, DonutChart } =
-  createCharts(ChartBox)
+  createCharts(ChartBox, useSystemScheme)
 // react-native-svg takes the name as a view prop; the view must also be one element.
-export const Sparkline = createSparkline({ accessible: true, accessibilityRole: 'image' })
+export const Sparkline = createSparkline(
+  { accessible: true, accessibilityRole: 'image' },
+  useSystemScheme,
+)
 export { datumSentence, datumTitle, nextDatum } from './active.ts'
 export type {
   AreaChartProps,
@@ -19,8 +23,12 @@ export {
   type AreaChartInput,
   areaChartModel,
   areaPath,
+  BAR_MAX,
   type BarChartInput,
+  type BarEnd,
+  type BarShape,
   barChartModel,
+  barPath,
   type ChartInput,
   type ChartModel,
   type ChartSeries,
@@ -30,6 +38,7 @@ export {
   type ComposedSeries,
   composedChartModel,
   estimateTextWidth,
+  type LegendKey,
   lineChartModel,
   linePath,
   type Margin,
@@ -73,3 +82,14 @@ export {
   sparklineSummary,
 } from './sparkline.tsx'
 export { chartSummary, TABLE_ROW_LIMIT } from './summary.ts'
+export {
+  type ChartPalette,
+  type ChartTheme,
+  ChartThemeProvider,
+  type ChartThemeProviderProps,
+  type ColorScheme,
+  DEFAULT_THEME,
+  mergeTheme,
+  type ResolvedChartTheme,
+  resolveTheme,
+} from './theme.tsx'

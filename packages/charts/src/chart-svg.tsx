@@ -7,8 +7,19 @@
 import { Circle, G, Line, Path, Rect, Svg, SvgText } from '@hozo/svg'
 import { memo } from 'react'
 import { datumRows, datumTitle, tooltipBox } from './active.ts'
-import type { ChartModel, ChartSeries, PlacedReference } from './model.ts'
+import { barPath, type ChartModel, type ChartSeries, type PlacedReference } from './model.ts'
 import { seriesColor } from './palette.ts'
+import { DEFAULT_THEME, type ResolvedChartTheme } from './theme.tsx'
+
+// The frame recedes so the data is the loudest thing on the chart. Gridlines
+// and the baseline are a fraction of the surrounding text colour rather than
+// a colour of their own, so one value works on a light page and a dark one,
+// on Web and on Native; the theme sets how far.
+/**
+ * Value tick labels, quieter than category names but still text: 0.8 of
+ * slate-700 or slate-600 text keeps 4.5:1 on white; 0.7 of slate-700 fell to 4.2.
+ */
+const MUTED = 0.8
 
 export interface ChartSvgProps {
   model: ChartModel
@@ -23,6 +34,8 @@ export interface ChartSvgProps {
   format?: (value: number) => string
   /** A pie's slice colours, by datum; the default palette fills the rest. */
   colors?: readonly string[]
+  /** Palette, bar shape, line weight and frame; the defaults when absent. */
+  look?: ResolvedChartTheme
 }
 
 export function ChartSvg({
@@ -34,6 +47,7 @@ export function ChartSvg({
   active,
   format,
   colors,
+  look = DEFAULT_THEME,
 }: ChartSvgProps) {
   const ink = textColor ?? 'currentColor'
   return (
@@ -50,6 +64,7 @@ export function ChartSvg({
         fontSize={fontSize}
         ink={ink}
         colors={colors}
+        look={look}
       />
       {active !== undefined && active >= 0 && active < model.categories.length ? (
         <Tooltip
@@ -61,6 +76,7 @@ export function ChartSvg({
           format={format}
           points={points}
           colors={colors}
+          look={look}
         />
       ) : null}
     </Svg>
@@ -80,12 +96,14 @@ const Drawing = memo(function Drawing({
   fontSize,
   ink,
   colors,
+  look,
 }: {
   model: ChartModel
   series: readonly ChartSeries[]
   points: boolean
   fontSize: number
   ink: string
+  look: ResolvedChartTheme
   colors?: readonly string[]
 }) {
   const { plot, radial, horizontal } = model
@@ -104,7 +122,7 @@ const Drawing = memo(function Drawing({
                 y1={tick.position}
                 y2={tick.position}
                 stroke={ink}
-                strokeOpacity={0.15}
+                strokeOpacity={look.frame.grid}
               />
             )}
             <SvgText
@@ -112,6 +130,7 @@ const Drawing = memo(function Drawing({
               y={tick.position}
               dy={fontSize * 0.35}
               fill={ink}
+              fillOpacity={horizontal ? 1 : MUTED}
               fontSize={fontSize}
               textAnchor="end"
             >
@@ -128,13 +147,14 @@ const Drawing = memo(function Drawing({
                 y1={plot.y}
                 y2={bottom}
                 stroke={ink}
-                strokeOpacity={0.15}
+                strokeOpacity={look.frame.grid}
               />
             ) : null}
             <SvgText
               x={tick.position}
               y={bottom + fontSize * 1.25}
               fill={ink}
+              fillOpacity={horizontal || model.xColumn ? MUTED : 1}
               fontSize={fontSize}
               textAnchor="middle"
             >
@@ -143,7 +163,14 @@ const Drawing = memo(function Drawing({
           </G>
         ))}
         {radial ? null : horizontal ? (
-          <Line x1={plot.x} x2={plot.x} y1={plot.y} y2={bottom} stroke={ink} strokeOpacity={0.4} />
+          <Line
+            x1={plot.x}
+            x2={plot.x}
+            y1={plot.y}
+            y2={bottom}
+            stroke={ink}
+            strokeOpacity={look.frame.axis}
+          />
         ) : (
           <Line
             x1={plot.x}
@@ -151,7 +178,7 @@ const Drawing = memo(function Drawing({
             y1={bottom}
             y2={bottom}
             stroke={ink}
-            strokeOpacity={0.4}
+            strokeOpacity={look.frame.axis}
           />
         )}
       </G>
@@ -171,12 +198,18 @@ const Drawing = memo(function Drawing({
       </G>
       <G>
         {model.marks.map((mark) => {
-          const color = markColor(mark, series, colors)
+          const color = markColor(mark, series, colors, look.palette)
           switch (mark.kind) {
             case 'arc':
               return <Path key={`s${mark.datum}`} d={mark.path} fill={color} />
             case 'bar':
-              return (
+              return mark.end ? (
+                <Path
+                  key={`b${mark.series}-${mark.datum}`}
+                  d={barPath(mark.x, mark.y, mark.width, mark.height, mark.end, look.bar.radius)}
+                  fill={color}
+                />
+              ) : (
                 <Rect
                   key={`b${mark.series}-${mark.datum}`}
                   x={mark.x}
@@ -203,7 +236,7 @@ const Drawing = memo(function Drawing({
                   d={mark.path}
                   fill="none"
                   stroke={color}
-                  strokeWidth={2}
+                  strokeWidth={look.line.width}
                   strokeLinejoin="round"
                   strokeLinecap="round"
                 />
@@ -214,7 +247,7 @@ const Drawing = memo(function Drawing({
                   key={`p${mark.series}-${mark.datum}`}
                   cx={mark.cx}
                   cy={mark.cy}
-                  r={3}
+                  r={look.line.pointRadius}
                   fill={color}
                 />
               ) : null
@@ -236,6 +269,9 @@ const Drawing = memo(function Drawing({
           ) : null,
         )}
       </G>
+      {model.legend?.length ? (
+        <SeriesLegend model={model} series={series} fontSize={fontSize} ink={ink} look={look} />
+      ) : null}
       {radial ? (
         <G>
           {radial.legend.map((entry) => (
@@ -245,7 +281,7 @@ const Drawing = memo(function Drawing({
                 y={entry.y + (fontSize * 1.6 - radial.swatch) / 2}
                 width={radial.swatch}
                 height={radial.swatch}
-                fill={seriesColor(entry.tone, colors?.[entry.datum])}
+                fill={seriesColor(entry.tone, colors?.[entry.datum], look.palette)}
               />
               <SvgText
                 x={entry.x + radial.swatch + fontSize / 2}
@@ -262,6 +298,76 @@ const Drawing = memo(function Drawing({
     </>
   )
 })
+
+/**
+ * The key above the plot. Each swatch has the shape of its series' mark, a
+ * block for bars, a stroke for a line, a dot for points, so a bars-and-line
+ * chart's key says which is which before colour does.
+ */
+function SeriesLegend({
+  model,
+  series,
+  fontSize,
+  ink,
+  look,
+}: {
+  model: ChartModel
+  series: readonly ChartSeries[]
+  fontSize: number
+  ink: string
+  look: ResolvedChartTheme
+}) {
+  const shapes = new Map<number, 'bar' | 'line' | 'point'>()
+  for (const mark of model.marks)
+    if (mark.kind === 'bar' || mark.kind === 'line' || mark.kind === 'area')
+      shapes.set(mark.series, mark.kind === 'bar' ? 'bar' : (shapes.get(mark.series) ?? 'line'))
+    else if (mark.kind === 'point' && !shapes.has(mark.series)) shapes.set(mark.series, 'point')
+  const middle = fontSize * 0.8
+  return (
+    <G>
+      {(model.legend ?? []).map((key) => {
+        const color = seriesColor(key.series, series[key.series]?.color, look.palette)
+        const shape = shapes.get(key.series) ?? 'bar'
+        const cy = key.y + middle
+        return (
+          <G key={`k${key.series}`}>
+            {shape === 'line' ? (
+              <Line
+                x1={key.x}
+                x2={key.x + fontSize}
+                y1={cy}
+                y2={cy}
+                stroke={color}
+                strokeWidth={look.line.width}
+                strokeLinecap="round"
+              />
+            ) : shape === 'point' ? (
+              <Circle cx={key.x + fontSize / 2} cy={cy} r={look.line.pointRadius} fill={color} />
+            ) : (
+              <Rect
+                x={key.x + fontSize * 0.125}
+                y={cy - fontSize * 0.375}
+                width={fontSize * 0.75}
+                height={fontSize * 0.75}
+                rx={2}
+                fill={color}
+              />
+            )}
+            <SvgText
+              x={key.x + fontSize * 1.5}
+              y={cy}
+              dy={fontSize * 0.35}
+              fill={ink}
+              fontSize={fontSize}
+            >
+              {key.label}
+            </SvgText>
+          </G>
+        )
+      })}
+    </G>
+  )
+}
 
 interface ReferenceProps {
   reference: PlacedReference
@@ -338,21 +444,23 @@ function ReferenceLabel({ reference, model, ink, fontSize }: ReferenceProps) {
 function sliceColor(
   model: ChartModel,
   datum: number,
-  colors?: readonly string[],
+  colors: readonly string[] | undefined,
+  palette: readonly string[],
 ): string | undefined {
   const mark = model.marks.find((entry) => entry.kind === 'arc' && entry.datum === datum)
-  return mark?.kind === 'arc' ? seriesColor(mark.tone, colors?.[datum]) : undefined
+  return mark?.kind === 'arc' ? seriesColor(mark.tone, colors?.[datum], palette) : undefined
 }
 
 /** A slice takes its datum's colour; a bar, line or dot its series'. */
 function markColor(
   mark: ChartModel['marks'][number],
   series: readonly ChartSeries[],
-  colors?: readonly string[],
+  colors: readonly string[] | undefined,
+  palette: readonly string[],
 ): string {
   return mark.kind === 'arc'
-    ? seriesColor(mark.tone, colors?.[mark.datum])
-    : seriesColor(mark.series, series[mark.series]?.color)
+    ? seriesColor(mark.tone, colors?.[mark.datum], palette)
+    : seriesColor(mark.series, series[mark.series]?.color, palette)
 }
 
 /**
@@ -370,19 +478,23 @@ function Tooltip({
   format,
   points,
   colors,
+  look,
 }: {
   model: ChartModel
   series: readonly ChartSeries[]
   datum: number
   fontSize: number
   ink: string
+  look: ResolvedChartTheme
   format?: (value: number) => string
   points: boolean
   colors?: readonly string[]
 }) {
   const title = datumTitle(model, datum)
-  const rows = datumRows(model, series, datum, format).map((row) =>
-    model.radial ? { ...row, color: sliceColor(model, datum, colors) ?? row.color } : row,
+  const rows = datumRows(model, series, datum, format, look.palette).map((row) =>
+    model.radial
+      ? { ...row, color: sliceColor(model, datum, colors, look.palette) ?? row.color }
+      : row,
   )
   const box = tooltipBox(model, title, rows, fontSize, datum)
   const center = model.centers[datum] as number
@@ -423,7 +535,7 @@ function Tooltip({
             key={`a${mark.series}`}
             cx={mark.cx}
             cy={mark.cy}
-            r={points ? 5 : 4}
+            r={look.line.pointRadius + (points ? 1 : 0)}
             fill="#ffffff"
             stroke={rows[mark.series]?.color}
             strokeWidth={2}
