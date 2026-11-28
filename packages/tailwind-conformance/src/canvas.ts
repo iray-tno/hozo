@@ -48,7 +48,9 @@ export function compareCanvasCandidate(candidate: string, native: boolean): Canv
 
   const untouched = edit.replacement === `className="${candidate}"`
   if (!untouched) {
-    const verdict = /var\(|calc\(/.test(edit.replacement) ? 'UNRESOLVABLE' : 'COVERED'
+    const verdict = /var\(|calc\(|hozo-unresolved:/.test(edit.replacement)
+      ? 'UNRESOLVABLE'
+      : 'COVERED'
     return { candidate, verdict, replacement: edit.replacement }
   }
   // Left as it was. A diagnostic makes that a refusal the author can read;

@@ -159,8 +159,8 @@
   },
   "canvas": {
     "candidates": 23286,
-    "covered": 609,
-    "refused": 22677,
+    "covered": 605,
+    "refused": 22681,
     "silent": 0,
     "unresolvable": 0
   },
@@ -173,8 +173,8 @@
   },
   "canvasNative": {
     "candidates": 23286,
-    "covered": 609,
-    "refused": 22677,
+    "covered": 605,
+    "refused": 22681,
     "silent": 0,
     "unresolvable": 0
   },

@@ -537,6 +537,27 @@ const Chart = () => <Canvas decorative><Canvas.Rect className={active ? 'fill-bl
   assert.equal(lowered.diagnostics[0]?.code, 'CANVAS_CLASS_NOT_LOWERED')
 })
 
+test('Canvas paint resolves alpha modifiers and rejects unknown or inherited colour tokens', () => {
+  const source = `import { Canvas } from '@hozo/canvas'
+export function Chart() {
+  return (
+    <Canvas decorative width={20} height={20}>
+      <Canvas.Rect className="fill-blue-500/50 stroke-black/25" width={10} height={10} />
+      <Canvas.Rect className="fill-unknown-999 fill-current stroke-inherit" width={10} height={10} />
+    </Canvas>
+  )
+}
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)!
+  assert.match(
+    lowered.code,
+    /<Canvas\.Rect fill="oklch\(62\.3% 0\.214 259\.815 \/ 0\.5\)" stroke="rgba\(0, 0, 0, 0\.25\)"/,
+  )
+  assert.doesNotMatch(lowered.code, /var\(--hozo-color-|hozo-unresolved:/)
+  assert.equal(lowered.diagnostics.length, 1)
+  assert.equal(lowered.diagnostics[0]?.code, 'CANVAS_CLASS_NOT_LOWERED')
+})
+
 test('two modules never answer to the same class name', () => {
   // The assertion that was missing, and it would have failed from the day
   // the second example was written. Class names were namespaced per root

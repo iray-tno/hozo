@@ -34,12 +34,13 @@ pub struct CanvasClassPaint {
     pub remaining: Vec<String>,
 }
 
-struct CanvasCollector {
+struct CanvasCollector<'t> {
     namespaces: HashSet<String>,
+    theme: &'t hozo_ir::Theme,
     paints: Vec<CanvasClassPaint>,
 }
 
-impl<'a> Visit<'a> for CanvasCollector {
+impl<'a> Visit<'a> for CanvasCollector<'_> {
     fn visit_jsx_element(&mut self, element: &JSXElement<'a>) {
         let JSXElementName::MemberExpression(member) = &element.opening_element.name else {
             walk_jsx_element(self, element);
@@ -98,14 +99,12 @@ impl<'a> Visit<'a> for CanvasCollector {
                 let is_paint = condition == Condition::Always
                     && !properties.is_empty()
                     && properties.iter().all(|property| match property {
-                        StyleProperty::Fill(color) | StyleProperty::Stroke(color) => match color {
-                            hozo_ir::Color::Css(text) => hozo_ir::native_color_literal_valid(text),
-                            _ => true,
-                        },
-                        StyleProperty::Opacity(_) => true,
-                        StyleProperty::StrokeWidth(width) => {
-                            width.px(&hozo_ir::Theme::default()).is_some()
+                        StyleProperty::Fill(color) | StyleProperty::Stroke(color) => {
+                            hozo_ir::resolve_canvas_color(color, self.theme, false).is_some()
+                                && hozo_ir::resolve_canvas_color(color, self.theme, true).is_some()
                         }
+                        StyleProperty::Opacity(_) => true,
+                        StyleProperty::StrokeWidth(width) => width.px(self.theme).is_some(),
                         _ => false,
                     });
                 if is_paint {
@@ -132,8 +131,18 @@ impl<'a> Visit<'a> for CanvasCollector {
     }
 }
 
-/// Finds paint-bearing shape attributes from a trusted `@hozo/canvas` import.
+/// Finds paint-bearing shape attributes from a trusted `@hozo/canvas` import,
+/// validating tokens against Tailwind's default theme.
 pub fn parse_canvas_paints(source_text: &str) -> Vec<CanvasClassPaint> {
+    parse_canvas_paints_with_theme(source_text, &hozo_ir::Theme::default())
+}
+
+/// Finds paint-bearing shape attributes from a trusted `@hozo/canvas` import,
+/// validating theme colour tokens and spacing-backed lengths against `theme`.
+pub fn parse_canvas_paints_with_theme(
+    source_text: &str,
+    theme: &hozo_ir::Theme,
+) -> Vec<CanvasClassPaint> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_extension("tsx").expect("tsx is a known extension");
     let parsed = Parser::new(&allocator, source_text, source_type).parse();
@@ -150,6 +159,7 @@ pub fn parse_canvas_paints(source_text: &str) -> Vec<CanvasClassPaint> {
 
     let mut collector = CanvasCollector {
         namespaces,
+        theme,
         paints: Vec::new(),
     };
     collector.visit_program(&parsed.program);

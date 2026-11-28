@@ -159,6 +159,81 @@ pub fn split_color_alpha(token: &str) -> (&str, Option<f64>) {
     }
 }
 
+/// The three sRGB channels of a `#rgb` or `#rrggbb` hex colour, which is the
+/// shape both Tailwind's default palette and `@hozo/tailwind`'s theme
+/// extraction produce.
+pub fn hex_rgb_channels(hex: &str) -> Option<(u8, u8, u8)> {
+    let digits = hex.strip_prefix('#')?;
+    let pair = |at: usize| -> Option<u8> {
+        match digits.len() {
+            3 => {
+                let digit = digits.get(at..at + 1)?;
+                u8::from_str_radix(&format!("{digit}{digit}"), 16).ok()
+            }
+            6 => u8::from_str_radix(digits.get(at * 2..at * 2 + 2)?, 16).ok(),
+            _ => None,
+        }
+    };
+    Some((pair(0)?, pair(1)?, pair(2)?))
+}
+
+/// Resolves a colour for Canvas paint props (`fill` / `stroke`), or returns
+/// `None` when neither Canvas 2D nor Skia can paint the value directly.
+///
+/// Canvas shapes sit outside the DOM cascade: CSS custom properties
+/// (`var(--hozo-color-*)`), `currentcolor`, and `inherit` have no painting
+/// target on Canvas 2D or Skia, and unresolved markers must never reach a
+/// drawing prop silently. Opacity modifiers (`blue-500/50`, `black/25`) are
+/// folded into a concrete CSS Color 4 / `rgba()` literal.
+pub fn resolve_canvas_color(color: &Color, theme: &Theme, native: bool) -> Option<String> {
+    match color {
+        Color::Keyword(keyword) => {
+            matches!(*keyword, "none" | "transparent").then(|| (*keyword).to_string())
+        }
+        Color::Css(value) => native_color_literal_valid(value).then(|| value.clone()),
+        Color::Token(token) => {
+            let (base, alpha) = split_color_alpha(token);
+            if matches!(base, "current" | "inherit") {
+                return None;
+            }
+            if base == "transparent" {
+                return Some("transparent".to_string());
+            }
+            let resolved = theme.color(base)?;
+            match alpha {
+                None => {
+                    if native {
+                        native_color_literal_valid(&resolved.hex).then_some(resolved.hex)
+                    } else if native_color_literal_valid(&resolved.oklch) {
+                        Some(resolved.oklch)
+                    } else {
+                        native_color_literal_valid(&resolved.hex).then_some(resolved.hex)
+                    }
+                }
+                Some(alpha) => {
+                    if native {
+                        hex_rgb_channels(&resolved.hex)
+                            .map(|(r, g, b)| format!("rgba({r}, {g}, {b}, {alpha})"))
+                    } else if let Some(inner) = resolved
+                        .oklch
+                        .strip_prefix("oklch(")
+                        .and_then(|rest| rest.strip_suffix(')'))
+                        .filter(|inner| {
+                            !inner.contains('/') && native_color_literal_valid(&resolved.oklch)
+                        })
+                    {
+                        Some(format!("oklch({inner} / {alpha})"))
+                    } else {
+                        hex_rgb_channels(&resolved.oklch)
+                            .or_else(|| hex_rgb_channels(&resolved.hex))
+                            .map(|(r, g, b)| format!("rgba({r}, {g}, {b}, {alpha})"))
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// The React Native style key and inset side an `env(safe-area-inset-*)`
 /// arbitrary value asks for, if it is one.
 ///

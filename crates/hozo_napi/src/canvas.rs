@@ -14,21 +14,8 @@ pub struct CompiledCanvasPaint {
     pub span_end: u32,
 }
 
-pub(super) fn canvas_color(color: &Color, theme: &Theme, native: bool) -> String {
-    match color {
-        Color::Keyword(keyword) => keyword.to_string(),
-        Color::Css(value) => value.clone(),
-        Color::Token(token) => theme.color(token).map_or_else(
-            || {
-                if native {
-                    format!("hozo-unresolved:{token}")
-                } else {
-                    format!("var(--hozo-color-{token})")
-                }
-            },
-            |resolved| if native { resolved.hex } else { resolved.oklch },
-        ),
-    }
+pub(super) fn canvas_color(color: &Color, theme: &Theme, native: bool) -> Option<String> {
+    hozo_ir::resolve_canvas_color(color, theme, native)
 }
 
 pub(super) fn js_string(value: &str) -> String {
@@ -54,7 +41,7 @@ pub(super) fn lower_canvas_paints(
     // offsets, because it indexes a Rust string; only what crosses into
     // JavaScript is translated.
     let offsets = Utf16Offsets::new(source);
-    hozo_parser::parse_canvas_paints(source)
+    hozo_parser::parse_canvas_paints_with_theme(source, theme)
         .into_iter()
         .map(|paint| {
             let original = source
@@ -99,14 +86,16 @@ pub(super) fn lower_canvas_paints(
                         }
                         for property in paint.paint {
                             match property {
-                                StyleProperty::Fill(color) => attributes.push(format!(
-                                    "fill={}",
-                                    js_string(&canvas_color(&color, theme, native))
-                                )),
-                                StyleProperty::Stroke(color) => attributes.push(format!(
-                                    "stroke={}",
-                                    js_string(&canvas_color(&color, theme, native))
-                                )),
+                                StyleProperty::Fill(color) => {
+                                    if let Some(resolved) = canvas_color(&color, theme, native) {
+                                        attributes.push(format!("fill={}", js_string(&resolved)));
+                                    }
+                                }
+                                StyleProperty::Stroke(color) => {
+                                    if let Some(resolved) = canvas_color(&color, theme, native) {
+                                        attributes.push(format!("stroke={}", js_string(&resolved)));
+                                    }
+                                }
                                 StyleProperty::StrokeWidth(width) => {
                                     if let Some(px) = width.px(theme) {
                                         attributes.push(format!("strokeWidth={{{px}}}"))
@@ -130,4 +119,81 @@ pub(super) fn lower_canvas_paints(
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hozo_ir::{Theme, ThemeColor};
+
+    #[test]
+    fn resolves_canvas_color_alpha_modifiers_on_web_and_native() {
+        let source = r#"
+            import { Canvas } from '@hozo/canvas'
+            const el = <Canvas.Rect className="fill-blue-500/50 stroke-black/25" width={10} height={10} />
+        "#;
+        let web = lower_canvas_paints(source, &Theme::default(), false);
+        assert_eq!(web.len(), 1);
+        assert!(web[0].diagnostics.is_empty());
+        assert_eq!(
+            web[0].replacement,
+            r#"fill="oklch(62.3% 0.214 259.815 / 0.5)" stroke="rgba(0, 0, 0, 0.25)""#
+        );
+
+        let native = lower_canvas_paints(source, &Theme::default(), true);
+        assert_eq!(native.len(), 1);
+        assert!(native[0].diagnostics.is_empty());
+        assert_eq!(
+            native[0].replacement,
+            r#"fill="rgba(43, 127, 255, 0.5)" stroke="rgba(0, 0, 0, 0.25)""#
+        );
+    }
+
+    #[test]
+    fn refuses_unknown_and_inherited_canvas_color_tokens() {
+        let source = r#"
+            import { Canvas } from '@hozo/canvas'
+            const el = <Canvas.Rect className="fill-unknown-999 stroke-brand/50 fill-current stroke-inherit" width={10} height={10} />
+        "#;
+        for native in [false, true] {
+            let edits = lower_canvas_paints(source, &Theme::default(), native);
+            assert_eq!(edits.len(), 1);
+            assert_eq!(edits[0].diagnostics.len(), 1);
+            assert_eq!(edits[0].diagnostics[0].code, "CANVAS_CLASS_NOT_LOWERED");
+            assert!(!edits[0].replacement.contains("hozo-unresolved:"));
+            assert!(!edits[0].replacement.contains("var(--hozo-color-"));
+        }
+    }
+
+    #[test]
+    fn resolves_custom_theme_colors_with_and_without_alpha_on_canvas() {
+        let theme = Theme::new(
+            std::collections::HashMap::from([(
+                "brand".to_string(),
+                ThemeColor {
+                    oklch: "oklch(60% 0.2 250)".to_string(),
+                    hex: "#112233".to_string(),
+                },
+            )]),
+            None,
+            false,
+        );
+        let source = r#"
+            import { Canvas } from '@hozo/canvas'
+            const el = <Canvas.Rect className="fill-brand stroke-brand/40" width={10} height={10} />
+        "#;
+        let web = lower_canvas_paints(source, &theme, false);
+        assert!(web[0].diagnostics.is_empty());
+        assert_eq!(
+            web[0].replacement,
+            r#"fill="oklch(60% 0.2 250)" stroke="oklch(60% 0.2 250 / 0.4)""#
+        );
+
+        let native = lower_canvas_paints(source, &theme, true);
+        assert!(native[0].diagnostics.is_empty());
+        assert_eq!(
+            native[0].replacement,
+            r##"fill="#112233" stroke="rgba(17, 34, 51, 0.4)""##
+        );
+    }
 }
