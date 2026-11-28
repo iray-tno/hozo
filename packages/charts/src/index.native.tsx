@@ -16,6 +16,7 @@ export const {
   FunnelChart,
   TreemapChart,
   RadarChart,
+  RadialBarChart,
 } = createCharts(ChartBox, useSystemScheme, useReducedMotion, BrushBox)
 // react-native-svg takes the name as a view prop; the view must also be one element.
 export const Sparkline = createSparkline(
@@ -43,6 +44,7 @@ export type {
   LineChartProps,
   PieChartProps,
   RadarChartProps,
+  RadialBarChartProps,
   ScatterChartProps,
   TreemapChartProps,
 } from './charts.tsx'
@@ -103,6 +105,14 @@ export {
   radarChartModel,
   radarPath,
 } from './radar.ts'
+export {
+  type RadialBar,
+  type RadialBarChartInput,
+  type RadialBarModel,
+  radialBarChartModel,
+  SWEEP,
+  sweepPath,
+} from './radial-bar.ts'
 export {
   type BandOptions,
   type BandScale,

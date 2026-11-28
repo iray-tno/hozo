@@ -16,6 +16,7 @@ export const {
   FunnelChart,
   TreemapChart,
   RadarChart,
+  RadialBarChart,
 } = createCharts(ChartBox, useSystemScheme, useReducedMotion, BrushBox)
 // The root's own name makes it one image on Web.
 export const Sparkline = createSparkline({}, useSystemScheme)
@@ -40,6 +41,7 @@ export type {
   LineChartProps,
   PieChartProps,
   RadarChartProps,
+  RadialBarChartProps,
   ScatterChartProps,
   TreemapChartProps,
 } from './charts.tsx'
@@ -100,6 +102,14 @@ export {
   radarChartModel,
   radarPath,
 } from './radar.ts'
+export {
+  type RadialBar,
+  type RadialBarChartInput,
+  type RadialBarModel,
+  radialBarChartModel,
+  SWEEP,
+  sweepPath,
+} from './radial-bar.ts'
 export {
   type BandOptions,
   type BandScale,

@@ -1,0 +1,27 @@
+chart, Goals met today, percent, 4 categories, Move to Sleep. Done: lowest 45% at Sleep, highest 91% at Stand.
+table, Goals met today, percent
+rowgroup
+row, Goal Done
+columnheader, Goal
+columnheader, Done
+end of row, Goal Done
+end of rowgroup
+rowgroup
+row, Move 82%
+rowheader, Move
+cell, 82%
+end of row, Move 82%
+row, Exercise 64%
+rowheader, Exercise
+cell, 64%
+end of row, Exercise 64%
+row, Stand 91%
+rowheader, Stand
+cell, 91%
+end of row, Stand 91%
+row, Sleep 45%
+rowheader, Sleep
+cell, 45%
+end of row, Sleep 45%
+end of rowgroup
+end of table, Goals met today, percent

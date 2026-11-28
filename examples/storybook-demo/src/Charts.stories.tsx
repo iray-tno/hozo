@@ -1,4 +1,4 @@
-// Charts (RFC 015): Bar, Line, Area, Scatter, Pie, Donut, Funnel, Treemap and Radar from @hozo/charts. Each is one
+// Charts (RFC 015): Bar, Line, Area, Scatter, Pie, Donut, Funnel, Treemap, Radar and RadialBar from @hozo/charts. Each is one
 // tab stop; the arrow keys, Home and End move along the data and a live region reads
 // every series there, the pointer does the same with a tooltip, and a
 // screen reader also has the table of the data, out of sight unless shown.
@@ -14,6 +14,7 @@ import {
   LineChart,
   PieChart,
   RadarChart,
+  RadialBarChart,
   ScatterChart,
   Sparkline,
   TreemapChart,
@@ -262,6 +263,32 @@ export const Radar: StoryObj<typeof meta> = {
         ]}
         height={320}
         points
+      />
+    </View>
+  ),
+}
+
+const goals = [
+  { goal: 'Move', done: 82 },
+  { goal: 'Exercise', done: 64 },
+  { goal: 'Stand', done: 91 },
+  { goal: 'Sleep', done: 45 },
+]
+
+/**
+ * Four goals as bars bent round a centre, the first outermost. Each ring
+ * is a row of the table; Down and Up step through them as through bars.
+ */
+export const RadialBars: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-2 p-6 text-slate-700">
+      <RadialBarChart
+        accessibilityLabel="Goals met today, percent"
+        data={goals}
+        x={{ key: 'goal', label: 'Goal' }}
+        y={{ domain: [0, 100], format: (value) => `${value}%` }}
+        series={[{ key: 'done', label: 'Done' }]}
+        height={300}
       />
     </View>
   ),

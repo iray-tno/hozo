@@ -122,6 +122,12 @@ export function tooltipBox(
   const height = Math.ceil(lineHeight * (rows.length + 1) + padding * 2)
   const center = model.centers[datum] ?? 0
   const gap = fontSize
+  if (model.radialBar) {
+    // In the top right corner, beside the circle, clear of the names and the rings.
+    const x = Math.max(0, model.width - width)
+    const y = Math.max(0, Math.min(model.plot.y, model.height - height))
+    return { x, y, width, height, lineHeight, padding }
+  }
   if (model.radar) {
     // In the top corner across from the spoke, clear of its name and the outline.
     const right = (model.radar.spokes[datum]?.x ?? 0) < model.radar.cx
