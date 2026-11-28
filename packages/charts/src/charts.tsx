@@ -7,7 +7,7 @@
 // rather than this module importing one: an explicit `.tsx` import would
 // pick the Web half on Native too.
 
-import { type ComponentType, type ReactNode, useMemo, useState } from 'react'
+import { type ComponentType, type ReactNode, useId, useMemo } from 'react'
 import { datumSentence, nextDatum } from './active.ts'
 import { ChartSvg } from './chart-svg.tsx'
 import { ChartTable } from './chart-table.tsx'
@@ -19,6 +19,7 @@ import {
   type ChartInput,
   type ChartModel,
   type ComposedSeries,
+  type Curve,
   composedChartModel,
   lineChartModel,
 } from './model.ts'
@@ -26,6 +27,7 @@ import { seriesColor } from './palette.ts'
 import { type PieValue, pieChartModel, shareFormat } from './pie.ts'
 import { type ScatterName, type ScatterXAxis, scatterChartModel } from './scatter.ts'
 import { chartSummary, includesTable } from './summary.ts'
+import { useActiveDatum } from './sync.tsx'
 import {
   type ChartTheme,
   type ColorScheme,
@@ -54,6 +56,8 @@ export type BarChartProps = Common & Pick<BarChartInput, 'stacked' | 'horizontal
 export type LineChartProps = Common & {
   /** Draw a dot at each value. */
   points?: boolean
+  /** Straight between values (the default), or a monotone curve through them. */
+  curve?: Curve
 }
 
 export type AreaChartProps = LineChartProps & Pick<AreaChartInput, 'stacked'>
@@ -70,6 +74,8 @@ export type ComposedChartProps = Omit<Common, 'series'> & {
   series: readonly ComposedSeries[]
   /** Draw a dot at each value of the line series. */
   points?: boolean
+  /** How the line series run between values. */
+  curve?: Curve
 }
 
 export type PieChartProps = Omit<Common, 'series' | 'y' | 'margin' | 'references' | 'legend'> & {
@@ -141,7 +147,6 @@ export function createCharts(
     // The table does not depend on the width, so it is built once from a
     // model at any width rather than waiting for the box to be measured: a
     // screen reader and server rendering both get it on the first pass.
-    const [active, setActive] = useState<number | undefined>(undefined)
     // Moving the active datum re-renders this component and nothing above
     // it, so `model` keeps its identity across those steps and the layout,
     // the table and the marks are reused rather than rebuilt per key press.
@@ -162,10 +167,16 @@ export function createCharts(
       [model, drawn, width, theme],
     )
     const count = data.categories.length
+    // Shared with the other charts in a `ChartSync`, where only the chart the
+    // reader moved in announces.
+    const id = useId()
+    const [active, setActive, speaks] = useActiveDatum(data.categories, id)
     const interaction = {
       label: accessibilityLabel,
       announcement:
-        active === undefined ? undefined : datumSentence(data, series, active, y?.format),
+        active === undefined || !speaks
+          ? undefined
+          : datumSentence(data, series, active, y?.format),
       // A position is answered by the model at the drawn width; everything
       // else by the width-independent one the table uses.
       onPointer: (px: number, py: number, drawnWidth: number) => {

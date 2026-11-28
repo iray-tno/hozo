@@ -113,14 +113,33 @@ another changes only what it names, a chart's `theme` prop goes on top, and a se
 over both. The key, the tick label contrast and the default palette's checks are not part of a
 theme.
 
+## Synchronised charts
+
+Charts inside one `ChartSync` share the active category: pointing at or
+stepping to March in one shows March in all of them. They match by category
+label, so charts whose rows differ still meet on the ones they share. Only
+the chart the reader is using announces, so a screen reader hears one
+sentence, not one per chart.
+
+```tsx
+<ChartSync>
+  <BarChart accessibilityLabel="Revenue" data={revenue} x={{ key: 'month' }} series={channels} height={200} />
+  <LineChart accessibilityLabel="Against target" data={plan} x={{ key: 'month' }} series={lines} height={200} />
+</ChartSync>
+```
+
+`category` and `onCategoryChange` control it from outside, for example to
+name the month elsewhere on the page. A category set that way is shown in
+every chart and announced by none, because the reader did not move there.
+
 ## Props
 
 | Prop | |
 | --- | --- |
 | `accessibilityLabel` | Required. The chart's name, and its table's. |
 | `data` | Rows. A missing, `null` or non-finite value is a gap. |
-| `x` | `{ key, label?, format? }`: the field that holds each row's category. |
-| `y` | `{ label?, format?, domain? }`. The domain otherwise comes from the data, rounded to tidy ticks. |
+| `x` | `{ key, label?, format?, type?, timeZone?, locale? }`: the field that holds each row's category. With `type: 'time'` the field is a `Date`, milliseconds or a date string: Line and Area place each row by when it happened, with ticks on calendar boundaries, and every chart reads it as a date ("Mar 1, 2026"). Times are UTC unless `timeZone: 'local'`, so the server and the browser draw the same ticks. Rows go in time order. |
+| `y` | `{ label?, format?, domain?, scale? }`. The domain otherwise comes from the data, rounded to tidy ticks. `scale: 'log'` (Line and Scatter) spaces each tenfold step evenly; zero and below are not drawn but are still read, and the summary says "Values on a log scale." Bars and areas stay linear, because they measure from zero. |
 | `series` | `{ key, label, color? }[]`. Without `color`, a series takes the next colour of `DEFAULT_PALETTE`. Each palette colour has at least 3:1 contrast on white and on near-black, and the order keeps neighbours apart under protanopia and deuteranopia, so one set serves light and dark pages. |
 | `theme` | Palette, bar shape, line weight and frame for this chart, over any `ChartThemeProvider` above it. See [Theme](#theme). |
 | `legend` | Every chart but Pie and Donut: `false` hides the key above the plot. It is shown for two or more series, each swatch shaped like the series' mark (a block for bars, a stroke for a line, a dot for points). |
@@ -134,6 +153,7 @@ theme.
 | `horizontal` | `BarChart`: bars run left to right, with the categories down the left side, for long labels and rankings. `y` still describes the values. Down and Up also step through the rows. |
 | `stacked` | `BarChart` and `AreaChart`: stack the series instead of grouping or overlapping them. A stacked area's top edge is the total; the table still reads each series' own value. |
 | `points` | `LineChart` and `AreaChart`: draw a dot at each value. |
+| `curve` | `LineChart`, `AreaChart` and the lines of `ComposedChart`: `'linear'` (the default) or `'monotone'`, a curve through each value that never overshoots it, so it shows no peak or dip that is not in the data. A gap still breaks it. |
 
 `color` is a runtime string rather than a `className`, because a class list is compile-time
 input on Native.

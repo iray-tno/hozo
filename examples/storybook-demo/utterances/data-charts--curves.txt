@@ -1,0 +1,86 @@
+heading, Curved lines, level 2
+chart, Revenue by month and channel, curved, 6 categories, Jan to Jun. Online: lowest $90 at Mar, highest $210 at May. In store: lowest $60 at Mar, highest $130 at Jun, 1 without a value.
+table, Revenue by month and channel, curved
+rowgroup
+row, Month Online In store
+columnheader, Month
+columnheader, Online
+columnheader, In store
+end of row, Month Online In store
+end of rowgroup
+rowgroup
+row, Jan $120 $80
+rowheader, Jan
+cell, $120
+cell, $80
+end of row, Jan $120 $80
+row, Feb $200 No value
+rowheader, Feb
+cell, $200
+cell, No value
+end of row, Feb $200 No value
+row, Mar $90 $60
+rowheader, Mar
+cell, $90
+cell, $60
+end of row, Mar $90 $60
+row, Apr $160 $110
+rowheader, Apr
+cell, $160
+cell, $110
+end of row, Apr $160 $110
+row, May $210 $95
+rowheader, May
+cell, $210
+cell, $95
+end of row, May $210 $95
+row, Jun $180 $130
+rowheader, Jun
+cell, $180
+cell, $130
+end of row, Jun $180 $130
+end of rowgroup
+end of table, Revenue by month and channel, curved
+heading, Curved stacked areas, level 2
+chart, Revenue by month and channel, stacked and curved, 6 categories, Jan to Jun. Online: lowest $90 at Mar, highest $210 at May. In store: lowest $60 at Mar, highest $130 at Jun, 1 without a value.
+table, Revenue by month and channel, stacked and curved
+rowgroup
+row, Month Online In store
+columnheader, Month
+columnheader, Online
+columnheader, In store
+end of row, Month Online In store
+end of rowgroup
+rowgroup
+row, Jan $120 $80
+rowheader, Jan
+cell, $120
+cell, $80
+end of row, Jan $120 $80
+row, Feb $200 No value
+rowheader, Feb
+cell, $200
+cell, No value
+end of row, Feb $200 No value
+row, Mar $90 $60
+rowheader, Mar
+cell, $90
+cell, $60
+end of row, Mar $90 $60
+row, Apr $160 $110
+rowheader, Apr
+cell, $160
+cell, $110
+end of row, Apr $160 $110
+row, May $210 $95
+rowheader, May
+cell, $210
+cell, $95
+end of row, May $210 $95
+row, Jun $180 $130
+rowheader, Jun
+cell, $180
+cell, $130
+end of row, Jun $180 $130
+end of rowgroup
+end of table, Revenue by month and channel, stacked and curved

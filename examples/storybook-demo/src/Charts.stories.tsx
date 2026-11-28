@@ -6,6 +6,7 @@
 import {
   AreaChart,
   BarChart,
+  ChartSync,
   ChartThemeProvider,
   ComposedChart,
   DonutChart,
@@ -18,6 +19,7 @@ import { Text, View } from '@hozo/primitives'
 import { Section } from '@hozo/semantics'
 import { Heading, Paragraph } from '@hozo/typography'
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { useState } from 'react'
 
 const revenue = [
   { month: 'Jan', online: 120, store: 80 },
@@ -366,3 +368,127 @@ export const Theming: StoryObj<typeof meta> = {
     </View>
   ),
 }
+
+// A monotone curve bends through each value without passing it, so a peak
+// or a dip on the curve is one in the data. How the line runs is drawing
+// only: the table and the summary read the same values as a straight line.
+export const Curves: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-8 p-6 text-slate-700">
+      <Section className="gap-2">
+        <Heading level={2}>Curved lines</Heading>
+        <LineChart
+          accessibilityLabel="Revenue by month and channel, curved"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={series}
+          height={220}
+          curve="monotone"
+          points
+        />
+      </Section>
+      <Section className="gap-2">
+        <Heading level={2}>Curved stacked areas</Heading>
+        <AreaChart
+          accessibilityLabel="Revenue by month and channel, stacked and curved"
+          data={revenue}
+          x={{ key: 'month', label: 'Month' }}
+          y={dollars}
+          series={series}
+          height={220}
+          curve="monotone"
+          stacked
+        />
+      </Section>
+    </View>
+  ),
+}
+
+const signups = [
+  { day: '2026-01-05', users: 12 },
+  { day: '2026-01-06', users: 30 },
+  { day: '2026-01-09', users: 140 },
+  { day: '2026-01-20', users: 900 },
+  { day: '2026-02-02', users: 2600 },
+  { day: '2026-02-16', users: 8100 },
+  { day: '2026-03-02', users: 21000 },
+]
+
+// Rows placed by date, so the long gaps between later rows show as distance,
+// and a log axis, so each tenfold rise is the same height. The table and the
+// summary read the dates and the exact counts; the summary also names the
+// log scale.
+export const TimeAndLog: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-8 p-6 text-slate-700">
+      <Section className="gap-2">
+        <Heading level={2}>By date</Heading>
+        <LineChart
+          accessibilityLabel="Total sign-ups by date"
+          data={signups}
+          x={{ key: 'day', type: 'time', label: 'Date' }}
+          y={{ label: 'Sign-ups', format: (value) => value.toLocaleString('en-US') }}
+          series={[{ key: 'users', label: 'Sign-ups' }]}
+          height={220}
+          points
+        />
+      </Section>
+      <Section className="gap-2">
+        <Heading level={2}>By date, on a log scale</Heading>
+        <LineChart
+          accessibilityLabel="Total sign-ups by date, log scale"
+          data={signups}
+          x={{ key: 'day', type: 'time', label: 'Date' }}
+          y={{ label: 'Sign-ups', scale: 'log', format: (value) => value.toLocaleString('en-US') }}
+          series={[{ key: 'users', label: 'Sign-ups' }]}
+          height={220}
+          points
+        />
+      </Section>
+    </View>
+  ),
+}
+
+function SyncedCharts() {
+  const [month, setMonth] = useState<string | null>(null)
+  return (
+    <View className="w-full max-w-2xl gap-8 p-6 text-slate-700">
+      <Paragraph>{month ? `Showing ${month} in both charts.` : 'Point at a month.'}</Paragraph>
+      <ChartSync category={month} onCategoryChange={setMonth}>
+        <Section className="gap-2">
+          <Heading level={2}>Revenue</Heading>
+          <BarChart
+            accessibilityLabel="Revenue by month and channel"
+            data={revenue}
+            x={{ key: 'month', label: 'Month' }}
+            y={dollars}
+            series={series}
+            height={200}
+          />
+        </Section>
+        <Section className="gap-2">
+          <Heading level={2}>Against target</Heading>
+          <LineChart
+            accessibilityLabel="Online revenue against the target"
+            data={plan}
+            x={{ key: 'month', label: 'Month' }}
+            y={dollars}
+            series={[
+              { key: 'online', label: 'Online' },
+              { key: 'target', label: 'Target' },
+            ]}
+            height={200}
+            points
+          />
+        </Section>
+      </ChartSync>
+    </View>
+  )
+}
+
+// Charts in one ChartSync share the active month: pointing at or stepping
+// to March in one shows March in both. Only the chart in use announces, so a
+// screen reader hears one sentence, not one per chart. The month is also
+// controlled here, to name it above the charts.
+export const Synced: StoryObj<typeof meta> = { render: () => <SyncedCharts /> }

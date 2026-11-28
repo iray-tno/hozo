@@ -198,3 +198,65 @@ export function pointScale<Key>(
     align: options.align,
   })
 }
+
+export interface LogScale {
+  readonly kind: 'log'
+  readonly domain: Range
+  readonly range: Range
+  (value: number): number
+  invert(position: number): number
+  ticks(count?: number): number[]
+}
+
+/** A value axis, straight or logarithmic: what the chart frame lays out with. */
+export type ValueScale = LinearScale | LogScale
+
+/**
+ * Base 10, for values spanning several orders of magnitude. The domain must
+ * be positive: zero and below have no place on it, and the chart draws them
+ * as gaps while the table still reads them.
+ */
+export function logScale(domain: Range, range: Range): LogScale {
+  const [l0, l1] = [Math.log10(domain[0]), Math.log10(domain[1])]
+  const inner = linearScale([l0, l1], range)
+  const map = (value: number) => (value > 0 ? inner(Math.log10(value)) : Number.NaN)
+  return Object.assign(map, {
+    kind: 'log' as const,
+    domain,
+    range,
+    invert: (position: number) => 10 ** inner.invert(position),
+    ticks: (count = 10) => logTicks(domain[0], domain[1], count),
+  })
+}
+
+/**
+ * Powers of ten, and 2 and 5 times them while that stays within `count`;
+ * across more decades than `count`, every n-th power. As d3 picks them.
+ */
+export function logTicks(start: number, stop: number, count: number): number[] {
+  if (!(start > 0) || !(stop > 0)) return []
+  const [lo, hi] = start < stop ? [start, stop] : [stop, start]
+  const [p0, p1] = [Math.floor(Math.log10(lo)), Math.ceil(Math.log10(hi))]
+  const decades = p1 - p0
+  const inside = (value: number) => value >= lo * (1 - 1e-12) && value <= hi * (1 + 1e-12)
+  const at = (power: number, m: number) => Number((m * 10 ** power).toPrecision(12))
+  for (const multiples of [[1, 2, 5], [1]]) {
+    if (multiples.length > 1 && decades * multiples.length > count) continue
+    const out: number[] = []
+    const every = Math.max(1, Math.ceil((decades + 1) / Math.max(1, count)))
+    for (let power = p0; power <= p1; power++) {
+      if (multiples.length === 1 && (power - p0) % every) continue
+      for (const m of multiples) if (inside(at(power, m))) out.push(at(power, m))
+    }
+    return start < stop ? out : out.reverse()
+  }
+  return []
+}
+
+/** `[start, stop]` widened to whole powers of ten. */
+export function niceLogDomain(start: number, stop: number): [number, number] {
+  if (!(start > 0) || !(stop > 0)) return [1, 10]
+  const lo = 10 ** Math.floor(Math.log10(start))
+  const hi = 10 ** Math.ceil(Math.log10(stop))
+  return [lo, hi === lo ? lo * 10 : hi]
+}

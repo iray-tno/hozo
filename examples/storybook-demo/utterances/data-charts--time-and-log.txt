@@ -1,0 +1,80 @@
+heading, By date, level 2
+chart, Total sign-ups by date, 7 categories, Jan 5, 2026 to Mar 2, 2026. Sign-ups: lowest 12 at Jan 5, 2026, highest 21,000 at Mar 2, 2026.
+table, Total sign-ups by date
+rowgroup
+row, Date Sign-ups
+columnheader, Date
+columnheader, Sign-ups
+end of row, Date Sign-ups
+end of rowgroup
+rowgroup
+row, Jan 5, 2026 12
+rowheader, Jan 5, 2026
+cell, 12
+end of row, Jan 5, 2026 12
+row, Jan 6, 2026 30
+rowheader, Jan 6, 2026
+cell, 30
+end of row, Jan 6, 2026 30
+row, Jan 9, 2026 140
+rowheader, Jan 9, 2026
+cell, 140
+end of row, Jan 9, 2026 140
+row, Jan 20, 2026 900
+rowheader, Jan 20, 2026
+cell, 900
+end of row, Jan 20, 2026 900
+row, Feb 2, 2026 2,600
+rowheader, Feb 2, 2026
+cell, 2,600
+end of row, Feb 2, 2026 2,600
+row, Feb 16, 2026 8,100
+rowheader, Feb 16, 2026
+cell, 8,100
+end of row, Feb 16, 2026 8,100
+row, Mar 2, 2026 21,000
+rowheader, Mar 2, 2026
+cell, 21,000
+end of row, Mar 2, 2026 21,000
+end of rowgroup
+end of table, Total sign-ups by date
+heading, By date, on a log scale, level 2
+chart, Total sign-ups by date, log scale, 7 categories, Jan 5, 2026 to Mar 2, 2026. Values on a log scale. Sign-ups: lowest 12 at Jan 5, 2026, highest 21,000 at Mar 2, 2026.
+table, Total sign-ups by date, log scale
+rowgroup
+row, Date Sign-ups
+columnheader, Date
+columnheader, Sign-ups
+end of row, Date Sign-ups
+end of rowgroup
+rowgroup
+row, Jan 5, 2026 12
+rowheader, Jan 5, 2026
+cell, 12
+end of row, Jan 5, 2026 12
+row, Jan 6, 2026 30
+rowheader, Jan 6, 2026
+cell, 30
+end of row, Jan 6, 2026 30
+row, Jan 9, 2026 140
+rowheader, Jan 9, 2026
+cell, 140
+end of row, Jan 9, 2026 140
+row, Jan 20, 2026 900
+rowheader, Jan 20, 2026
+cell, 900
+end of row, Jan 20, 2026 900
+row, Feb 2, 2026 2,600
+rowheader, Feb 2, 2026
+cell, 2,600
+end of row, Feb 2, 2026 2,600
+row, Feb 16, 2026 8,100
+rowheader, Feb 16, 2026
+cell, 8,100
+end of row, Feb 16, 2026 8,100
+row, Mar 2, 2026 21,000
+rowheader, Mar 2, 2026
+cell, 21,000
+end of row, Mar 2, 2026 21,000
+end of rowgroup
+end of table, Total sign-ups by date, log scale

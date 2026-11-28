@@ -36,9 +36,11 @@ export {
   type ChartYAxis,
   type ComposedChartInput,
   type ComposedSeries,
+  type Curve,
   composedChartModel,
   estimateTextWidth,
   type LegendKey,
+  type LineChartInput,
   lineChartModel,
   linePath,
   type Margin,
@@ -82,6 +84,7 @@ export {
   sparklineSummary,
 } from './sparkline.tsx'
 export { chartSummary, TABLE_ROW_LIMIT } from './summary.ts'
+export { ChartSync, type ChartSyncProps } from './sync.tsx'
 export {
   type ChartPalette,
   type ChartTheme,
@@ -93,3 +96,4 @@ export {
   type ResolvedChartTheme,
   resolveTheme,
 } from './theme.tsx'
+export type { TimeZone } from './time.ts'
