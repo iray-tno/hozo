@@ -79,6 +79,9 @@ pub(super) fn stacked_guard(
     let mut guards = Vec::new();
     let mut uses_interactive_state = false;
     let mut applies = true;
+    let statically_false = atoms
+        .iter()
+        .any(|atom| structural::condition_statically_false(atom, node, target.position));
     // `motion-safe:starting:`, `md:starting:`: the first
     // frame, under the other atoms' guards. It goes where an
     // unstacked `starting:` goes, guarded.
@@ -132,7 +135,25 @@ pub(super) fn stacked_guard(
                         guards.push(format!("({available} && {predicate})"));
                     }
                     Err(reason) => {
-                        diagnostics.push(unwired_variant(node, &reason, Severity::Error));
+                        // When a sibling-position atom already folds this rule
+                        // to `false`, pre-render passes intentionally omit the
+                        // unused `HozoPeerScope`/`HozoPressable` runtime channel
+                        // on an otherwise-capable peer or `.group` owner; do not
+                        // report that omitted channel as a missing owner.
+                        let omitted_dead_channel = statically_false
+                            && (peer_interaction_state(atom).is_some_and(|state| {
+                                target.peers.iter().any(|peer| {
+                                    interaction::owns_events(peer.node)
+                                        || (matches!(state, "focused" | "focusVisible")
+                                            && peer.node.primitive == Primitive::TextInput)
+                                })
+                            }) || (group_interaction_state(atom).is_some()
+                                && target
+                                    .group_ancestor
+                                    .is_some_and(|group| interaction::owns_events(group.node))));
+                        if !omitted_dead_channel {
+                            diagnostics.push(unwired_variant(node, &reason, Severity::Error));
+                        }
                         applies = false;
                     }
                 }

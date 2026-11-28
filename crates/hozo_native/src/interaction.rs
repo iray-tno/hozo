@@ -46,7 +46,12 @@ pub(super) fn uses_group_state(condition: &Condition) -> bool {
 /// as ordinary JSX children.
 pub(super) fn descendant_uses(node: &Node, predicate: fn(&Condition) -> bool) -> bool {
     let owner_is_group = node.carried_classes.iter().any(|class| class == "group");
-    fn visit(node: &Node, predicate: fn(&Condition) -> bool, in_owner_group: bool) -> bool {
+    fn visit(
+        node: &Node,
+        position: SiblingPosition,
+        predicate: fn(&Condition) -> bool,
+        in_owner_group: bool,
+    ) -> bool {
         let has_child_target = node
             .children
             .iter()
@@ -56,10 +61,15 @@ pub(super) fn descendant_uses(node: &Node, predicate: fn(&Condition) -> bool) ->
                 if declaration.condition.split_subtree().is_some() && !has_child_target {
                     return false;
                 }
+                if structural::condition_statically_false(&declaration.condition, node, position) {
+                    return false;
+                }
                 uses_group_state(&declaration.condition) && predicate(&declaration.condition)
             }) || node.props.class_slots.iter().any(|slot| {
                 slot.style.iter().any(|declaration| {
-                    uses_group_state(&declaration.condition) && predicate(&declaration.condition)
+                    !structural::condition_statically_false(&declaration.condition, node, position)
+                        && uses_group_state(&declaration.condition)
+                        && predicate(&declaration.condition)
                 })
             }));
         if owns_events(node) {
@@ -67,6 +77,9 @@ pub(super) fn descendant_uses(node: &Node, predicate: fn(&Condition) -> bool) ->
         }
         let own_uses_direct = node.style.iter().any(|declaration| {
             if declaration.condition.split_subtree().is_some() && !has_child_target {
+                return false;
+            }
+            if structural::condition_statically_false(&declaration.condition, node, position) {
                 return false;
             }
             (text::is_text_primitive(node.primitive)
@@ -87,17 +100,32 @@ pub(super) fn descendant_uses(node: &Node, predicate: fn(&Condition) -> bool) ->
         predicate: fn(&Condition) -> bool,
         in_owner_group: bool,
     ) -> bool {
-        node.children.iter().any(|child| match child {
-            Child::Node(child) => visit(child, predicate, in_owner_group),
-            Child::Verbatim { nested, .. } => nested
-                .iter()
-                .any(|child| visit(&child.node, predicate, in_owner_group)),
-            Child::Text(_) => false,
-        }) || node.props.passthrough.iter().any(|prop| {
-            prop.nested
-                .iter()
-                .any(|child| visit(&child.node, predicate, in_owner_group))
-        })
+        let positions = structural::sibling_positions(&node.children);
+        node.children
+            .iter()
+            .enumerate()
+            .any(|(index, child)| match child {
+                Child::Node(child) => visit(child, positions[index], predicate, in_owner_group),
+                Child::Verbatim { nested, .. } => nested.iter().any(|child| {
+                    visit(
+                        &child.node,
+                        SiblingPosition::UNKNOWN,
+                        predicate,
+                        in_owner_group,
+                    )
+                }),
+                Child::Text(_) => false,
+            })
+            || node.props.passthrough.iter().any(|prop| {
+                prop.nested.iter().any(|child| {
+                    visit(
+                        &child.node,
+                        SiblingPosition::UNKNOWN,
+                        predicate,
+                        in_owner_group,
+                    )
+                })
+            })
     }
 
     visit_children(node, predicate, owner_is_group)

@@ -596,6 +596,7 @@ pub(super) fn render_node(
         link_interaction,
     } = host::interaction_needs(
         node,
+        position,
         component,
         &own_declarations,
         &text_declarations,

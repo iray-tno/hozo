@@ -949,6 +949,110 @@ fn subtree_forwarded_declarations_reach_peer_backdrop_field_transition_and_trunc
 }
 
 #[test]
+fn statically_false_structural_conditions_do_not_emit_unused_peer_or_pressable_wrappers() {
+    // A following sibling can never be `:first-child` or `:only-child`, so
+    // `first:peer-hover:` / `only:peer-hover:` fold away without upgrading
+    // the `.peer` sibling or wrapping the parent in `HozoPeerScope`.
+    for variant in ["first:peer-hover:p-4", "only:peer-hover:p-4"] {
+        let out = native_jsx(&format!(
+            r#"
+            import {{ View, Pressable, Text }} from '@hozo/core'
+            export function C() {{
+                return (
+                    <View>
+                        <Pressable className="peer" accessibilityRole="button">p</Pressable>
+                        <Text className="{variant}">x</Text>
+                    </View>
+                )
+            }}
+            "#
+        ));
+        assert!(
+            out.diagnostics.is_empty(),
+            "{variant}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            !out.jsx.contains("HozoPeerScope")
+                && !out.jsx.contains("hozoPeerId")
+                && !out.jsx.contains("HozoPressable"),
+            "{variant}: {}",
+            out.jsx
+        );
+    }
+
+    // An only child is never `:nth-child(even)`, so `even:group-hover:` does
+    // not upgrade the enclosing `.group` Pressable to `HozoPressable`.
+    let dead_group = native_jsx(
+        r#"
+        import { Pressable, Text } from '@hozo/core'
+        export function C() {
+            return <Pressable className="group" accessibilityRole="button"><Text className="even:group-hover:p-4">only</Text></Pressable>
+        }
+        "#,
+    );
+    assert!(
+        dead_group.diagnostics.is_empty(),
+        "{:?}",
+        dead_group.diagnostics
+    );
+    assert!(
+        !dead_group.jsx.contains("HozoPressable") && !dead_group.jsx.contains("HozoText"),
+        "{}",
+        dead_group.jsx
+    );
+
+    // Self-interaction paired with a statically false structural condition
+    // also skips the unused `HozoPressable` upgrade.
+    let dead_self = native_jsx(
+        r#"
+        import { View, Pressable } from '@hozo/core'
+        export function C() {
+            return <View><Pressable className="even:hover:p-4" accessibilityRole="button">first</Pressable></View>
+        }
+        "#,
+    );
+    assert!(
+        dead_self.diagnostics.is_empty(),
+        "{:?}",
+        dead_self.diagnostics
+    );
+    assert!(
+        !dead_self.jsx.contains("HozoPressable"),
+        "{}",
+        dead_self.jsx
+    );
+
+    // Live structural combinations (`not-first:peer-hover:`, `first:group-hover:`)
+    // still emit their runtime wrappers.
+    let live_peer = native_jsx(
+        r#"
+        import { View, Pressable, Text } from '@hozo/core'
+        export function C() {
+            return (
+                <View>
+                    <Pressable className="peer" accessibilityRole="button">p</Pressable>
+                    <Text className="not-first:peer-hover:p-4">x</Text>
+                </View>
+            )
+        }
+        "#,
+    );
+    assert!(
+        live_peer.diagnostics.is_empty(),
+        "{:?}",
+        live_peer.diagnostics
+    );
+    assert!(
+        live_peer.jsx.contains("HozoPeerScope")
+            && live_peer.jsx.contains("hozoPeerId={0}")
+            && live_peer.jsx.contains("HozoPeerQuery"),
+        "{}",
+        live_peer.jsx
+    );
+}
+
+#[test]
 fn a_child_the_compiler_cannot_read_is_named_rather_than_skipped() {
     // "Every child" reaching some of them is the divergence worth a
     // build message: the selector reaches all of them on Web.

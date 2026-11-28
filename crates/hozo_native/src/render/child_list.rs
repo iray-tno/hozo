@@ -3,11 +3,18 @@
 
 use super::*;
 
-fn node_peer_interaction_needs(node: &Node, from_ancestor: FromAncestor<'_>) -> (bool, bool, bool) {
+fn node_peer_interaction_needs(
+    node: &Node,
+    position: SiblingPosition,
+    from_ancestor: FromAncestor<'_>,
+) -> (bool, bool, bool) {
     let mut pointer = false;
     let mut focus = false;
     let mut focus_visible = false;
     let mut scan = |condition: &Condition| {
+        if structural::condition_statically_false(condition, node, position) {
+            return;
+        }
         if condition_contains(condition, |c| {
             matches!(peer_interaction_state(c), Some("hovered" | "pressed"))
         }) {
@@ -70,25 +77,7 @@ pub(super) fn render_child_list(
     // position at all.
     // Both ends are decided up front, because "is anything after this one"
     // can't be answered while walking forwards.
-    let is_verbatim = |c: &hozo_ir::Child| matches!(c, hozo_ir::Child::Verbatim { .. });
-    let is_element = |c: &hozo_ir::Child| matches!(c, hozo_ir::Child::Node(_));
-    let positions: Vec<SiblingPosition> = node
-        .children
-        .iter()
-        .enumerate()
-        .map(|(index, _)| {
-            let before = &node.children[..index];
-            let after = &node.children[index + 1..];
-            SiblingPosition {
-                first: (!before.iter().any(is_verbatim)).then(|| !before.iter().any(is_element)),
-                last: (!after.iter().any(is_verbatim)).then(|| !after.iter().any(is_element)),
-                ordinal: (!before.iter().any(is_verbatim))
-                    .then(|| before.iter().filter(|c| is_element(c)).count() + 1),
-                count: (!node.children.iter().any(is_verbatim))
-                    .then(|| node.children.iter().filter(|c| is_element(c)).count()),
-            }
-        })
-        .collect();
+    let positions = structural::sibling_positions(&node.children);
 
     let has_any_peer = node.children.iter().any(|child| {
         matches!(
@@ -114,10 +103,13 @@ pub(super) fn render_child_list(
         let child_needs: Vec<(bool, bool, bool)> = node
             .children
             .iter()
-            .map(|child| match child {
-                hozo_ir::Child::Node(child_node) => {
-                    node_peer_interaction_needs(child_node, for_children.from_ancestor)
-                }
+            .enumerate()
+            .map(|(index, child)| match child {
+                hozo_ir::Child::Node(child_node) => node_peer_interaction_needs(
+                    child_node,
+                    positions[index],
+                    for_children.from_ancestor,
+                ),
                 _ => (false, false, false),
             })
             .collect();
