@@ -1,6 +1,6 @@
 # @hozo/charts
 
-Bar, Line, Area, Composed (bars and lines), Scatter, Pie and Donut charts, and sparklines, that a screen reader, a keyboard and a finger can all use, drawn with
+Bar, Line, Area, Composed (bars and lines), Scatter, Pie, Donut, Funnel and Treemap charts, and sparklines, that a screen reader, a keyboard and a finger can all use, drawn with
 [`@hozo/svg`](https://www.npmjs.com/package/@hozo/svg) on the Web and React Native.
 
 ```tsx
@@ -100,6 +100,36 @@ stage reads it, for example "Signed up. People: 3,100. Kept from the stage befor
 summary lists it for every stage and ends with the last stage against the first. The arrow keys
 step down and up the stages. A stage with no value or a value of zero or less is not drawn, and
 the table still lists it.
+
+## Treemap
+
+```tsx
+<TreemapChart
+  accessibilityLabel="Budget by team"
+  data={[
+    { team: 'Hardware', children: [{ team: 'Phones', budget: 420 }, { team: 'Laptops', budget: 310 }] },
+    { team: 'Design', budget: 200 },
+  ]}
+  x={{ key: 'team', label: 'Team' }}
+  value={{ key: 'budget', label: 'Budget' }}
+  height={300}
+/>
+```
+
+Nested rows, each a rectangle whose area is its share of the whole, its children inside it, laid
+out squarified so that none is a sliver. A row's children are under `childrenKey` (`'children'`
+by default); a group's value is the sum of its children's. Only the leaves are drawn, coloured by
+their top-level group, with a key of the groups above them; `colors` sets one per group. A leaf's
+name and value sit inside it where they fit whole, in black or white, whichever reads better on
+its colour.
+
+Each rectangle is read with its groups and its share of its group: "Hardware, Laptops. Budget:
+$310. Share of its group: 42.5%." The table lists every row, groups before their children, with a
+Group column (`rootLabel`, `'All'` by default, for the top level) and the share as a second
+column. The summary reads the top level and the largest in each group. The arrows, Page Up and
+Down, Home and End move among the active rectangle's neighbours in data order; Enter goes into a
+group and Escape back out. On Native these are the adjustable element's swipes and its activate
+and escape actions. A pointer or finger picks the leaf under it.
 
 ## Sparklines
 

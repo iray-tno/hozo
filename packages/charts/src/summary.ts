@@ -6,6 +6,7 @@
 
 import { KEPT_LABEL } from './funnel.ts'
 import type { ChartModel, ChartSeries } from './model.ts'
+import type { Tree } from './treemap.ts'
 
 /**
  * Above this many categories the table is left out unless `showTable` asks
@@ -42,6 +43,48 @@ function funnelSentence(model: ChartModel, read: (value: number) => string): str
 }
 
 /**
+ * "3 groups, 9 items in all, totalling 1,000. Hardware 450 (45%), largest
+ * Phones 200. …" A treemap is read by its top level and what is biggest
+ * in each, which is what its areas show; extremes across levels would set
+ * a group against its own parts.
+ */
+function treeSummary(
+  model: ChartModel,
+  tree: Tree,
+  read: (value: number) => string,
+  share: (value: number) => string,
+): string {
+  const { categories } = model
+  const values = model.values[0] ?? []
+  const shares = model.values[1] ?? []
+  const leaves = tree.children.filter((below) => below.length === 0).length
+  const total = tree.top.reduce((sum, i) => sum + Math.max(0, values[i] ?? 0), 0)
+  const groups = tree.top.length
+  const parts = [
+    `${groups.toLocaleString('en-US')} ${groups === 1 ? 'group' : 'groups'}, ` +
+      `${leaves.toLocaleString('en-US')} ${leaves === 1 ? 'item' : 'items'} in all, totalling ${read(total)}.`,
+  ]
+  const named = tree.top.map((i) => {
+    const value = values[i]
+    if (value === undefined) return `${categories[i]} no value`
+    const part = shares[i] === undefined ? '' : ` (${share(shares[i] as number)})`
+    let largest = -1
+    for (const child of tree.children[i] ?? [])
+      if (
+        (values[child] ?? Number.NEGATIVE_INFINITY) > (values[largest] ?? Number.NEGATIVE_INFINITY)
+      )
+        largest = child
+    const most =
+      largest >= 0 ? `, largest ${categories[largest]} ${read(values[largest] as number)}` : ''
+    return `${categories[i]} ${read(value)}${part}${most}`
+  })
+  parts.push(`${named.join('; ')}.`)
+  const gaps = values.filter((value) => value === undefined).length
+  if (gaps > 0) parts.push(`${gaps.toLocaleString('en-US')} without a value.`)
+  return parts.join(' ')
+}
+
+/**
  * "3 categories, Jan to Mar. Online: lowest $90 at Mar, highest $200 at
  * Feb. In store: lowest $60 at Mar, highest $80 at Jan, 1 without a value."
  */
@@ -54,6 +97,17 @@ export function chartSummary(
   const { categories } = model
   const count = categories.length
   if (count === 0) return 'No data.'
+  if (model.tree) {
+    const text = treeSummary(
+      model,
+      model.tree,
+      series[0]?.format ?? format,
+      series[1]?.format ?? format,
+    )
+    return tableOmitted
+      ? `${text} Too many to list as a table; step through them on the chart.`
+      : text
+  }
   const x = model.xColumn
   const parts: string[] = []
   if (x) {

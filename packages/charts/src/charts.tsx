@@ -40,6 +40,7 @@ import {
   type ResolvedChartTheme,
   useChartTheme,
 } from './theme.tsx'
+import { type TreemapValue, treemapChartModel, treemapSeries, treeStep } from './treemap.ts'
 
 type Common = Omit<ChartInput, 'width'> & {
   /**
@@ -124,6 +125,20 @@ export type FunnelChartProps = Omit<Common, 'series' | 'y' | 'margin' | 'referen
   value: FunnelValue
 }
 
+export type TreemapChartProps = Omit<
+  Common,
+  'series' | 'y' | 'margin' | 'references' | 'legend'
+> & {
+  /** The field each leaf's size comes from, and what to call it when read. */
+  value: TreemapValue
+  /** The field holding a row's children; `'children'` by default. */
+  childrenKey?: string
+  /** What the whole is called, as the top level's group; `'All'` by default. */
+  rootLabel?: string
+  /** Colours by top-level group; the default palette fills the rest. */
+  colors?: readonly string[]
+}
+
 /** What the box wires to the platform's focus, keys, pointer and touch. */
 export interface ChartInteraction {
   /** The chart's name, on its one focusable element. */
@@ -135,6 +150,11 @@ export interface ChartInteraction {
   onLeave(): void
   /** A key (or a Native adjust action as one); true when it was used. */
   onKey(key: string): boolean
+  /**
+   * The data has levels, which Enter and Escape move between: Native then
+   * offers activate and escape actions for them.
+   */
+  levels?: boolean
 }
 
 export interface ChartBoxComponentProps {
@@ -265,8 +285,11 @@ export function createCharts(
         if (datum >= 0) setActive(datum)
       },
       onLeave: () => setActive(undefined),
+      levels: data.tree !== undefined,
       onKey: (key: string) => {
-        const next = nextDatum(key, active, count, data.horizontal)
+        const next = data.tree
+          ? treeStep(data.tree, key, active)
+          : nextDatum(key, active, count, data.horizontal)
         if (next === undefined) return false
         setActive(next)
         return true
@@ -469,6 +492,22 @@ export function createCharts(
     )
   }
 
+  // A treemap is its nodes' values and, as a second series in the same
+  // table, each one's share of its group, as a funnel reads its stages.
+  function TreemapChart({ value, colors, childrenKey, rootLabel, ...props }: TreemapChartProps) {
+    return (
+      <Chart
+        props={{ ...props, series: treemapSeries(value) }}
+        colors={colors}
+        model={(width, theme) =>
+          treemapChartModel({ ...props, value, childrenKey, rootLabel, width }, (tone) =>
+            seriesColor(tone, colors?.[tone], theme.palette),
+          )
+        }
+      />
+    )
+  }
+
   return {
     BarChart,
     LineChart,
@@ -478,5 +517,6 @@ export function createCharts(
     PieChart,
     DonutChart,
     FunnelChart,
+    TreemapChart,
   }
 }
