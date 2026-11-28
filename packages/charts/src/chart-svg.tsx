@@ -146,6 +146,20 @@ const Drawing = memo(function Drawing({
             </SvgText>
           </G>
         ))}
+        {/* The right axis has no gridlines of its own: its ticks are level with the left's. */}
+        {model.rightAxis?.ticks.map((tick) => (
+          <SvgText
+            key={`r${tick.label}`}
+            x={plot.x + plot.width + fontSize / 2}
+            y={tick.position}
+            dy={fontSize * 0.35}
+            fill={ink}
+            fillOpacity={MUTED}
+            fontSize={fontSize}
+          >
+            {tick.label}
+          </SvgText>
+        ))}
         {model.xTicks.map((tick) => (
           <G key={`x${tick.position}`}>
             {horizontal ? (
@@ -618,7 +632,8 @@ function ReferenceLabel({ reference, model, ink, fontSize }: ReferenceProps) {
     </SvgText>
   ) : (
     <SvgText
-      x={plot.x + plot.width + fontSize / 2}
+      // Past the right axis' labels when there is one, which the margin left room for.
+      x={plot.x + plot.width + (model.rightAxis?.width ?? 0) + fontSize / 2}
       y={at}
       dy={fontSize * 0.35}
       fill={ink}

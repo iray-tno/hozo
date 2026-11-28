@@ -255,6 +255,11 @@ What is then left is decided afresh, not continued by default.
   ends are sliders, picking which run of rows the chart shows. The chart is
   drawn from those rows, so its summary and table are of what is on screen,
   and the summary first says how many of the whole they are.
+- A right value axis has since been added to `ComposedChart`, for a
+  series in other units. Its ticks are stepped to sit level with the left
+  axis' (a step of 1, 2, 2.5 or 5 of a power of ten), so it adds no
+  gridlines. What a reader hears is unchanged in kind: each value in its
+  own axis' format, and the summary names the right axis' series.
 - Radial bars have since been added: one ring per row, read as bars are.
   A bar is a `sweep` mark that keeps its angles as numbers, not a path,
   so a change of value blends along the ring; a pie's slice keeps arc

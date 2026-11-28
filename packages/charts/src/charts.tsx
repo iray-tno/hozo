@@ -21,10 +21,12 @@ import {
   barChartModel,
   type ChartInput,
   type ChartModel,
+  type ChartYAxis,
   type ComposedSeries,
   type Curve,
   categoriesOf,
   composedChartModel,
+  defaultFormat,
   lineChartModel,
   rowValue,
 } from './model.ts'
@@ -112,8 +114,13 @@ export type ScatterChartProps = Omit<Common, 'x'> & {
 
 export type ComposedChartProps = Omit<Common, 'series'> &
   Brushable & {
-    /** Each series as bars (the default) or, with `type: 'line'`, a line. */
+    /**
+     * Each series as bars (the default) or, with `type: 'line'`, a line;
+     * `axis: 'right'` reads it against `y2`.
+     */
     series: readonly ComposedSeries[]
+    /** The right value axis: its label, format and domain, for series in other units. */
+    y2?: ChartYAxis
     /** Draw a dot at each value of the line series. */
     points?: boolean
     /** How the line series run between values. */
@@ -449,9 +456,19 @@ export function createCharts(
     />
   ))
 
+  // A right-axis series is read in the right axis' format, in the table,
+  // the tooltip, the sentence and the summary, unless it names its own.
   const ComposedChart = brushable<ComposedChartProps>(({ points, ...props }, shown) => (
     <Chart
-      props={props}
+      props={{
+        ...props,
+        // Not in the left axis' format, which may be another unit altogether.
+        series: props.series.map((entry) =>
+          entry.axis === 'right'
+            ? { ...entry, format: entry.format ?? props.y2?.format ?? defaultFormat }
+            : entry,
+        ),
+      }}
       shown={shown}
       points={points}
       model={(width, theme) => composedChartModel({ ...props, width, bar: theme.bar })}

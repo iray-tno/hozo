@@ -463,6 +463,40 @@ export const BarsAndLine: StoryObj<typeof meta> = {
   ),
 }
 
+const conversion = revenue.map((row, i) => ({
+  ...row,
+  rate: [0.021, 0.034, 0.028, 0.041, 0.047, 0.039][i],
+}))
+
+/**
+ * Revenue as bars on the left axis and the conversion rate as a line on
+ * the right, whose ticks sit level with the left's. Each value is read in
+ * its own axis' format, and the summary says which series is on the right.
+ */
+export const RightAxis: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-2 p-6 text-slate-700">
+      <Heading level={2}>Revenue and conversion</Heading>
+      <ComposedChart
+        accessibilityLabel="Online revenue and conversion rate by month"
+        data={conversion}
+        x={{ key: 'month', label: 'Month' }}
+        y={dollars}
+        y2={{
+          label: 'Conversion',
+          format: (value) => `${Number((value * 100).toFixed(1))}%`,
+        }}
+        series={[
+          { key: 'online', label: 'Online revenue' },
+          { key: 'rate', label: 'Conversion', type: 'line', axis: 'right' },
+        ]}
+        height={240}
+        points
+      />
+    </View>
+  ),
+}
+
 /**
  * A target line over the bars and a range shaded under a line. Both are
  * drawn and also read: the summary ends "Target: $150." and "Usual range:

@@ -1,0 +1,43 @@
+heading, Revenue and conversion, level 2
+chart, Online revenue and conversion rate by month, 6 categories, Jan to Jun. Online revenue: lowest $90 at Mar, highest $210 at May. Conversion: lowest 2.1% at Jan, highest 4.7% at May. On the right axis: Conversion.
+table, Online revenue and conversion rate by month
+rowgroup
+row, Month Online revenue Conversion
+columnheader, Month
+columnheader, Online revenue
+columnheader, Conversion
+end of row, Month Online revenue Conversion
+end of rowgroup
+rowgroup
+row, Jan $120 2.1%
+rowheader, Jan
+cell, $120
+cell, 2.1%
+end of row, Jan $120 2.1%
+row, Feb $200 3.4%
+rowheader, Feb
+cell, $200
+cell, 3.4%
+end of row, Feb $200 3.4%
+row, Mar $90 2.8%
+rowheader, Mar
+cell, $90
+cell, 2.8%
+end of row, Mar $90 2.8%
+row, Apr $160 4.1%
+rowheader, Apr
+cell, $160
+cell, 4.1%
+end of row, Apr $160 4.1%
+row, May $210 4.7%
+rowheader, May
+cell, $210
+cell, 4.7%
+end of row, May $210 4.7%
+row, Jun $180 3.9%
+rowheader, Jun
+cell, $180
+cell, 3.9%
+end of row, Jun $180 3.9%
+end of rowgroup
+end of table, Online revenue and conversion rate by month

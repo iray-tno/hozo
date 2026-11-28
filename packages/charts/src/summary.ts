@@ -152,6 +152,12 @@ export function chartSummary(
             `highest ${read(values[high] as number)} at ${categories[high]}${missing}.`,
     )
   })
+  // Which series the right axis is for: each value is read in its own
+  // format already, so this only says why the drawing has two scales.
+  if (model.rightAxis?.series.length)
+    parts.push(
+      `On the right axis: ${model.rightAxis.series.map((i) => series[i]?.label ?? '').join(', ')}.`,
+    )
   // A reference is what the values are read against, so it comes after them.
   for (const reference of model.references)
     parts.push(
