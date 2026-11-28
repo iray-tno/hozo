@@ -4,6 +4,7 @@
 
 import type { Funnel } from './funnel.ts'
 import type { Radial } from './pie.ts'
+import type { Radar } from './radar.ts'
 import {
   type BandScale,
   bandScale,
@@ -244,6 +245,8 @@ export interface ChartModel {
   radial?: Radial
   /** A funnel's drop between stages and its labels; absent on other charts. */
   funnel?: Funnel
+  /** A radar's centre, rings, spokes and their names; absent on other charts. */
+  radar?: Radar
   /** A treemap's levels, rectangles and labels; absent on other charts. */
   tree?: Tree
   /** The series key above the plot; absent or empty for one series and for a pie. */

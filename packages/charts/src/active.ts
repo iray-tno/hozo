@@ -122,6 +122,13 @@ export function tooltipBox(
   const height = Math.ceil(lineHeight * (rows.length + 1) + padding * 2)
   const center = model.centers[datum] ?? 0
   const gap = fontSize
+  if (model.radar) {
+    // In the top corner across from the spoke, clear of its name and the outline.
+    const right = (model.radar.spokes[datum]?.x ?? 0) < model.radar.cx
+    const x = right ? Math.max(0, model.width - width) : 0
+    const y = Math.max(0, Math.min(model.plot.y, model.height - height))
+    return { x, y, width, height, lineHeight, padding }
+  }
   if (model.horizontal) {
     // Below the category's band if it fits, else above, at the plot's right.
     const half = model.plot.height / Math.max(1, model.centers.length) / 2

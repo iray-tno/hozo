@@ -1,0 +1,42 @@
+chart, Ratings by area, this release and the next, 6 categories, Speed to Features. This release: lowest 58 at Features, highest 88 at Reliability. Next release: lowest 60 at Price, highest 90 at Reliability.
+table, Ratings by area, this release and the next
+rowgroup
+row, Area This release Next release
+columnheader, Area
+columnheader, This release
+columnheader, Next release
+end of row, Area This release Next release
+end of rowgroup
+rowgroup
+row, Speed 72 85
+rowheader, Speed
+cell, 72
+cell, 85
+end of row, Speed 72 85
+row, Reliability 88 90
+rowheader, Reliability
+cell, 88
+cell, 90
+end of row, Reliability 88 90
+row, Ease of use 64 82
+rowheader, Ease of use
+cell, 64
+cell, 82
+end of row, Ease of use 64 82
+row, Support 70 68
+rowheader, Support
+cell, 70
+cell, 68
+end of row, Support 70 68
+row, Price 80 60
+rowheader, Price
+cell, 80
+cell, 60
+end of row, Price 80 60
+row, Features 58 77
+rowheader, Features
+cell, 58
+cell, 77
+end of row, Features 58 77
+end of rowgroup
+end of table, Ratings by area, this release and the next
