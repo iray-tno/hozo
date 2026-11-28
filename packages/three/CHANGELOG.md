@@ -1,5 +1,13 @@
 # @hozo/three
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [[`ce6f865`](https://github.com/iray-tno/hozo/commit/ce6f8657f923303f2cc584208b60f41245ee8300), [`44a8f8c`](https://github.com/iray-tno/hozo/commit/44a8f8c100cf5bcc5eb2ebd46573891eca4264e9)]:
+  - @hozo/canvas@0.6.0
+  - @hozo/engine@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@hozo/cli",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "The `hozo` command: one entry point for Hozo's command-line tools.",
   "keywords": [
     "react-native",

@@ -1,6 +1,6 @@
 {
   "name": "@hozo/svg",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Universal SVG primitives for Hozo, backed by browser SVG and react-native-svg.",
   "keywords": [
     "react-native",

@@ -1,5 +1,12 @@
 # @hozo/svg
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [[`44a8f8c`](https://github.com/iray-tno/hozo/commit/44a8f8c100cf5bcc5eb2ebd46573891eca4264e9)]:
+  - @hozo/engine@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes

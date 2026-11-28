@@ -1,5 +1,13 @@
 # @hozo/rn-compat
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [[`44a8f8c`](https://github.com/iray-tno/hozo/commit/44a8f8c100cf5bcc5eb2ebd46573891eca4264e9), [`ffba3d5`](https://github.com/iray-tno/hozo/commit/ffba3d5f258b839d78a704f53d608063f799d913), [`bace67a`](https://github.com/iray-tno/hozo/commit/bace67ab73e78d35dce0bf2e0a856f79e807d620), [`dd5e2b0`](https://github.com/iray-tno/hozo/commit/dd5e2b07654c656ec278c16cf7290e65df06471e), [`4d7cd69`](https://github.com/iray-tno/hozo/commit/4d7cd69db6a3cd7aca172c6abfb57aa5272298d9), [`9aa5245`](https://github.com/iray-tno/hozo/commit/9aa52454f4332e93409bb6c4a9a7f658398cfad6), [`9fabdd4`](https://github.com/iray-tno/hozo/commit/9fabdd4c0c2b03e7612d26a5ea41890918dd4450), [`09f13ad`](https://github.com/iray-tno/hozo/commit/09f13ad2eddfbd1d76a79533f67057df6cff5569), [`ec0aa3f`](https://github.com/iray-tno/hozo/commit/ec0aa3f460ce508b34d8dfb5429ebe1b0a2c17de)]:
+  - @hozo/engine@0.6.0
+  - @hozo/primitives@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes
