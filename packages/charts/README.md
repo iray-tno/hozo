@@ -119,8 +119,8 @@ theme.
 | --- | --- |
 | `accessibilityLabel` | Required. The chart's name, and its table's. |
 | `data` | Rows. A missing, `null` or non-finite value is a gap. |
-| `x` | `{ key, label?, format? }`: the field that holds each row's category. |
-| `y` | `{ label?, format?, domain? }`. The domain otherwise comes from the data, rounded to tidy ticks. |
+| `x` | `{ key, label?, format?, type?, timeZone?, locale? }`: the field that holds each row's category. With `type: 'time'` the field is a `Date`, milliseconds or a date string: Line and Area place each row by when it happened, with ticks on calendar boundaries, and every chart reads it as a date ("Mar 1, 2026"). Times are UTC unless `timeZone: 'local'`, so the server and the browser draw the same ticks. Rows go in time order. |
+| `y` | `{ label?, format?, domain?, scale? }`. The domain otherwise comes from the data, rounded to tidy ticks. `scale: 'log'` (Line and Scatter) spaces each tenfold step evenly; zero and below are not drawn but are still read, and the summary says "Values on a log scale." Bars and areas stay linear, because they measure from zero. |
 | `series` | `{ key, label, color? }[]`. Without `color`, a series takes the next colour of `DEFAULT_PALETTE`. Each palette colour has at least 3:1 contrast on white and on near-black, and the order keeps neighbours apart under protanopia and deuteranopia, so one set serves light and dark pages. |
 | `theme` | Palette, bar shape, line weight and frame for this chart, over any `ChartThemeProvider` above it. See [Theme](#theme). |
 | `legend` | Every chart but Pie and Donut: `false` hides the key above the plot. It is shown for two or more series, each swatch shaped like the series' mark (a block for bars, a stroke for a line, a dot for points). |

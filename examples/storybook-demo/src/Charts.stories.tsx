@@ -402,3 +402,48 @@ export const Curves: StoryObj<typeof meta> = {
     </View>
   ),
 }
+
+const signups = [
+  { day: '2026-01-05', users: 12 },
+  { day: '2026-01-06', users: 30 },
+  { day: '2026-01-09', users: 140 },
+  { day: '2026-01-20', users: 900 },
+  { day: '2026-02-02', users: 2600 },
+  { day: '2026-02-16', users: 8100 },
+  { day: '2026-03-02', users: 21000 },
+]
+
+// Rows placed by date, so the long gaps between later rows show as distance,
+// and a log axis, so each tenfold rise is the same height. The table and the
+// summary read the dates and the exact counts; the summary also names the
+// log scale.
+export const TimeAndLog: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-8 p-6 text-slate-700">
+      <Section className="gap-2">
+        <Heading level={2}>By date</Heading>
+        <LineChart
+          accessibilityLabel="Total sign-ups by date"
+          data={signups}
+          x={{ key: 'day', type: 'time', label: 'Date' }}
+          y={{ label: 'Sign-ups', format: (value) => value.toLocaleString('en-US') }}
+          series={[{ key: 'users', label: 'Sign-ups' }]}
+          height={220}
+          points
+        />
+      </Section>
+      <Section className="gap-2">
+        <Heading level={2}>By date, on a log scale</Heading>
+        <LineChart
+          accessibilityLabel="Total sign-ups by date, log scale"
+          data={signups}
+          x={{ key: 'day', type: 'time', label: 'Date' }}
+          y={{ label: 'Sign-ups', scale: 'log', format: (value) => value.toLocaleString('en-US') }}
+          series={[{ key: 'users', label: 'Sign-ups' }]}
+          height={220}
+          points
+        />
+      </Section>
+    </View>
+  ),
+}

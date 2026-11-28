@@ -6,11 +6,14 @@ import type { Radial } from './pie.ts'
 import {
   type BandScale,
   bandScale,
-  type LinearScale,
   linearScale,
+  logScale,
   niceDomain,
+  niceLogDomain,
   pointScale,
+  type ValueScale,
 } from './scale.ts'
+import { type TimeZone, timeDomain, timeFormatter, timeTicks, timeValue } from './time.ts'
 
 export interface ChartSeries {
   /** The field of each row that holds this series' value. */
@@ -30,6 +33,16 @@ export interface ChartXAxis {
   key: string
   label?: string
   format?: (value: unknown) => string
+  /**
+   * `'time'`: each row's field is a `Date`, milliseconds or a date string,
+   * read as a date. Line and Area then place rows by when they happened,
+   * with ticks on calendar boundaries; rows go in time order.
+   */
+  type?: 'category' | 'time'
+  /** A time axis' zone: UTC by default, so server and browser agree. */
+  timeZone?: TimeZone
+  /** The locale dates are written in; `'en-US'` by default. */
+  locale?: string
 }
 
 export interface ChartYAxis {
@@ -37,6 +50,12 @@ export interface ChartYAxis {
   format?: (value: number) => string
   /** A fixed domain; otherwise the data's, widened to round ticks. */
   domain?: readonly [number, number]
+  /**
+   * `'log'`, base 10, for values across orders of magnitude; Line and
+   * Scatter only, because a bar or an area measures from zero, which a log
+   * axis does not have. Zero and below are left undrawn and still read.
+   */
+  scale?: 'linear' | 'log'
 }
 
 export interface Margin {
@@ -218,6 +237,8 @@ export interface ChartModel {
   xColumn?: { label: string; values: string[]; missing: number; inTable: boolean }
   /** Reference lines and bands, placed on the value axis (x when `horizontal`). */
   references: PlacedReference[]
+  /** The value axis is logarithmic, which the summary says. */
+  log?: boolean
 }
 
 /** A row's value: finite, or a gap. A string or null is a gap, not zero. */
@@ -233,8 +254,14 @@ export const defaultFormat = (value: number) => {
 }
 
 function categoriesOf(input: ChartInput): string[] {
-  const format = input.x.format ?? ((value: unknown) => String(value ?? ''))
-  return input.data.map((row) => format(row[input.x.key]))
+  const { format, key } = input.x
+  if (format) return input.data.map((row) => format(row[key]))
+  if (input.x.type === 'time') {
+    const times = input.data.map((row) => timeValue(row[key]))
+    const date = timeFormatter(times, input.x.timeZone, input.x.locale)
+    return times.map((ms, i) => (ms === undefined ? String(input.data[i]?.[key] ?? '') : date(ms)))
+  }
+  return input.data.map((row) => String(row[key] ?? ''))
 }
 
 /**
@@ -252,7 +279,7 @@ export function estimateTextWidth(text: string, fontSize: number): number {
 export interface Frame {
   margin: Margin
   plot: ChartModel['plot']
-  y: LinearScale
+  y: ValueScale
   yTicks: Tick[]
   references: PlacedReference[]
   legend: LegendKey[]
@@ -313,10 +340,10 @@ function withReferences(
 
 function placeReferences(
   references: readonly ChartReference[] = [],
-  scale: LinearScale,
+  scale: ValueScale,
 ): PlacedReference[] {
   return references
-    .filter((reference) => Number.isFinite(reference.value))
+    .filter((reference) => Number.isFinite(scale(reference.value)))
     .map((reference) => ({
       ...reference,
       start: scale(reference.value),
@@ -324,8 +351,12 @@ function placeReferences(
     }))
 }
 
-/** Margins and the y scale, which depend on each other through the tick labels. */
-export function frame(input: ChartInput, domain: [number, number]): Frame {
+/**
+ * Margins and the y scale, which depend on each other through the tick
+ * labels. `log` when the chart honours `y.scale`; `domain` is then the
+ * positive values' extent.
+ */
+export function frame(input: ChartInput, domain: [number, number], log = false): Frame {
   const fontSize = input.fontSize ?? 12
   const format = input.y?.format ?? defaultFormat
   const gap = fontSize / 2
@@ -333,10 +364,11 @@ export function frame(input: ChartInput, domain: [number, number]): Frame {
   const top = input.margin?.top ?? gap + legend.height
   const bottom = input.margin?.bottom ?? fontSize + gap * 2 + (input.x.label ? fontSize + gap : 0)
   const plotHeight = Math.max(0, input.height - top - bottom)
-  const count = Math.max(2, Math.floor(plotHeight / 40))
+  // A log axis has few ticks per decade, so it can afford one each a line apart.
+  const count = Math.max(2, Math.floor(plotHeight / (log ? fontSize * 2 : 40)))
   const [lo, hi] = withReferences(domain, input.references)
-  const [d0, d1] = input.y?.domain ?? niceDomain(lo, hi, count)
-  const y = linearScale([d0, d1], [top + plotHeight, top])
+  const [d0, d1] = input.y?.domain ?? (log ? niceLogDomain(lo, hi) : niceDomain(lo, hi, count))
+  const y = (log ? logScale : linearScale)([d0, d1], [top + plotHeight, top])
   const tickValues = y.ticks(count)
   const labels = tickValues.map(format)
   const widest = Math.max(0, ...labels.map((label) => estimateTextWidth(label, fontSize)))
@@ -373,6 +405,23 @@ function xTicks(
   for (let i = 0; i < categories.length; i += every)
     out.push({ position: centers[i] as number, label: categories[i] as string })
   return edgeLabels(out, fontSize, width)
+}
+
+/**
+ * Ticks at any spacing, thinned to every n-th so that labels a step apart
+ * do not overlap, then kept inside the chart.
+ */
+function spacedTicks(ticks: Tick[], fontSize: number, width: number): Tick[] {
+  const widest = Math.max(0, ...ticks.map((tick) => estimateTextWidth(tick.label, fontSize)))
+  let step = Number.POSITIVE_INFINITY
+  for (let i = 1; i < ticks.length; i++)
+    step = Math.min(step, Math.abs((ticks[i]?.position ?? 0) - (ticks[i - 1]?.position ?? 0)))
+  const every = Number.isFinite(step) && step > 0 ? Math.ceil((widest + fontSize) / step) : 1
+  return edgeLabels(
+    ticks.filter((_, i) => i % every === 0),
+    fontSize,
+    width,
+  )
 }
 
 /** The edge a tick's label is drawn against, inside the chart. */
@@ -957,18 +1006,21 @@ function pointChart(input: LineChartInput, area: boolean | undefined): ChartMode
   const categories = categoriesOf(input)
   const values = input.series.map((series) => input.data.map((row) => rowValue(row, series.key)))
   const fontSize = input.fontSize ?? 12
+  const log = area === undefined && input.y?.scale === 'log'
+  const drawn = log ? positive(values) : values
   const domain =
-    area === undefined ? extent(values, false) : area ? stackedExtent(values) : extent(values, true)
-  const { plot, y, yTicks, references, legend } = frame(input, domain)
+    area === undefined ? extent(drawn, false) : area ? stackedExtent(values) : extent(values, true)
+  const { plot, y, yTicks, references, legend } = frame(input, domain, log)
+  const placed = input.x.type === 'time' ? timeAxis(input, plot, fontSize) : undefined
   const x: BandScale<number> = pointScale(
     input.data.map((_, i) => i),
     [plot.x, plot.x + plot.width],
     { padding: 0.5 },
   )
-  const centers = input.data.map((_, i) => x(i) as number)
+  const centers = placed?.centers ?? input.data.map((_, i) => x(i) as number)
   const marks: Mark[] = []
   const baseline = Math.min(Math.max(0, y.domain[0]), y.domain[1])
-  const spans = bands(values, area ?? false, baseline)
+  const spans = bands(drawn, area ?? false, baseline)
   // Bands first, so every line and dot is drawn over every fill.
   if (area !== undefined)
     for (const [series, column] of spans.entries())
@@ -998,11 +1050,38 @@ function pointChart(input: LineChartInput, area: boolean | undefined): ChartMode
     categories,
     values,
     marks,
-    xTicks: xTicks(categories, centers, x.step, fontSize, input.width),
+    xTicks: placed?.ticks ?? xTicks(categories, centers, x.step, fontSize, input.width),
     yTicks,
     references,
     legend,
     centers,
     datumAt: nearest(centers),
+    ...(log ? { log } : {}),
+  }
+}
+
+/** On a log axis zero and below have no place: drawn as gaps, still read as given. */
+export function positive(values: (number | undefined)[][]): (number | undefined)[][] {
+  return values.map((column) =>
+    column.map((value) => (value !== undefined && value > 0 ? value : undefined)),
+  )
+}
+
+/**
+ * Where each row sits on a time axis, and the calendar ticks. A row with
+ * no time has no place: it is not drawn, and the table still reads it.
+ */
+function timeAxis(input: ChartInput, plot: ChartModel['plot'], fontSize: number) {
+  const times = input.data.map((row) => timeValue(row[input.x.key]))
+  const domain = timeDomain(times)
+  if (!domain) return { centers: times.map(() => Number.NaN), ticks: [] }
+  const x = linearScale(domain, [plot.x, plot.x + plot.width])
+  const count = Math.max(2, Math.floor(plot.width / (fontSize * 7)))
+  const ticks = timeTicks(domain[0], domain[1], count, input.x.timeZone, input.x.locale).map(
+    (tick) => ({ position: x(tick.value), label: tick.label }),
+  )
+  return {
+    centers: times.map((ms) => (ms === undefined ? Number.NaN : x(ms))),
+    ticks: spacedTicks(ticks, fontSize, input.width),
   }
 }

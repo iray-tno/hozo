@@ -92,3 +92,4 @@ export {
   type ResolvedChartTheme,
   resolveTheme,
 } from './theme.tsx'
+export type { TimeZone } from './time.ts'

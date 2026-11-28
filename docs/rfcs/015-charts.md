@@ -131,7 +131,7 @@ interface ChartTheme {
 
 ### Scales
 
-Three, written here rather than taken from `d3-scale`, which brings
+Five, written here rather than taken from `d3-scale`, which brings
 `d3-array`, `d3-interpolate`, `d3-format` and `d3-time` with it:
 
 - **linear**, with a "nice" domain and ticks at 1, 2 or 5 times a power of
@@ -139,9 +139,14 @@ Three, written here rather than taken from `d3-scale`, which brings
   fixed set of domains so the result is familiar.
 - **band**, for Bar categories, with inner and outer padding.
 - **point**, for Line categories.
-
-A time scale is not in phase 1. A Line chart over dates uses a point scale
-over formatted labels until one is needed.
+- **time**, for Line and Area over dates (`x.type: 'time'`): rows are
+  placed by when they happened, and ticks fall on minutes, hours, days,
+  Monday weeks, months or years, labelled as briefly as the step allows.
+  UTC unless asked otherwise, because the server and the browser must draw
+  the same ticks.
+- **log**, base 10, for a Line or Scatter value axis (`y.scale: 'log'`).
+  Bars and areas have none: they measure from zero. A value of zero or
+  below is left undrawn and still read in the table and the summary.
 
 ### Layout
 
@@ -241,7 +246,8 @@ What is then left is decided afresh, not continued by default.
   under colour-vision simulation, capped bars with a rounded value end,
   and a quieter frame have since been added; how much of that a user can
   change is the theme in §3.1.
-- **Time scale, log scale, brushing and zoom, animation.**
+- Monotone curves, a time axis and a log value axis have since been added.
+- **Brushing and zoom, animation.**
 
 ## 9. Open questions
 

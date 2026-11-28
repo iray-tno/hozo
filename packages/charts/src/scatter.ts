@@ -15,6 +15,7 @@ import {
   extent,
   frame,
   type Mark,
+  positive,
   referenceRoom,
   rowValue,
   type Tick,
@@ -67,6 +68,8 @@ export function scatterChartModel(input: ScatterChartInput): ChartModel {
     ? rows.map((row) => String(row[input.name?.key as string] ?? ''))
     : xLabels
   const values = input.series.map((series) => rows.map((row) => rowValue(row, series.key)))
+  const log = input.y?.scale === 'log'
+  const drawn = log ? positive(values) : values
 
   // The x ticks first, at a rough width, because the last label sets the
   // right margin the y frame then lays out with.
@@ -83,12 +86,13 @@ export function scatterChartModel(input: ScatterChartInput): ChartModel {
     Math.ceil(Math.max(gap * 2, last / 2 + gap, referenceRoom(input.references, fontSize)))
   const { plot, y, yTicks, references, legend } = frame(
     { ...input, x: { key: input.x.key, label: input.x.label }, margin: { ...input.margin, right } },
-    extent(values, false),
+    extent(drawn, false),
+    log,
   )
   const x = linearScale([x0, x1], [plot.x, plot.x + plot.width])
   const centers = xs.map((value) => x(value))
   const marks: Mark[] = []
-  for (const [series, column] of values.entries())
+  for (const [series, column] of drawn.entries())
     for (const [datum, value] of column.entries())
       if (value !== undefined)
         marks.push({ kind: 'point', series, datum, cx: centers[datum] as number, cy: y(value) })
@@ -109,6 +113,7 @@ export function scatterChartModel(input: ScatterChartInput): ChartModel {
     references,
     legend,
     centers,
+    ...(log ? { log } : {}),
     // The dot nearest the pointer in both directions; by x alone when there
     // is no y, as for a touch that only reports a column.
     datumAt(px, py) {

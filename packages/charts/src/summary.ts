@@ -44,6 +44,8 @@ export function chartSummary(
     const range = count === 1 ? `${categories[0]}` : `${categories[0]} to ${categories[count - 1]}`
     parts.push(`${count.toLocaleString('en-US')} ${noun}, ${range}.`)
   }
+  // Each value is read as given; the scale only says why the drawing looks as it does.
+  if (model.log) parts.push('Values on a log scale.')
   series.forEach((entry, index) => {
     const values = model.values[index] ?? []
     let low = -1
