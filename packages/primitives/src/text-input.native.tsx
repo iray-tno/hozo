@@ -2,11 +2,15 @@ import {
   type HozoPressableInteractionState,
   usePressableInteraction,
 } from '@hozo/behaviors/pressable-interaction'
-import { type ComponentRef, type Ref, useContext, useLayoutEffect } from 'react'
+import { type ComponentRef, type Ref, useContext, useLayoutEffect, useState } from 'react'
 import { TextInput, type TextInputProps } from 'react-native'
 import { HozoPeerContext } from './peer-context.native.ts'
 import { HozoSubtreeContext, useReportSubtreeInteraction } from './subtree-context.native.ts'
 import { type NativeTextInputProps, nativeTextInputProps } from './text-input-props.native.ts'
+
+export interface HozoTextInputInteractionState extends HozoPressableInteractionState {
+  touched: boolean
+}
 
 export interface HozoTextInputFieldColors {
   placeholderTextColor?: TextInputProps['placeholderTextColor']
@@ -17,9 +21,9 @@ export interface HozoTextInputFieldColors {
 export interface HozoTextInputProps extends NativeTextInputProps {
   ref?: Ref<ComponentRef<typeof TextInput>>
   /** Compiler-only style evaluation on this input, not an ancestor Pressable. */
-  hozoStyle?: (state: HozoPressableInteractionState) => TextInputProps['style']
+  hozoStyle?: (state: HozoTextInputInteractionState) => TextInputProps['style']
   /** Compiler-only focus-driven field colour props (`focus:placeholder:*`, `focus:selection:bg-*`, `focus:caret-*`). */
-  hozoFieldColors?: (state: HozoPressableInteractionState) => HozoTextInputFieldColors
+  hozoFieldColors?: (state: HozoTextInputInteractionState) => HozoTextInputFieldColors
   /** Channel ID inside an enclosing `HozoPeerScope` when a following sibling reads `peer-focus:`/`peer-focus-visible:`. */
   hozoPeerId?: number
   /** Enables focus reporting to an enclosing `HozoSubtreeBoundary` (`focus-within:` / `has-[:focus]:`). */
@@ -68,9 +72,11 @@ function FocusedTextInput({
   style,
   onFocus,
   onBlur,
+  onChangeText,
   ...props
 }: HozoTextInputProps) {
   const { state, handlers } = usePressableInteraction({ focusVisible: 'keyboard-input' })
+  const [touched, setTouched] = useState(false)
   const peerStore = useContext(HozoPeerContext)
   useLayoutEffect(() => {
     if (peerStore && hozoPeerId !== undefined) {
@@ -82,7 +88,8 @@ function FocusedTextInput({
     return () => peerStore.clear(hozoPeerId)
   }, [peerStore, hozoPeerId])
   useReportSubtreeInteraction(state)
-  const fieldColors = hozoFieldColors?.(state)
+  const inputState: HozoTextInputInteractionState = { ...state, touched }
+  const fieldColors = hozoFieldColors?.(inputState)
   const normalized = nativeTextInputProps(props)
   return (
     <TextInput
@@ -91,14 +98,19 @@ function FocusedTextInput({
       selectionColor={normalized.selectionColor ?? fieldColors?.selectionColor}
       cursorColor={normalized.cursorColor ?? fieldColors?.cursorColor}
       ref={ref}
-      style={hozoStyle ? [hozoStyle(state), style] : style}
+      style={hozoStyle ? [hozoStyle(inputState), style] : style}
       onFocus={(event) => {
         handlers.focus()
         onFocus?.(event)
       }}
       onBlur={(event) => {
         handlers.blur()
+        setTouched(true)
         onBlur?.(event)
+      }}
+      onChangeText={(text) => {
+        setTouched(true)
+        onChangeText?.(text)
       }}
     />
   )

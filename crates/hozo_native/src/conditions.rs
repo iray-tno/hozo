@@ -354,13 +354,20 @@ pub(super) fn build_style_entries_with_measured(
             | Condition::Width { .. }
             | Condition::Dark
             | Condition::Container { .. }
-            | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown) => {
-                lands::from_guard(
-                    guards::resolve(&condition, target, source, runtime),
-                    condition == Condition::Enabled,
-                    node,
-                )
-            }
+            | Condition::FormState(
+                FormState::ReadOnly
+                | FormState::PlaceholderShown
+                | FormState::Required
+                | FormState::Optional
+                | FormState::Invalid
+                | FormState::Valid
+                | FormState::UserInvalid
+                | FormState::UserValid,
+            ) => lands::from_guard(
+                guards::resolve(&condition, target, source, runtime),
+                condition == Condition::Enabled,
+                node,
+            ),
             Condition::Always => Ok(lands::Lands::Base(String::new())),
             Condition::All(conditions) => {
                 match stacked::stacked_guard(conditions, target, source, runtime, diagnostics) {

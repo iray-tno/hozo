@@ -2587,3 +2587,100 @@ fn marker_refuses_on_non_list_and_on_web_only_marker_properties() {
         attr_out.diagnostics
     );
 }
+
+#[test]
+fn required_optional_invalid_valid_and_user_invalid_lower_on_text_input() {
+    let source = r#"
+            import { TextInput } from '@hozo/core'
+            export function Form({ err, req }) {
+              return (
+                <TextInput
+                  required={req}
+                  aria-invalid={err}
+                  accessibilityLabel="Email"
+                  className="required:p-4 optional:p-2 invalid:bg-red-500 valid:bg-green-500 user-invalid:border-red-500 user-valid:border-green-500"
+                />
+              )
+            }
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("HozoTextInput"), "{}", output.jsx);
+    assert!(!output.jsx.contains("required="), "{}", output.jsx);
+    assert!(output.jsx.contains("Boolean(req)"), "{}", output.jsx);
+    assert!(output.jsx.contains("!(Boolean(req))"), "{}", output.jsx);
+    assert!(
+        output.jsx.contains("String((err)) === 'true'"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.jsx.contains("hozoStyle={({ touched }) => ["),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains("(touched && (String((err)) === 'true'))"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains("(touched && !(String((err)) === 'true'))"),
+        "{}",
+        output.jsx
+    );
+}
+
+#[test]
+fn form_validation_variants_refuse_without_driver_props_and_support_peer() {
+    let missing_src = r#"
+            import { TextInput } from '@hozo/core'
+            const el = <TextInput accessibilityLabel="Name" className="required:p-4 invalid:p-2 user-invalid:p-1" />
+            "#;
+    let missing_parsed = hozo_parser::parse_tsx(missing_src);
+    let missing_out = lower(
+        &missing_parsed.roots[0].node,
+        missing_src,
+        &Theme::default(),
+    );
+    assert_eq!(
+        missing_out.diagnostics.len(),
+        3,
+        "{:?}",
+        missing_out.diagnostics
+    );
+
+    let peer_src = r#"
+            import { View, TextInput, Text } from '@hozo/core'
+            export function Field({ err }) {
+              return (
+                <View>
+                  <TextInput className="peer" required aria-invalid={err} accessibilityLabel="Email" />
+                  <Text className="peer-required:text-blue-500 peer-invalid:text-red-500">Hint</Text>
+                </View>
+              )
+            }
+            "#;
+    let peer_parsed = hozo_parser::parse_tsx(peer_src);
+    let peer_out = lower(&peer_parsed.roots[0].node, peer_src, &Theme::default());
+    assert!(
+        peer_out.diagnostics.is_empty(),
+        "{:?}",
+        peer_out.diagnostics
+    );
+    assert!(
+        peer_out.jsx.contains("String((err)) === 'true'"),
+        "{}",
+        peer_out.jsx
+    );
+    assert!(
+        peer_out.styles.contains("color: '#2b7fff'"),
+        "{}",
+        peer_out.styles
+    );
+}

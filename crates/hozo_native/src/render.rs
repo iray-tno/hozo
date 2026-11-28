@@ -838,6 +838,20 @@ pub(super) fn render_node(
         )];
     }
 
+    let needs_touched = node.primitive == Primitive::TextInput
+        && own_declarations.iter().any(|declaration| {
+            fn uses_touched(condition: &Condition) -> bool {
+                match condition {
+                    Condition::FormState(
+                        hozo_ir::FormState::UserInvalid | hozo_ir::FormState::UserValid,
+                    ) => true,
+                    Condition::Not(inner) => uses_touched(inner),
+                    Condition::All(items) => items.iter().any(uses_touched),
+                    _ => false,
+                }
+            }
+            uses_touched(&declaration.condition)
+        });
     style_attribute::write_style_attribute(
         style_attribute::StyleAttribute {
             pattern_classes: pattern_classes.as_ref(),
@@ -845,6 +859,7 @@ pub(super) fn render_node(
             owner_view_callback,
             needs_focus_visible,
             needs_hover_or_focus,
+            needs_touched,
             rendered_component,
             pattern_style_prop,
         },

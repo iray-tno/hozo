@@ -211,6 +211,10 @@ pub struct TextInputProps {
     /// get back the one that was written.
     pub editable: Option<ConditionExpr>,
     pub read_only: Option<ConditionExpr>,
+    /// `required`, which the DOM carries on `<input required>` and React Native
+    /// does not model as a host prop (stripped on Native while driving
+    /// `required:` / `optional:` style variants).
+    pub required: Option<ConditionExpr>,
     /// Native's boolean, which Web's enumerated `autocorrect` spells on/off.
     pub auto_correct: Option<ConditionExpr>,
     /// `multiline`, which on Web is not a prop but a different element.

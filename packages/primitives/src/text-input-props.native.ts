@@ -3,6 +3,7 @@ import type { TextInputProps as RNTextInputProps } from 'react-native'
 /** Canonical disabled is distinct from an editable/read-only field. */
 export interface NativeTextInputProps extends RNTextInputProps {
   disabled?: boolean
+  required?: boolean
   className?: string
   'aria-invalid'?: boolean | 'false' | 'true' | 'grammar' | 'spelling'
 }
@@ -10,6 +11,7 @@ export interface NativeTextInputProps extends RNTextInputProps {
 /** Shared by value-level and generated hosts; RN has no disabled input prop. */
 export function nativeTextInputProps({
   disabled,
+  required: _required,
   'aria-invalid': _invalid,
   ...props
 }: NativeTextInputProps): RNTextInputProps {

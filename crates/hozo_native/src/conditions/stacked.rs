@@ -57,7 +57,16 @@ pub(super) fn stacked_guard(
                 | Condition::Structural(_)
                 | Condition::StartingStyle
                 | Condition::Not(_)
-                | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown)
+                | Condition::FormState(
+                    FormState::ReadOnly
+                        | FormState::PlaceholderShown
+                        | FormState::Required
+                        | FormState::Optional
+                        | FormState::Invalid
+                        | FormState::Valid
+                        | FormState::UserInvalid
+                        | FormState::UserValid,
+                )
         )
     });
     if !supported {
@@ -112,7 +121,16 @@ pub(super) fn stacked_guard(
             | Condition::Width { .. }
             | Condition::Dark
             | Condition::Container { .. }
-            | Condition::FormState(FormState::ReadOnly | FormState::PlaceholderShown) => {
+            | Condition::FormState(
+                FormState::ReadOnly
+                | FormState::PlaceholderShown
+                | FormState::Required
+                | FormState::Optional
+                | FormState::Invalid
+                | FormState::Valid
+                | FormState::UserInvalid
+                | FormState::UserValid,
+            ) => {
                 match guards::resolve(atom, target, source, runtime) {
                     Ok(guards::Guard::Known(true)) => {}
                     Ok(guards::Guard::Known(false)) => applies = false,

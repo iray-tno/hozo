@@ -11,6 +11,7 @@ pub(super) struct StyleAttribute<'a> {
     pub(super) owner_view_callback: bool,
     pub(super) needs_focus_visible: bool,
     pub(super) needs_hover_or_focus: bool,
+    pub(super) needs_touched: bool,
     pub(super) rendered_component: &'a str,
     pub(super) pattern_style_prop: Option<&'static str>,
 }
@@ -30,6 +31,7 @@ pub(super) fn write_style_attribute(
         owner_view_callback,
         needs_focus_visible,
         needs_hover_or_focus,
+        needs_touched,
         rendered_component,
         pattern_style_prop,
     } = attribute;
@@ -62,11 +64,20 @@ pub(super) fn write_style_attribute(
                     || matches!(rendered_component, "HozoText" | "HozoInteractionView")
                 {
                     "pressed, hovered, focused"
+                } else if needs_touched && rendered_component == "HozoTextInput" {
+                    ""
                 } else {
                     "pressed"
                 };
-                vec![fields.to_string()]
+                if fields.is_empty() {
+                    Vec::new()
+                } else {
+                    vec![fields.to_string()]
+                }
             };
+            if needs_touched && rendered_component == "HozoTextInput" {
+                params.push("touched".to_string());
+            }
             params.extend(cx.owner_inputs.facts.iter().map(|fact| fact.parameter()));
             let state = format!("{{ {} }}", params.join(", "));
             format!("({state}) => [{}]", style_array_parts.join(", "))
