@@ -60,6 +60,15 @@ function sprout(mark: Extract<Mark, { kind: 'bar' }>): Extract<Mark, { kind: 'ba
 
 function between(from: Mark | undefined, to: Mark, t: number): Mark {
   switch (to.kind) {
+    case 'sweep':
+      return from?.kind === 'sweep'
+        ? {
+            ...to,
+            outer: lerp(from.outer, to.outer, t),
+            inner: lerp(from.inner, to.inner, t),
+            end: lerp(from.end, to.end, t),
+          }
+        : to
     case 'cell':
       return from?.kind === 'cell'
         ? {

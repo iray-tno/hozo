@@ -5,6 +5,7 @@
 import type { Funnel } from './funnel.ts'
 import type { Radial } from './pie.ts'
 import type { Radar } from './radar.ts'
+import type { RadialBar } from './radial-bar.ts'
 import {
   type BandScale,
   bandScale,
@@ -201,6 +202,21 @@ export type Mark =
     }
   /** A funnel stage: a trapezoid from its value's width to the next stage's. */
   | { kind: 'stage'; series: number; datum: number; path: string }
+  /**
+   * A radial bar: a ring segment from `start` to `end`, angles clockwise
+   * from twelve o'clock, kept as numbers so a change of value can blend.
+   */
+  | {
+      kind: 'sweep'
+      series: number
+      datum: number
+      cx: number
+      cy: number
+      outer: number
+      inner: number
+      start: number
+      end: number
+    }
   /** A treemap leaf: its rectangle, and `tone` its top-level group's palette index. */
   | {
       kind: 'cell'
@@ -245,6 +261,8 @@ export interface ChartModel {
   radial?: Radial
   /** A funnel's drop between stages and its labels; absent on other charts. */
   funnel?: Funnel
+  /** A radial bar chart's rings, ticks and names; absent on other charts. */
+  radialBar?: RadialBar
   /** A radar's centre, rings, spokes and their names; absent on other charts. */
   radar?: Radar
   /** A treemap's levels, rectangles and labels; absent on other charts. */

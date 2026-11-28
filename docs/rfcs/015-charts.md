@@ -255,6 +255,10 @@ What is then left is decided afresh, not continued by default.
   ends are sliders, picking which run of rows the chart shows. The chart is
   drawn from those rows, so its summary and table are of what is on screen,
   and the summary first says how many of the whole they are.
+- Radial bars have since been added: one ring per row, read as bars are.
+  A bar is a `sweep` mark that keeps its angles as numbers, not a path,
+  so a change of value blends along the ring; a pie's slice keeps arc
+  flags that do not.
 - A radar has since been added. Its keyboard order, the open question, is
   the table's: clockwise from twelve o'clock in data order, Right and Left
   stepping and stopping at the ends, so going round the chart and down the

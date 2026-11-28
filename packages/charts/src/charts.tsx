@@ -32,6 +32,7 @@ import { useAnimatedModel } from './motion.ts'
 import { seriesColor } from './palette.ts'
 import { type PieValue, pieChartModel, shareFormat } from './pie.ts'
 import { radarChartModel } from './radar.ts'
+import { radialBarChartModel } from './radial-bar.ts'
 import { type ScatterName, type ScatterXAxis, scatterChartModel } from './scatter.ts'
 import { chartSummary, includesTable } from './summary.ts'
 import { useActiveDatum } from './sync.tsx'
@@ -99,6 +100,8 @@ export type RadarChartProps = Omit<Common, 'margin' | 'references'> & {
   /** Draw a dot at each value. */
   points?: boolean
 }
+
+export type RadialBarChartProps = Omit<Common, 'margin' | 'references'>
 
 export type ScatterChartProps = Omit<Common, 'x'> & {
   /** The numeric field along x; the rows are read in its order. */
@@ -467,6 +470,17 @@ export function createCharts(
     )
   }
 
+  // Radial bars read as bars do: a row per ring, outermost first, with
+  // every series on it, Down and Up stepping inward and out.
+  function RadialBarChart(props: RadialBarChartProps) {
+    return (
+      <Chart
+        props={props}
+        model={(width, theme) => radialBarChartModel({ ...props, width, bar: theme.bar })}
+      />
+    )
+  }
+
   // The table's first column is the point's name, or its x value when
   // there is none; the model adds an x column after a name.
   function ScatterChart({ x, name, ...props }: ScatterChartProps) {
@@ -537,5 +551,6 @@ export function createCharts(
     FunnelChart,
     TreemapChart,
     RadarChart,
+    RadialBarChart,
   }
 }

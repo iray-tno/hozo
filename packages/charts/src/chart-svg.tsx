@@ -15,6 +15,8 @@ import {
   type PlacedReference,
 } from './model.ts'
 import { seriesColor } from './palette.ts'
+import { arcPath } from './pie.ts'
+import { sweepPath } from './radial-bar.ts'
 import { DEFAULT_THEME, type ResolvedChartTheme } from './theme.tsx'
 
 // The frame recedes so the data is the loudest thing on the chart. Gridlines
@@ -174,7 +176,11 @@ const Drawing = memo(function Drawing({
             </SvgText>
           </G>
         ))}
-        {radial || model.funnel || model.tree || model.radar ? null : horizontal ? (
+        {radial ||
+        model.funnel ||
+        model.tree ||
+        model.radar ||
+        model.radialBar ? null : horizontal ? (
           <Line
             x1={plot.x}
             x2={plot.x}
@@ -194,6 +200,52 @@ const Drawing = memo(function Drawing({
           />
         )}
       </G>
+      {model.radialBar ? (
+        <G>
+          {/* Each ring's full sweep as a track, so a bar's length reads against it. */}
+          {model.radialBar.rings.map((ring, i) => (
+            <Path
+              // biome-ignore lint/suspicious/noArrayIndexKey: one ring per row, in data order
+              key={`k${i}`}
+              d={arcPath(
+                model.radialBar?.cx ?? 0,
+                model.radialBar?.cy ?? 0,
+                ring.outer,
+                ring.inner,
+                0,
+                model.radialBar?.sweep ?? 0,
+              )}
+              fill={ink}
+              fillOpacity={look.frame.grid}
+            />
+          ))}
+          {model.radialBar.ticks.map((tick) => (
+            <SvgText
+              key={`t${tick.label}`}
+              x={tick.x}
+              y={tick.y}
+              fill={ink}
+              fillOpacity={MUTED}
+              fontSize={fontSize}
+              textAnchor={tick.anchor}
+            >
+              {tick.label}
+            </SvgText>
+          ))}
+          {model.radialBar.labels.map((label) => (
+            <SvgText
+              key={`n${label.datum}`}
+              x={label.x}
+              y={label.y}
+              fill={ink}
+              fontSize={fontSize}
+              textAnchor="end"
+            >
+              {label.text}
+            </SvgText>
+          ))}
+        </G>
+      ) : null}
       {model.radar ? (
         <G>
           {model.radar.rings.map((ring) => (
@@ -253,6 +305,8 @@ const Drawing = memo(function Drawing({
               return <Path key={`s${mark.datum}`} d={mark.path} fill={color} />
             case 'stage':
               return <Path key={`t${mark.datum}`} d={mark.path} fill={color} />
+            case 'sweep':
+              return <Path key={`w${mark.series}-${mark.datum}`} d={sweepPath(mark)} fill={color} />
             case 'cell':
               return (
                 <Rect
@@ -645,7 +699,21 @@ function Tooltip({
       : model.plot.width
   return (
     <G>
-      {model.radar ? (
+      {model.radialBar ? (
+        <Path
+          d={arcPath(
+            model.radialBar.cx,
+            model.radialBar.cy,
+            (model.radialBar.rings[datum]?.outer ?? 0) + 1,
+            Math.max(0, (model.radialBar.rings[datum]?.inner ?? 0) - 1),
+            0,
+            model.radialBar.sweep,
+          )}
+          fill="none"
+          stroke={ink}
+          strokeWidth={2}
+        />
+      ) : model.radar ? (
         <Line
           x1={model.radar.cx}
           y1={model.radar.cy}

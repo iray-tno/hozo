@@ -1,6 +1,6 @@
 # @hozo/charts
 
-Bar, Line, Area, Composed (bars and lines), Scatter, Pie, Donut, Funnel, Treemap and Radar charts, and sparklines, that a screen reader, a keyboard and a finger can all use, drawn with
+Bar, Line, Area, Composed (bars and lines), Scatter, Pie, Donut, Funnel, Treemap, Radar and RadialBar charts, and sparklines, that a screen reader, a keyboard and a finger can all use, drawn with
 [`@hozo/svg`](https://www.npmjs.com/package/@hozo/svg) on the Web and React Native.
 
 ```tsx
@@ -100,6 +100,27 @@ stage reads it, for example "Signed up. People: 3,100. Kept from the stage befor
 summary lists it for every stage and ends with the last stage against the first. The arrow keys
 step down and up the stages. A stage with no value or a value of zero or less is not drawn, and
 the table still lists it.
+
+## RadialBar
+
+```tsx
+<RadialBarChart
+  accessibilityLabel="Goals met today, percent"
+  data={goals}
+  x={{ key: 'goal' }}
+  y={{ domain: [0, 100], format: (value) => `${value}%` }}
+  series={[{ key: 'done', label: 'Done' }]}
+  height={300}
+/>
+```
+
+One ring per row, the first outermost, each series a bar bent along its ring clockwise from twelve
+o'clock, as long in angle as its value. The axis is three quarters of a turn, so the longest bar
+never closes into a circle that hides where it ends, and each ring's full sweep is drawn faintly
+behind it as a track. The free quarter holds the rows' names, level with their rings, and the value
+ticks go round the outside. Two or more series share each ring side by side, with a key above. It
+reads as bars do; Down and Up step through the rings. A value of zero or less has no bar, and the
+table still lists it.
 
 ## Radar
 
