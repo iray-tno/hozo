@@ -12,14 +12,19 @@
 // - Nothing in React Native could be wired to answer it. That is a
 //   judgement, so it is made narrowly. Left out on purpose, although every
 //   one is refused today:
-//   - `supports-[...]`: CSS feature queries have no RN equivalent today.
+//   - `supports-[...]`: CSS feature queries evaluate at build time against
+//     React Native's known Yoga/StyleSheet capability; unsupported features
+//     warn and omit cleanly rather than being absent from the platform.
 //   - unwired `has-*` / `peer-*` / `group-*` states beyond modeled props and
 //     descendant/sibling interaction contexts.
 //   - `placeholder:`, `selection:`, `first-letter:`: inline/prop-backed slices
 //     lower on Native (`placeholderTextColor`, `selectionColor`, inline nested
 //     `<Text>`), while unsupported box/layout properties stay refused.
-//   - `placeholder-shown:`: whether a TextInput is empty is in its value.
-//   - `backdrop:`: a Modal has a scrim to style.
+//   - `placeholder-shown:`, `required:`, `invalid:`, `user-invalid:`: driven
+//     from `TextInput`'s authored props (`value`, `required`, `aria-invalid`)
+//     and `HozoTextInput`'s `touched` state.
+//   - `marker:`, `before:`, `after:`, `backdrop:`: synthesized on compatible
+//     Native primitives (`List`/`ListItem`, box containers, `Dialog`).
 //   - `max-[40rem]`: `rem` could be given a fixed size.
 //   - unwired `group-*` states (such as `group-open`, `group-data-*`) not
 //     carried by the ancestor's interaction context or modeled props.
@@ -33,11 +38,7 @@ export const NO_NATIVE_COUNTERPART: Readonly<Record<string, string>> = {
   'contrast-less': 'iOS and Android offer an increase-contrast setting and no reduce-contrast one.',
   target: 'There is no document URL whose fragment could point at an element.',
   visited: 'There is no browsing history and no links to have visited.',
-  required: 'React Native has no constraint validation: no `required` attribute to read.',
-  invalid: 'React Native has no constraint validation to fail.',
-  'user-invalid': 'React Native has no constraint validation to fail.',
   autofill: 'React Native exposes no autofilled state for a field.',
-  marker: 'React Native has no list items, so no list marker.',
   file: 'There is no file input, so no file-selector button.',
 }
 

@@ -212,10 +212,10 @@
   },
   "nativeVariants": {
     "total": 29403,
-    "covered": 17694,
-    "restricted": 14160,
-    "refused": 11709,
-    "noCounterpart": 8235,
+    "covered": 20365,
+    "restricted": 16831,
+    "refused": 9038,
+    "noCounterpart": 4560,
     "silent": 0,
     "noOp": 0
   }

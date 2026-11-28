@@ -641,3 +641,48 @@ Hozo could not resolve statically — gets nothing for them. A project using
 these should add the matching `@custom-variant` lines to its entry
 stylesheet; only `reduce-transparency` produces CSS on Web, so it is the
 only one where the difference is visible.
+
+## Compiler-synthesized Native variants
+
+Several variants originally listed as having no React Native counterpart are
+not impossible because the platform lacks the concept; they are impossible
+only for a *stylesheet* that cannot synthesize JSX or inspect props. Because
+Hozo is a JSX compiler, four families now lower genuinely on Native without
+faking browser engines:
+
+- **`marker:` on `<List>` and `<ListItem>`** synthesizes an `aria-hidden`
+  `<Text>` marker child beside each item's content (numbering ordered lists
+  when sibling ordinals are statically known, honouring string-literal
+  `content-[...]` and `content-none`, and refusing dynamic CSS `content`
+  functions or non-list elements).
+- **`required:`, `optional:`, `invalid:`, `valid:`, `user-invalid:`, and
+  `user-valid:` on `<TextInput>`** read authored `required` / `aria-required`
+  and `aria-invalid` props on `TextInput` (stripping `required` on Native
+  while emitting it on Web) and gate `user-invalid:` / `user-valid:` on
+  `HozoTextInput`'s `touched` state (set on blur or text change). Without an
+  authored driver prop they stay refused rather than guessing `false`.
+- **`first-letter:` on text primitives** splits static literal text at
+  compile time into an inline nested `<Text>` span (zero runtime wrapper),
+  and uses a dedicated `HozoFirstLetter` leaf for dynamic children. Only
+  properties React Native's inline nested `<Text>` actually supports
+  (typography, colour, background, decoration, text shadow, opacity) lower;
+  box/layout utilities (`flex`, padding, margin, borders) remain refused.
+- **`before:` and `after:` on box containers and text primitives** synthesize
+  leading/trailing `aria-hidden` `<View>` / `<Text>` / `<HozoInteractionView>`
+  / `<HozoText>` children with `pointerEvents="none"` for empty decorative
+  boxes and literal text for `content-['...']`. Void hosts (`TextInput`,
+  `Image`, `Svg`, `FlatList`, `Dialog`, `Progress`, `Meter`, `Separator`) and
+  dynamic CSS `content` functions remain refused.
+- **`supports-[...]:` and `not-supports-[...]:`** evaluate at compile time
+  against React Native's known Yoga / StyleSheet capability. Supported
+  capabilities (`supports-[display:flex]:`, `supports-[gap:1px]:`,
+  `not-supports-[display:grid]:`) apply with zero runtime overhead;
+  unsupported progressive-enhancement branches (`supports-[display:grid]:`)
+  omit the style with a non-blocking warning so cross-platform source builds
+  cleanly without silent drops; browser-only `selector(...)` / unknown
+  feature queries error.
+
+What remains in `NO_NATIVE_COUNTERPART` is the narrow set of eight variants
+whose underlying concept truly does not exist on React Native (`print`,
+`noscript`, `forced-colors`, `contrast-less`, `target`, `visited`,
+`autofill`, `file`).

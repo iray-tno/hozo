@@ -22,7 +22,8 @@ test('the match is on whole variants, wherever they sit in the stack', () => {
   // A variant that only contains a listed name is not that variant.
   assert.equal(hasNoNativeCounterpart('first-letter:flex'), false)
   assert.equal(hasNoNativeCounterpart('first:flex'), false)
-  assert.equal(hasNoNativeCounterpart('user-invalid:flex'), true)
+  assert.equal(hasNoNativeCounterpart('user-invalid:flex'), false)
+  assert.equal(hasNoNativeCounterpart('autofill:flex'), true)
   assert.equal(hasNoNativeCounterpart('placeholder-shown:flex'), false)
   assert.equal(hasNoNativeCounterpart('supports-[display:grid]:flex'), false)
   assert.equal(hasNoNativeCounterpart('hover:p-4'), false)
