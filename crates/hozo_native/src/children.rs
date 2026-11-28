@@ -449,6 +449,8 @@ pub(super) fn render_verbatim(
     interaction_context: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
     subtree_report: SubtreeReport,
+    list_marker: &[StyleDeclaration],
+    list_ordered: Option<&ConditionExpr>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     let mut out = Rendered::new(cx.source_evidence);
@@ -469,6 +471,8 @@ pub(super) fn render_verbatim(
                 interaction_context,
                 group_ancestor,
                 subtree_report,
+                list_marker,
+                list_ordered,
                 cx,
             )
             .text
@@ -482,6 +486,8 @@ pub(super) fn render_verbatim(
             interaction_context,
             group_ancestor,
             subtree_report,
+            list_marker,
+            list_ordered,
             cx,
         ));
         cursor = entry.span.end as usize;
@@ -492,12 +498,15 @@ pub(super) fn render_verbatim(
 
 /// One element written inside an expression, with what its ancestors
 /// hand down.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_nested(
     entry: &hozo_ir::NestedNode,
     inherited: &[StyleDeclaration],
     interaction_context: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
     subtree_report: SubtreeReport,
+    list_marker: &[StyleDeclaration],
+    list_ordered: Option<&ConditionExpr>,
     cx: &mut NativeRenderContext<'_>,
 ) -> Rendered {
     // After what the elements above hand down, so a component written
@@ -527,6 +536,8 @@ pub(super) fn render_nested(
         parent_measured: false,
         group_ancestor,
         subtree_report,
+        list_marker,
+        list_ordered,
     };
     render_node(
         &entry.node,

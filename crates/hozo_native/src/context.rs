@@ -162,6 +162,10 @@ pub(crate) struct AncestorContext<'a> {
     pub parent_measured: bool,
     pub group_ancestor: Option<GroupAncestor<'a>>,
     pub subtree_report: SubtreeReport,
+    /// `marker:` declarations forwarded from an enclosing `<List>` to its `<ListItem>` descendants.
+    pub list_marker: &'a [StyleDeclaration],
+    /// Whether the nearest enclosing `<List>` is `ordered`.
+    pub list_ordered: Option<&'a hozo_ir::ConditionExpr>,
 }
 
 /// Declarations an ancestor handed down through `*:` or `**:`.

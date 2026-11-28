@@ -208,6 +208,8 @@ pub(super) fn lower_forwarded_capturing(
         parent_measured: false,
         group_ancestor: None,
         subtree_report: SubtreeReport::default(),
+        list_marker: &[],
+        list_ordered: None,
     };
     let jsx = render_node(
         root,

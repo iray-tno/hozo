@@ -213,6 +213,8 @@ pub(super) fn render_child_list(
                     child_interaction_context,
                     for_children.group_ancestor,
                     for_children.subtree_report,
+                    for_children.list_marker,
+                    for_children.list_ordered,
                     cx,
                 ));
             }

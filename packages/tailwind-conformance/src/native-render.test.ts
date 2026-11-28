@@ -1052,3 +1052,43 @@ test('and no cell renderer on iOS, because there is nothing to say it to', () =>
   assert.equal(tree?.props.accessibilityCollection, undefined)
   assert.equal(tree?.props.CellRendererComponent, undefined)
 })
+
+test('marker: on List and ListItem renders styled hidden Text markers beside items', () => {
+  const { StyleSheet } = require('react-native') as {
+    StyleSheet: { flatten: (style: unknown) => Record<string, unknown> }
+  }
+  const tree = renderNative(
+    `
+    import { List, ListItem } from '@hozo/core'
+    export function Items() {
+      return (
+        <List ordered className="marker:text-blue-500">
+          <ListItem>Alpha</ListItem>
+          <ListItem className="marker:content-['→_']">Beta</ListItem>
+          <ListItem className="marker:content-none">Gamma</ListItem>
+        </List>
+      )
+    }
+    `,
+    'Items',
+  )
+  assert.equal(tree?.type, 'View')
+  assert.equal(tree?.props.accessibilityRole, 'list')
+  const [first, second, third] = children(tree)
+  assert.equal(StyleSheet.flatten(first.props.style).flexDirection, 'row')
+  const [firstMarker, firstBody] = children(first)
+  assert.equal(firstMarker.type, 'Text')
+  assert.equal(firstMarker.props['aria-hidden'], true)
+  assert.deepEqual(firstMarker.children, ['1. '])
+  assert.equal(StyleSheet.flatten(firstMarker.props.style).color, '#2b7fff')
+  assert.deepEqual(firstBody.children, ['Alpha'])
+
+  const [secondMarker, secondBody] = children(second)
+  assert.deepEqual(secondMarker.children, ['→ '])
+  assert.equal(StyleSheet.flatten(secondMarker.props.style).color, '#2b7fff')
+  assert.deepEqual(secondBody.children, ['Beta'])
+
+  const thirdKids = children(third)
+  assert.equal(thirdKids.length, 1)
+  assert.deepEqual(thirdKids[0].children, ['Gamma'])
+})
