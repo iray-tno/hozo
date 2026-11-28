@@ -1,6 +1,6 @@
 # @hozo/charts
 
-Bar, Line, Area, Composed (bars and lines), Scatter, Pie, Donut, Funnel and Treemap charts, and sparklines, that a screen reader, a keyboard and a finger can all use, drawn with
+Bar, Line, Area, Composed (bars and lines), Scatter, Pie, Donut, Funnel, Treemap and Radar charts, and sparklines, that a screen reader, a keyboard and a finger can all use, drawn with
 [`@hozo/svg`](https://www.npmjs.com/package/@hozo/svg) on the Web and React Native.
 
 ```tsx
@@ -100,6 +100,27 @@ stage reads it, for example "Signed up. People: 3,100. Kept from the stage befor
 summary lists it for every stage and ends with the last stage against the first. The arrow keys
 step down and up the stages. A stage with no value or a value of zero or less is not drawn, and
 the table still lists it.
+
+## Radar
+
+```tsx
+<RadarChart
+  accessibilityLabel="Ratings by area"
+  data={ratings}
+  x={{ key: 'area' }}
+  y={{ domain: [0, 100] }}
+  series={[{ key: 'current', label: 'This release' }, { key: 'next', label: 'Next release' }]}
+  height={320}
+  points
+/>
+```
+
+One spoke per row, clockwise from twelve o'clock in data order, and one closed outline per series
+through its value on each spoke, filled lightly underneath. The centre is zero, or the lowest value
+when one is below it; rings mark the ticks, labelled beside the top spoke. It reads as a line chart
+does: each spoke with every series there, and each series' lowest and highest in the summary. The
+arrow keys go round in the table's order and stop at the last row. A gap breaks the outline, which
+then has no fill, rather than drawing across a value nobody gave.
 
 ## Treemap
 

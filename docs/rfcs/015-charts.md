@@ -255,6 +255,10 @@ What is then left is decided afresh, not continued by default.
   ends are sliders, picking which run of rows the chart shows. The chart is
   drawn from those rows, so its summary and table are of what is on screen,
   and the summary first says how many of the whole they are.
+- A radar has since been added. Its keyboard order, the open question, is
+  the table's: clockwise from twelve o'clock in data order, Right and Left
+  stepping and stopping at the ends, so going round the chart and down the
+  table are one order.
 - A treemap has since been added: one datum per row of a nested input,
   depth first, with each one's share of its group as a second series, as
   the funnel reads its drop. The arrow keys move among siblings and Enter

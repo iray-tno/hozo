@@ -31,6 +31,7 @@ import {
 import { useAnimatedModel } from './motion.ts'
 import { seriesColor } from './palette.ts'
 import { type PieValue, pieChartModel, shareFormat } from './pie.ts'
+import { radarChartModel } from './radar.ts'
 import { type ScatterName, type ScatterXAxis, scatterChartModel } from './scatter.ts'
 import { chartSummary, includesTable } from './summary.ts'
 import { useActiveDatum } from './sync.tsx'
@@ -93,6 +94,11 @@ export type LineChartProps = Common &
   }
 
 export type AreaChartProps = LineChartProps & Pick<AreaChartInput, 'stacked'>
+
+export type RadarChartProps = Omit<Common, 'margin' | 'references'> & {
+  /** Draw a dot at each value. */
+  points?: boolean
+}
 
 export type ScatterChartProps = Omit<Common, 'x'> & {
   /** The numeric field along x; the rows are read in its order. */
@@ -449,6 +455,18 @@ export function createCharts(
     />
   ))
 
+  // A radar reads as a line chart does, one row per spoke, clockwise from
+  // twelve o'clock, so the arrow keys go round it in the table's order.
+  function RadarChart({ points, ...props }: RadarChartProps) {
+    return (
+      <Chart
+        props={props}
+        points={points}
+        model={(width) => radarChartModel({ ...props, width })}
+      />
+    )
+  }
+
   // The table's first column is the point's name, or its x value when
   // there is none; the model adds an x column after a name.
   function ScatterChart({ x, name, ...props }: ScatterChartProps) {
@@ -518,5 +536,6 @@ export function createCharts(
     DonutChart,
     FunnelChart,
     TreemapChart,
+    RadarChart,
   }
 }

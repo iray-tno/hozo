@@ -174,7 +174,7 @@ const Drawing = memo(function Drawing({
             </SvgText>
           </G>
         ))}
-        {radial || model.funnel || model.tree ? null : horizontal ? (
+        {radial || model.funnel || model.tree || model.radar ? null : horizontal ? (
           <Line
             x1={plot.x}
             x2={plot.x}
@@ -194,6 +194,43 @@ const Drawing = memo(function Drawing({
           />
         )}
       </G>
+      {model.radar ? (
+        <G>
+          {model.radar.rings.map((ring) => (
+            <Path
+              key={`g${ring.label}`}
+              d={ring.path}
+              fill="none"
+              stroke={ink}
+              strokeOpacity={look.frame.grid}
+            />
+          ))}
+          {model.radar.spokes.map((end, i) => (
+            <Line
+              // biome-ignore lint/suspicious/noArrayIndexKey: one spoke per row, in data order
+              key={`s${i}`}
+              x1={model.radar?.cx}
+              y1={model.radar?.cy}
+              x2={end.x}
+              y2={end.y}
+              stroke={ink}
+              strokeOpacity={look.frame.grid}
+            />
+          ))}
+          {model.radar.labels.map((label) => (
+            <SvgText
+              key={`n${label.datum}`}
+              x={label.x}
+              y={label.y}
+              fill={ink}
+              fontSize={fontSize}
+              textAnchor={label.anchor}
+            >
+              {label.text}
+            </SvgText>
+          ))}
+        </G>
+      ) : null}
       {/* Bands under the marks, so the data stays on top of a range. */}
       <G>
         {model.references.map((reference) =>
@@ -281,6 +318,24 @@ const Drawing = memo(function Drawing({
           return null
         })}
       </G>
+      {/* A radar's ring values over the fills, which would otherwise hide them. */}
+      {model.radar ? (
+        <G>
+          {model.radar.rings.map((ring) => (
+            <SvgText
+              key={`v${ring.label}`}
+              x={ring.x}
+              y={ring.y}
+              dy={fontSize * 0.35}
+              fill={ink}
+              fillOpacity={MUTED}
+              fontSize={fontSize}
+            >
+              {ring.label}
+            </SvgText>
+          ))}
+        </G>
+      ) : null}
       {/* Lines over the marks, so a target is seen across the bars. */}
       <G>
         {model.references.map((reference) =>
@@ -590,7 +645,17 @@ function Tooltip({
       : model.plot.width
   return (
     <G>
-      {model.tree ? (
+      {model.radar ? (
+        <Line
+          x1={model.radar.cx}
+          y1={model.radar.cy}
+          x2={model.radar.spokes[datum]?.x}
+          y2={model.radar.spokes[datum]?.y}
+          stroke={ink}
+          strokeOpacity={0.5}
+          strokeWidth={2}
+        />
+      ) : model.tree ? (
         outline ? (
           <Rect
             x={outline.x - 1}

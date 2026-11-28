@@ -1,4 +1,4 @@
-// Charts (RFC 015): Bar, Line, Area, Scatter, Pie, Donut, Funnel and Treemap from @hozo/charts. Each is one
+// Charts (RFC 015): Bar, Line, Area, Scatter, Pie, Donut, Funnel, Treemap and Radar from @hozo/charts. Each is one
 // tab stop; the arrow keys, Home and End move along the data and a live region reads
 // every series there, the pointer does the same with a tooltip, and a
 // screen reader also has the table of the data, out of sight unless shown.
@@ -13,6 +13,7 @@ import {
   FunnelChart,
   LineChart,
   PieChart,
+  RadarChart,
   ScatterChart,
   Sparkline,
   TreemapChart,
@@ -229,6 +230,38 @@ export const Treemap: StoryObj<typeof meta> = {
           format: (value) => `$${value.toLocaleString('en-US')}`,
         }}
         height={300}
+      />
+    </View>
+  ),
+}
+
+const ratings = [
+  { area: 'Speed', current: 72, next: 85 },
+  { area: 'Reliability', current: 88, next: 90 },
+  { area: 'Ease of use', current: 64, next: 82 },
+  { area: 'Support', current: 70, next: 68 },
+  { area: 'Price', current: 80, next: 60 },
+  { area: 'Features', current: 58, next: 77 },
+]
+
+/**
+ * Two releases rated across six areas. Each spoke is a row of the table,
+ * clockwise from the top, and the arrow keys go round it in that order.
+ */
+export const Radar: StoryObj<typeof meta> = {
+  render: () => (
+    <View className="w-full max-w-2xl gap-2 p-6 text-slate-700">
+      <RadarChart
+        accessibilityLabel="Ratings by area, this release and the next"
+        data={ratings}
+        x={{ key: 'area', label: 'Area' }}
+        y={{ domain: [0, 100] }}
+        series={[
+          { key: 'current', label: 'This release' },
+          { key: 'next', label: 'Next release' },
+        ]}
+        height={320}
+        points
       />
     </View>
   ),

@@ -15,6 +15,7 @@ export const {
   DonutChart,
   FunnelChart,
   TreemapChart,
+  RadarChart,
 } = createCharts(ChartBox, useSystemScheme, useReducedMotion, BrushBox)
 // The root's own name makes it one image on Web.
 export const Sparkline = createSparkline({}, useSystemScheme)
@@ -38,6 +39,7 @@ export type {
   FunnelChartProps,
   LineChartProps,
   PieChartProps,
+  RadarChartProps,
   ScatterChartProps,
   TreemapChartProps,
 } from './charts.tsx'
@@ -90,6 +92,14 @@ export {
   pieChartModel,
   shareFormat,
 } from './pie.ts'
+export {
+  type Radar,
+  type RadarChartInput,
+  type RadarLabel,
+  type RadarModel,
+  radarChartModel,
+  radarPath,
+} from './radar.ts'
 export {
   type BandOptions,
   type BandScale,
