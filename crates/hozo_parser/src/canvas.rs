@@ -21,17 +21,122 @@ use oxc_span::{GetSpan, SourceType};
 use crate::tailwind;
 
 const CANVAS_MODULE: &str = "@hozo/canvas";
-const PAINTED_SHAPES: &[&str] = &["Rect", "RoundedRect", "Circle", "Ellipse", "Line", "Path"];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CanvasShapeKind {
+    Rect,
+    RoundedRect,
+    Circle,
+    Ellipse,
+    Line,
+    Path,
+    Group,
+}
+
+impl CanvasShapeKind {
+    fn from_member(name: &str) -> Option<Self> {
+        Some(match name {
+            "Rect" => Self::Rect,
+            "RoundedRect" => Self::RoundedRect,
+            "Circle" => Self::Circle,
+            "Ellipse" => Self::Ellipse,
+            "Line" => Self::Line,
+            "Path" => Self::Path,
+            "Group" => Self::Group,
+            _ => return None,
+        })
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CanvasClassPaint {
     /// The complete `className=...` attribute, ready to replace in source.
     pub span: SourceSpan,
+    /// Which `@hozo/canvas` member element carried the `className`.
+    pub shape: CanvasShapeKind,
     /// `None` means the value is dynamic and cannot be compiled safely.
     pub static_classes: Option<Vec<String>>,
     pub paint: Vec<StyleProperty>,
-    /// Static classes that do not map to a Canvas paint prop.
+    /// Static classes that do not map to a Canvas prop on this shape.
     pub remaining: Vec<String>,
+}
+
+fn supports_canvas_color(color: &hozo_ir::Color, theme: &hozo_ir::Theme) -> bool {
+    hozo_ir::resolve_canvas_color(color, theme, false).is_some()
+        && hozo_ir::resolve_canvas_color(color, theme, true).is_some()
+}
+
+fn accept_shape_properties(
+    shape: CanvasShapeKind,
+    properties: Vec<StyleProperty>,
+    theme: &hozo_ir::Theme,
+) -> Option<Vec<StyleProperty>> {
+    if properties.is_empty() {
+        return None;
+    }
+    match shape {
+        CanvasShapeKind::Group => {
+            // Reject 3D scale utilities (`scale-z-*`, `scale-3d`), while keeping
+            // uniform `scale-*` (`[ScaleX, ScaleY, ScaleZ]` without `Scale3d`)
+            // as its 2D `scaleX`/`scaleY` pair.
+            if properties
+                .iter()
+                .any(|property| matches!(property, StyleProperty::Scale3d))
+            {
+                return None;
+            }
+            if let [StyleProperty::ScaleX(sx), StyleProperty::ScaleY(sy), StyleProperty::ScaleZ(_)] =
+                properties.as_slice()
+            {
+                return (sx.ratio().is_some() && sy.ratio().is_some()).then(|| {
+                    vec![
+                        StyleProperty::ScaleX(sx.clone()),
+                        StyleProperty::ScaleY(sy.clone()),
+                    ]
+                });
+            }
+            let supported = properties.iter().all(|property| match property {
+                StyleProperty::Opacity(_) => true,
+                StyleProperty::TranslateX(dim) | StyleProperty::TranslateY(dim) => {
+                    hozo_ir::resolve_canvas_dimension_px(dim, theme).is_some()
+                }
+                StyleProperty::Translate(values) => {
+                    matches!(values.len(), 1 | 2)
+                        && values
+                            .iter()
+                            .all(|dim| hozo_ir::resolve_canvas_dimension_px(dim, theme).is_some())
+                }
+                StyleProperty::ScaleX(scale) | StyleProperty::ScaleY(scale) => {
+                    scale.ratio().is_some()
+                }
+                StyleProperty::Scale(values) => {
+                    matches!(values.len(), 1 | 2)
+                        && values.iter().all(|scale| scale.ratio().is_some())
+                }
+                StyleProperty::Rotate(angle) => angle.degrees().is_some(),
+                StyleProperty::TranslateNone
+                | StyleProperty::ScaleNone
+                | StyleProperty::RotateNone
+                | StyleProperty::TransformNone => true,
+                _ => false,
+            });
+            supported.then_some(properties)
+        }
+        _ => {
+            let supported = properties.iter().all(|property| match property {
+                StyleProperty::Fill(color) | StyleProperty::Stroke(color) => {
+                    supports_canvas_color(color, theme)
+                }
+                StyleProperty::Opacity(_) => true,
+                StyleProperty::StrokeWidth(width) => width.px(theme).is_some(),
+                StyleProperty::BorderRadius(radius) if shape == CanvasShapeKind::RoundedRect => {
+                    hozo_ir::resolve_canvas_radius_px(radius, theme).is_some()
+                }
+                _ => false,
+            });
+            supported.then_some(properties)
+        }
+    }
 }
 
 struct CanvasCollector<'t> {
@@ -50,12 +155,15 @@ impl<'a> Visit<'a> for CanvasCollector<'_> {
             walk_jsx_element(self, element);
             return;
         };
-        if !self.namespaces.contains(object.name.as_str())
-            || !PAINTED_SHAPES.contains(&member.property.name.as_str())
-        {
+        let Some(shape) = self
+            .namespaces
+            .contains(object.name.as_str())
+            .then(|| CanvasShapeKind::from_member(member.property.name.as_str()))
+            .flatten()
+        else {
             walk_jsx_element(self, element);
             return;
-        }
+        };
 
         for item in &element.opening_element.attributes {
             let JSXAttributeItem::Attribute(attribute) = item else {
@@ -84,6 +192,7 @@ impl<'a> Visit<'a> for CanvasCollector<'_> {
                         start: attribute.span().start,
                         end: attribute.span().end,
                     },
+                    shape,
                     static_classes: None,
                     paint: Vec::new(),
                     remaining: Vec::new(),
@@ -96,30 +205,30 @@ impl<'a> Visit<'a> for CanvasCollector<'_> {
             let mut remaining = Vec::new();
             for token in &classes {
                 let (condition, properties) = tailwind::expand_utility(token);
-                let is_paint = condition == Condition::Always
-                    && !properties.is_empty()
-                    && properties.iter().all(|property| match property {
-                        StyleProperty::Fill(color) | StyleProperty::Stroke(color) => {
-                            hozo_ir::resolve_canvas_color(color, self.theme, false).is_some()
-                                && hozo_ir::resolve_canvas_color(color, self.theme, true).is_some()
-                        }
-                        StyleProperty::Opacity(_) => true,
-                        StyleProperty::StrokeWidth(width) => width.px(self.theme).is_some(),
-                        _ => false,
-                    });
-                if is_paint {
-                    paint.extend(properties);
-                } else {
-                    remaining.push(token.clone());
+                if condition == Condition::Always {
+                    if let Some(accepted) = accept_shape_properties(shape, properties, self.theme) {
+                        paint.extend(accepted);
+                        continue;
+                    }
                 }
+                remaining.push(token.clone());
             }
+            // Group transforms fold authored resets (`rotate-45 rotate-none`,
+            // `scale-110 scale-none`) in source order rather than deduping by
+            // enum variant.
+            let paint = if shape == CanvasShapeKind::Group {
+                paint
+            } else {
+                dedupe_last_wins(paint)
+            };
             self.paints.push(CanvasClassPaint {
                 span: SourceSpan {
                     start: attribute.span().start,
                     end: attribute.span().end,
                 },
+                shape,
                 static_classes: Some(classes),
-                paint: dedupe_last_wins(paint),
+                paint,
                 remaining,
             });
         }

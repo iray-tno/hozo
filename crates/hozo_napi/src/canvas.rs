@@ -1,6 +1,7 @@
 //! Canvas paint props lowered to color strings.
 
 use hozo_ir::{Color, StyleProperty, Theme, Utf16Offsets};
+use hozo_parser::CanvasShapeKind;
 use napi_derive::napi;
 
 use super::diagnostics::CompileDiagnostic;
@@ -32,6 +33,68 @@ pub fn compile_canvas_paints(source: String, native: bool) -> Vec<CompiledCanvas
     lower_canvas_paints(&source, &hozo_ir::Theme::default(), native)
 }
 
+fn shape_dynamic_message(shape: CanvasShapeKind) -> &'static str {
+    match shape {
+        CanvasShapeKind::RoundedRect => {
+            "A dynamic Canvas.RoundedRect `className` cannot be converted to shape props. Use dynamic `fill`, `stroke`, `strokeWidth`, `opacity` or `radius` props instead."
+        }
+        CanvasShapeKind::Group => {
+            "A dynamic Canvas.Group `className` cannot be converted to group props. Use dynamic `opacity` or `transform` props instead."
+        }
+        _ => {
+            "A dynamic Canvas shape `className` cannot be converted to paint props. Use dynamic `fill`, `stroke`, `strokeWidth` or `opacity` props instead."
+        }
+    }
+}
+
+fn shape_remaining_message(shape: CanvasShapeKind, remaining: &[String]) -> String {
+    match shape {
+        CanvasShapeKind::RoundedRect => format!(
+            "These Canvas.RoundedRect classes do not map to shape props and have no pixel target: {}. Canvas.RoundedRect accepts fill, stroke, stroke width, opacity and uniform border-radius utilities.",
+            remaining.join(", ")
+        ),
+        CanvasShapeKind::Group => format!(
+            "These Canvas.Group classes do not map to group props and have no pixel target: {}. Canvas.Group accepts opacity and 2D translate, scale and rotate utilities.",
+            remaining.join(", ")
+        ),
+        _ => format!(
+            "These Canvas shape classes do not map to paint props and have no pixel target: {}. Canvas shapes currently accept fill, stroke, stroke width and opacity utilities.",
+            remaining.join(", ")
+        ),
+    }
+}
+
+#[derive(Default)]
+struct GroupTransform {
+    translate_x: Option<f64>,
+    translate_y: Option<f64>,
+    scale_x: Option<f64>,
+    scale_y: Option<f64>,
+    rotate: Option<f64>,
+}
+
+impl GroupTransform {
+    fn to_jsx_prop(&self) -> Option<String> {
+        let mut fields = Vec::new();
+        if let Some(x) = self.translate_x {
+            fields.push(format!("translateX: {x}"));
+        }
+        if let Some(y) = self.translate_y {
+            fields.push(format!("translateY: {y}"));
+        }
+        if let Some(sx) = self.scale_x {
+            fields.push(format!("scaleX: {sx}"));
+        }
+        if let Some(sy) = self.scale_y {
+            fields.push(format!("scaleY: {sy}"));
+        }
+        if let Some(rotate) = self.rotate {
+            fields.push(format!("rotate: {rotate}"));
+        }
+        (!fields.is_empty()).then(|| format!("transform={{{{ {} }}}}", fields.join(", ")))
+    }
+}
+
 pub(super) fn lower_canvas_paints(
     source: &str,
     theme: &hozo_ir::Theme,
@@ -54,8 +117,7 @@ pub(super) fn lower_canvas_paints(
                     diagnostics.push(CompileDiagnostic {
                         code: "CANVAS_CLASS_NOT_LOWERED".to_string(),
                         severity: "warning".to_string(),
-                        message: "A dynamic Canvas shape `className` cannot be converted to paint props. Use dynamic `fill`, `stroke`, `strokeWidth` or `opacity` props instead."
-                            .to_string(),
+                        message: shape_dynamic_message(paint.shape).to_string(),
                         span_start: offsets.at(paint.span.start),
                         span_end: offsets.at(paint.span.end),
                     });
@@ -66,10 +128,7 @@ pub(super) fn lower_canvas_paints(
                         diagnostics.push(CompileDiagnostic {
                             code: "CANVAS_CLASS_NOT_LOWERED".to_string(),
                             severity: "warning".to_string(),
-                            message: format!(
-                                "These Canvas shape classes do not map to paint props and have no pixel target: {}. Canvas shapes currently accept fill, stroke, stroke width and opacity utilities.",
-                                paint.remaining.join(", ")
-                            ),
+                            message: shape_remaining_message(paint.shape, &paint.remaining),
                             span_start: offsets.at(paint.span.start),
                             span_end: offsets.at(paint.span.end),
                         });
@@ -84,27 +143,129 @@ pub(super) fn lower_canvas_paints(
                                 js_string(&paint.remaining.join(" "))
                             ));
                         }
-                        for property in paint.paint {
-                            match property {
-                                StyleProperty::Fill(color) => {
-                                    if let Some(resolved) = canvas_color(&color, theme, native) {
-                                        attributes.push(format!("fill={}", js_string(&resolved)));
+                        if paint.shape == CanvasShapeKind::Group {
+                            let mut opacity = None;
+                            let mut transform = GroupTransform::default();
+                            for property in paint.paint {
+                                match property {
+                                    StyleProperty::Opacity(value) => opacity = Some(value),
+                                    StyleProperty::TranslateX(dim) => {
+                                        if let Some(px) =
+                                            hozo_ir::resolve_canvas_dimension_px(&dim, theme)
+                                        {
+                                            transform.translate_x = Some(px);
+                                        }
                                     }
-                                }
-                                StyleProperty::Stroke(color) => {
-                                    if let Some(resolved) = canvas_color(&color, theme, native) {
-                                        attributes.push(format!("stroke={}", js_string(&resolved)));
+                                    StyleProperty::TranslateY(dim) => {
+                                        if let Some(px) =
+                                            hozo_ir::resolve_canvas_dimension_px(&dim, theme)
+                                        {
+                                            transform.translate_y = Some(px);
+                                        }
                                     }
-                                }
-                                StyleProperty::StrokeWidth(width) => {
-                                    if let Some(px) = width.px(theme) {
-                                        attributes.push(format!("strokeWidth={{{px}}}"))
+                                    StyleProperty::Translate(values) => {
+                                        if let Some(x) = values.first().and_then(|d| {
+                                            hozo_ir::resolve_canvas_dimension_px(d, theme)
+                                        }) {
+                                            transform.translate_x = Some(x);
+                                        }
+                                        if let Some(y) = values.get(1).and_then(|d| {
+                                            hozo_ir::resolve_canvas_dimension_px(d, theme)
+                                        }) {
+                                            transform.translate_y = Some(y);
+                                        }
                                     }
+                                    StyleProperty::ScaleX(scale) => {
+                                        if let Some(ratio) = scale.ratio() {
+                                            transform.scale_x = Some(ratio);
+                                        }
+                                    }
+                                    StyleProperty::ScaleY(scale) => {
+                                        if let Some(ratio) = scale.ratio() {
+                                            transform.scale_y = Some(ratio);
+                                        }
+                                    }
+                                    StyleProperty::Scale(values) => match values.as_slice() {
+                                        [both] => {
+                                            if let Some(ratio) = both.ratio() {
+                                                transform.scale_x = Some(ratio);
+                                                transform.scale_y = Some(ratio);
+                                            }
+                                        }
+                                        [x, y] => {
+                                            if let (Some(rx), Some(ry)) = (x.ratio(), y.ratio()) {
+                                                transform.scale_x = Some(rx);
+                                                transform.scale_y = Some(ry);
+                                            }
+                                        }
+                                        _ => {}
+                                    },
+                                    StyleProperty::Rotate(angle) => {
+                                        if let Some(degrees) = angle.degrees() {
+                                            transform.rotate = Some(degrees);
+                                        }
+                                    }
+                                    StyleProperty::TranslateNone => {
+                                        transform.translate_x = Some(0.0);
+                                        transform.translate_y = Some(0.0);
+                                    }
+                                    StyleProperty::ScaleNone => {
+                                        transform.scale_x = Some(1.0);
+                                        transform.scale_y = Some(1.0);
+                                    }
+                                    StyleProperty::RotateNone => {
+                                        transform.rotate = Some(0.0);
+                                    }
+                                    StyleProperty::TransformNone => {
+                                        transform.translate_x = Some(0.0);
+                                        transform.translate_y = Some(0.0);
+                                        transform.scale_x = Some(1.0);
+                                        transform.scale_y = Some(1.0);
+                                        transform.rotate = Some(0.0);
+                                    }
+                                    _ => {}
                                 }
-                                StyleProperty::Opacity(opacity) => {
-                                    attributes.push(format!("opacity={{{opacity}}}"))
+                            }
+                            if let Some(opacity) = opacity {
+                                attributes.push(format!("opacity={{{opacity}}}"));
+                            }
+                            if let Some(transform_prop) = transform.to_jsx_prop() {
+                                attributes.push(transform_prop);
+                            }
+                        } else {
+                            for property in paint.paint {
+                                match property {
+                                    StyleProperty::Fill(color) => {
+                                        if let Some(resolved) = canvas_color(&color, theme, native)
+                                        {
+                                            attributes
+                                                .push(format!("fill={}", js_string(&resolved)));
+                                        }
+                                    }
+                                    StyleProperty::Stroke(color) => {
+                                        if let Some(resolved) = canvas_color(&color, theme, native)
+                                        {
+                                            attributes
+                                                .push(format!("stroke={}", js_string(&resolved)));
+                                        }
+                                    }
+                                    StyleProperty::StrokeWidth(width) => {
+                                        if let Some(px) = width.px(theme) {
+                                            attributes.push(format!("strokeWidth={{{px}}}"))
+                                        }
+                                    }
+                                    StyleProperty::Opacity(opacity) => {
+                                        attributes.push(format!("opacity={{{opacity}}}"))
+                                    }
+                                    StyleProperty::BorderRadius(radius) => {
+                                        if let Some(px) =
+                                            hozo_ir::resolve_canvas_radius_px(&radius, theme)
+                                        {
+                                            attributes.push(format!("radius={{{px}}}"))
+                                        }
+                                    }
+                                    _ => {}
                                 }
-                                _ => {}
                             }
                         }
                         attributes.join(" ")
@@ -195,5 +356,48 @@ mod tests {
             native[0].replacement,
             r##"fill="#112233" stroke="rgba(17, 34, 51, 0.4)""##
         );
+    }
+
+    #[test]
+    fn lowers_uniform_radius_on_rounded_rect_only() {
+        let source = r#"
+            import { Canvas } from '@hozo/canvas'
+            const a = <Canvas.RoundedRect className="fill-blue-500 rounded-lg" width={20} height={10} />
+            const b = <Canvas.RoundedRect className="rounded-full rounded-[2rem]" width={20} height={10} />
+            const c = <Canvas.RoundedRect className="rounded-t-lg rounded-[50%]" width={20} height={10} />
+            const d = <Canvas.Rect className="rounded-lg" width={20} height={10} />
+        "#;
+        let edits = lower_canvas_paints(source, &Theme::default(), true);
+        assert_eq!(edits.len(), 4);
+        assert!(edits[0].diagnostics.is_empty());
+        assert_eq!(edits[0].replacement, r##"fill="#2b7fff" radius={8}"##);
+        assert!(edits[1].diagnostics.is_empty());
+        assert_eq!(edits[1].replacement, "radius={32}");
+        assert_eq!(edits[2].diagnostics.len(), 1);
+        assert_eq!(edits[3].diagnostics.len(), 1);
+    }
+
+    #[test]
+    fn lowers_opacity_and_2d_transforms_on_canvas_group() {
+        let source = r#"
+            import { Canvas } from '@hozo/canvas'
+            const a = <Canvas.Group className="opacity-50 translate-x-4 -translate-y-2 scale-110 scale-x-50 rotate-45"><Canvas.Rect width={10} height={10} /></Canvas.Group>
+            const b = <Canvas.Group className="rotate-45 rotate-none scale-110 scale-none"><Canvas.Rect width={10} height={10} /></Canvas.Group>
+            const c = <Canvas.Group className="fill-blue-500 translate-x-1/2 skew-x-6 scale-z-50 rotate-x-45"><Canvas.Rect width={10} height={10} /></Canvas.Group>
+        "#;
+        let edits = lower_canvas_paints(source, &Theme::default(), true);
+        assert_eq!(edits.len(), 3);
+        assert!(edits[0].diagnostics.is_empty());
+        assert_eq!(
+            edits[0].replacement,
+            "opacity={0.5} transform={{ translateX: 16, translateY: -8, scaleX: 0.5, scaleY: 1.1, rotate: 45 }}"
+        );
+        assert!(edits[1].diagnostics.is_empty());
+        assert_eq!(
+            edits[1].replacement,
+            "transform={{ scaleX: 1, scaleY: 1, rotate: 0 }}"
+        );
+        assert_eq!(edits[2].diagnostics.len(), 1);
+        assert_eq!(edits[2].diagnostics[0].code, "CANVAS_CLASS_NOT_LOWERED");
     }
 }

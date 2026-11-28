@@ -234,6 +234,45 @@ pub fn resolve_canvas_color(color: &Color, theme: &Theme, native: bool) -> Optio
     }
 }
 
+/// Resolves a statically known pixel length for Canvas props, returning `None`
+/// for viewport/font-relative units or CSS `calc()`/`var()` expressions.
+pub fn resolve_canvas_length_px(length: &Length, theme: &Theme) -> Option<f64> {
+    if length.unresolved_unit().is_some() || length.css_expression().is_some() {
+        return None;
+    }
+    let px = length.px(theme);
+    px.is_finite().then_some(px)
+}
+
+/// Resolves a statically known pixel dimension for Canvas props (`translate`,
+/// `maxWidth`), rejecting percentages, `auto`, viewport units, and CSS text.
+pub fn resolve_canvas_dimension_px(dimension: &Dimension, theme: &Theme) -> Option<f64> {
+    match dimension {
+        Dimension::Length(length) => resolve_canvas_length_px(length, theme),
+        Dimension::Percent(_)
+        | Dimension::Auto
+        | Dimension::ViewportWidth(_)
+        | Dimension::ViewportHeight(_)
+        | Dimension::Css(_) => None,
+    }
+}
+
+/// Resolves a uniform corner radius in pixels for `Canvas.RoundedRect`.
+pub fn resolve_canvas_radius_px(radius: &Radius, theme: &Theme) -> Option<f64> {
+    match radius {
+        Radius::Length(length) => resolve_canvas_length_px(length, theme).filter(|px| *px >= 0.0),
+        Radius::Scale { name, fallback_px } => {
+            let px = theme.radius(name).unwrap_or(*fallback_px);
+            (px.is_finite() && px >= 0.0).then_some(px)
+        }
+        Radius::Theme(name) => theme.radius(name).filter(|px| px.is_finite() && *px >= 0.0),
+        // Matches React Native's pill sentinel; both Canvas2D `roundRect` and
+        // Skia's `RoundedRect` clamp the corner radius to half the short side.
+        Radius::Full => Some(9999.0),
+        Radius::Percent(_) => None,
+    }
+}
+
 /// The React Native style key and inset side an `env(safe-area-inset-*)`
 /// arbitrary value asks for, if it is one.
 ///

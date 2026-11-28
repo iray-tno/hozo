@@ -248,6 +248,8 @@ export interface CanvasTransform {
 }
 
 export interface GroupProps {
+  /** Compiler input. Runtime drawing uses the explicit opacity/transform props below. */
+  className?: string
   children?: ReactNode
   opacity?: number
   transform?: CanvasTransform
@@ -973,7 +975,7 @@ export const Text = interactiveLeaf<TextProps>('text')
 export const Path = interactiveLeaf<PathProps>('path')
 export const TriangleMesh = interactiveLeaf<TriangleMeshProps>('triangle-mesh')
 
-export function Group({ children, ...props }: GroupProps) {
+export function Group({ children, className: _className, ...props }: GroupProps) {
   // A rest object is new on every render; see `interactiveLeaf`.
   const node = { kind: 'group' as const, props }
   const context = useSceneNode(node)

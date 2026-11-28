@@ -46,7 +46,9 @@ mod utility_identity;
 pub(crate) mod tailwind_variants;
 
 pub use bindings::top_level_bindings;
-pub use canvas::{parse_canvas_paints, parse_canvas_paints_with_theme, CanvasClassPaint};
+pub use canvas::{
+    parse_canvas_paints, parse_canvas_paints_with_theme, CanvasClassPaint, CanvasShapeKind,
+};
 pub use class_helpers::{
     class_helper_candidates, summarize_class_helper_merges, summarize_class_helpers,
     ClassHelperCandidate,

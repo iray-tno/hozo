@@ -558,6 +558,30 @@ export function Chart() {
   assert.equal(lowered.diagnostics[0]?.code, 'CANVAS_CLASS_NOT_LOWERED')
 })
 
+test('Canvas lowers RoundedRect radius and Group opacity/2D transform classes', () => {
+  const source = `import { Canvas } from '@hozo/canvas'
+export function Chart() {
+  return (
+    <Canvas decorative width={100} height={100}>
+      <Canvas.Group className="opacity-75 translate-x-4 rotate-45 scale-110">
+        <Canvas.RoundedRect className="fill-blue-500 rounded-lg" width={20} height={10} />
+      </Canvas.Group>
+    </Canvas>
+  )
+}
+`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)!
+  assert.equal(lowered.diagnostics.length, 0)
+  assert.match(
+    lowered.code,
+    /<Canvas\.Group opacity=\{0\.75\} transform=\{\{ translateX: 16, scaleX: 1\.1, scaleY: 1\.1, rotate: 45 \}\}>/,
+  )
+  assert.match(
+    lowered.code,
+    /<Canvas\.RoundedRect fill="oklch\(62\.3% 0\.214 259\.815\)" radius=\{8\}/,
+  )
+})
+
 test('two modules never answer to the same class name', () => {
   // The assertion that was missing, and it would have failed from the day
   // the second example was written. Class names were namespaced per root
