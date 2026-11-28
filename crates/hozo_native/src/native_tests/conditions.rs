@@ -2775,3 +2775,99 @@ fn first_letter_uses_hozo_first_letter_for_dynamic_text_and_refuses_box_layout()
         view_out.diagnostics
     );
 }
+
+#[test]
+fn before_and_after_synthesize_hidden_view_and_text_children_in_order() {
+    let source = r#"
+            import { View } from '@hozo/core'
+            export function Card() {
+              return <View className="before:w-2 before:bg-blue-500 after:content-['*'] after:text-red-500">Body</View>
+            }
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output.jsx.contains(
+            r#"<View aria-hidden pointerEvents="none" style={hozoStyles.hozo0_before} />"#
+        ),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains("<Text aria-hidden style={hozoStyles.hozo0_after}>{'*'}</Text>"),
+        "{}",
+        output.jsx
+    );
+    let before_at = output.jsx.find("hozo0_before").unwrap();
+    let body_at = output.jsx.find("Body").unwrap();
+    let after_at = output.jsx.find("hozo0_after").unwrap();
+    assert!(before_at < body_at && body_at < after_at, "{}", output.jsx);
+}
+
+#[test]
+fn hover_before_on_pressable_upgrades_host_and_uses_interaction_view() {
+    let source = r#"
+            import { Pressable } from '@hozo/core'
+            export function Btn() {
+              return <Pressable accessibilityRole="button" className="hover:before:bg-blue-500 after:content-none">Go</Pressable>
+            }
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("<HozoPressable"), "{}", output.jsx);
+    assert!(
+        output.jsx.contains(r#"<HozoInteractionView aria-hidden pointerEvents="none" style={({ pressed, hovered, focused }) => [hovered && hozoStyles.hozo0_before_hover]} />"#),
+        "{}",
+        output.jsx
+    );
+    assert!(!output.jsx.contains("hozo0_after"), "{}", output.jsx);
+}
+
+#[test]
+fn before_and_after_refuse_on_void_hosts_and_web_only_properties() {
+    let input_src = r#"
+            import { TextInput } from '@hozo/core'
+            const el = <TextInput accessibilityLabel="Field" className="before:bg-blue-500" />
+            "#;
+    let input_parsed = hozo_parser::parse_tsx(input_src);
+    let input_out = lower(&input_parsed.roots[0].node, input_src, &Theme::default());
+    assert!(
+        input_out
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+        "{:?}",
+        input_out.diagnostics
+    );
+
+    let grid_src = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="before:grid">x</View>
+            "#;
+    let grid_parsed = hozo_parser::parse_tsx(grid_src);
+    let grid_out = lower(&grid_parsed.roots[0].node, grid_src, &Theme::default());
+    assert!(
+        grid_out
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::WebOnlyPropertyOnNative),
+        "{:?}",
+        grid_out.diagnostics
+    );
+
+    let attr_src = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="before:content-[attr(data-x)]">x</View>
+            "#;
+    let attr_parsed = hozo_parser::parse_tsx(attr_src);
+    let attr_out = lower(&attr_parsed.roots[0].node, attr_src, &Theme::default());
+    assert!(
+        !attr_out.diagnostics.is_empty(),
+        "{:?}",
+        attr_out.diagnostics
+    );
+}

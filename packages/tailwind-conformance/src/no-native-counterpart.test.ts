@@ -17,7 +17,8 @@ test('every variant listed as having no React Native counterpart is refused, not
 test('the match is on whole variants, wherever they sit in the stack', () => {
   assert.equal(hasNoNativeCounterpart('print:flex'), true)
   assert.equal(hasNoNativeCounterpart('hover:print:flex'), true)
-  assert.equal(hasNoNativeCounterpart('after:hover:p-4'), true)
+  assert.equal(hasNoNativeCounterpart('target:hover:p-4'), true)
+  assert.equal(hasNoNativeCounterpart('after:hover:p-4'), false)
   // A variant that only contains a listed name is not that variant.
   assert.equal(hasNoNativeCounterpart('first-letter:flex'), false)
   assert.equal(hasNoNativeCounterpart('first:flex'), false)

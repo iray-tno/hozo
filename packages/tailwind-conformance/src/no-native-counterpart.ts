@@ -37,8 +37,6 @@ export const NO_NATIVE_COUNTERPART: Readonly<Record<string, string>> = {
   invalid: 'React Native has no constraint validation to fail.',
   'user-invalid': 'React Native has no constraint validation to fail.',
   autofill: 'React Native exposes no autofilled state for a field.',
-  before: 'React Native has no pseudo-elements; there is no box before the content.',
-  after: 'React Native has no pseudo-elements; there is no box after the content.',
   marker: 'React Native has no list items, so no list marker.',
   file: 'There is no file input, so no file-selector button.',
 }

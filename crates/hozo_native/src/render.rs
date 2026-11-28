@@ -294,6 +294,10 @@ pub(super) fn render_node(
         pseudo::extract_list_marker(&mut effective_own, inherited, &field_target, cx);
     let own_item_marker = pseudo::extract_item_marker(node, &mut effective_own);
     let own_first_letter = pseudo::extract_first_letter(node, &mut effective_own);
+    let own_before =
+        pseudo::extract_pseudo_box(node, hozo_ir::PseudoElement::Before, &mut effective_own);
+    let own_after =
+        pseudo::extract_pseudo_box(node, hozo_ir::PseudoElement::After, &mut effective_own);
     let FieldColours {
         placeholder,
         caret,
@@ -482,6 +486,34 @@ pub(super) fn render_node(
         peer.preceding,
         cx,
     );
+    let before_rendered = pseudo::render_pseudo_box(
+        &own_before,
+        "before",
+        &descend,
+        &base_name,
+        node,
+        component,
+        position,
+        interaction_context,
+        has_group_interaction_owner,
+        group_ancestor,
+        peer.preceding,
+        cx,
+    );
+    let after_rendered = pseudo::render_pseudo_box(
+        &own_after,
+        "after",
+        &descend,
+        &base_name,
+        node,
+        component,
+        position,
+        interaction_context,
+        has_group_interaction_owner,
+        group_ancestor,
+        peer.preceding,
+        cx,
+    );
     let marker_rendered = (node.primitive == Primitive::ListItem)
         .then(|| {
             pseudo::render_marker(
@@ -642,6 +674,8 @@ pub(super) fn render_node(
         && (subtree_report.focus || subtree_report.hover || subtree_report.focus_visible);
     let reports_subtree_input = node.primitive == Primitive::TextInput
         && (subtree_report.focus || subtree_report.focus_visible);
+    let (pseudo_needs_interaction_host, pseudo_needs_focus_visible) =
+        pseudo::pseudo_box_needs_interaction_host(node, position, &own_before, &own_after);
     let host::InteractionNeeds {
         needs_focus_visible,
         needs_hover_or_focus,
@@ -654,11 +688,12 @@ pub(super) fn render_node(
         &own_declarations,
         &text_declarations,
         runtime_states,
-        transition.is_some() || label_style.is_some(),
+        transition.is_some() || label_style.is_some() || pseudo_needs_interaction_host,
         peer.publish_id.is_some() || reports_subtree_pressable || subtree_needs_interaction_host,
         peer.publish_focus_visible
             || (interaction::owns_events(node) && subtree_report.focus_visible)
-            || subtree_needs_focus_visible,
+            || subtree_needs_focus_visible
+            || pseudo_needs_focus_visible,
         cx.runtime,
     );
     let host::ContainerUse {
@@ -673,7 +708,13 @@ pub(super) fn render_node(
             .is_some_and(|marker| marker.uses_container_size)
         || first_letter_style
             .as_ref()
-            .is_some_and(|fl| fl.uses_container_size);
+            .is_some_and(|fl| fl.uses_container_size)
+        || before_rendered
+            .as_ref()
+            .is_some_and(|pseudo| pseudo.uses_container_size)
+        || after_rendered
+            .as_ref()
+            .is_some_and(|pseudo| pseudo.uses_container_size);
     let renders_backdrop_filter = matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_)))
         && component == "View"
         && !declares_container;
@@ -960,6 +1001,12 @@ pub(super) fn render_node(
     let marker_jsx = marker_rendered
         .as_ref()
         .map_or("", |marker| marker.jsx.as_str());
+    let before_jsx = before_rendered
+        .as_ref()
+        .map_or("", |pseudo| pseudo.jsx.as_str());
+    let after_jsx = after_rendered
+        .as_ref()
+        .map_or("", |pseudo| pseudo.jsx.as_str());
     let first_letter_expr = first_letter_style
         .as_ref()
         .map_or("", |fl| fl.style_expr.as_str());
@@ -971,6 +1018,8 @@ pub(super) fn render_node(
         .chain(effective_own.iter())
         .chain(own_item_marker.iter())
         .chain(own_first_letter.iter())
+        .chain(own_before.iter())
+        .chain(own_after.iter())
         .chain(list_marker.iter())
     {
         let report = condition_subtree_report(&declaration.condition);
@@ -991,6 +1040,8 @@ pub(super) fn render_node(
             || (self_decl_subtree.focus
                 && (props_text.contains("__hozoSubtree.focused")
                     || marker_jsx.contains("__hozoSubtree.focused")
+                    || before_jsx.contains("__hozoSubtree.focused")
+                    || after_jsx.contains("__hozoSubtree.focused")
                     || first_letter_expr.contains("__hozoSubtree.focused")
                     || self_style_parts
                         .iter()
@@ -1003,6 +1054,10 @@ pub(super) fn render_node(
                     || props_text.contains("__hozoSubtree.pressed")
                     || marker_jsx.contains("__hozoSubtree.hovered")
                     || marker_jsx.contains("__hozoSubtree.pressed")
+                    || before_jsx.contains("__hozoSubtree.hovered")
+                    || before_jsx.contains("__hozoSubtree.pressed")
+                    || after_jsx.contains("__hozoSubtree.hovered")
+                    || after_jsx.contains("__hozoSubtree.pressed")
                     || first_letter_expr.contains("__hozoSubtree.hovered")
                     || first_letter_expr.contains("__hozoSubtree.pressed")
                     || self_style_parts.iter().any(|part| {
@@ -1014,6 +1069,8 @@ pub(super) fn render_node(
             || (self_decl_subtree.focus_visible
                 && (props_text.contains("__hozoSubtree.focusVisible")
                     || marker_jsx.contains("__hozoSubtree.focusVisible")
+                    || before_jsx.contains("__hozoSubtree.focusVisible")
+                    || after_jsx.contains("__hozoSubtree.focusVisible")
                     || first_letter_expr.contains("__hozoSubtree.focusVisible")
                     || self_style_parts
                         .iter()
@@ -1218,6 +1275,8 @@ pub(super) fn render_node(
         || unified_scope_reads_group
         || forwarded_reads_group
         || marker_jsx.contains("__hozoGroup.")
+        || before_jsx.contains("__hozoGroup.")
+        || after_jsx.contains("__hozoGroup.")
         || first_letter_expr.contains("__hozoGroup.")
         || (own_reads_group && props_text.contains("__hozoGroup."));
     let raw_text_reads_peer = node
@@ -1270,6 +1329,8 @@ pub(super) fn render_node(
                 || child_decls_read_peer
                 || forwarded_reads_peer
                 || marker_jsx.contains(&needle)
+                || before_jsx.contains(&needle)
+                || after_jsx.contains(&needle)
                 || first_letter_expr.contains(&needle)
                 || (own_reads_peer && props_text.contains(&needle))
         })
@@ -1284,8 +1345,11 @@ pub(super) fn render_node(
         rendered.text = format!("<{tag}{props_text} />");
         rendered
     } else {
-        let text = format!("<{tag}{props_text}>{marker_jsx}{}</{tag}>", inner.text);
-        inner.wrap(text, 3 + tag.len())
+        let text = format!(
+            "<{tag}{props_text}>{marker_jsx}{before_jsx}{}{after_jsx}</{tag}>",
+            inner.text
+        );
+        inner.wrap(text, after_jsx.len() + 3 + tag.len())
     };
     if let Some(mut copies) = prop_copies {
         for copy in &mut copies {
@@ -1300,6 +1364,8 @@ pub(super) fn render_node(
     let uses_container_query = uses_container_query
         || props_text.contains("__hozoCq[")
         || marker_jsx.contains("__hozoCq[")
+        || before_jsx.contains("__hozoCq[")
+        || after_jsx.contains("__hozoCq[")
         || first_letter_expr.contains("__hozoCq[");
     let rendered = wrappers::subtree_scope(rendered, uses_subtree_scope, cx);
     let rendered = wrappers::interaction_query(rendered, uses_group_interaction_query, cx);
