@@ -32,15 +32,70 @@ use super::typography::parse_font_size;
 /// `gap-x-2`, `gap-y-2`) expand to more than one longhand property, so they
 /// can't fit through `parse_utility`'s one-token-to-one-property shape.
 pub(super) fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
+    // `text-lg/7`, `text-lg/tight`, `text-lg/[3rem]`, `text-lg/[1.5]`: a size
+    // with its own line height. Handled before `is_arbitrary` so bracketed
+    // leading modifiers (`text-lg/[3rem]`) reach here instead of failing the
+    // `prefix-[value]` arbitrary splitter, and before the colour catch-all so
+    // `text-lg/7` is never read as a colour named `lg`.
+    if let Some((name, modifier)) = token.split_once('/') {
+        if let Some((size, _)) = parse_font_size(name) {
+            if let [(hozo_ir::Condition::Always, props)] =
+                expand_class(&format!("leading-{modifier}")).as_slice()
+            {
+                let line_height = match props.as_slice() {
+                    [StyleProperty::LineHeight(LineHeight::Length(length))] => Some(length.clone()),
+                    [StyleProperty::LineHeight(LineHeight::Ratio(ratio))] => match size {
+                        Length::Px(px) => Some(Length::Px(px * ratio)),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let Some(line_height) = line_height {
+                    return vec![
+                        StyleProperty::FontSize(size),
+                        StyleProperty::LineHeight(LineHeight::FontDefault(line_height)),
+                    ];
+                }
+            }
+        }
+    }
     // First, and deliberately so. Every arm below this ends in a colour
     // catch-all that accepts whatever the specific forms declined, so a
     // bracket reaching them came out as a palette token: `text-[14px]`
     // compiled to `color: var(--hozo-color-[14px])`. Ordering is what
     // fixes that -- an arbitrary value is unambiguous, and nothing further
     // down has a better claim on it.
+    //
+    // The one exception is a palette colour with an arbitrary opacity modifier
+    // (`bg-blue-500/[0.5]`, `fill-black/[25%]`): the bracket belongs only to
+    // the trailing `/[...]` alpha modifier, so route it through the normal
+    // utility table and accept it only when it resolves to a `Color::Token`.
     if crate::arbitrary::is_arbitrary(token) {
+        let is_palette_arbitrary_alpha = token.rsplit_once('/').is_some_and(|(base, modifier)| {
+            !crate::arbitrary::is_arbitrary(base)
+                && modifier.starts_with('[')
+                && modifier.ends_with(']')
+                && hozo_ir::parse_color_alpha_modifier(modifier).is_some()
+        });
+        if is_palette_arbitrary_alpha {
+            let props = expand_non_arbitrary_utility(token);
+            if !props.is_empty()
+                && props.iter().all(|property| {
+                    matches!(
+                        property.value(),
+                        hozo_ir::PropertyValue::Color(hozo_ir::Color::Token(_))
+                    )
+                })
+            {
+                return props;
+            }
+        }
         return crate::arbitrary::properties(token).unwrap_or_default();
     }
+    expand_non_arbitrary_utility(token)
+}
+
+fn expand_non_arbitrary_utility(token: &str) -> Vec<StyleProperty> {
     // `px`/`mx` are the *logical* inline axis in Tailwind
     // (`padding-inline`), not left/right. For a symmetric value the
     // rendering is identical either way, but keeping them logical matches
@@ -277,34 +332,6 @@ pub(super) fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
     }
     if let Some(props) = expand_border_width(token) {
         return props;
-    }
-    // `text-lg/7`, `text-lg/tight`, `text-lg/[3rem]`: a size with its own
-    // line height. Read as a colour it was `lg` at 7%. Tailwind writes that
-    // line height as a plain `line-height`, not through `--tw-leading`, so it
-    // has a text size's provenance: a later `text-sm` replaces it and any
-    // `leading-*` beats it. A ratio is sized against this utility's own font
-    // size, which is the size it applies to.
-    if let Some((name, modifier)) = token.split_once('/') {
-        if let Some((size, _)) = parse_font_size(name) {
-            if let [(hozo_ir::Condition::Always, props)] =
-                expand_class(&format!("leading-{modifier}")).as_slice()
-            {
-                let line_height = match props.as_slice() {
-                    [StyleProperty::LineHeight(LineHeight::Length(length))] => Some(length.clone()),
-                    [StyleProperty::LineHeight(LineHeight::Ratio(ratio))] => match size {
-                        Length::Px(px) => Some(Length::Px(px * ratio)),
-                        _ => None,
-                    },
-                    _ => None,
-                };
-                if let Some(line_height) = line_height {
-                    return vec![
-                        StyleProperty::FontSize(size),
-                        StyleProperty::LineHeight(LineHeight::FontDefault(line_height)),
-                    ];
-                }
-            }
-        }
     }
     if let Some((size, line_height)) = parse_font_size(token) {
         // This is a fallback, not an explicit leading. Preserve that fact

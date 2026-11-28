@@ -11,10 +11,7 @@ use crate::*;
 /// depends on the node -- on a `TextInput` it lowers, anywhere else there
 /// is no placeholder for it to colour.
 fn is_valid_field_colour(colour: &hozo_ir::Color) -> bool {
-    !matches!(
-        colour,
-        hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
-    )
+    colour.is_valid_native_color()
 }
 
 // This pseudo-element adapter is deliberately narrower than CSS. A
@@ -30,6 +27,7 @@ pub(super) fn absolute_placeholder_colour(colour: &hozo_ir::Color) -> bool {
         hozo_ir::Color::Css(value) => value.strip_prefix('#').is_some_and(|hex| {
             matches!(hex.len(), 3 | 4 | 6 | 8) && hex.bytes().all(|byte| byte.is_ascii_hexdigit())
         }),
+        hozo_ir::Color::CssAlpha(value, _) => hozo_ir::hex_rgb_channels(value).is_some(),
         _ => false,
     }
 }
@@ -211,12 +209,13 @@ pub(crate) struct FieldColours {
 
 pub(crate) fn resolve_field_colours(
     node: &Node,
+    declarations: &[StyleDeclaration],
     target: &StyleTarget<'_>,
     source: &str,
     theme: &Theme,
     runtime: &mut RuntimeNeeds,
 ) -> FieldColours {
-    let mut consumed = vec![false; node.style.len()];
+    let mut consumed = vec![false; declarations.len()];
     if node.primitive != Primitive::TextInput {
         return FieldColours {
             placeholder: None,
@@ -239,7 +238,7 @@ pub(crate) fn resolve_field_colours(
     let mut interactive_fields: Vec<(&'static str, String)> = Vec::new();
 
     if let Some(channel) = resolve_channel(
-        &node.style,
+        declarations,
         target,
         source,
         theme,
@@ -256,7 +255,7 @@ pub(crate) fn resolve_field_colours(
         }
     }
     if let Some(channel) = resolve_channel(
-        &node.style,
+        declarations,
         target,
         source,
         theme,
@@ -273,7 +272,7 @@ pub(crate) fn resolve_field_colours(
         }
     }
     if let Some(channel) = resolve_channel(
-        &node.style,
+        declarations,
         target,
         source,
         theme,
@@ -291,12 +290,22 @@ pub(crate) fn resolve_field_colours(
     }
 
     let interactive_callback = (!interactive_fields.is_empty()).then(|| {
+        let uses_bare_ident = |expr: &str, ident: &str| {
+            expr.match_indices(ident).any(|(start, _)| {
+                let before = expr[..start].chars().next_back();
+                let after = expr[start + ident.len()..].chars().next();
+                !matches!(
+                    before,
+                    Some('a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '$' | '.')
+                ) && !matches!(after, Some('a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '$'))
+            })
+        };
         let uses_focus_visible = interactive_fields
             .iter()
-            .any(|(_, expr)| expr.contains("focusVisible"));
+            .any(|(_, expr)| uses_bare_ident(expr, "focusVisible"));
         let uses_focused = interactive_fields
             .iter()
-            .any(|(_, expr)| expr.contains("focused"));
+            .any(|(_, expr)| uses_bare_ident(expr, "focused"));
         let mut params = Vec::new();
         if uses_focused {
             params.push("focused");

@@ -217,13 +217,22 @@ fn an_opacity_modifier_becomes_a_color_mix() {
 }
 
 #[test]
-fn a_modifier_that_is_not_a_percentage_stays_unresolved() {
-    // The marker is the honest answer for something this cannot
-    // evaluate. Tailwind also accepts `/[0.5]` and `/(--var)`, and
-    // guessing at either would be worse than saying nothing.
-    let prop = StyleProperty::BackgroundColor(Color::Token("blue-500/[0.5]".to_string()));
-    let (_, value) = property_and_value(&prop, &Theme::default());
-    assert_eq!(value, "var(--hozo-color-blue-500/[0.5])");
+fn arbitrary_numeric_alpha_modifiers_resolve_while_dynamic_ones_stay_unresolved() {
+    for token in ["blue-500/[0.5]", "blue-500/[50%]"] {
+        let prop = StyleProperty::BackgroundColor(Color::Token(token.to_string()));
+        let (_, value) = property_and_value(&prop, &Theme::default());
+        assert_eq!(
+            value,
+            "color-mix(in oklab, oklch(62.3% 0.214 259.815) 50%, transparent)"
+        );
+    }
+    // Dynamic modifiers cannot be evaluated at build time, so they keep the
+    // unresolved marker rather than guessing.
+    for token in ["blue-500/(--alpha)", "blue-500/[var(--alpha)]"] {
+        let prop = StyleProperty::BackgroundColor(Color::Token(token.to_string()));
+        let (_, value) = property_and_value(&prop, &Theme::default());
+        assert_eq!(value, format!("var(--hozo-color-{token})"));
+    }
 }
 
 #[test]

@@ -62,6 +62,51 @@ fn condition_subtree_report(condition: &Condition) -> SubtreeReport {
     out
 }
 
+enum PeerFold {
+    True,
+    False,
+    Keep(Condition),
+}
+
+/// Evaluates `peer-*:` predicates forwarded from a parent's `*:`/`**:` on a
+/// sibling with no preceding `.peer` when another sibling in the same parent
+/// does act as `.peer`: in CSS `.peer ~ *` never matches siblings before the
+/// first `.peer`, while `:not(.peer ~ *)` matches them unconditionally.
+/// Unsupported `-of-type` peer variants are left unfolded so they still refuse.
+fn fold_unmatched_ancestor_peer(condition: &Condition) -> PeerFold {
+    match condition {
+        Condition::Peer(inner)
+            if !matches!(
+                inner.as_ref(),
+                Condition::Structural(structural) if structural.counts_by_type()
+            ) =>
+        {
+            PeerFold::False
+        }
+        Condition::Not(inner) => match fold_unmatched_ancestor_peer(inner) {
+            PeerFold::False => PeerFold::True,
+            PeerFold::True => PeerFold::False,
+            PeerFold::Keep(kept) => PeerFold::Keep(Condition::Not(Box::new(kept))),
+        },
+        Condition::All(list) => {
+            let mut kept = Vec::with_capacity(list.len());
+            for item in list {
+                match fold_unmatched_ancestor_peer(item) {
+                    PeerFold::False => return PeerFold::False,
+                    PeerFold::True => {}
+                    PeerFold::Keep(cond) => kept.push(cond),
+                }
+            }
+            if kept.is_empty() {
+                PeerFold::True
+            } else {
+                PeerFold::Keep(Condition::all(kept))
+            }
+        }
+        other => PeerFold::Keep(other.clone()),
+    }
+}
+
 fn has_gap(style: &[StyleDeclaration]) -> bool {
     style.iter().any(|declaration| {
         matches!(
@@ -173,24 +218,70 @@ pub(super) fn render_node(
 
     class_fallback::warn_unresolved(node, source, cx.diagnostics);
 
+    // Merge ancestor `*:` / `**:` declarations before this element's own
+    // declarations so field-colour, truncation, line-breaking, backdrop,
+    // transition, grid, SVG paint, and refusal adapters see the full effective
+    // style of this node, while keeping this element's own `*:` / `**:`
+    // declarations separate for its children.
+    let has_child_target = node
+        .children
+        .iter()
+        .any(|c| matches!(c, hozo_ir::Child::Node(_) | hozo_ir::Child::Verbatim { .. }));
+    let mut effective_own: Vec<StyleDeclaration> = Vec::new();
+    let mut subtree_declarations: Vec<StyleDeclaration> = Vec::new();
+    for declaration in from_ancestor.direct.iter().chain(from_ancestor.all.iter()) {
+        if declaration.condition.split_subtree().is_some() {
+            subtree_declarations.push(declaration.clone());
+        } else if peer.preceding.is_empty() && peer.parent_has_later_peer_target {
+            match fold_unmatched_ancestor_peer(&declaration.condition) {
+                PeerFold::False => {}
+                PeerFold::True => effective_own.push(StyleDeclaration {
+                    condition: Condition::Always,
+                    ..declaration.clone()
+                }),
+                PeerFold::Keep(condition) => effective_own.push(StyleDeclaration {
+                    condition,
+                    ..declaration.clone()
+                }),
+            }
+        } else {
+            effective_own.push(declaration.clone());
+        }
+    }
+    for declaration in &node.style {
+        if declaration.condition.split_subtree().is_some() {
+            subtree_declarations.push(declaration.clone());
+        } else {
+            effective_own.push(declaration.clone());
+        }
+    }
+
     // Some CSS concepts are props on this platform rather than styles, so
     // they're absorbed before the refusal check below -- otherwise the
     // thing that *does* express them would be reported as impossible.
-    let truncation = truncation_props(node);
+    let truncation = truncation_props(node, &effective_own);
     // `text-balance` and `text-pretty` are a Text prop here, Android's
     // `textBreakStrategy`, the way `truncate` is `numberOfLines`.
-    let text_break = text_break_strategy(node);
+    let text_break = text_break_strategy(node, &effective_own);
     // `break-keep` on iOS: `lineBreakStrategyIOS`, for Korean.
-    let ios_line_break = crate::text::line_break_strategy_ios(node);
+    let ios_line_break = crate::text::line_break_strategy_ios(node, &effective_own);
     // Same shape as truncation: a CSS concept React Native keeps on a prop,
     // absorbed before the refusal check so the thing that *does* express it
     // isn't reported as impossible.
+    let has_group_interaction_owner = interaction_context
+        && (group_ancestor.is_some_and(|group| interaction::owns_events(group.node))
+            || from_ancestor
+                .direct
+                .iter()
+                .chain(from_ancestor.all.iter())
+                .any(|d| interaction::uses_group_state(&d.condition)));
     let field_target = crate::conditions::StyleTarget {
         owner_facts: cx.owner_inputs.facts,
         owner_events: cx.owner_inputs.events,
         node,
         position,
         interaction_context: false,
+        group_interaction_query: has_group_interaction_owner,
         group_ancestor,
         peers: peer.preceding,
         pattern_slot: None,
@@ -202,7 +293,14 @@ pub(super) fn render_node(
         selection,
         interactive_callback: field_colors_callback,
         consumed: field_consumed,
-    } = resolve_field_colours(node, &field_target, source, theme, cx.runtime);
+    } = resolve_field_colours(
+        node,
+        &effective_own,
+        &field_target,
+        source,
+        theme,
+        cx.runtime,
+    );
 
     // `leading-tight`/`tracking-wide` are relative to the font size, which
     // React Native's equivalents aren't. Resolved here, before the refusal
@@ -212,7 +310,7 @@ pub(super) fn render_node(
     // actually lowered, leaving every other pseudo/style stack visible to the
     // usual diagnostics.
     let field_style: Option<Vec<_>> = field_consumed.iter().any(|&used| used).then(|| {
-        node.style
+        effective_own
             .iter()
             .enumerate()
             .filter(|(index, _)| !field_consumed[*index])
@@ -220,7 +318,7 @@ pub(super) fn render_node(
             .collect()
     });
     let style = lower_inline_flex(fold_font_relative(
-        field_style.as_deref().unwrap_or(&node.style),
+        field_style.as_deref().unwrap_or(&effective_own),
         inherited,
         theme,
     ));
@@ -275,6 +373,31 @@ pub(super) fn render_node(
         cx.diagnostics,
     );
 
+    if !has_child_target && !subtree_declarations.is_empty() {
+        // No element child will receive `*:`/`**:` declarations here, so still
+        // report any Web-only properties on them rather than dropping silently.
+        let _ = refusals::report_refused(
+            &subtree_declarations,
+            refusals::Lowered {
+                svg_paint: false,
+                grid: false,
+                grid_item: false,
+                transition: false,
+                truncation: false,
+                text_break: false,
+                ios_line_break: false,
+                keyframes: false,
+                self_measured: false,
+                parent_measured: false,
+                parent_measured_space: false,
+            },
+            node,
+            theme,
+            cx.runtime,
+            cx.diagnostics,
+        );
+    }
+
     let (component, extra_props) = host::base_component(
         node,
         in_dynamic_ruby,
@@ -317,6 +440,7 @@ pub(super) fn render_node(
         interaction_context,
         peer.preceding,
         style,
+        &subtree_declarations,
         ancestor,
         cx,
     );
@@ -343,21 +467,24 @@ pub(super) fn render_node(
     let pattern_style_prop = crate::pattern::interaction_style_prop(node.primitive, "className")
         .or_else(|| (node.primitive == Primitive::TextInput).then_some("hozoStyle"));
     let own_entry_start = cx.style_entries.len();
+    // A View joins its owner's context directly (`HozoInteractionView`) only
+    // for a `group-*:`. Any other host inside an interactive `.group` reads
+    // the enclosing group's state through `HozoInteractionQuery` (`__hozoGroup`)
+    // so it keeps its own host and interaction callback.
+    let target_interaction_context = interaction_context
+        && (renders_text(component)
+            || (component == "View"
+                && own_declarations
+                    .iter()
+                    .any(|declaration| interaction::uses_group_state(&declaration.condition))))
+        && pattern_style_prop.is_none();
     let target = crate::conditions::StyleTarget {
         owner_facts: cx.owner_inputs.facts,
         owner_events: cx.owner_inputs.events,
         node,
         position,
-        // A View joins its owner's context only for a `group-*:`. Once it
-        // has, a plain `hover:` beside it reads that owner too, as on Text;
-        // without one it stays refused rather than borrowing a state.
-        interaction_context: interaction_context
-            && (renders_text(component)
-                || (component == "View"
-                    && own_declarations
-                        .iter()
-                        .any(|declaration| interaction::uses_group_state(&declaration.condition))))
-            && pattern_style_prop.is_none(),
+        interaction_context: target_interaction_context,
+        group_interaction_query: has_group_interaction_owner && !target_interaction_context,
         group_ancestor,
         peers: peer.preceding,
         pattern_slot: Some("className"),
@@ -423,6 +550,7 @@ pub(super) fn render_node(
         &base_name,
         node,
         position,
+        has_group_interaction_owner,
         group_ancestor,
         peer.preceding,
         cx,
@@ -468,6 +596,7 @@ pub(super) fn render_node(
         link_interaction,
     } = host::interaction_needs(
         node,
+        position,
         component,
         &own_declarations,
         &text_declarations,
@@ -618,7 +747,7 @@ pub(super) fn render_node(
     // Resolve the author's own contribution before composing it with those
     // class styles. Known unrelated static classes keep their direct path;
     // an opaque class may carry gap, so it needs the same bounded boundary.
-    let project_authored_gap = !node.class_name_fallback.is_empty() || has_gap(&node.style);
+    let project_authored_gap = !node.class_name_fallback.is_empty() || has_gap(&effective_own);
     let mut project_spread_gap = project_authored_gap;
     let authored_style =
         authored_style::authored_style(node, project_authored_gap, source, cx.runtime);
@@ -746,6 +875,7 @@ pub(super) fn render_node(
     project_spread_gap |= class_slots::class_slot_props(
         node,
         position,
+        has_group_interaction_owner,
         group_ancestor,
         peer.preceding,
         &mut held,
@@ -757,11 +887,7 @@ pub(super) fn render_node(
         .iter()
         .chain(text_declarations.iter())
         .chain(layout.backdrop.iter())
-        .chain(
-            node.style
-                .iter()
-                .filter(|d| d.condition.split_subtree().is_none()),
-        )
+        .chain(effective_own.iter())
     {
         let report = condition_subtree_report(&declaration.condition);
         self_decl_subtree.focus |= report.focus;
@@ -852,11 +978,13 @@ pub(super) fn render_node(
         group_ancestor: child_group_ancestor,
         subtree_report: child_subtree_report,
     };
+    let raw_text_group_query = has_group_interaction_owner && interaction::owns_events(node);
     let (inner, needs_peer_scope) = child_list::render_child_list(
         node,
         component,
         for_children,
         child_interaction_context,
+        raw_text_group_query,
         &base_name,
         position,
         group_ancestor,
@@ -876,6 +1004,7 @@ pub(super) fn render_node(
         node,
         position,
         measures_parent,
+        has_group_interaction_owner,
         group_ancestor,
         peer.preceding,
         cx,
@@ -891,6 +1020,7 @@ pub(super) fn render_node(
         node,
         position,
         interaction_context,
+        has_group_interaction_owner,
         group_ancestor,
         peer.preceding,
         cx,
@@ -907,6 +1037,48 @@ pub(super) fn render_node(
         &mut props_text,
         cx,
     );
+    let raw_text_reads_group = raw_text_group_query
+        && node
+            .children
+            .iter()
+            .any(|child| matches!(child, hozo_ir::Child::Text(_)))
+        && descend
+            .iter()
+            .any(|declaration| interaction::uses_group_state(&declaration.condition));
+    let child_decls_read_group = has_group_interaction_owner
+        && child_declarations
+            .iter()
+            .any(|declaration| interaction::uses_group_state(&declaration.condition));
+    let unified_scope_reads_group = has_group_interaction_owner
+        && unified_scope
+            .iter()
+            .any(|declaration| interaction::uses_group_state(&declaration.condition));
+    let forwarded_reads_group = has_group_interaction_owner
+        && to_children
+            .iter()
+            .chain(descendants.iter())
+            .any(|declaration| {
+                condition_contains(&declaration.condition, |c| {
+                    matches!(c, Condition::Expr(ConditionExpr::RawJs(expr)) if expr.contains("__hozoGroup."))
+                })
+            });
+    let own_reads_group = has_group_interaction_owner
+        && (own_declarations
+            .iter()
+            .chain(text_declarations.iter())
+            .chain(layout.backdrop.iter())
+            .chain(effective_own.iter())
+            .any(|declaration| interaction::uses_group_state(&declaration.condition))
+            || node.props.class_slots.iter().any(|slot| {
+                slot.style
+                    .iter()
+                    .any(|declaration| interaction::uses_group_state(&declaration.condition))
+            }));
+    let uses_group_interaction_query = raw_text_reads_group
+        || child_decls_read_group
+        || unified_scope_reads_group
+        || forwarded_reads_group
+        || (own_reads_group && props_text.contains("__hozoGroup."));
     let raw_text_reads_peer = node
         .children
         .iter()
@@ -925,11 +1097,7 @@ pub(super) fn render_node(
         .iter()
         .chain(text_declarations.iter())
         .chain(layout.backdrop.iter())
-        .chain(
-            node.style
-                .iter()
-                .filter(|d| d.condition.split_subtree().is_none()),
-        )
+        .chain(effective_own.iter())
         .any(|declaration| {
             condition_contains(&declaration.condition, |c| {
                 peer_interaction_state(c).is_some()
@@ -987,6 +1155,7 @@ pub(super) fn render_node(
     }
     let uses_container_query = uses_container_query || props_text.contains("__hozoCq[");
     let rendered = wrappers::subtree_scope(rendered, uses_subtree_scope, cx);
+    let rendered = wrappers::interaction_query(rendered, uses_group_interaction_query, cx);
     let rendered = wrappers::peer_query(rendered, &queried_peer_ids, cx);
     let rendered = wrappers::parent_size_query(rendered, uses_parent_size_query, cx);
     let rendered = wrappers::container_query(rendered, uses_container_query, cx);

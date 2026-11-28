@@ -15,6 +15,16 @@ pub(crate) fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
         // and asked separately -- `native_color_reason` refuses the ones it
         // can't before anything reaches here.
         Color::Css(text) => return js_string(text),
+        Color::CssAlpha(text, scaled) => {
+            let alpha = Color::alpha_fraction(*scaled);
+            return match hozo_ir::apply_alpha_to_native_color(text, alpha) {
+                Some(resolved) => js_string(&resolved),
+                None => format!(
+                    "'hozo-unresolved:{text}/{}'",
+                    hozo_ir::format_alpha_percent(alpha)
+                ),
+            };
+        }
     };
     // Split before the lookup: the opacity modifier is part of the class,
     // not part of the token Tailwind's palette defines. Left joined,

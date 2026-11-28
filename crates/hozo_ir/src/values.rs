@@ -127,35 +127,57 @@ impl Display {
     }
 }
 
-/// A colour token split from its opacity modifier: `blue-500/50` is
-/// `("blue-500", Some(0.5))`.
+/// Parses Tailwind's trailing colour opacity modifier after `/`:
+/// - numeric percentage scale: `50` -> `0.5`, `12.5` -> `0.125` (`0..=100`)
+/// - arbitrary percentage: `[50%]`, `[35.5%]` -> `0.5`, `0.355` (`0..=100`)
+/// - arbitrary ratio: `[0.5]`, `[.25]`, `[1]` -> `0.5`, `0.25`, `1.0` (`0..=1`)
 ///
-/// Tailwind writes the modifier after a slash, and until now the slash
-/// travelled with the token into the palette lookup, where nothing matched
-/// it. The Web backend then emitted its unresolved-colour marker --
-/// `var(--hozo-color-blue-500/50)`, which is not a valid custom property
-/// name, so every browser drops the declaration and the element has no
-/// colour. The Native backend emitted `hozo-unresolved:blue-500/50` into a
-/// style object, which React Native cannot parse either.
+/// Dynamic expressions (`[var(--a)]`, `[calc(...)]`) and out-of-range values
+/// return `None` rather than being guessed at.
+pub fn parse_color_alpha_modifier(modifier: &str) -> Option<f64> {
+    let alpha = if let Some(inner) = modifier.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        let trimmed = inner.trim();
+        if let Some(percent) = trimmed.strip_suffix('%') {
+            let value = percent.trim().parse::<f64>().ok()?;
+            if !(0.0..=100.0).contains(&value) || !value.is_finite() {
+                return None;
+            }
+            value / 100.0
+        } else {
+            let value = trimmed.parse::<f64>().ok()?;
+            if !(0.0..=1.0).contains(&value) || !value.is_finite() {
+                return None;
+            }
+            value
+        }
+    } else {
+        let percent = modifier.parse::<f64>().ok()?;
+        if !(0.0..=100.0).contains(&percent) || !percent.is_finite() {
+            return None;
+        }
+        percent / 100.0
+    };
+    Some(round(alpha))
+}
+
+/// Formats a normalized alpha (`0.0..=1.0`) as a CSS percentage number
+/// without binary floating-point noise (e.g. `0.29` -> `"29"`, `0.125` -> `"12.5"`).
+pub fn format_alpha_percent(alpha: f64) -> String {
+    round(alpha * 100.0).to_string()
+}
+
+/// A colour token split from its opacity modifier: `blue-500/50` and
+/// `blue-500/[0.5]` and `blue-500/[50%]` are all `("blue-500", Some(0.5))`.
 ///
-/// Both were silent. The conformance suite did not catch it because its
-/// candidate list contains no class with a modifier at all: the denominator
-/// never asked.
-///
-/// Only the plain numeric form. Tailwind also accepts `/[0.5]` and
-/// `/(--var)`, and those stay unresolved rather than guessed at -- an
-/// arbitrary alpha is a value this has no way to evaluate, and the marker
-/// they fall back to is at least honest about that.
+/// Dynamic modifiers like `/(--var)` or `/[var(--a)]` stay unsplit rather
+/// than guessed at.
 pub fn split_color_alpha(token: &str) -> (&str, Option<f64>) {
     let Some((base, modifier)) = token.rsplit_once('/') else {
         return (token, None);
     };
-    match modifier.parse::<f64>() {
-        // Tailwind's modifier is a percentage, and the scale it documents
-        // is 0-100. Anything outside that is not a modifier it would have
-        // produced, so it goes through unsplit and stays unresolved.
-        Ok(percent) if (0.0..=100.0).contains(&percent) => (base, Some(percent / 100.0)),
-        _ => (token, None),
+    match parse_color_alpha_modifier(modifier) {
+        Some(alpha) => (base, Some(alpha)),
+        None => (token, None),
     }
 }
 
@@ -177,6 +199,78 @@ pub fn hex_rgb_channels(hex: &str) -> Option<(u8, u8, u8)> {
     Some((pair(0)?, pair(1)?, pair(2)?))
 }
 
+/// Applies a normalized alpha (`0.0..=1.0`) to a concrete CSS colour literal
+/// for React Native and Canvas (`#rgb`, `#rrggbb`, `rgb(...)`, `hsl(...)`,
+/// `hwb(...)`, `lab(...)`, `lch(...)`, `oklab(...)`, `oklch(...)`,
+/// `transparent`). Returns `None` for dynamic CSS (`var()`, `calc()`),
+/// colours that already carry an alpha channel, or unresolvable literals.
+pub fn apply_alpha_to_native_color(css: &str, alpha: f64) -> Option<String> {
+    let trimmed = css.trim();
+    if !native_color_literal_valid(trimmed) {
+        return None;
+    }
+    let alpha = round(alpha);
+    if trimmed.eq_ignore_ascii_case("transparent") {
+        return Some("transparent".to_string());
+    }
+    if let Some((r, g, b)) = hex_rgb_channels(trimmed) {
+        return Some(format!("rgba({r}, {g}, {b}, {alpha})"));
+    }
+    if let Some(open) = trimmed.find('(') {
+        if let Some(args) = trimmed[open + 1..].strip_suffix(')') {
+            let args = args.trim();
+            if args.contains('/') {
+                return None;
+            }
+            let lower = trimmed[..open].trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "rgb" => {
+                    if args.contains(',') {
+                        let channels: Vec<&str> = args.split(',').map(str::trim).collect();
+                        if channels.len() == 3 {
+                            return Some(format!(
+                                "rgba({}, {}, {}, {alpha})",
+                                channels[0], channels[1], channels[2]
+                            ));
+                        }
+                    } else {
+                        let channels: Vec<&str> = args.split_whitespace().collect();
+                        if channels.len() == 3 {
+                            if channels.iter().all(|c| c.parse::<f64>().is_ok()) {
+                                return Some(format!(
+                                    "rgba({}, {}, {}, {alpha})",
+                                    channels[0], channels[1], channels[2]
+                                ));
+                            }
+                            return Some(format!("rgb({args} / {alpha})"));
+                        }
+                    }
+                }
+                "hsl" => {
+                    if args.contains(',') {
+                        let channels: Vec<&str> = args.split(',').map(str::trim).collect();
+                        if channels.len() == 3 {
+                            return Some(format!(
+                                "hsla({}, {}, {}, {alpha})",
+                                channels[0], channels[1], channels[2]
+                            ));
+                        }
+                    } else if args.split_whitespace().count() == 3 {
+                        return Some(format!("hsl({args} / {alpha})"));
+                    }
+                }
+                "hwb" | "lab" | "lch" | "oklab" | "oklch"
+                    if !args.contains(',') && args.split_whitespace().count() == 3 =>
+                {
+                    return Some(format!("{lower}({args} / {alpha})"));
+                }
+                _ => {}
+            }
+        }
+    }
+    None
+}
+
 /// Resolves a colour for Canvas paint props (`fill` / `stroke`), or returns
 /// `None` when neither Canvas 2D nor Skia can paint the value directly.
 ///
@@ -191,6 +285,9 @@ pub fn resolve_canvas_color(color: &Color, theme: &Theme, native: bool) -> Optio
             matches!(*keyword, "none" | "transparent").then(|| (*keyword).to_string())
         }
         Color::Css(value) => native_color_literal_valid(value).then(|| value.clone()),
+        Color::CssAlpha(value, scaled) => {
+            apply_alpha_to_native_color(value, Color::alpha_fraction(*scaled))
+        }
         Color::Token(token) => {
             let (base, alpha) = split_color_alpha(token);
             if matches!(base, "current" | "inherit") {
@@ -505,9 +602,39 @@ pub enum Color {
     /// author asked for; the whole point of an arbitrary value is that it
     /// escapes the design system.
     Css(String),
+    /// An arbitrary CSS colour with a trailing Tailwind opacity modifier:
+    /// `bg-[#ff0000]/50`, `fill-[#ff0000]/[0.35]`, `bg-[rgb(0_0_0)]/50`.
+    ///
+    /// Alpha is stored in fixed-point millionths (`0..=1_000_000`) so `Color`
+    /// keeps `Eq`. Web emits `color-mix(in oklab, <css> <pct>%, transparent)`;
+    /// Native and Canvas fold concrete colour literals into `rgba()` or CSS
+    /// Color 4 `/ <alpha>` syntax and refuse dynamic or unresolvable values.
+    CssAlpha(String, u32),
 }
 
 impl Color {
+    /// Builds `Color::CssAlpha` from a normalized alpha in `0.0..=1.0`.
+    pub fn css_with_alpha(value: String, alpha: f64) -> Self {
+        let scaled = (round(alpha).clamp(0.0, 1.0) * 1_000_000.0).round() as u32;
+        Self::CssAlpha(value, scaled)
+    }
+
+    /// Converts the fixed-point alpha back to a normalized `0.0..=1.0` float.
+    pub fn alpha_fraction(scaled: u32) -> f64 {
+        round(f64::from(scaled) / 1_000_000.0)
+    }
+
+    /// Whether an arbitrary CSS colour value can be lowered to React Native
+    /// without a CSS engine. Palette tokens and keywords are checked separately.
+    pub fn is_valid_native_color(&self) -> bool {
+        match self {
+            Color::Css(text) => native_color_literal_valid(text),
+            Color::CssAlpha(text, scaled) => {
+                apply_alpha_to_native_color(text, Self::alpha_fraction(*scaled)).is_some()
+            }
+            Color::Token(_) | Color::Keyword(_) => true,
+        }
+    }
     /// Whether this is `initial` -- the utility that *unsets* a colour
     /// rather than choosing one.
     ///

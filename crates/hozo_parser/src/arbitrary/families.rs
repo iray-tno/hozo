@@ -219,6 +219,7 @@ pub(super) fn mask_stop(
     prefix: &str,
     value: &str,
     hint: Option<&str>,
+    alpha: Option<f64>,
 ) -> Option<Vec<StyleProperty>> {
     let rest = prefix.strip_prefix("mask-")?;
     let (axis, stop) = rest.rsplit_once('-')?;
@@ -233,7 +234,11 @@ pub(super) fn mask_stop(
             .iter()
             .map(|slot| {
                 if looks_like_color(value, hint) {
-                    StyleProperty::MaskStopColor(*slot, stop, Color::Css(value.to_string()))
+                    let colour = match alpha {
+                        Some(alpha) => Color::css_with_alpha(value.to_string(), alpha),
+                        None => Color::Css(value.to_string()),
+                    };
+                    StyleProperty::MaskStopColor(*slot, stop, colour)
                 } else {
                     StyleProperty::MaskStopPosition(*slot, stop, parse_dimension(value))
                 }

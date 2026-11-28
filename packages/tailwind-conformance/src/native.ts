@@ -88,6 +88,121 @@ const NAMED_GAPS = new Set([
 /// React hook, and a hook needs a statement position inside a component.
 /// Probing at module scope would score them covered while a real build of
 /// that same source refuses them.
+const FORM_OR_FIELD_VARIANTS = new Set([
+  'read-only',
+  'not-read-only',
+  'placeholder-shown',
+  'placeholder',
+  'selection',
+])
+
+const SUBTREE_VARIANTS = new Set(['*', '**'])
+
+const SECOND_CHILD_VARIANTS = new Set(['even', 'not-first'])
+const THIRD_CHILD_VARIANTS = new Set(['nth-3', 'last', 'odd', 'nth-[2n+1]'])
+
+function isAmbientVariant(token: string): boolean {
+  const inner = token.startsWith('not-') ? token.slice(4) : token
+  return (
+    inner === 'dark' ||
+    inner === 'sm' ||
+    inner === 'md' ||
+    inner === 'lg' ||
+    inner === 'xl' ||
+    inner === '2xl' ||
+    inner === 'motion-safe' ||
+    inner === 'motion-reduce' ||
+    inner === 'portrait' ||
+    inner === 'landscape' ||
+    inner === 'ltr' ||
+    inner === 'rtl' ||
+    inner === 'contrast-more' ||
+    inner === 'contrast-less' ||
+    inner === 'forced-colors' ||
+    inner === 'print' ||
+    inner === 'noscript' ||
+    inner === 'inverted-colors' ||
+    inner.startsWith('min-') ||
+    inner.startsWith('max-') ||
+    inner.startsWith('@')
+  )
+}
+
+function variantTokens(candidate: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < candidate.length; i++) {
+    const ch = candidate[i]
+    if (ch === '[' || ch === '(') depth++
+    else if ((ch === ']' || ch === ')') && depth > 0) depth--
+    else if (ch === ':' && depth === 0) {
+      parts.push(candidate.slice(start, i))
+      start = i + 1
+    }
+  }
+  return parts
+}
+
+function hasSubtreeVariant(candidate: string): boolean {
+  return variantTokens(candidate).some((v) => SUBTREE_VARIANTS.has(v))
+}
+
+const TEXT_INPUT_FOCUS_VARIANTS = new Set([
+  'focus',
+  'not-focus',
+  'focus-visible',
+  'not-focus-visible',
+])
+
+function hasFormOrFieldVariant(candidate: string): boolean {
+  return variantTokens(candidate).some((v) => FORM_OR_FIELD_VARIANTS.has(v))
+}
+
+function isStackedFormCandidate(candidate: string): boolean {
+  const tokens = variantTokens(candidate)
+  if (
+    tokens.some((v) => SUBTREE_VARIANTS.has(v)) ||
+    !tokens.some((v) => FORM_OR_FIELD_VARIANTS.has(v))
+  ) {
+    return false
+  }
+  // Single form/field variants (including beside ambient queries or TextInput's
+  // own focus states) already match `TextInput`, `TextInput with readOnly`, and
+  // `TextInput with a placeholder and a value`. Only combinations adding a
+  // second non-focus driver need the multi-driver grouped TextInput contexts.
+  return tokens.filter((v) => !isAmbientVariant(v) && !TEXT_INPUT_FOCUS_VARIANTS.has(v)).length >= 2
+}
+
+function needsSecondChildOrPeer(tokens: string[]): boolean {
+  return tokens.some((v) => SECOND_CHILD_VARIANTS.has(v) || v.startsWith('peer-'))
+}
+
+function needsThirdChild(tokens: string[]): boolean {
+  return tokens.some((v) => THIRD_CHILD_VARIANTS.has(v))
+}
+
+function isStackedInteractiveCandidate(candidate: string): boolean {
+  const tokens = variantTokens(candidate)
+  if (
+    tokens.length < 2 ||
+    tokens.some(
+      (v) =>
+        v === 'backdrop' ||
+        v === 'starting' ||
+        SUBTREE_VARIANTS.has(v) ||
+        FORM_OR_FIELD_VARIANTS.has(v),
+    )
+  ) {
+    return false
+  }
+  // Only needed when at least two non-ambient drivers are combined (e.g.
+  // `hover:disabled:`, `group-hover:peer-hover:`, `first:hover:`). Single
+  // elemental variants stacked with ambient queries already match the
+  // single-driver contexts above.
+  return tokens.filter((v) => !isAmbientVariant(v)).length >= 2
+}
+
 const PROBE_CONTEXTS = [
   {
     name: 'View',
@@ -333,12 +448,43 @@ const PROBE_CONTEXTS = [
     // use `backdrop:` so unrelated utilities are not measured against Dialog's
     // modal host restrictions, matching `View with a transition` above.
     name: 'Dialog',
-    appliesTo: (candidate: string) => candidate.split(':').includes('backdrop'),
+    appliesTo: (candidate: string) => variantTokens(candidate).includes('backdrop'),
     render: (candidate: string) =>
-      `import { Dialog } from '@hozo/core'\n` +
-      `export function C({ open, onClose }) {\n` +
-      `  return <Dialog open={open} onClose={onClose} accessibilityLabel="Dialog" className="${candidate}" />\n` +
-      `}\n`,
+      `import { View, Pressable, Dialog } from '@hozo/core'\n` +
+      `export function C({ on, open, state, onClose }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Dialog open={open} onClose={onClose} accessibilityLabel="Dialog" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}" />\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'second-child Dialog after peer',
+    appliesTo: (candidate: string) => {
+      const tokens = variantTokens(candidate)
+      return tokens.includes('backdrop') && needsSecondChildOrPeer(tokens)
+    },
+    render: (candidate: string) =>
+      `import { View, Pressable, Dialog } from '@hozo/core'\n` +
+      `export function C({ on, open, state, onClose }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <Dialog open={open} onClose={onClose} accessibilityLabel="Dialog" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}" />\n` +
+      `        <View>c</View>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'third-child Dialog after peer',
+    appliesTo: (candidate: string) => {
+      const tokens = variantTokens(candidate)
+      return tokens.includes('backdrop') && needsThirdChild(tokens)
+    },
+    render: (candidate: string) =>
+      `import { View, Pressable, Dialog } from '@hozo/core'\n` +
+      `export function C({ on, open, state, onClose }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View>b</View>\n` +
+      `        <Dialog open={open} onClose={onClose} accessibilityLabel="Dialog" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}" />\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
   },
   {
     // `starting:` is the frame an enter transition starts from, so it has a
@@ -351,10 +497,266 @@ const PROBE_CONTEXTS = [
     // candidate would turn all of them from covered-everywhere into
     // restricted, by measuring the transition instead of the candidate.
     name: 'View with a transition',
-    appliesTo: (candidate: string) => candidate.split(':').includes('starting'),
+    appliesTo: (candidate: string) => variantTokens(candidate).includes('starting'),
     render: (candidate: string) =>
-      `import { View } from '@hozo/core'\n` +
-      `export function C() {\n  return <View className="transition ${candidate}">x</View>\n}\n`,
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <View disabled={off} accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="transition ${candidate}">\n` +
+      `          <Pressable accessibilityRole="button">x</Pressable>\n` +
+      `        </View>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'second-child View with a transition after peer',
+    appliesTo: (candidate: string) => {
+      const tokens = variantTokens(candidate)
+      return tokens.includes('starting') && needsSecondChildOrPeer(tokens)
+    },
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View disabled={off} accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="transition ${candidate}">\n` +
+      `          <Pressable accessibilityRole="button">x</Pressable>\n` +
+      `        </View>\n` +
+      `        <View>c</View>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'third-child empty View with a transition after peer',
+    appliesTo: (candidate: string) => {
+      const tokens = variantTokens(candidate)
+      return tokens.includes('starting') && (needsThirdChild(tokens) || tokens.includes('empty'))
+    },
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View>b</View>\n` +
+      `        <View disabled={off} accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="transition ${candidate}" />\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'only-child empty View with a transition',
+    appliesTo: (candidate: string) => {
+      const tokens = variantTokens(candidate)
+      return tokens.includes('starting') && tokens.includes('empty')
+    },
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <View disabled={off} accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="transition ${candidate}" />\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    // Stacked multi-driver combinations on interactive controls (`hover:disabled:`,
+    // `hover:aria-*`, `hover:data-*`, `hover:group-*`, `hover:peer-*`, `focus-within:hover:`,
+    // `has-hover:disabled:`, `group-*:peer-*`, `disabled:first:`, etc.) require
+    // an element that carries those drivers simultaneously. Gated to multi-driver
+    // stacked candidates so single-utility and single-driver probes stay fast.
+    name: 'grouped Pressable with drivers',
+    appliesTo: isStackedInteractiveCandidate,
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable disabled={off} accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}">\n` +
+      `          <Pressable accessibilityRole="button">c</Pressable>\n` +
+      `        </Pressable>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'second-child grouped Pressable after peer',
+    appliesTo: (candidate: string) =>
+      isStackedInteractiveCandidate(candidate) && needsSecondChildOrPeer(variantTokens(candidate)),
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <Pressable disabled={off} accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}">\n` +
+      `          <Pressable accessibilityRole="button">c</Pressable>\n` +
+      `        </Pressable>\n` +
+      `        <View>c</View>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'third-child grouped Pressable after peer',
+    appliesTo: (candidate: string) =>
+      isStackedInteractiveCandidate(candidate) && needsThirdChild(variantTokens(candidate)),
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View>b</View>\n` +
+      `        <Pressable disabled={off} accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}">\n` +
+      `          <Pressable accessibilityRole="button">c</Pressable>\n` +
+      `        </Pressable>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'only-child empty grouped Pressable',
+    appliesTo: (candidate: string) =>
+      isStackedInteractiveCandidate(candidate) && variantTokens(candidate).includes('empty'),
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable disabled={off} accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}" />\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'second-child empty grouped Pressable after peer',
+    appliesTo: (candidate: string) =>
+      isStackedInteractiveCandidate(candidate) && variantTokens(candidate).includes('empty'),
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <Pressable disabled={off} accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}" />\n` +
+      `        <View>c</View>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'third-child empty grouped Pressable after peer',
+    appliesTo: (candidate: string) =>
+      isStackedInteractiveCandidate(candidate) &&
+      variantTokens(candidate).includes('empty') &&
+      needsThirdChild(variantTokens(candidate)),
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View>b</View>\n` +
+      `        <Pressable disabled={off} accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}" />\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    // Stacked multi-driver combinations on form inputs (`read-only:placeholder-shown:`,
+    // `disabled:read-only:`, `group-hover:placeholder:`, `peer-hover:selection:`,
+    // `first:selection:`, `data-open:placeholder-shown:`, etc.).
+    name: 'grouped TextInput with drivers',
+    appliesTo: isStackedFormCandidate,
+    render: (candidate: string) =>
+      `import { View, Pressable, TextInput } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state, locked, text }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <TextInput disabled={off} readOnly={locked} placeholder="Email" value={text} accessibilityLabel="Field" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}" />\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'second-child grouped TextInput after peer',
+    appliesTo: (candidate: string) =>
+      isStackedFormCandidate(candidate) && needsSecondChildOrPeer(variantTokens(candidate)),
+    render: (candidate: string) =>
+      `import { View, Pressable, TextInput } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state, locked, text }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <TextInput disabled={off} readOnly={locked} placeholder="Email" value={text} accessibilityLabel="Field" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}" />\n` +
+      `        <View>c</View>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'third-child grouped TextInput after peer',
+    appliesTo: (candidate: string) =>
+      isStackedFormCandidate(candidate) && needsThirdChild(variantTokens(candidate)),
+    render: (candidate: string) =>
+      `import { View, Pressable, TextInput } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state, locked, text }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View>b</View>\n` +
+      `        <TextInput disabled={off} readOnly={locked} placeholder="Email" value={text} accessibilityLabel="Field" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} className="${candidate}" />\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    // Subtree variants targeting interactive/driver-carrying children
+    // (`*:hover:`, `*:disabled:`, `*:aria-*`, `*:data-*`, `*:focus-within:`,
+    // `*:has-hover:`, `*:group-hover:`, `*:peer-hover:`, etc.).
+    name: 'parent of interactive elements',
+    appliesTo: hasSubtreeVariant,
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View data-open={open ? '' : undefined} data-state={state} className="${candidate}">\n` +
+      `          <Pressable className="peer" disabled={off} accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state}>\n` +
+      `            <Pressable disabled={off} accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state}>a</Pressable>\n` +
+      `          </Pressable>\n` +
+      `          <Pressable disabled={off} accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state}>\n` +
+      `            <Pressable disabled={off} accessibilityRole="checkbox" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state}>b</Pressable>\n` +
+      `          </Pressable>\n` +
+      `        </View>\n` +
+      `        <View>c</View>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    // Flat peer children so `**:peer-hover:` / `**:peer-aria-expanded:` does
+    // not recurse into grandchildren without a `.peer` sibling.
+    name: 'parent of peer siblings',
+    appliesTo: (candidate: string) =>
+      hasSubtreeVariant(candidate) && variantTokens(candidate).some((v) => v.startsWith('peer-')),
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ on }) {\n  return (\n    <View className="${candidate}">\n` +
+      `      <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `      <View>a</View>\n` +
+      `    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'parent of TextInput children',
+    appliesTo: (candidate: string) =>
+      hasSubtreeVariant(candidate) && hasFormOrFieldVariant(candidate),
+    render: (candidate: string) =>
+      `import { View, Pressable, TextInput } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state, locked, text }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View data-open={open ? '' : undefined} data-state={state} className="${candidate}">\n` +
+      `          <TextInput disabled={off} readOnly={locked} placeholder="Email" value={text} accessibilityLabel="Field 1" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} />\n` +
+      `          <TextInput disabled={off} readOnly={locked} placeholder="Email" value={text} accessibilityLabel="Field 2" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} />\n` +
+      `        </View>\n` +
+      `        <View>c</View>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'parent of Dialog children',
+    appliesTo: (candidate: string) =>
+      hasSubtreeVariant(candidate) && variantTokens(candidate).includes('backdrop'),
+    render: (candidate: string) =>
+      `import { View, Pressable, Dialog } from '@hozo/core'\n` +
+      `export function C({ on, open, state, onClose }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View data-open={open ? '' : undefined} data-state={state} className="${candidate}">\n` +
+      `          <Dialog open={open} onClose={onClose} accessibilityLabel="Dialog" accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state} />\n` +
+      `        </View>\n` +
+      `        <View>c</View>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
+  },
+  {
+    name: 'parent of transitioning View children',
+    appliesTo: (candidate: string) =>
+      hasSubtreeVariant(candidate) && variantTokens(candidate).includes('starting'),
+    render: (candidate: string) =>
+      `import { View, Pressable } from '@hozo/core'\n` +
+      `export function C({ off, on, open, state }) {\n  return (\n    <View>\n` +
+      `      <Pressable className="group" accessibilityRole="checkbox" accessibilityState={{ checked: on }}>\n` +
+      `        <Pressable className="peer" accessibilityRole="button" accessibilityState={{ expanded: on }}>p</Pressable>\n` +
+      `        <View data-open={open ? '' : undefined} data-state={state} className="${candidate}">\n` +
+      `          <View className="transition" disabled={off} accessibilityState={{ checked: on, expanded: on, selected: on, busy: on }} data-open={open ? '' : undefined} data-state={state}>a</View>\n` +
+      `        </View>\n` +
+      `        <View>c</View>\n` +
+      `      </Pressable>\n    </View>\n  )\n}\n`,
   },
 ] as const
 
@@ -364,6 +766,15 @@ function contextsFor(candidate: string): ProbeContext[] {
   return PROBE_CONTEXTS.filter(
     (context) => !('appliesTo' in context) || context.appliesTo(candidate),
   )
+}
+
+const baselineCache = new Map<string, ReturnType<typeof compileNative>[0]>()
+
+function baselineFor(context: ProbeContext): ReturnType<typeof compileNative>[0] {
+  if (!baselineCache.has(context.name)) {
+    baselineCache.set(context.name, compileNative(context.render(''))[0])
+  }
+  return baselineCache.get(context.name)
 }
 
 function probe(candidate: string, context: ProbeContext): NativeComparison {
@@ -386,7 +797,7 @@ function probe(candidate: string, context: ProbeContext): NativeComparison {
   // enough for the aggregate, so `silent` could not have been anything
   // but zero, and it was reported as "the one that has to stay at zero"
   // for as long as it has existed.
-  const baseline = compileNative(context.render(''))[0]
+  const baseline = baselineFor(context)
   const refusals = result.diagnostics.filter((d) => NAMED_GAPS.has(d.code))
 
   // A refusal is checked first, and beats any partial output: it's a

@@ -36,22 +36,56 @@ pub struct Arbitrary<'a> {
     pub value: String,
     /// The declared data type, where the source gave one.
     pub hint: Option<&'a str>,
+    /// Optional trailing Tailwind modifier after `/` (e.g. `50`, `[0.35]`, `tight`).
+    pub modifier: Option<&'a str>,
 }
 
-/// Splits `prefix-[value]` or v4's `prefix-(--var)` shorthand.
+fn find_matching_delimiter(text: &str, open: char, close: char) -> Option<usize> {
+    let mut depth = 0usize;
+    for (index, ch) in text.char_indices() {
+        if ch == open {
+            depth += 1;
+        } else if ch == close {
+            depth -= 1;
+            if depth == 0 {
+                return Some(index);
+            }
+        }
+    }
+    None
+}
+
+/// Splits `prefix-[value]` or v4's `prefix-(--var)` shorthand, plus an
+/// optional trailing `/<modifier>` (`bg-[#ff0000]/50`, `bg-[#ff0000]/[0.35]`,
+/// `bg-(--brand)/50`, `text-[14px]/6`).
 ///
 /// The shorthand is sugar and treated as such: `bg-(--brand)` becomes the
 /// value `var(--brand)` and then follows exactly the same path as
 /// `bg-[var(--brand)]`, so there is one implementation of what a custom
 /// property means rather than two that can drift.
 pub fn split(token: &str) -> Option<Arbitrary<'_>> {
-    let (prefix, inner, is_var) = if let Some(body) = token.strip_suffix(']') {
-        let cut = body.find("-[")?;
-        (&body[..cut], &body[cut + 2..], false)
+    let bracket_cut = token.find("-[");
+    let paren_cut = token.find("-(");
+    let (cut, open, close, is_var) = match (bracket_cut, paren_cut) {
+        (Some(b), Some(p)) if b <= p => (b, '[', ']', false),
+        (Some(_), Some(p)) => (p, '(', ')', true),
+        (Some(b), None) => (b, '[', ']', false),
+        (None, Some(p)) => (p, '(', ')', true),
+        (None, None) => return None,
+    };
+    let prefix = &token[..cut];
+    let delimited = &token[cut + 1..];
+    let close_offset = find_matching_delimiter(delimited, open, close)?;
+    let inner = &delimited[1..close_offset];
+    let tail = &delimited[close_offset + 1..];
+    let modifier = if tail.is_empty() {
+        None
     } else {
-        let body = token.strip_suffix(')')?;
-        let cut = body.find("-(")?;
-        (&body[..cut], &body[cut + 2..], true)
+        let rest = tail.strip_prefix('/')?;
+        if rest.is_empty() {
+            return None;
+        }
+        Some(rest)
     };
 
     let (hint, rest) = match inner.split_once(':') {
@@ -74,6 +108,7 @@ pub fn split(token: &str) -> Option<Arbitrary<'_>> {
         prefix,
         value,
         hint,
+        modifier,
     })
 }
 

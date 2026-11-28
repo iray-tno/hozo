@@ -181,6 +181,7 @@ pub(super) struct InteractionNeeds {
 #[allow(clippy::too_many_arguments)]
 pub(super) fn interaction_needs(
     node: &Node,
+    position: SiblingPosition,
     component: &str,
     own_declarations: &[StyleDeclaration],
     text_declarations: &[StyleDeclaration],
@@ -192,31 +193,44 @@ pub(super) fn interaction_needs(
 ) -> InteractionNeeds {
     // The owner collects events for both inherited styles and child-authored
     // styles. A Text reads context; putting modality handlers on it does not
-    // update the state its callback consumes.
+    // update the state its callback consumes. On a nested control, `group-*:`
+    // reads the enclosing group's context via `HozoInteractionQuery`, not this
+    // control's own modality tracker.
+    let live_declaration = |declaration: &&StyleDeclaration| {
+        !structural::condition_statically_false(&declaration.condition, node, position)
+    };
+    let own_focus_visible = |condition: &Condition| {
+        if interaction::owns_events(node) {
+            condition_contains(condition, |c| focus_state(c) == Some("focusVisible"))
+        } else {
+            interaction::uses_focus_visible(condition)
+        }
+    };
     let needs_focus_visible = own_declarations
         .iter()
         .chain(text_declarations.iter())
-        .any(|declaration| interaction::uses_focus_visible(&declaration.condition))
+        .filter(live_declaration)
+        .any(|declaration| own_focus_visible(&declaration.condition))
         || (interaction::owns_events(node)
             && interaction::descendant_uses(node, interaction::uses_focus_visible))
         || publish_peer_focus_visible
         || runtime_states;
-    let needs_hover_or_focus =
-        own_declarations
-            .iter()
-            .chain(text_declarations.iter())
-            .any(|declaration| {
-                condition_contains(&declaration.condition, |condition| {
-                    uses_hover(condition)
-                        || focus_state(condition).is_some()
-                        || (matches!(condition, Condition::FocusWithin)
-                            && interaction::owns_events(node)
-                            && interaction::has_focusable_descendant(node))
-                })
+    let needs_hover_or_focus = own_declarations
+        .iter()
+        .chain(text_declarations.iter())
+        .filter(live_declaration)
+        .any(|declaration| {
+            condition_contains(&declaration.condition, |condition| {
+                uses_hover(condition)
+                    || focus_state(condition).is_some()
+                    || (matches!(condition, Condition::FocusWithin)
+                        && interaction::owns_events(node)
+                        && interaction::has_focusable_descendant(node))
             })
-            || (interaction::owns_events(node)
-                && interaction::descendant_uses(node, interaction::uses_interaction))
-            || runtime_states;
+        })
+        || (interaction::owns_events(node)
+            && interaction::descendant_uses(node, interaction::uses_interaction))
+        || runtime_states;
     // Navigation stays in HozoLink; the compiler selects the existing state
     // provider underneath it. A plain link imports no animation machinery.
     // A host-only pressed style can stay in RN's cheap style callback. Text
@@ -227,6 +241,7 @@ pub(super) fn interaction_needs(
         || (publish_peer_interaction && interaction::owns_events(node))
         || text_declarations
             .iter()
+            .filter(live_declaration)
             .any(|declaration| interaction::uses_interaction(&declaration.condition));
     let link_interaction = component == "HozoLink" && needs_interaction_host;
     if link_interaction {

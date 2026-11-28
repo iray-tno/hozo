@@ -77,3 +77,65 @@ pub(super) fn structural_holds(
     }
     structural.matches_position(position.ordinal?, position.count?)
 }
+
+/// Computes each child's compile-time `SiblingPosition` within `children`.
+pub(super) fn sibling_positions(children: &[hozo_ir::Child]) -> Vec<SiblingPosition> {
+    let is_verbatim = |c: &hozo_ir::Child| matches!(c, hozo_ir::Child::Verbatim { .. });
+    let is_element = |c: &hozo_ir::Child| matches!(c, hozo_ir::Child::Node(_));
+    children
+        .iter()
+        .enumerate()
+        .map(|(index, _)| {
+            let before = &children[..index];
+            let after = &children[index + 1..];
+            SiblingPosition {
+                first: (!before.iter().any(is_verbatim)).then(|| !before.iter().any(is_element)),
+                last: (!after.iter().any(is_verbatim)).then(|| !after.iter().any(is_element)),
+                ordinal: (!before.iter().any(is_verbatim))
+                    .then(|| before.iter().filter(|c| is_element(c)).count() + 1),
+                count: (!children.iter().any(is_verbatim))
+                    .then(|| children.iter().filter(|c| is_element(c)).count()),
+            }
+        })
+        .collect()
+}
+
+/// True when pure structural predicates on `node` (`first:`, `last:`, `only:`,
+/// `odd:`, `even:`, `empty:`, `nth-*:`, and their negations/conjunctions)
+/// already fold `condition` to `false` at `position`, so pre-render passes
+/// do not emit unused `HozoPeerScope` or `HozoPressable` wrappers.
+pub(super) fn condition_statically_false(
+    condition: &hozo_ir::Condition,
+    node: &Node,
+    position: SiblingPosition,
+) -> bool {
+    eval_structural(condition, node, position) == Some(false)
+}
+
+fn eval_structural(
+    condition: &hozo_ir::Condition,
+    node: &Node,
+    position: SiblingPosition,
+) -> Option<bool> {
+    use hozo_ir::Condition;
+    match condition {
+        Condition::FirstChild => position.first,
+        Condition::LastChild => position.last,
+        Condition::Structural(structural) if !structural.counts_by_type() => {
+            structural_holds(structural, node, position)
+        }
+        Condition::Not(inner) => eval_structural(inner, node, position).map(|value| !value),
+        Condition::All(list) => {
+            let mut all_true = true;
+            for item in list {
+                match eval_structural(item, node, position) {
+                    Some(false) => return Some(false),
+                    Some(true) => {}
+                    None => all_true = false,
+                }
+            }
+            all_true.then_some(true)
+        }
+        _ => None,
+    }
+}

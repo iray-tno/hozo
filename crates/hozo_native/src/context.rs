@@ -131,6 +131,11 @@ pub(crate) struct PeerContext<'a> {
     pub preceding: &'a [PeerSibling<'a>],
     pub publish_id: Option<usize>,
     pub publish_focus_visible: bool,
+    /// True when the parent element contains a `.peer` sibling with at least
+    /// one following element sibling, so ancestor `*:`/`**:` `peer-*:` rules
+    /// on siblings before the first `.peer` fold to `false` as in CSS rather
+    /// than failing with "no preceding peer".
+    pub parent_has_later_peer_target: bool,
 }
 
 /// Which descendant interaction channels an enclosing `HozoSubtreeBoundary`

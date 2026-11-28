@@ -17,6 +17,7 @@ pub(crate) fn wrap_in_text(
     // which is not the question.)
     position: SiblingPosition,
     interaction_context: bool,
+    group_interaction_query: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
     peers: &[PeerSibling<'_>],
     cx: &mut crate::NativeRenderContext<'_>,
@@ -40,6 +41,7 @@ pub(crate) fn wrap_in_text(
         node,
         position,
         interaction_context,
+        group_interaction_query,
         group_ancestor,
         peers,
         pattern_slot: None,

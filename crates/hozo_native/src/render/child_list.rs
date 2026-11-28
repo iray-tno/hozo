@@ -3,11 +3,18 @@
 
 use super::*;
 
-fn node_peer_interaction_needs(node: &Node) -> (bool, bool, bool) {
+fn node_peer_interaction_needs(
+    node: &Node,
+    position: SiblingPosition,
+    from_ancestor: FromAncestor<'_>,
+) -> (bool, bool, bool) {
     let mut pointer = false;
     let mut focus = false;
     let mut focus_visible = false;
     let mut scan = |condition: &Condition| {
+        if structural::condition_statically_false(condition, node, position) {
+            return;
+        }
         if condition_contains(condition, |c| {
             matches!(peer_interaction_state(c), Some("hovered" | "pressed"))
         }) {
@@ -28,7 +35,12 @@ fn node_peer_interaction_needs(node: &Node) -> (bool, bool, bool) {
         .children
         .iter()
         .any(|c| matches!(c, hozo_ir::Child::Node(_) | hozo_ir::Child::Verbatim { .. }));
-    for decl in &node.style {
+    for decl in from_ancestor
+        .direct
+        .iter()
+        .chain(from_ancestor.all.iter())
+        .chain(node.style.iter())
+    {
         if decl.condition.split_subtree().is_some() && !has_child_target {
             continue;
         }
@@ -51,6 +63,7 @@ pub(super) fn render_child_list(
     component: &str,
     for_children: AncestorContext<'_>,
     child_interaction_context: bool,
+    raw_text_group_query: bool,
     base_name: &str,
     position: SiblingPosition,
     parent_group_ancestor: Option<GroupAncestor<'_>>,
@@ -64,25 +77,7 @@ pub(super) fn render_child_list(
     // position at all.
     // Both ends are decided up front, because "is anything after this one"
     // can't be answered while walking forwards.
-    let is_verbatim = |c: &hozo_ir::Child| matches!(c, hozo_ir::Child::Verbatim { .. });
-    let is_element = |c: &hozo_ir::Child| matches!(c, hozo_ir::Child::Node(_));
-    let positions: Vec<SiblingPosition> = node
-        .children
-        .iter()
-        .enumerate()
-        .map(|(index, _)| {
-            let before = &node.children[..index];
-            let after = &node.children[index + 1..];
-            SiblingPosition {
-                first: (!before.iter().any(is_verbatim)).then(|| !before.iter().any(is_element)),
-                last: (!after.iter().any(is_verbatim)).then(|| !after.iter().any(is_element)),
-                ordinal: (!before.iter().any(is_verbatim))
-                    .then(|| before.iter().filter(|c| is_element(c)).count() + 1),
-                count: (!node.children.iter().any(is_verbatim))
-                    .then(|| node.children.iter().filter(|c| is_element(c)).count()),
-            }
-        })
-        .collect();
+    let positions = structural::sibling_positions(&node.children);
 
     let has_any_peer = node.children.iter().any(|child| {
         matches!(
@@ -91,6 +86,16 @@ pub(super) fn render_child_list(
                 if child_node.carried_classes.iter().any(|cls| cls == "peer")
         )
     });
+    let has_peer_with_follower = has_any_peer
+        && node.children.iter().enumerate().any(|(i, child)| {
+            matches!(
+                child,
+                hozo_ir::Child::Node(child_node)
+                    if child_node.carried_classes.iter().any(|cls| cls == "peer")
+            ) && node.children[i + 1..]
+                .iter()
+                .any(|later| matches!(later, hozo_ir::Child::Node(_)))
+        });
     let mut publish_ids: Vec<Option<usize>> = Vec::new();
     let mut publish_focus_visible: Vec<bool> = Vec::new();
     let mut needs_peer_scope = false;
@@ -98,8 +103,13 @@ pub(super) fn render_child_list(
         let child_needs: Vec<(bool, bool, bool)> = node
             .children
             .iter()
-            .map(|child| match child {
-                hozo_ir::Child::Node(child_node) => node_peer_interaction_needs(child_node),
+            .enumerate()
+            .map(|(index, child)| match child {
+                hozo_ir::Child::Node(child_node) => node_peer_interaction_needs(
+                    child_node,
+                    positions[index],
+                    for_children.from_ancestor,
+                ),
                 _ => (false, false, false),
             })
             .collect();
@@ -141,6 +151,7 @@ pub(super) fn render_child_list(
                         preceding: &preceding_peers,
                         publish_id: publish_ids[index],
                         publish_focus_visible: publish_focus_visible[index],
+                        parent_has_later_peer_target: has_peer_with_follower,
                     }
                 } else {
                     PeerContext::default()
@@ -182,6 +193,7 @@ pub(super) fn render_child_list(
                         node,
                         position,
                         child_interaction_context,
+                        raw_text_group_query,
                         parent_group_ancestor,
                         parent_peers,
                         cx,

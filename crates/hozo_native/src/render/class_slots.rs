@@ -16,6 +16,7 @@ use super::*;
 pub(super) fn class_slot_props<'n>(
     node: &'n Node,
     position: SiblingPosition,
+    group_interaction_query: bool,
     group_ancestor: Option<GroupAncestor<'_>>,
     peers: &[PeerSibling<'_>],
     held: &mut crate::spread_style::HeldStyles<'n>,
@@ -80,6 +81,7 @@ pub(super) fn class_slot_props<'n>(
                     node,
                     position,
                     interaction_context: false,
+                    group_interaction_query,
                     group_ancestor,
                     peers,
                     pattern_slot: Some(slot.class_prop),
@@ -146,6 +148,7 @@ pub(super) fn class_slot_props<'n>(
                 node,
                 position,
                 interaction_context: false,
+                group_interaction_query,
                 group_ancestor,
                 peers,
                 pattern_slot: Some(slot.class_prop),

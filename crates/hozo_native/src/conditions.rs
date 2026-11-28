@@ -36,6 +36,7 @@ pub(crate) struct StyleTarget<'a> {
     pub node: &'a Node,
     pub position: SiblingPosition,
     pub interaction_context: bool,
+    pub group_interaction_query: bool,
     pub group_ancestor: Option<GroupAncestor<'a>>,
     pub peers: &'a [PeerSibling<'a>],
     pub pattern_slot: Option<&'a str>,

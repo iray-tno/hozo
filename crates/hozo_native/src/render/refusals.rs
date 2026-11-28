@@ -90,10 +90,7 @@ pub(super) fn report_refused(
         // a style this platform cannot hold.
         if elsewhere.svg_paint
             && match &declaration.property {
-                StyleProperty::Fill(c) | StyleProperty::Stroke(c) => !matches!(
-                    c,
-                    hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
-                ),
+                StyleProperty::Fill(c) | StyleProperty::Stroke(c) => c.is_valid_native_color(),
                 StyleProperty::StrokeWidth(width) => width.px(theme).is_some(),
                 _ => false,
             }
@@ -226,10 +223,7 @@ pub(super) fn report_refused(
             continue;
         }
         if let StyleProperty::PlaceholderColor(color) = &declaration.property {
-            if !matches!(
-                color,
-                hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
-            ) {
+            if color.is_valid_native_color() {
                 if let Some(reason) = placeholder_only_reason(&declaration.property) {
                     let reason = if node.primitive == Primitive::TextInput {
                         "this condition cannot drive TextInput's placeholderTextColor prop on React Native".to_string()
@@ -242,10 +236,7 @@ pub(super) fn report_refused(
             }
         }
         if let StyleProperty::CaretColor(color) = &declaration.property {
-            if !matches!(
-                color,
-                hozo_ir::Color::Css(text) if !hozo_ir::native_color_literal_valid(text)
-            ) {
+            if color.is_valid_native_color() {
                 let reason = if node.primitive == Primitive::TextInput {
                     "this condition cannot drive TextInput's cursorColor prop on React Native"
                         .to_string()

@@ -291,6 +291,113 @@ fn sr_only_and_not_sr_only_lower_to_visually_hidden_native_styles() {
 }
 
 #[test]
+fn palette_arbitrary_alpha_modifiers_and_text_arbitrary_leading_lower_on_native() {
+    let source = r#"
+        import { View, Text } from '@hozo/core'
+        function C() {
+            return (
+                <View className="bg-blue-500/[0.5] border-black/[25%]">
+                    <Text className="text-red-500/[.25] text-lg/[3rem]">Hi</Text>
+                </View>
+            )
+        }
+    "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for expected in [
+        "backgroundColor: 'rgba(43, 127, 255, 0.5)'",
+        "borderColor: 'rgba(0, 0, 0, 0.25)'",
+        "color: 'rgba(251, 44, 54, 0.25)'",
+        "fontSize: 18",
+        "lineHeight: 48",
+    ] {
+        assert!(
+            output.styles.contains(expected),
+            "missing `{expected}` in:\n{}",
+            output.styles
+        );
+    }
+
+    // Non-colour or dynamic arbitrary modifiers still raise UNREADABLE_ARBITRARY_VALUE.
+    for bad in ["w-1/[0.5]", "bg-blue-500/[var(--a)]", "bg-blue-500/[1.5]"] {
+        let src = format!(
+            "import {{ View }} from '@hozo/core'; function C() {{ return <View className=\"{bad}\" /> }}"
+        );
+        let parsed = hozo_parser::parse_tsx(&src);
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::UnreadableArbitraryValue),
+            "{bad} must diagnose UNREADABLE_ARBITRARY_VALUE: {:?}",
+            parsed.diagnostics
+        );
+    }
+}
+
+#[test]
+fn arbitrary_color_literals_with_alpha_modifiers_lower_on_native() {
+    let source = r#"
+        import { View, Text, TextInput } from '@hozo/core'
+        function C() {
+            return (
+                <View className="bg-[#ff0000]/50 border-[#f00]/[0.35]">
+                    <Text className="text-[rgb(0_0_0)]/50 text-[14px]/6">Hi</Text>
+                    <TextInput accessibilityLabel="Field" className="placeholder-[#123456]/50 caret-[#abcdef]/[25%]" />
+                </View>
+            )
+        }
+    "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for expected in [
+        "backgroundColor: 'rgba(255, 0, 0, 0.5)'",
+        "borderColor: 'rgba(255, 0, 0, 0.35)'",
+        "color: 'rgba(0, 0, 0, 0.5)'",
+        "fontSize: 14",
+        "lineHeight: 24",
+    ] {
+        assert!(
+            output.styles.contains(expected),
+            "missing `{expected}` in:\n{}",
+            output.styles
+        );
+    }
+    assert!(
+        output
+            .jsx
+            .contains("placeholderTextColor={'rgba(18, 52, 86, 0.5)'}"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains("cursorColor={'rgba(171, 205, 239, 0.25)'}"),
+        "{}",
+        output.jsx
+    );
+
+    // Non-colour arbitrary values with `/50` must fail cleanly, never corrupt CSS.
+    for bad in ["w-[10px]/50", "bg-[10px]/50", "bg-[#ff0000]/[var(--a)]"] {
+        let src = format!(
+            "import {{ View }} from '@hozo/core'; function C() {{ return <View className=\"{bad}\" /> }}"
+        );
+        let parsed = hozo_parser::parse_tsx(&src);
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::UnreadableArbitraryValue),
+            "{bad} must diagnose UNREADABLE_ARBITRARY_VALUE: {:?}",
+            parsed.diagnostics
+        );
+    }
+}
+
+#[test]
 fn shadow_and_filter_carry_across_as_strings() {
     let source = r#"
             import { View } from '@hozo/core'
@@ -763,6 +870,153 @@ fn a_view_without_a_group_variant_does_not_borrow_its_owners_state() {
         !output.jsx.contains("HozoInteractionView"),
         "{}",
         output.jsx
+    );
+}
+
+#[test]
+fn non_view_descendants_inside_a_group_pressable_read_its_state_via_interaction_query() {
+    // Nested interactive control keeps its own hover callback while reading
+    // the enclosing `.group` owner through `HozoInteractionQuery`.
+    let nested_pressable = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><Pressable className="hover:p-2 group-hover:p-4 hover:group-hover:m-2 group-focus-visible:opacity-50" accessibilityRole="button">x</Pressable></Pressable>"#,
+    );
+    assert!(
+        nested_pressable.diagnostics.is_empty(),
+        "{:?}",
+        nested_pressable.diagnostics
+    );
+    assert!(
+        nested_pressable.jsx.starts_with("<HozoPressable"),
+        "{}",
+        nested_pressable.jsx
+    );
+    assert_eq!(
+        nested_pressable.jsx.matches("hozoFocusVisible").count(),
+        1,
+        "only the outer group owner tracks focus-visible: {}",
+        nested_pressable.jsx
+    );
+    assert!(
+        nested_pressable
+            .jsx
+            .contains("<HozoInteractionQuery>{(__hozoGroup) => (<HozoPressable"),
+        "{}",
+        nested_pressable.jsx
+    );
+    assert!(
+        nested_pressable
+            .jsx
+            .contains("__hozoGroup.hovered && hozoStyles.hozo1_grouphover")
+            && nested_pressable
+                .jsx
+                .contains("hovered && __hozoGroup.hovered && hozoStyles.hozo1_hover_grouphover")
+            && nested_pressable
+                .jsx
+                .contains("__hozoGroup.focusVisible && hozoStyles.hozo1_groupfocusvisible"),
+        "{}",
+        nested_pressable.jsx
+    );
+    assert!(nested_pressable
+        .runtime_imports
+        .contains(&"HozoInteractionQuery"));
+
+    // TextInput inside a `.group` owner lowers `group-hover:` styles,
+    // `placeholder:`, and stacked `focus:group-focus-visible:caret-*`.
+    let input = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><TextInput accessibilityLabel="Email" className="focus:border-blue-500 group-hover:bg-gray-100 group-hover:placeholder:text-red-500 focus:group-focus-visible:caret-blue-500" /></Pressable>"#,
+    );
+    assert!(input.diagnostics.is_empty(), "{:?}", input.diagnostics);
+    assert!(
+        input
+            .jsx
+            .contains("<HozoInteractionQuery>{(__hozoGroup) => (<HozoTextInput"),
+        "{}",
+        input.jsx
+    );
+    assert!(
+        input.jsx.contains("placeholderTextColor={__hozoGroup.hovered ?")
+            && input
+                .jsx
+                .contains("hozoFieldColors={({ focused }) => ({ cursorColor: focused && __hozoGroup.focusVisible ?"),
+        "{}",
+        input.jsx
+    );
+
+    // Dialog backdrop styles and backdrop blur read `__hozoGroup`.
+    let dialog = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><Dialog open={open} onClose={close} accessibilityLabel="Details" className="group-hover:backdrop:bg-black/50 group-hover:backdrop:backdrop-blur-md">x</Dialog></Pressable>"#,
+    );
+    assert!(dialog.diagnostics.is_empty(), "{:?}", dialog.diagnostics);
+    assert!(
+        dialog
+            .jsx
+            .contains("<HozoInteractionQuery>{(__hozoGroup) => (<HozoDialog")
+            && dialog
+                .jsx
+                .contains("hozoBackdropStyle={[__hozoGroup.hovered && hozoStyles.")
+            && dialog
+                .jsx
+                .contains("hozoBackdropBlur={__hozoGroup.hovered ? 12 : undefined}"),
+        "{}",
+        dialog.jsx
+    );
+
+    // Animated View (`HozoAnimated`) inside a `.group` owner reads `__hozoGroup`.
+    let animated = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><View className="transition opacity-100 starting:opacity-0 group-hover:bg-blue-500" /></Pressable>"#,
+    );
+    assert!(
+        animated.diagnostics.is_empty(),
+        "{:?}",
+        animated.diagnostics
+    );
+    assert!(
+        animated
+            .jsx
+            .contains("<HozoInteractionQuery>{(__hozoGroup) => (<HozoAnimated")
+            && animated.jsx.contains("__hozoGroup.hovered && hozoStyles."),
+        "{}",
+        animated.jsx
+    );
+
+    // `group-hover:*:` on a nested control evaluates through `HozoInteractionQuery`
+    // outside the nested control so its children read the outer group's state.
+    let nested_subtree = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><Pressable className="group-hover:*:p-4" accessibilityRole="button"><View /></Pressable></Pressable>"#,
+    );
+    assert!(
+        nested_subtree.diagnostics.is_empty(),
+        "{:?}",
+        nested_subtree.diagnostics
+    );
+    assert!(
+        nested_subtree
+            .jsx
+            .contains("<HozoInteractionQuery>{(__hozoGroup) => (<Pressable")
+            && nested_subtree
+                .jsx
+                .contains("(__hozoGroup.hovered) && hozoStyles."),
+        "{}",
+        nested_subtree.jsx
+    );
+
+    // A closer non-interactive `.group` shadows the outer interactive `.group`,
+    // so `group-hover:` on its child stays honestly refused.
+    let shadowed = lower_element(
+        r#"<Pressable className="group" accessibilityRole="button"><View className="group"><Pressable className="group-hover:p-4" accessibilityRole="button" /></View></Pressable>"#,
+    );
+    assert!(
+        shadowed
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error),
+        "{:?}",
+        shadowed.diagnostics
+    );
+    assert!(
+        !shadowed.jsx.contains("HozoInteractionQuery"),
+        "{}",
+        shadowed.jsx
     );
 }
 

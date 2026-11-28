@@ -20,6 +20,12 @@ pub(super) fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
         // nothing in any theme and would come back as
         // `var(--hozo-color-#ff0000)`.
         Color::Css(text) => return text.clone(),
+        Color::CssAlpha(text, scaled) => {
+            return format!(
+                "color-mix(in oklab, {text} {}%, transparent)",
+                hozo_ir::format_alpha_percent(Color::alpha_fraction(*scaled))
+            );
+        }
     };
     // The opacity modifier travels with the token -- `blue-500/50` -- and
     // is split off here rather than by the parser, so that the palette,
@@ -40,7 +46,7 @@ pub(super) fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
         // color to the theme's build-time fallback.
         Some(alpha) => format!(
             "color-mix(in oklab, {resolved} {}%, transparent)",
-            alpha * 100.0
+            hozo_ir::format_alpha_percent(alpha)
         ),
     }
 }

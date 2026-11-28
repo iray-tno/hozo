@@ -581,6 +581,20 @@ export function HozoInteractionView({ style, ...props }: HozoInteractionViewProp
   return <View {...props} style={typeof style === 'function' ? style(context ?? IDLE) : style} />
 }
 
+export interface HozoInteractionQueryProps {
+  children: (state: HozoPressableState) => ReactNode
+}
+
+/**
+ * Reads an enclosing HozoPressable's interaction state without replacing the
+ * child host, so controls, inputs, dialogs, images, and animated views inside
+ * a `group` keep their own host while reacting to `group-*:` interaction states.
+ */
+export function HozoInteractionQuery({ children }: HozoInteractionQueryProps): ReactNode {
+  const context = useContext(InteractionContext)
+  return children(context ?? IDLE)
+}
+
 function TransitionText({
   context,
   resolved,

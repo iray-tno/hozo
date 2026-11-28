@@ -16,11 +16,14 @@ use super::wrap::is_text_primitive;
 /// `text-pretty` (`highQuality`), on a text element and unconditionally --
 /// a prop has one value, so a variant cannot switch it. The last one written
 /// wins, as in CSS.
-pub(crate) fn text_break_strategy(node: &Node) -> Option<&'static str> {
+pub(crate) fn text_break_strategy(
+    node: &Node,
+    declarations: &[StyleDeclaration],
+) -> Option<&'static str> {
     if !is_text_primitive(node.primitive) {
         return None;
     }
-    node.style.iter().rev().find_map(|declaration| {
+    declarations.iter().rev().find_map(|declaration| {
         if declaration.condition != hozo_ir::Condition::Always {
             return None;
         }
@@ -43,11 +46,14 @@ pub(crate) fn text_break_strategy(node: &Node) -> Option<&'static str> {
 /// Japanese breaking between characters as before. So it is lowered for the
 /// half it covers and still reported for the half it does not (`render.rs`).
 /// Android has no such prop; see #813.
-pub(crate) fn line_break_strategy_ios(node: &Node) -> Option<&'static str> {
+pub(crate) fn line_break_strategy_ios(
+    node: &Node,
+    declarations: &[StyleDeclaration],
+) -> Option<&'static str> {
     if !is_text_primitive(node.primitive) {
         return None;
     }
-    node.style.iter().rev().find_map(|declaration| {
+    declarations.iter().rev().find_map(|declaration| {
         if declaration.condition != hozo_ir::Condition::Always {
             return None;
         }
@@ -97,7 +103,10 @@ pub(crate) fn line_breaking(property: &StyleProperty) -> Option<(String, String)
     }
 }
 
-pub(crate) fn truncation_props(node: &Node) -> Option<Vec<(&'static str, String)>> {
+pub(crate) fn truncation_props(
+    node: &Node,
+    declarations: &[StyleDeclaration],
+) -> Option<Vec<(&'static str, String)>> {
     // `numberOfLines` exists on Text alone; on a View there's nothing to
     // put it on, so truncation there really is unsupported.
     if !is_text_primitive(node.primitive) {
@@ -106,7 +115,7 @@ pub(crate) fn truncation_props(node: &Node) -> Option<Vec<(&'static str, String)
     // The last of each wins, as the later declaration does in CSS; the
     // declarations are already in the order the cascade gives them.
     let last = |pick: fn(&StyleProperty) -> bool| {
-        node.style
+        declarations
             .iter()
             .rev()
             .find(|d| pick(&d.property))

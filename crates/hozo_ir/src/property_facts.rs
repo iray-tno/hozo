@@ -489,8 +489,12 @@ impl StyleProperty {
         // Arbitrary CSS colour text that React Native's colour parser cannot
         // read (`var(--x)`, `calc(...)`, `nonsense`, or non-colour values that
         // fell into Tailwind's colour fallback like `border-[50%]` or `caret-[10px]`).
-        if let PropertyValue::Color(Color::Css(value)) = self.value() {
-            if !native_color_literal_valid(value) {
+        if let PropertyValue::Color(color) = self.value() {
+            if !color.is_valid_native_color() {
+                let value = match color {
+                    Color::Css(value) | Color::CssAlpha(value, _) => value.as_str(),
+                    _ => "",
+                };
                 return Some(format!(
                     "`{value}`: React Native requires a resolved colour literal (hex, named colour, \
                      or rgb/hsl function), so this CSS value cannot be lowered"
