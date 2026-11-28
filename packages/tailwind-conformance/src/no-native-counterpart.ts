@@ -15,9 +15,9 @@
 //   - `supports-[...]`: CSS feature queries have no RN equivalent today.
 //   - unwired `has-*` / `peer-*` / `group-*` states beyond modeled props and
 //     descendant/sibling interaction contexts.
-//   - `placeholder:`, `selection:`: TextInput has `placeholderTextColor`
-//     and `selectionColor`, and their colours lower to them; the rest of
-//     what the two variants can set has nowhere to go.
+//   - `placeholder:`, `selection:`, `first-letter:`: inline/prop-backed slices
+//     lower on Native (`placeholderTextColor`, `selectionColor`, inline nested
+//     `<Text>`), while unsupported box/layout properties stay refused.
 //   - `placeholder-shown:`: whether a TextInput is empty is in its value.
 //   - `backdrop:`: a Modal has a scrim to style.
 //   - `max-[40rem]`: `rem` could be given a fixed size.
@@ -40,7 +40,6 @@ export const NO_NATIVE_COUNTERPART: Readonly<Record<string, string>> = {
   before: 'React Native has no pseudo-elements; there is no box before the content.',
   after: 'React Native has no pseudo-elements; there is no box after the content.',
   marker: 'React Native has no list items, so no list marker.',
-  'first-letter': 'Text cannot be styled by its first letter as a separate box.',
   file: 'There is no file input, so no file-selector button.',
 }
 

@@ -109,6 +109,10 @@
       "types": "./dist/generated/filter-slots.d.ts",
       "default": "./dist/generated/filter-slots.js"
     },
+    "./generated/first-letter": {
+      "types": "./dist/generated/first-letter.d.ts",
+      "default": "./dist/generated/first-letter.js"
+    },
     "./generated/flat-list": {
       "types": "./dist/generated/flat-list.d.ts",
       "default": "./dist/generated/flat-list.js"

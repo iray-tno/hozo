@@ -522,3 +522,274 @@ pub(super) fn render_marker(
         uses_container_size,
     })
 }
+
+/// Inline properties React Native's nested `<Text>` supports inside another
+/// `<Text>`. Box/layout properties (`display: flex`, `padding`, `margin`,
+/// `width`, `border`, etc.) do not work on inline nested text spans in Yoga
+/// and stay refused loudly.
+fn is_inline_first_letter_property(property: &StyleProperty) -> bool {
+    matches!(
+        property,
+        StyleProperty::TextColor(_)
+            | StyleProperty::BackgroundColor(_)
+            | StyleProperty::FontFamily(_)
+            | StyleProperty::FontVariant(_)
+            | StyleProperty::FontSize(_)
+            | StyleProperty::FontWeight(_)
+            | StyleProperty::LineHeight(_)
+            | StyleProperty::LeadingRegister(_)
+            | StyleProperty::LetterSpacing(_)
+            | StyleProperty::TextTransform(_)
+            | StyleProperty::TextDecorationLine(_)
+            | StyleProperty::TextDecorationColor(_)
+            | StyleProperty::TextDecorationStyle(_)
+            | StyleProperty::TextShadow(_)
+            | StyleProperty::TextShadowColor(_)
+            | StyleProperty::Opacity(_)
+            | StyleProperty::Keyword("font-style", "italic" | "normal")
+    )
+}
+
+/// Extracts `first-letter:` declarations on a text primitive that has children.
+/// Returns the stripped declarations while leaving non-text primitives or
+/// empty text elements unstripped so the normal diagnostics refuse them.
+pub(super) fn extract_first_letter(
+    node: &Node,
+    effective_own: &mut Vec<StyleDeclaration>,
+) -> Vec<StyleDeclaration> {
+    if !is_text_primitive(node.primitive) || node.children.is_empty() {
+        return Vec::new();
+    }
+    let mut kept = Vec::with_capacity(effective_own.len());
+    let mut extracted = Vec::new();
+    for declaration in std::mem::take(effective_own) {
+        if let Some(stripped) =
+            strip_pseudo_element(&declaration.condition, PseudoElement::FirstLetter)
+        {
+            extracted.push(StyleDeclaration {
+                condition: stripped,
+                ..declaration
+            });
+        } else {
+            kept.push(declaration);
+        }
+    }
+    *effective_own = kept;
+    extracted
+}
+
+fn is_opening_punctuation(ch: char) -> bool {
+    matches!(
+        ch,
+        '"' | '\''
+            | '('
+            | '['
+            | '{'
+            | '«'
+            | '‹'
+            | '“'
+            | '‘'
+            | '「'
+            | '『'
+            | '（'
+            | '【'
+            | '《'
+            | '〈'
+    )
+}
+
+fn is_combining_mark(ch: char) -> bool {
+    matches!(
+        ch,
+        '\u{0300}'..='\u{036F}'
+            | '\u{1AB0}'..='\u{1AFF}'
+            | '\u{1DC0}'..='\u{1DFF}'
+            | '\u{20D0}'..='\u{20FF}'
+            | '\u{FE00}'..='\u{FE0F}'
+            | '\u{FE20}'..='\u{FE2F}'
+    )
+}
+
+/// Splits leading whitespace + CSS `::first-letter` (optional opening
+/// punctuation + first character + combining marks) + trailing remainder.
+pub(super) fn split_first_letter(text: &str) -> Option<(&str, &str, &str)> {
+    let ws_end = text
+        .char_indices()
+        .find(|&(_, ch)| !ch.is_whitespace())
+        .map(|(idx, _)| idx)?;
+    let mut iter = text[ws_end..].char_indices().peekable();
+    // Skip any leading opening punctuation before the base letter.
+    let mut base_end = None;
+    while let Some((rel, ch)) = iter.next() {
+        let next_pos = ws_end + rel + ch.len_utf8();
+        if !is_opening_punctuation(ch) {
+            base_end = Some(next_pos);
+            break;
+        }
+        // If text consists solely of opening punctuation, style it as the head.
+        if iter.peek().is_none() {
+            base_end = Some(next_pos);
+            break;
+        }
+    }
+    let mut end = base_end?;
+    while let Some(&(rel, ch)) = iter.peek() {
+        if is_combining_mark(ch) {
+            end = ws_end + rel + ch.len_utf8();
+            iter.next();
+        } else {
+            break;
+        }
+    }
+    Some((&text[..ws_end], &text[ws_end..end], &text[end..]))
+}
+
+pub(super) struct FirstLetterStyle {
+    /// JSX attribute value inside `style={...}` (plain style ref/array or
+    /// interaction callback `(state) => [...]`).
+    pub(super) style_expr: String,
+    pub(super) uses_hozo_text: bool,
+    pub(super) uses_container_size: bool,
+}
+
+/// Builds the style expression for `first-letter:` on a text host rendering RN
+/// `Text`. Refuses non-inline layout/box properties loudly.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn build_first_letter(
+    declarations: &[StyleDeclaration],
+    ambient_text: &[StyleDeclaration],
+    base_name: &str,
+    node: &Node,
+    component: &str,
+    position: SiblingPosition,
+    interaction_context: bool,
+    has_group_interaction_owner: bool,
+    group_ancestor: Option<GroupAncestor<'_>>,
+    peers: &[PeerSibling<'_>],
+    cx: &mut NativeRenderContext<'_>,
+) -> Option<FirstLetterStyle> {
+    if declarations.is_empty() {
+        return None;
+    }
+    if !renders_text(component) {
+        cx.diagnostics.push(unwired_variant(
+            node,
+            "`first-letter:` on React Native requires a plain `Text` host and cannot split children inside this custom text component. On Web the same class works.",
+            Severity::Error,
+        ));
+        return None;
+    }
+
+    let mut inline_decls = Vec::new();
+    let mut reported_non_inline = false;
+    for decl in declarations {
+        if is_inline_first_letter_property(&decl.property) {
+            inline_decls.push(decl.clone());
+        } else if !reported_non_inline {
+            reported_non_inline = true;
+            cx.diagnostics.push(Diagnostic {
+                code: DiagnosticCode::WebOnlyPropertyOnNative,
+                severity: Severity::Error,
+                message: "`first-letter:` on React Native lowers to an inline nested `<Text>`, which supports only typography, colour, background, decoration, and opacity -- box/layout properties (such as `flex`, padding, margin, width, or borders) cannot apply to an inline text span.".to_string(),
+                span: node.span,
+            });
+        }
+    }
+    if inline_decls.is_empty() {
+        return None;
+    }
+
+    let folded = fold_font_relative(&inline_decls, ambient_text, cx.theme);
+    non_content_refusal_check(&folded, ambient_text, node, cx);
+
+    let target_interaction = interaction_context;
+    let target = crate::conditions::StyleTarget {
+        owner_facts: &[],
+        owner_events: &[],
+        node,
+        position,
+        interaction_context: target_interaction,
+        group_interaction_query: has_group_interaction_owner && !target_interaction,
+        group_ancestor,
+        peers,
+        pattern_slot: None,
+        composition: Default::default(),
+    };
+    let mut parts = Vec::new();
+    let mut pressed = Vec::new();
+    build_style_entries(
+        &folded,
+        &format!("{base_name}_first_letter"),
+        &target,
+        &mut parts,
+        &mut pressed,
+        None,
+        cx,
+    );
+
+    let uses_hozo_text = target_interaction && !pressed.is_empty();
+    if uses_hozo_text {
+        parts.extend(pressed);
+    } else if !pressed.is_empty() {
+        cx.diagnostics.push(unwired_variant(
+            node,
+            "`pressed:` on `first-letter:` needs an enclosing `Pressable`, `Button`, or `Link` on React Native.",
+            Severity::Error,
+        ));
+    }
+    if parts.is_empty() {
+        return None;
+    }
+
+    let style_expr = if uses_hozo_text {
+        let needs_fv = folded
+            .iter()
+            .any(|d| interaction::uses_focus_visible(&d.condition));
+        let state = if needs_fv {
+            "{ pressed, hovered, focused, focusVisible }"
+        } else {
+            "{ pressed, hovered, focused }"
+        };
+        format!("({state}) => [{}]", parts.join(", "))
+    } else if parts.len() == 1 && !parts[0].contains("&&") {
+        parts.remove(0)
+    } else {
+        format!("[{}]", parts.join(", "))
+    };
+
+    let uses_container_size = folded
+        .iter()
+        .any(|d| crate::measured::uses_container_size(&d.property));
+
+    Some(FirstLetterStyle {
+        style_expr,
+        uses_hozo_text,
+        uses_container_size,
+    })
+}
+
+impl FirstLetterStyle {
+    /// Renders a statically split text child: `{ws}<Text style={...}>{head}</Text>{tail}`.
+    pub(super) fn render_static_split(
+        &self,
+        ws: &str,
+        head: &str,
+        tail: &str,
+        cx: &mut NativeRenderContext<'_>,
+    ) -> String {
+        let tag = if self.uses_hozo_text {
+            cx.runtime.need_component("HozoText");
+            "HozoText"
+        } else {
+            cx.runtime.need_native("Text");
+            "Text"
+        };
+        format!(
+            "{}<{tag} style={{{}}}>{}</{tag}>{}",
+            escape_jsx_text(ws),
+            self.style_expr,
+            escape_jsx_text(head),
+            escape_jsx_text(tail),
+        )
+    }
+}

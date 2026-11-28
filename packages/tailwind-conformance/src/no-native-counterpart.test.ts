@@ -19,7 +19,7 @@ test('the match is on whole variants, wherever they sit in the stack', () => {
   assert.equal(hasNoNativeCounterpart('hover:print:flex'), true)
   assert.equal(hasNoNativeCounterpart('after:hover:p-4'), true)
   // A variant that only contains a listed name is not that variant.
-  assert.equal(hasNoNativeCounterpart('first-letter:flex'), true)
+  assert.equal(hasNoNativeCounterpart('first-letter:flex'), false)
   assert.equal(hasNoNativeCounterpart('first:flex'), false)
   assert.equal(hasNoNativeCounterpart('user-invalid:flex'), true)
   assert.equal(hasNoNativeCounterpart('placeholder-shown:flex'), false)

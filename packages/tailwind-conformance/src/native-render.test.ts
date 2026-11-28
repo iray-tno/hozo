@@ -1144,3 +1144,38 @@ test('required:, invalid:, and user-invalid: drive TextInput styles on Native', 
     renderer.act(() => root?.unmount())
   }
 })
+
+test('first-letter: styles static and dynamic Text drop caps on Native', () => {
+  const { StyleSheet } = require('react-native') as {
+    StyleSheet: { flatten: (style: unknown) => Record<string, unknown> }
+  }
+  const tree = renderNative(
+    `
+    import { View, Text } from '@hozo/core'
+    export function Caps() {
+      return (
+        <View>
+          <Text className="first-letter:text-3xl first-letter:bg-blue-500">"Hello"</Text>
+          <Text className="first-letter:font-bold first-letter:text-red-500">{title}</Text>
+        </View>
+      )
+    }
+    `,
+    'Caps',
+    { title: 'World' },
+  )
+  const [staticText, dynamicText] = children(tree)
+  const [staticCap] = children(staticText)
+  assert.equal(staticText.type, 'Text')
+  assert.equal(staticCap.type, 'Text')
+  assert.deepEqual(staticCap.children, ['"H'])
+  assert.equal(StyleSheet.flatten(staticCap.props.style).backgroundColor, '#2b7fff')
+  assert.equal(staticText.children?.[1], 'ello"')
+
+  const [dynamicCap] = children(dynamicText)
+  assert.equal(dynamicText.type, 'Text')
+  assert.equal(dynamicCap.type, 'Text')
+  assert.deepEqual(dynamicCap.children, ['W'])
+  assert.equal(StyleSheet.flatten(dynamicCap.props.style).color, '#fb2c36')
+  assert.equal(dynamicText.children?.[1], 'orld')
+})
