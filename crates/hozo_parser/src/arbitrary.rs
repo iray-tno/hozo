@@ -66,7 +66,7 @@ pub fn properties(token: &str) -> Option<Vec<StyleProperty>> {
         return Some(vec![StyleProperty::Arbitrary(property, value)]);
     }
     let parsed = split(token)?;
-    from_prefix(parsed.prefix, &parsed.value, parsed.hint)
+    from_prefix(parsed.prefix, &parsed.value, parsed.hint, parsed.modifier)
 }
 
 #[cfg(test)]

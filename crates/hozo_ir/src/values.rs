@@ -199,6 +199,78 @@ pub fn hex_rgb_channels(hex: &str) -> Option<(u8, u8, u8)> {
     Some((pair(0)?, pair(1)?, pair(2)?))
 }
 
+/// Applies a normalized alpha (`0.0..=1.0`) to a concrete CSS colour literal
+/// for React Native and Canvas (`#rgb`, `#rrggbb`, `rgb(...)`, `hsl(...)`,
+/// `hwb(...)`, `lab(...)`, `lch(...)`, `oklab(...)`, `oklch(...)`,
+/// `transparent`). Returns `None` for dynamic CSS (`var()`, `calc()`),
+/// colours that already carry an alpha channel, or unresolvable literals.
+pub fn apply_alpha_to_native_color(css: &str, alpha: f64) -> Option<String> {
+    let trimmed = css.trim();
+    if !native_color_literal_valid(trimmed) {
+        return None;
+    }
+    let alpha = round(alpha);
+    if trimmed.eq_ignore_ascii_case("transparent") {
+        return Some("transparent".to_string());
+    }
+    if let Some((r, g, b)) = hex_rgb_channels(trimmed) {
+        return Some(format!("rgba({r}, {g}, {b}, {alpha})"));
+    }
+    if let Some(open) = trimmed.find('(') {
+        if let Some(args) = trimmed[open + 1..].strip_suffix(')') {
+            let args = args.trim();
+            if args.contains('/') {
+                return None;
+            }
+            let lower = trimmed[..open].trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "rgb" => {
+                    if args.contains(',') {
+                        let channels: Vec<&str> = args.split(',').map(str::trim).collect();
+                        if channels.len() == 3 {
+                            return Some(format!(
+                                "rgba({}, {}, {}, {alpha})",
+                                channels[0], channels[1], channels[2]
+                            ));
+                        }
+                    } else {
+                        let channels: Vec<&str> = args.split_whitespace().collect();
+                        if channels.len() == 3 {
+                            if channels.iter().all(|c| c.parse::<f64>().is_ok()) {
+                                return Some(format!(
+                                    "rgba({}, {}, {}, {alpha})",
+                                    channels[0], channels[1], channels[2]
+                                ));
+                            }
+                            return Some(format!("rgb({args} / {alpha})"));
+                        }
+                    }
+                }
+                "hsl" => {
+                    if args.contains(',') {
+                        let channels: Vec<&str> = args.split(',').map(str::trim).collect();
+                        if channels.len() == 3 {
+                            return Some(format!(
+                                "hsla({}, {}, {}, {alpha})",
+                                channels[0], channels[1], channels[2]
+                            ));
+                        }
+                    } else if args.split_whitespace().count() == 3 {
+                        return Some(format!("hsl({args} / {alpha})"));
+                    }
+                }
+                "hwb" | "lab" | "lch" | "oklab" | "oklch"
+                    if !args.contains(',') && args.split_whitespace().count() == 3 =>
+                {
+                    return Some(format!("{lower}({args} / {alpha})"));
+                }
+                _ => {}
+            }
+        }
+    }
+    None
+}
+
 /// Resolves a colour for Canvas paint props (`fill` / `stroke`), or returns
 /// `None` when neither Canvas 2D nor Skia can paint the value directly.
 ///
@@ -213,6 +285,9 @@ pub fn resolve_canvas_color(color: &Color, theme: &Theme, native: bool) -> Optio
             matches!(*keyword, "none" | "transparent").then(|| (*keyword).to_string())
         }
         Color::Css(value) => native_color_literal_valid(value).then(|| value.clone()),
+        Color::CssAlpha(value, scaled) => {
+            apply_alpha_to_native_color(value, Color::alpha_fraction(*scaled))
+        }
         Color::Token(token) => {
             let (base, alpha) = split_color_alpha(token);
             if matches!(base, "current" | "inherit") {
@@ -527,9 +602,39 @@ pub enum Color {
     /// author asked for; the whole point of an arbitrary value is that it
     /// escapes the design system.
     Css(String),
+    /// An arbitrary CSS colour with a trailing Tailwind opacity modifier:
+    /// `bg-[#ff0000]/50`, `fill-[#ff0000]/[0.35]`, `bg-[rgb(0_0_0)]/50`.
+    ///
+    /// Alpha is stored in fixed-point millionths (`0..=1_000_000`) so `Color`
+    /// keeps `Eq`. Web emits `color-mix(in oklab, <css> <pct>%, transparent)`;
+    /// Native and Canvas fold concrete colour literals into `rgba()` or CSS
+    /// Color 4 `/ <alpha>` syntax and refuse dynamic or unresolvable values.
+    CssAlpha(String, u32),
 }
 
 impl Color {
+    /// Builds `Color::CssAlpha` from a normalized alpha in `0.0..=1.0`.
+    pub fn css_with_alpha(value: String, alpha: f64) -> Self {
+        let scaled = (round(alpha).clamp(0.0, 1.0) * 1_000_000.0).round() as u32;
+        Self::CssAlpha(value, scaled)
+    }
+
+    /// Converts the fixed-point alpha back to a normalized `0.0..=1.0` float.
+    pub fn alpha_fraction(scaled: u32) -> f64 {
+        round(f64::from(scaled) / 1_000_000.0)
+    }
+
+    /// Whether an arbitrary CSS colour value can be lowered to React Native
+    /// without a CSS engine. Palette tokens and keywords are checked separately.
+    pub fn is_valid_native_color(&self) -> bool {
+        match self {
+            Color::Css(text) => native_color_literal_valid(text),
+            Color::CssAlpha(text, scaled) => {
+                apply_alpha_to_native_color(text, Self::alpha_fraction(*scaled)).is_some()
+            }
+            Color::Token(_) | Color::Keyword(_) => true,
+        }
+    }
     /// Whether this is `initial` -- the utility that *unsets* a colour
     /// rather than choosing one.
     ///

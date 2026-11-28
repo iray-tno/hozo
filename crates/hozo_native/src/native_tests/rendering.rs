@@ -337,6 +337,67 @@ fn palette_arbitrary_alpha_modifiers_and_text_arbitrary_leading_lower_on_native(
 }
 
 #[test]
+fn arbitrary_color_literals_with_alpha_modifiers_lower_on_native() {
+    let source = r#"
+        import { View, Text, TextInput } from '@hozo/core'
+        function C() {
+            return (
+                <View className="bg-[#ff0000]/50 border-[#f00]/[0.35]">
+                    <Text className="text-[rgb(0_0_0)]/50 text-[14px]/6">Hi</Text>
+                    <TextInput accessibilityLabel="Field" className="placeholder-[#123456]/50 caret-[#abcdef]/[25%]" />
+                </View>
+            )
+        }
+    "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for expected in [
+        "backgroundColor: 'rgba(255, 0, 0, 0.5)'",
+        "borderColor: 'rgba(255, 0, 0, 0.35)'",
+        "color: 'rgba(0, 0, 0, 0.5)'",
+        "fontSize: 14",
+        "lineHeight: 24",
+    ] {
+        assert!(
+            output.styles.contains(expected),
+            "missing `{expected}` in:\n{}",
+            output.styles
+        );
+    }
+    assert!(
+        output
+            .jsx
+            .contains("placeholderTextColor={'rgba(18, 52, 86, 0.5)'}"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains("cursorColor={'rgba(171, 205, 239, 0.25)'}"),
+        "{}",
+        output.jsx
+    );
+
+    // Non-colour arbitrary values with `/50` must fail cleanly, never corrupt CSS.
+    for bad in ["w-[10px]/50", "bg-[10px]/50", "bg-[#ff0000]/[var(--a)]"] {
+        let src = format!(
+            "import {{ View }} from '@hozo/core'; function C() {{ return <View className=\"{bad}\" /> }}"
+        );
+        let parsed = hozo_parser::parse_tsx(&src);
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::UnreadableArbitraryValue),
+            "{bad} must diagnose UNREADABLE_ARBITRARY_VALUE: {:?}",
+            parsed.diagnostics
+        );
+    }
+}
+
+#[test]
 fn shadow_and_filter_carry_across_as_strings() {
     let source = r#"
             import { View } from '@hozo/core'

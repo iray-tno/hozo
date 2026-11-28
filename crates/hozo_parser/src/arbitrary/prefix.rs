@@ -20,10 +20,73 @@ pub(super) fn from_prefix(
     prefix: &str,
     value: &str,
     hint: Option<&str>,
+    modifier: Option<&str>,
+) -> Option<Vec<StyleProperty>> {
+    // `text-[14px]/6`, `text-[14px]/tight`, `text-[14px]/[24px]`: an arbitrary
+    // font size paired with a line-height modifier. Handled before colour alpha
+    // parsing so `/6` or `/tight` is read as line height rather than rejected.
+    if let Some(raw_modifier) = modifier {
+        if prefix == "text"
+            && (hint == Some("length") || (hint != Some("color") && is_length_percentage(value)))
+        {
+            let font_size = parse_length(value)?;
+            if let [(hozo_ir::Condition::Always, props)] =
+                crate::tailwind::expand_class(&format!("leading-{raw_modifier}")).as_slice()
+            {
+                let line_height = match props.as_slice() {
+                    [StyleProperty::LineHeight(LineHeight::Length(length))] => Some(length.clone()),
+                    [StyleProperty::LineHeight(LineHeight::Ratio(ratio))] => match &font_size {
+                        hozo_ir::Length::Px(px) => Some(hozo_ir::Length::Px(px * ratio)),
+                        hozo_ir::Length::Unit(v, unit) => {
+                            Some(hozo_ir::Length::Unit(v * ratio, *unit))
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let Some(line_height) = line_height {
+                    return Some(vec![
+                        StyleProperty::FontSize(font_size),
+                        StyleProperty::LineHeight(LineHeight::FontDefault(line_height)),
+                    ]);
+                }
+            }
+            return None;
+        }
+    }
+
+    let alpha = match modifier {
+        Some(raw_modifier) => Some(hozo_ir::parse_color_alpha_modifier(raw_modifier)?),
+        None => None,
+    };
+    let props = from_prefix_with_alpha(prefix, value, hint, alpha)?;
+    // A trailing opacity modifier is only valid on a colour property; reject
+    // non-colour utilities like `w-[10px]/50` or `bg-[10px]/50` cleanly.
+    if alpha.is_some()
+        && !props.iter().all(|property| {
+            matches!(
+                property.value(),
+                hozo_ir::PropertyValue::Color(Color::CssAlpha(..))
+            )
+        })
+    {
+        return None;
+    }
+    Some(props)
+}
+
+fn from_prefix_with_alpha(
+    prefix: &str,
+    value: &str,
+    hint: Option<&str>,
+    alpha: Option<f64>,
 ) -> Option<Vec<StyleProperty>> {
     let length = || parse_length(value);
     let dimension = || parse_dimension(value);
-    let color = || Color::Css(value.to_string());
+    let color = || match alpha {
+        Some(alpha) => Color::css_with_alpha(value.to_string(), alpha),
+        None => Color::Css(value.to_string()),
+    };
     let angle = || Angle::Css(value.to_string());
     let number = || value.parse::<f64>().ok();
     let integer = || value.parse::<i32>().ok();
@@ -70,7 +133,7 @@ pub(super) fn from_prefix(
     if let Some(properties) = filter(prefix, value) {
         return Some(properties);
     }
-    if let Some(properties) = mask_stop(prefix, value, hint) {
+    if let Some(properties) = mask_stop(prefix, value, hint, alpha) {
         return Some(properties);
     }
 

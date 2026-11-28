@@ -551,4 +551,30 @@ mod tests {
             r#"fill="rgba(251, 44, 54, 0.25)" fontSize={18} lineHeight={1.5}"#
         );
     }
+
+    #[test]
+    fn resolves_alpha_modifiers_on_arbitrary_canvas_colors() {
+        let source = r#"
+            import { Canvas } from '@hozo/canvas'
+            const a = <Canvas.Rect className="fill-[#ff0000]/50 stroke-[rgb(0_0_0)]/[0.25]" width={10} height={10} />
+            const b = <Canvas.Text className="text-[#00ff00]/[40%] text-[14px]/6" text="Hi" x={0} y={0} />
+            const c = <Canvas.Rect className="fill-[var(--x)]/50 stroke-[nonsense]/50" width={10} height={10} />
+        "#;
+        for native in [false, true] {
+            let edits = lower_canvas_paints(source, &Theme::default(), native);
+            assert_eq!(edits.len(), 3);
+            assert!(edits[0].diagnostics.is_empty());
+            assert_eq!(
+                edits[0].replacement,
+                r#"fill="rgba(255, 0, 0, 0.5)" stroke="rgba(0, 0, 0, 0.25)""#
+            );
+            assert!(edits[1].diagnostics.is_empty());
+            assert_eq!(
+                edits[1].replacement,
+                r#"fill="rgba(0, 255, 0, 0.4)" fontSize={14} lineHeight={1.714286}"#
+            );
+            assert_eq!(edits[2].diagnostics.len(), 1);
+            assert_eq!(edits[2].diagnostics[0].code, "CANVAS_CLASS_NOT_LOWERED");
+        }
+    }
 }
