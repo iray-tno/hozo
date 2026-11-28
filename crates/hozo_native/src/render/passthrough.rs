@@ -52,6 +52,8 @@ pub(super) fn render_passthrough<'n>(
                         child_interaction_context,
                         group_ancestor,
                         subtree_report,
+                        &[],
+                        None,
                         cx,
                     );
                     cx.runtime.need_component("hozoButtonProps");
@@ -120,6 +122,8 @@ pub(super) fn render_passthrough<'n>(
                 child_interaction_context,
                 group_ancestor,
                 subtree_report,
+                &[],
+                None,
                 cx,
             ),
         ));

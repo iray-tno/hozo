@@ -19,6 +19,7 @@ mod motion_props;
 mod passthrough;
 mod prepare;
 mod progress;
+mod pseudo;
 mod refusals;
 mod semantic_defaults;
 mod spreads;
@@ -196,6 +197,8 @@ pub(super) fn render_node(
         parent_measured,
         group_ancestor,
         subtree_report,
+        list_marker,
+        list_ordered,
     } = ancestor;
     let source = cx.source;
     let theme = cx.theme;
@@ -287,6 +290,9 @@ pub(super) fn render_node(
         pattern_slot: None,
         composition: Default::default(),
     };
+    let own_list_marker =
+        pseudo::extract_list_marker(&mut effective_own, inherited, &field_target, cx);
+    let own_item_marker = pseudo::extract_item_marker(node, &mut effective_own);
     let FieldColours {
         placeholder,
         caret,
@@ -454,13 +460,46 @@ pub(super) fn render_node(
         unified_scope,
     } = text_handoff::hand_down_text(node, component, &style, inherited, parent_font_size, cx);
 
-    let (child_declarations, own_declarations, mixing) = effects::own_declarations(
+    let (child_declarations, mut own_declarations, mixing) = effects::own_declarations(
         own_declarations,
         node,
         component,
         grid.is_some(),
         grid_item.is_some(),
     );
+
+    let marker_rendered = (node.primitive == Primitive::ListItem)
+        .then(|| {
+            pseudo::render_marker(
+                list_marker,
+                &own_item_marker,
+                &descend,
+                list_ordered,
+                &base_name,
+                node,
+                position,
+                has_group_interaction_owner,
+                group_ancestor,
+                peer.preceding,
+                cx,
+            )
+        })
+        .flatten();
+    if marker_rendered.is_some()
+        && !own_declarations.iter().any(|d| {
+            d.condition == Condition::Always
+                && matches!(d.property, StyleProperty::FlexDirection(_))
+        })
+    {
+        own_declarations.insert(
+            0,
+            StyleDeclaration {
+                source: Default::default(),
+                property: StyleProperty::FlexDirection(hozo_ir::FlexDirection::Row),
+                condition: Condition::Always,
+            },
+        );
+    }
 
     let mut frames = crate::conditions::AnimatedFrames::default();
     let animates = component == "HozoAnimated";
@@ -614,6 +653,10 @@ pub(super) fn render_node(
         uses_container_query,
         uses_container_size_query,
     } = host::container_use(node, &own_declarations, &descend);
+    let uses_container_size_query = uses_container_size_query
+        || marker_rendered
+            .as_ref()
+            .is_some_and(|marker| marker.uses_container_size);
     let renders_backdrop_filter = matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_)))
         && component == "View"
         && !declares_container;
@@ -882,36 +925,56 @@ pub(super) fn render_node(
         &mut props_text,
         cx,
     );
+    let marker_jsx = marker_rendered
+        .as_ref()
+        .map_or("", |marker| marker.jsx.as_str());
     let mut self_decl_subtree = SubtreeReport::default();
     for declaration in own_declarations
         .iter()
         .chain(text_declarations.iter())
         .chain(layout.backdrop.iter())
         .chain(effective_own.iter())
+        .chain(own_item_marker.iter())
+        .chain(list_marker.iter())
     {
         let report = condition_subtree_report(&declaration.condition);
         self_decl_subtree.focus |= report.focus;
         self_decl_subtree.hover |= report.hover;
         self_decl_subtree.focus_visible |= report.focus_visible;
     }
+    let list_marker_reads_subtree = |needle: &str| {
+        own_list_marker.iter().any(|declaration| {
+            condition_contains(&declaration.condition, |c| {
+                matches!(c, Condition::Expr(ConditionExpr::RawJs(expr)) if expr.contains(needle))
+            })
+        })
+    };
     let mut own_subtree = SubtreeReport {
         focus: subtree_child_report.focus
+            || list_marker_reads_subtree("__hozoSubtree.focused")
             || (self_decl_subtree.focus
                 && (props_text.contains("__hozoSubtree.focused")
+                    || marker_jsx.contains("__hozoSubtree.focused")
                     || self_style_parts
                         .iter()
                         .any(|part| part.contains("__hozoSubtree.focused")))),
         hover: subtree_child_report.hover
+            || list_marker_reads_subtree("__hozoSubtree.hovered")
+            || list_marker_reads_subtree("__hozoSubtree.pressed")
             || (self_decl_subtree.hover
                 && (props_text.contains("__hozoSubtree.hovered")
                     || props_text.contains("__hozoSubtree.pressed")
+                    || marker_jsx.contains("__hozoSubtree.hovered")
+                    || marker_jsx.contains("__hozoSubtree.pressed")
                     || self_style_parts.iter().any(|part| {
                         part.contains("__hozoSubtree.hovered")
                             || part.contains("__hozoSubtree.pressed")
                     }))),
         focus_visible: subtree_child_report.focus_visible
+            || list_marker_reads_subtree("__hozoSubtree.focusVisible")
             || (self_decl_subtree.focus_visible
                 && (props_text.contains("__hozoSubtree.focusVisible")
+                    || marker_jsx.contains("__hozoSubtree.focusVisible")
                     || self_style_parts
                         .iter()
                         .any(|part| part.contains("__hozoSubtree.focusVisible")))),
@@ -962,6 +1025,27 @@ pub(super) fn render_node(
     if encloses_text {
         cx.text_depth += 1;
     }
+    let combined_list_marker: Vec<StyleDeclaration> =
+        if node.primitive == Primitive::List && !own_list_marker.is_empty() {
+            list_marker
+                .iter()
+                .chain(own_list_marker.iter())
+                .cloned()
+                .collect()
+        } else {
+            Vec::new()
+        };
+    let child_list_marker: &[StyleDeclaration] =
+        if node.primitive == Primitive::List && !own_list_marker.is_empty() {
+            &combined_list_marker
+        } else {
+            list_marker
+        };
+    let child_list_ordered = if node.primitive == Primitive::List {
+        node.props.list_ordered.as_ref()
+    } else {
+        list_ordered
+    };
     let for_children = AncestorContext {
         inherited: &descend,
         parent_font_size: current_font_size,
@@ -977,6 +1061,8 @@ pub(super) fn render_node(
         parent_measured: measures_parent,
         group_ancestor: child_group_ancestor,
         subtree_report: child_subtree_report,
+        list_marker: child_list_marker,
+        list_ordered: child_list_ordered,
     };
     let raw_text_group_query = has_group_interaction_owner && interaction::owns_events(node);
     let (inner, needs_peer_scope) = child_list::render_child_list(
@@ -1057,6 +1143,7 @@ pub(super) fn render_node(
         && to_children
             .iter()
             .chain(descendants.iter())
+            .chain(own_list_marker.iter())
             .any(|declaration| {
                 condition_contains(&declaration.condition, |c| {
                     matches!(c, Condition::Expr(ConditionExpr::RawJs(expr)) if expr.contains("__hozoGroup."))
@@ -1078,6 +1165,7 @@ pub(super) fn render_node(
         || child_decls_read_group
         || unified_scope_reads_group
         || forwarded_reads_group
+        || marker_jsx.contains("__hozoGroup.")
         || (own_reads_group && props_text.contains("__hozoGroup."));
     let raw_text_reads_peer = node
         .children
@@ -1119,6 +1207,7 @@ pub(super) fn render_node(
             let forwarded_reads_peer = to_children
                 .iter()
                 .chain(descendants.iter())
+                .chain(own_list_marker.iter())
                 .any(|declaration| {
                     condition_contains(&declaration.condition, |c| {
                         matches!(c, Condition::Expr(ConditionExpr::RawJs(expr)) if expr.contains(&needle))
@@ -1127,6 +1216,7 @@ pub(super) fn render_node(
             raw_text_reads_peer
                 || child_decls_read_peer
                 || forwarded_reads_peer
+                || marker_jsx.contains(&needle)
                 || (own_reads_peer && props_text.contains(&needle))
         })
         .collect();
@@ -1140,7 +1230,7 @@ pub(super) fn render_node(
         rendered.text = format!("<{tag}{props_text} />");
         rendered
     } else {
-        let text = format!("<{tag}{props_text}>{}</{tag}>", inner.text);
+        let text = format!("<{tag}{props_text}>{marker_jsx}{}</{tag}>", inner.text);
         inner.wrap(text, 3 + tag.len())
     };
     if let Some(mut copies) = prop_copies {
@@ -1153,7 +1243,9 @@ pub(super) fn render_node(
         }
         rendered.copies = Some(copies);
     }
-    let uses_container_query = uses_container_query || props_text.contains("__hozoCq[");
+    let uses_container_query = uses_container_query
+        || props_text.contains("__hozoCq[")
+        || marker_jsx.contains("__hozoCq[");
     let rendered = wrappers::subtree_scope(rendered, uses_subtree_scope, cx);
     let rendered = wrappers::interaction_query(rendered, uses_group_interaction_query, cx);
     let rendered = wrappers::peer_query(rendered, &queried_peer_ids, cx);

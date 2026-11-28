@@ -2423,3 +2423,167 @@ fn enabled_text_goes_down_as_the_negation() {
         output.jsx
     );
 }
+
+#[test]
+fn marker_on_list_item_synthesizes_hidden_text_marker_with_row_layout() {
+    let source = r#"
+            import { List, ListItem } from '@hozo/core'
+            export function Demo() {
+              return (
+                <List>
+                  <ListItem className="marker:text-blue-500">One</ListItem>
+                </List>
+              )
+            }
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output.native_imports.contains(&"Text"),
+        "{:?}",
+        output.native_imports
+    );
+    assert!(
+        output
+            .jsx
+            .contains("<Text aria-hidden style={hozoStyles.hozo1_marker}>{'\\u2022 '}</Text>"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.styles.contains("flexDirection: 'row'"),
+        "{}",
+        output.styles
+    );
+    assert!(
+        output.styles.contains("color: '#2b7fff'"),
+        "{}",
+        output.styles
+    );
+}
+
+#[test]
+fn marker_on_ordered_list_forwards_to_list_items_with_ordinals() {
+    let source = r#"
+            import { List, ListItem } from '@hozo/core'
+            export function Demo() {
+              return (
+                <List ordered className="marker:text-blue-500">
+                  <ListItem>First</ListItem>
+                  <ListItem>Second</ListItem>
+                </List>
+              )
+            }
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("{'1. '}"), "{}", output.jsx);
+    assert!(output.jsx.contains("{'2. '}"), "{}", output.jsx);
+}
+
+#[test]
+fn marker_supports_custom_content_and_content_none() {
+    let source = r#"
+            import { List, ListItem } from '@hozo/core'
+            export function Demo() {
+              return (
+                <List className="marker:text-blue-500">
+                  <ListItem className="marker:content-['→_']">Custom</ListItem>
+                  <ListItem className="marker:content-none">Hidden</ListItem>
+                </List>
+              )
+            }
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("{'→ '}"), "{}", output.jsx);
+    assert_eq!(
+        output.jsx.matches("aria-hidden").count(),
+        1,
+        "{}",
+        output.jsx
+    );
+}
+
+#[test]
+fn marker_stacks_with_dark_first_group_hover_and_peer_hover() {
+    let source = r#"
+            import { Pressable, List, ListItem } from '@hozo/core'
+            export function Demo() {
+              return (
+                <Pressable className="group">
+                  <List>
+                    <Pressable className="peer" />
+                    <ListItem className="dark:marker:text-blue-500 group-hover:marker:bg-blue-500 peer-hover:marker:p-4">Item</ListItem>
+                  </List>
+                </Pressable>
+              )
+            }
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("HozoPressable"), "{}", output.jsx);
+    assert!(
+        output.jsx.contains("HozoInteractionQuery"),
+        "{}",
+        output.jsx
+    );
+    assert!(output.jsx.contains("HozoPeerScope"), "{}", output.jsx);
+    assert!(output.jsx.contains("HozoPeerQuery"), "{}", output.jsx);
+    assert!(output.jsx.contains("__hozoDark"), "{}", output.jsx);
+    assert!(output.jsx.contains("__hozoGroup.hovered"), "{}", output.jsx);
+    assert!(
+        output.jsx.contains("__hozoPeer[0].hovered"),
+        "{}",
+        output.jsx
+    );
+}
+
+#[test]
+fn marker_refuses_on_non_list_and_on_web_only_marker_properties() {
+    let view_src = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="marker:text-blue-500">x</View>
+            "#;
+    let view_parsed = hozo_parser::parse_tsx(view_src);
+    let view_out = lower(&view_parsed.roots[0].node, view_src, &Theme::default());
+    assert!(
+        view_out
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+        "{:?}",
+        view_out.diagnostics
+    );
+
+    let grid_src = r#"
+            import { List, ListItem } from '@hozo/core'
+            const el = <List><ListItem className="marker:grid">x</ListItem></List>
+            "#;
+    let grid_parsed = hozo_parser::parse_tsx(grid_src);
+    let grid_out = lower(&grid_parsed.roots[0].node, grid_src, &Theme::default());
+    assert!(
+        grid_out
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::WebOnlyPropertyOnNative),
+        "{:?}",
+        grid_out.diagnostics
+    );
+
+    let attr_src = r#"
+            import { List, ListItem } from '@hozo/core'
+            const el = <List><ListItem className="marker:content-[attr(data-n)]">x</ListItem></List>
+            "#;
+    let attr_parsed = hozo_parser::parse_tsx(attr_src);
+    let attr_out = lower(&attr_parsed.roots[0].node, attr_src, &Theme::default());
+    assert!(
+        !attr_out.diagnostics.is_empty(),
+        "{:?}",
+        attr_out.diagnostics
+    );
+}
