@@ -2871,3 +2871,81 @@ fn before_and_after_refuse_on_void_hosts_and_web_only_properties() {
         attr_out.diagnostics
     );
 }
+
+#[test]
+fn supports_queries_evaluate_at_compile_time_against_native_capability() {
+    let source = r#"
+            import { View } from '@hozo/core'
+            export function FeatureBox() {
+              return (
+                <View className="supports-[display:flex]:p-4 supports-[gap:1px]:m-2 not-supports-[display:grid]:bg-blue-500 supports-[not_(display:grid)]:opacity-50 supports-[(display:grid)_or_(display:flex)]:rounded-lg">
+                  x
+                </View>
+              )
+            }
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output.styles.contains("paddingTop: 16"),
+        "{}",
+        output.styles
+    );
+    assert!(output.styles.contains("marginTop: 8"), "{}", output.styles);
+    assert!(
+        output.styles.contains("backgroundColor: '#2b7fff'"),
+        "{}",
+        output.styles
+    );
+    assert!(output.styles.contains("opacity: 0.5"), "{}", output.styles);
+    assert!(
+        output.styles.contains("borderRadius: 8"),
+        "{}",
+        output.styles
+    );
+}
+
+#[test]
+fn unsupported_supports_queries_warn_cleanly_and_selector_queries_error() {
+    let grid_src = r#"
+            import { View } from '@hozo/core'
+            export function GridFallback() {
+              return <View className="flex supports-[display:grid]:p-4 supports-[display:grid]:grid">x</View>
+            }
+            "#;
+    let grid_parsed = hozo_parser::parse_tsx(grid_src);
+    let grid_out = lower(&grid_parsed.roots[0].node, grid_src, &Theme::default());
+    assert!(
+        !grid_out.diagnostics.is_empty(),
+        "false supports branch must warn rather than drop silently"
+    );
+    assert!(
+        grid_out
+            .diagnostics
+            .iter()
+            .all(|d| d.severity == Severity::Warning),
+        "progressive enhancement should warn, not error: {:?}",
+        grid_out.diagnostics
+    );
+    assert!(
+        !grid_out.styles.contains("paddingTop: 16"),
+        "{}",
+        grid_out.styles
+    );
+
+    let sel_src = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="supports-[selector(:has(*))]:p-4">x</View>
+            "#;
+    let sel_parsed = hozo_parser::parse_tsx(sel_src);
+    let sel_out = lower(&sel_parsed.roots[0].node, sel_src, &Theme::default());
+    assert!(
+        sel_out
+            .diagnostics
+            .iter()
+            .any(|d| d.severity == Severity::Error && d.code == DiagnosticCode::NotWiredOnNative),
+        "{:?}",
+        sel_out.diagnostics
+    );
+}

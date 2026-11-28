@@ -51,6 +51,7 @@ pub(super) fn stacked_guard(
                 | Condition::Responsive(_)
                 | Condition::Width { .. }
                 | Condition::Container { .. }
+                | Condition::Supports(_)
                 | Condition::Dark
                 | Condition::FirstChild
                 | Condition::LastChild
@@ -88,6 +89,8 @@ pub(super) fn stacked_guard(
     let mut guards = Vec::new();
     let mut uses_interactive_state = false;
     let mut applies = true;
+    let mut supports_false = false;
+    let mut reported_error = false;
     let statically_false = atoms
         .iter()
         .any(|atom| structural::condition_statically_false(atom, node, target.position));
@@ -98,7 +101,7 @@ pub(super) fn stacked_guard(
     // `motion-safe:data-[state=closed]:`: the same, for the
     // frame an element leaves to inside `Presence`.
     let mut leaves_to = false;
-    for atom in atoms {
+    for atom in &atoms {
         match atom {
             Condition::Disabled
             | Condition::Enabled
@@ -121,6 +124,7 @@ pub(super) fn stacked_guard(
             | Condition::Width { .. }
             | Condition::Dark
             | Condition::Container { .. }
+            | Condition::Supports(_)
             | Condition::FormState(
                 FormState::ReadOnly
                 | FormState::PlaceholderShown
@@ -133,7 +137,12 @@ pub(super) fn stacked_guard(
             ) => {
                 match guards::resolve(atom, target, source, runtime) {
                     Ok(guards::Guard::Known(true)) => {}
-                    Ok(guards::Guard::Known(false)) => applies = false,
+                    Ok(guards::Guard::Known(false)) => {
+                        if super::supports::mentions_supports(atom) {
+                            supports_false = true;
+                        }
+                        applies = false;
+                    }
                     Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),
                     Ok(guards::Guard::Interactive(guard)) => {
                         guards.push(guard);
@@ -171,6 +180,7 @@ pub(super) fn stacked_guard(
                                     .is_some_and(|group| interaction::owns_events(group.node))));
                         if !omitted_dead_channel {
                             diagnostics.push(unwired_variant(node, &reason, Severity::Error));
+                            reported_error = true;
                         }
                         applies = false;
                     }
@@ -207,6 +217,7 @@ pub(super) fn stacked_guard(
                 }) => guards.push(format!("({available} && {predicate})")),
                 Err(reason) => {
                     diagnostics.push(unwired_variant(node, &reason, Severity::Error));
+                    reported_error = true;
                     applies = false;
                 }
             },
@@ -214,6 +225,20 @@ pub(super) fn stacked_guard(
         }
     }
     if !applies {
+        if supports_false && !reported_error {
+            let written = atoms
+                .iter()
+                .filter_map(|condition| variant_spelling(condition))
+                .collect::<Vec<_>>()
+                .join(":");
+            diagnostics.push(unwired_variant(
+                node,
+                &format!(
+                    "`{written}:` evaluates to false on React Native, so this progressive-enhancement style is omitted on Native. On Web the `@supports` query evaluates in the browser."
+                ),
+                Severity::Warning,
+            ));
+        }
         return None;
     }
     let prefix = if guards.is_empty() {

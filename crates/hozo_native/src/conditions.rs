@@ -13,6 +13,7 @@ mod inline_parts;
 mod lands;
 mod presence;
 mod stacked;
+pub(crate) mod supports;
 mod unwired;
 
 use dark::with_dark_copies;
@@ -354,6 +355,7 @@ pub(super) fn build_style_entries_with_measured(
             | Condition::Width { .. }
             | Condition::Dark
             | Condition::Container { .. }
+            | Condition::Supports(_)
             | Condition::FormState(
                 FormState::ReadOnly
                 | FormState::PlaceholderShown
@@ -425,6 +427,8 @@ pub(super) fn build_style_entries_with_measured(
             }
             other => Err(unwired::unwired_diagnostic(other, node)),
         };
+        let omitted_supports =
+            matches!(lands, Ok(lands::Lands::Nowhere)) && supports::mentions_supports(&condition);
         match lands {
             Ok(lands::Lands::Base(prefix)) => {
                 base_parts.extend(guarded(&prefix));
@@ -476,7 +480,21 @@ pub(super) fn build_style_entries_with_measured(
                     ));
                 }
             }
-            Ok(lands::Lands::Nowhere) => {}
+            Ok(lands::Lands::Nowhere) => {
+                if supports::mentions_supports(&condition)
+                    && !matches!(condition, Condition::All(_))
+                {
+                    let written =
+                        variant_spelling(&condition).unwrap_or_else(|| "supports-[…]".to_string());
+                    diagnostics.push(unwired_variant(
+                        node,
+                        &format!(
+                            "`{written}:` evaluates to false on React Native, so this progressive-enhancement style is omitted on Native. On Web the `@supports` query evaluates in the browser."
+                        ),
+                        Severity::Warning,
+                    ));
+                }
+            }
             Err(diagnostic) => diagnostics.push(diagnostic),
         }
         if canonical_input {
@@ -493,7 +511,7 @@ pub(super) fn build_style_entries_with_measured(
         // new `Condition` fails to compile there rather than quietly joining
         // the set that gets computed and dropped. That is exactly how the
         // eight variants it now reports went unnoticed.
-        if !props.is_empty() {
+        if !props.is_empty() && !omitted_supports {
             // A rule that applies only in dark mode resolves its colours
             // against the dark palette -- whether it got here from a paired
             // token or from a `dark:` somebody wrote. Those two producing

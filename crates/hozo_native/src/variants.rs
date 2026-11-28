@@ -48,7 +48,17 @@ pub(super) fn condition_suffix(condition: &Condition) -> Option<String> {
             }
             Some("data".to_string())
         }
-        Condition::Supports(_) => Some("supports".to_string()),
+        Condition::Supports(query) => {
+            let clean: String = query
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .collect();
+            Some(if clean.is_empty() {
+                "supports".to_string()
+            } else {
+                format!("supports_{clean}")
+            })
+        }
         Condition::HasSelector(selector) => {
             let clean: String = selector
                 .chars()
