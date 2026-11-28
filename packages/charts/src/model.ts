@@ -141,6 +141,11 @@ export interface BarChartInput extends ChartInput {
 /** A series of a composed chart, drawn as bars (the default) or as a line. */
 export interface ComposedSeries extends ChartSeries {
   type?: 'bar' | 'line'
+  /**
+   * `'right'`: read against a second value axis on the right, with
+   * `y2`'s domain and format, for a series in other units.
+   */
+  axis?: 'left' | 'right'
 }
 
 /**
@@ -158,6 +163,8 @@ export interface ComposedChartInput extends ChartInput {
   series: readonly ComposedSeries[]
   /** How the line series run between values. */
   curve?: Curve
+  /** The right value axis, for the series that name it. */
+  y2?: ChartYAxis
 }
 
 export interface AreaChartInput extends LineChartInput {
@@ -284,6 +291,12 @@ export interface ChartModel {
   references: PlacedReference[]
   /** The value axis is logarithmic, which the summary says. */
   log?: boolean
+  /**
+   * The right value axis: its ticks, level with the left axis' so one set
+   * of gridlines serves both, the series read against it, and how wide its
+   * labels are, which a reference's label is placed beyond.
+   */
+  rightAxis?: { ticks: Tick[]; series: number[]; width: number }
 }
 
 /** A row's value: finite, or a gap. A string or null is a gap, not zero. */
@@ -326,6 +339,8 @@ export interface Frame {
   plot: ChartModel['plot']
   y: ValueScale
   yTicks: Tick[]
+  /** The values `yTicks` are at, for an axis that lines up with them. */
+  tickValues: number[]
   references: PlacedReference[]
   legend: LegendKey[]
 }
@@ -426,6 +441,7 @@ export function frame(input: ChartInput, domain: [number, number], log = false):
     plot: { x: left, y: top, width: Math.max(0, input.width - left - right), height: plotHeight },
     y,
     yTicks: tickValues.map((value, i) => ({ position: y(value), label: labels[i] as string })),
+    tickValues,
     references: placeReferences(input.references, y),
     legend: legend.keys,
   }
@@ -803,6 +819,31 @@ export function barChartModel(input: BarChartInput): ChartModel {
 }
 
 /**
+ * A round step and a start for `intervals` steps that cover `lo` to `hi`:
+ * the right axis' ticks, one level with each of the left axis' ticks, so
+ * neither axis needs gridlines of its own. The step is 1, 2, 2.5 or 5 of a
+ * power of ten, the smallest that reaches.
+ */
+export function alignedSteps(
+  lo: number,
+  hi: number,
+  intervals: number,
+): { start: number; step: number } {
+  const top = hi > lo ? hi : lo + 1
+  const raw = (top - lo) / Math.max(1, intervals)
+  let power = Math.floor(Math.log10(raw))
+  for (let guard = 0; guard < 40; guard++, power++)
+    for (const m of [1, 2, 2.5, 5]) {
+      const step = m * 10 ** power
+      if (step < raw * (1 - 1e-9)) continue
+      const start = Math.floor(lo / step + 1e-9) * step
+      if (start + step * intervals >= top - 1e-9)
+        return { start: Number(start.toPrecision(12)) + 0, step: Number(step.toPrecision(12)) }
+    }
+  return { start: lo, step: raw }
+}
+
+/**
  * Bars and lines over one category axis, as for revenue and its margin.
  * The bar series share each band side by side; a line runs through the
  * band centres. One y axis, so it includes zero for the bars. Bars are
@@ -812,17 +853,37 @@ export function composedChartModel(input: ComposedChartInput): ChartModel {
   const categories = categoriesOf(input)
   const values = input.series.map((series) => input.data.map((row) => rowValue(row, series.key)))
   const fontSize = input.fontSize ?? 12
-  const { plot, y, yTicks, references, legend } = frame(input, extent(values, true))
+  const right = input.series.flatMap((entry, i) => (entry.axis === 'right' ? [i] : []))
+  const left = values.filter((_, i) => !right.includes(i))
+  // The key names the axis a series is read against, since its colour cannot.
+  const keyed = right.length
+    ? {
+        ...input,
+        series: input.series.map((entry) =>
+          entry.axis === 'right' ? { ...entry, label: `${entry.label} (right axis)` } : entry,
+        ),
+      }
+    : input
+  const leftFrame = frame(keyed, extent(left.length ? left : [[0]], true))
+  const axis = right.length ? rightAxis(input, right, values, leftFrame) : undefined
+  const { plot, y, yTicks, references, legend } = axis
+    ? frame(
+        { ...keyed, margin: { ...input.margin, right: axis.margin } },
+        extent(left.length ? left : [[0]], true),
+      )
+    : leftFrame
+  const scaleOf = (series: number) => (axis && right.includes(series) ? axis.scale(y) : y)
   const band: BandScale<number> = bandScale(
     input.data.map((_, i) => i),
     [plot.x, plot.x + plot.width],
     { paddingInner: 0.2, paddingOuter: 0.1 },
   )
   const centers = input.data.map((_, i) => (band(i) as number) + band.bandwidth / 2)
-  const zero = y(Math.min(Math.max(0, y.domain[0]), y.domain[1]))
   const barSeries = input.series.flatMap((entry, i) => (entry.type === 'line' ? [] : [i]))
   const marks: Mark[] = []
-  for (const [slot, series] of barSeries.entries())
+  for (const [slot, series] of barSeries.entries()) {
+    const sy = scaleOf(series)
+    const base = sy(Math.min(Math.max(0, sy.domain[0]), sy.domain[1]))
     for (const [datum, value] of (values[series] ?? []).entries()) {
       if (value === undefined) continue
       const slots = barSlots(
@@ -836,16 +897,18 @@ export function composedChartModel(input: ComposedChartInput): ChartModel {
         series,
         datum,
         x: slots.at(slot),
-        y: Math.min(zero, y(value)),
+        y: Math.min(base, sy(value)),
         width: slots.size,
-        height: Math.abs(y(value) - zero),
+        height: Math.abs(sy(value) - base),
       })
     }
+  }
   finishBars(marks, values, false, false)
   for (const [series, entry] of input.series.entries()) {
     if (entry.type !== 'line') continue
+    const sy = scaleOf(series)
     const points = (values[series] ?? []).map((value, datum) =>
-      value === undefined ? undefined : ([centers[datum] as number, y(value)] as const),
+      value === undefined ? undefined : ([centers[datum] as number, sy(value)] as const),
     )
     marks.push({ kind: 'line', series, path: linePath(points, input.curve) })
     for (const [datum, point] of points.entries())
@@ -864,6 +927,63 @@ export function composedChartModel(input: ComposedChartInput): ChartModel {
     legend,
     centers,
     datumAt: nearest(centers),
+    ...(axis ? { rightAxis: { ticks: axis.ticks(y), series: right, width: axis.width } } : {}),
+  }
+}
+
+/**
+ * The right axis: a domain for the series that name it, stepped so that
+ * each of its ticks is level with one of the left axis', the room its
+ * labels take, and a reference's label room beyond them, which then moves
+ * out past the labels rather than over them.
+ */
+function rightAxis(
+  input: ComposedChartInput,
+  right: number[],
+  values: (number | undefined)[][],
+  left: Frame,
+) {
+  const fontSize = input.fontSize ?? 12
+  const gap = fontSize / 2
+  const format = input.y2?.format ?? defaultFormat
+  // Bars measure from zero; lines alone need not, as a rate of 2 to 5% reads best close up.
+  const bars = right.some((i) => input.series[i]?.type !== 'line')
+  const [lo, hi] = extent(
+    right.map((i) => values[i] ?? []),
+    bars,
+  )
+  // Map the left axis' first and last ticks onto the right's.
+  const leftTicks = left.tickValues
+  const first = leftTicks[0] ?? left.y.domain[0]
+  const last = leftTicks.at(-1) ?? left.y.domain[1]
+  const intervals = Math.max(1, leftTicks.length - 1)
+  const fixed = input.y2?.domain
+  const { start, step } = fixed
+    ? { start: fixed[0], step: (fixed[1] - fixed[0]) / intervals }
+    : alignedSteps(lo, hi, intervals)
+  const end = start + step * intervals
+  // Right value at a left value: linear between the two pairs of ticks.
+  const toRight = (value: number) =>
+    last === first ? start : start + ((value - first) / (last - first)) * (end - start)
+  const labels = Array.from({ length: intervals + 1 }, (_, i) =>
+    format(Number((start + i * step).toPrecision(12)) + 0),
+  )
+  const width = Math.ceil(
+    Math.max(0, ...labels.map((label) => estimateTextWidth(label, fontSize))) +
+      gap * 2 +
+      (input.y2?.label ? fontSize + gap : 0),
+  )
+  return {
+    width,
+    margin: input.margin?.right ?? width + referenceRoom(input.references, fontSize),
+    /** The right scale over the left one's range: right values at left positions. */
+    scale(y: ValueScale): ValueScale {
+      const [d0, d1] = y.domain
+      return linearScale([toRight(d0), toRight(d1)], y.range as [number, number])
+    },
+    ticks(y: ValueScale): Tick[] {
+      return leftTicks.map((value, i) => ({ position: y(value), label: labels[i] as string }))
+    },
   }
 }
 

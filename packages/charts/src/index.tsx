@@ -57,6 +57,7 @@ export {
 } from './funnel.ts'
 export {
   type AreaChartInput,
+  alignedSteps,
   areaChartModel,
   areaPath,
   BAR_MAX,
